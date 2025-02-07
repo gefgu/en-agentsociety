@@ -8,16 +8,16 @@
 
 # 🚀 AgentSociety
 ![License](https://img.shields.io/badge/license-MIT-green) &ensp;
-[![Online Documentation](https://img.shields.io/badge/docs-online-blue)](https://docs.fiblab.net/agentsociety) &ensp;
+[![Online Documentation](https://img.shields.io/badge/docs-online-blue)](https://agentsociety.readthedocs.io/en/latest/) &ensp;
 
 
 AgentSociety is an advanced framework specifically designed for building intelligent agents in urban simulation environments. With AgentSociety, you can easily create and manage agents, enabling complex urban scenarios to be modeled and simulated efficiently.
 
 ## 🌟 Features
-- **Modular Design**: Plug-and-play components for agent behavior.
-- **Urban Environment Simulation**: Built to simulate diverse urban scenarios.
-- **LLM Integration**: Connects to language models for enriched agent behavior.
-- **Flexible Configuration**: YAML-based configuration for easy customization.
+- **Mind-Behavior Coupling**: Integrates LLMs' planning, memory, and reasoning capabilities to generate realistic behaviors or uses established theories like Maslow’s Hierarchy of Needs and Theory of Planned Behavior for explicit modeling.
+- **Environment Design**: Supports dataset-based, text-based, and rule-based environments with varying degrees of realism and interactivity.
+- **Interactive Visualization**: Real-time interfaces for monitoring and interacting with agents during experiments.
+- **Extensive Tooling**: Includes utilities for interviews, surveys, interventions, and metric recording tailored for social experimentation.
 
 ## 📑 Table of Contents
 
@@ -31,105 +31,50 @@ AgentSociety is an advanced framework specifically designed for building intelli
 <a id="news"></a>
 ## 📰 News
 
-- 📢 **11.10** - Initial update is now live!
-- 📢 **2.x version is not compatible* with 1.x version**
+- 📢 **02.07** - Initial update is now live!
 
 Stay tuned for upcoming updates!
 
 <a id="framework"></a>
 ## 🛠️ Framework
 
-AgentSociety is built with a multi-layered architecture that allows users to create and manage intelligent agents for urban environments in a scalable and flexible manner. The framework is divided into several key layers, each responsible for different functionalities as depicted in the diagram below:
+AgentSociety presents a robust framework for simulating social behaviors and economic activities in a controlled, virtual environment. 
+Utilizing advanced LLMs, AgentSociety emulates human-like decision-making and interactions. 
+Our framework is divided into several key layers, each responsible for different functionalities as depicted in the diagram below:
 
 <img src="./static/framework.png" alt="AgentSociety Framework Overview" width="600" style="display: block; margin: 20px auto;">
 
 ### Architectural Layers
-- **Model Layer**: Handles agent configuration, task definitions, logging setup, and result aggregation.
-  - **Task Configuration**: Defines agent behaviors and objectives.
-  - **Unified Execution**: Centralized entry point for agent processes.
-
-- **Agent Layer**: Implements multi-head workflows to manage agent actions.
-  - **Memory**: Stores agent-related information, such as location and motion.
-    - **Static Profiles**: Maintains unchanging agent attributes.
-    - **Custom Data Pool**: Functions as a working memory.
-  - **Multi-Head Workflow**: Supports both normal and event-driven modes.
-    - **Reason Block**: Utilizes LLMs to determine decisions based on context and tools.
-    - **Route Block**: Chooses the best path based on defined criteria using LLMs or rules.
-    - **Action Block**: Executes actions as per defined contexts and tools.
-
-- **Message Layer**: Facilitates agent communication through peer-to-peer (P2P), peer-to-group (P2G), and group chats.
-
-- **Environment Layer**: Manages interaction with the urban environment.
-  - **Environment Sensing**: Reads data from the environment.
-  - **Interaction Handling**: Writes or modifies environmental states.
-  - **Message Management**: Handles incoming and outgoing agent messages.
-
-- **LLM Layer**: Provides configuration and integration for using LLMs in the agent's workflow.
-  - **Prompting & Execution**: Supports model invocation and monitoring.
-  - **Model Support**: Compatible with various LLMs, such as OpenAI, Qwen, Deepseek, etc.
-
-- **Tool Layer**: Provides additional utilities to the agents.
-  - **String Processing**: Handles parsing and formatting.
-  - **Result Analysis**: Parses responses in formats like JSON or dictionaries.
-  - **Data Storage & Retrieval**: Includes ranking and search tools.
+- **Model Layer**: At the core, this layer manages agent configuration, task definitions, logging setup, and result aggregation. It provides a unified execution entry point for all agent processes, ensuring centralized control over agent behaviors and objectives through task configuration.
+- **Agent Layer**: This layer implements multi-head workflows to manage various aspects of agent actions. The Memory component stores agent-related information such as location and motion, with static profiles maintaining unchanging attributes and a custom data pool acting as working memory. The Multi-Head Workflow supports both normal and event-driven modes, utilizing Reason Blocks (for decision-making based on context and tools via LLMs), Route Blocks (for selecting optimal paths using LLMs or rules), and Action Blocks (for executing defined actions).
+- **Message Layer**: Facilitating communication among agents, this layer supports peer-to-peer (P2P), peer-to-group (P2G), and group chat interactions, enabling rich, dynamic exchanges within the simulation.
+- **Environment Layer**: Managing the interaction between agents and their urban environment, this layer includes Environment Sensing for reading environmental data, Interaction Handling for modifying environmental states, and Message Management for processing incoming and outgoing messages from agents.
+- **LLM Layer**: Providing essential configuration and integration services for incorporating Large Language Models (LLMs) into the agents' workflow, this layer supports model invocation and monitoring through Prompting & Execution. It is compatible with various LLMs, including but not limited to OpenAI, Qwen, and Deepseek models, offering flexibility in model choice.
+- **Tool Layer**: Complementing the framework's capabilities, this layer offers utilities like string processing for parsing and formatting, result analysis for interpreting responses in formats like JSON or dictionaries, and data storage and retrieval mechanisms that include ranking and search functionalities.
 
 <a id="setup"></a>
 ## ⚙️ Setup
 
-You can set up AgentSociety in two different ways:
+You can set up AgentSociety easily via pip:
 
-### 1. From Scratch
+### Install via pip
 
-Follow these steps to set up AgentSociety from scratch by cloning the repository. The project is built using Python and managed with Poetry.
+Linux AMD64 or macOs
 
-1. **Clone the Repository**
-   ```bash
-   git clone [This Repository]
-   ```
-2. **Navigate to the Project Directory**
-   ```bash
-   cd agentsociety
-   ```
-3. **Install Poetry** (if not installed)
-   ```bash
-   curl -sSL https://install.python-poetry.org | python3 -
-   ```
-4. **Install Dependencies**
-   ```bash
-   poetry install
-   ```
-5. **Activate the Virtual Environment**
-   ```bash
-   poetry shell
-   ```
+Python >= 3.9
 
-### 2. Install via pip
-
-This method is not yet available. Stay tuned for future updates!
+```bash
+pip install agentsociety
+```
 
 <a id="quickstart"></a>
 ## 🚀 QuickStart
 
 Get started with AgentSociety in just a few minutes!
 
-### 1. Config Configuration
-AgentSociety uses a configuration file written in `.yaml` format to manage settings for various components. Below is a sample configuration file (`config_template.yaml`) that showcases the structure:
-
-```yaml
-llm_request:
-  request_type: openai
-  api_key: <YOUR_API_KEY>
-  model: gpt-4o
-
-simulator_request:
-  simulator:
-    server: https://api-opencity-2x.fiblab.net:58081
-  map_request:
-    file_path: ./cache/map_beijing5ring_withpoi_0424.pb
-```
-
-### 2. Example Usage
+### Example Usage
 To get started quickly, please refer to the `examples` folder in the repository. It contains sample scripts and configurations to help you understand how to create and use agents in an urban simulation environment.
+Check our online document for detailed usage tutorial: [AgentSociety Document](https://agentsociety.readthedocs.io/en/latest/01-quick-start.html).
 
 <a id="contributing"></a>
 ## 🤝 Contributing
