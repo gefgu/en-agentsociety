@@ -286,6 +286,8 @@ class AgentSimulation:
             BankAgent: agent_config.number_of_bank,
             NBSAgent: agent_config.number_of_nbs,
         }
+        if agent_config.extra_agent_class is not None:
+            agent_count.update(agent_config.extra_agent_class)
         if agent_count.get(SocietyAgent, 0) == 0:
             raise ValueError("number_of_citizen is required")
 

@@ -173,6 +173,17 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
+````{py:attribute} extra_agent_class
+:canonical: agentsociety.configs.exp_config.AgentConfig.extra_agent_class
+:type: typing.Optional[dict[typing.Any, int]]
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.configs.exp_config.AgentConfig.extra_agent_class
+```
+
+````
+
 ````{py:attribute} agent_class_configs
 :canonical: agentsociety.configs.exp_config.AgentConfig.agent_class_configs
 :type: typing.Optional[dict[typing.Any, dict[str, typing.Any]]]
@@ -228,7 +239,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:method} create(number_of_citizen: int = 1, number_of_firm: int = 1, number_of_government: int = 1, number_of_bank: int = 1, number_of_nbs: int = 1, group_size: int = 100, embedding_model: typing.Any = None, agent_class_configs: typing.Optional[dict[typing.Any, dict[str, typing.Any]]] = None, enable_institution: bool = True, memory_config_func: typing.Optional[dict[type[typing.Any], collections.abc.Callable]] = None, memory_config_init_func: typing.Optional[collections.abc.Callable] = None, init_func: typing.Optional[list[collections.abc.Callable[[agentsociety.simulation.AgentSimulation], None]]] = None) -> agentsociety.configs.exp_config.AgentConfig
+````{py:method} create(number_of_citizen: int = 1, number_of_firm: int = 1, number_of_government: int = 1, number_of_bank: int = 1, number_of_nbs: int = 1, group_size: int = 100, embedding_model: typing.Any = None, extra_agent_class: typing.Optional[dict[typing.Any, int]] = None, agent_class_configs: typing.Optional[dict[typing.Any, dict[str, typing.Any]]] = None, enable_institution: bool = True, memory_config_func: typing.Optional[dict[type[typing.Any], collections.abc.Callable]] = None, memory_config_init_func: typing.Optional[collections.abc.Callable] = None, init_func: typing.Optional[list[collections.abc.Callable[[agentsociety.simulation.AgentSimulation], None]]] = None) -> agentsociety.configs.exp_config.AgentConfig
 :canonical: agentsociety.configs.exp_config.AgentConfig.create
 :classmethod:
 
@@ -486,7 +497,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:method} SetAgentConfig(number_of_citizen: int = 1, number_of_firm: int = 1, number_of_government: int = 1, number_of_bank: int = 1, number_of_nbs: int = 1, group_size: int = 100, embedding_model: typing.Any = None, agent_class_configs: typing.Optional[dict[typing.Any, dict[str, list[dict]]]] = None, enable_institution: bool = True, memory_config_func: typing.Optional[dict[type[typing.Any], collections.abc.Callable]] = None, memory_config_init_func: typing.Optional[collections.abc.Callable] = None, init_func: typing.Optional[list[collections.abc.Callable[[agentsociety.simulation.AgentSimulation], None]]] = None) -> agentsociety.configs.exp_config.ExpConfig
+````{py:method} SetAgentConfig(number_of_citizen: int = 1, number_of_firm: int = 1, number_of_government: int = 1, number_of_bank: int = 1, number_of_nbs: int = 1, group_size: int = 100, embedding_model: typing.Any = None, extra_agent_class: typing.Optional[dict[typing.Any, int]] = None, agent_class_configs: typing.Optional[dict[typing.Any, dict[str, typing.Any]]] = None, enable_institution: bool = True, memory_config_func: typing.Optional[dict[type[typing.Any], collections.abc.Callable]] = None, memory_config_init_func: typing.Optional[collections.abc.Callable] = None, init_func: typing.Optional[list[collections.abc.Callable[[agentsociety.simulation.AgentSimulation], None]]] = None) -> agentsociety.configs.exp_config.ExpConfig
 :canonical: agentsociety.configs.exp_config.ExpConfig.SetAgentConfig
 
 ```{autodoc2-docstring} agentsociety.configs.exp_config.ExpConfig.SetAgentConfig

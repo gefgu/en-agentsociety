@@ -79,7 +79,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````{py:attribute} api_key
 :canonical: agentsociety.configs.sim_config.LLMRequestConfig.api_key
-:type: list[str]
+:type: typing.Union[list[str], str]
 :value: >
    'Field(...)'
 
@@ -99,7 +99,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:method} create(request_type: agentsociety.utils.LLMRequestType, api_key: list[str], model: str) -> agentsociety.configs.sim_config.LLMRequestConfig
+````{py:method} create(request_type: agentsociety.utils.LLMRequestType, api_key: typing.Union[list[str], str], model: str) -> agentsociety.configs.sim_config.LLMRequestConfig
 :canonical: agentsociety.configs.sim_config.LLMRequestConfig.create
 :classmethod:
 
@@ -636,7 +636,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:method} SetLLMRequest(request_type: agentsociety.utils.LLMRequestType, api_key: list[str], model: str) -> agentsociety.configs.sim_config.SimConfig
+````{py:method} SetLLMRequest(request_type: agentsociety.utils.LLMRequestType, api_key: typing.Union[list[str], str], model: str) -> agentsociety.configs.sim_config.SimConfig
 :canonical: agentsociety.configs.sim_config.SimConfig.SetLLMRequest
 
 ```{autodoc2-docstring} agentsociety.configs.sim_config.SimConfig.SetLLMRequest

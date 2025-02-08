@@ -160,18 +160,50 @@ Get value from the queue every `get_queue_period` seconds continually.
 
 Here we provide examples on how to perform typical social experiments with our framework.
 
-### 1.
+Check [AgentSociety/examples](https://github.com/tsinghua-fib-lab/agentsociety/tree/main/examples) for detailed codes.
+
+### Polarization
+
+We simulate agent discussions on immigration policy to investigate polarization, comparing a control group (no intervention) with two treatments—exposure to aligned messages (echo chambers) and opposing messages (backfiring effects)—to analyze their impact on deepening opinion divisions.
+
+Codes are available at [Polarization](https://github.com/tsinghua-fib-lab/agentsociety/tree/main/examples/polarization).
+
+```bash
+cd examples/polarization
+# control group
+python control.py
+# echo chambers
+python echo_chamber.py
+# backfiring effects
+python back_firing.py
+```
+
+
+### Spread of Inflammatory Messages
+
+We place 100 agents in our simulation environment, focusing on how emotionally charged content alters information spread and emotional dynamics compared to non-inflammatory messages, and testing two intervention strategies—node and edge interventions—to mitigate the negative impact of such content. 
+We further explore the psychological and social motivations behind users' sharing behaviors through interviews.
 
 PLACE-HOLDER
 
-### 2.
+### Universal Basic Income (UBI)
 
-PLACE-HOLDER
+Our experiment simulates the impact of a Universal Basic Income (UBI) policy, granting each agent $1,000 monthly, on the socio-economic environment of Texas, USA, comparing macroeconomic outcomes such as real GDP and consumption levels with and without UBI intervention.
 
-### 3.
+Codes are available at [UBI](https://github.com/tsinghua-fib-lab/agentsociety/tree/main/examples/UBI).
 
-PLACE-HOLDER
+```bash
+cd examples/UBI
+python main.py
+```
 
-### 4.
+### External Shocks of Hurricane
 
-PLACE-HOLDER
+The experiment focuses on analyzing the impact of Hurricane Dorian on human mobility in Columbia, South Carolina, using SafeGraph and Census Block Group data to model the movement behaviors of 1,000 social agents.
+
+Codes are available at [Hurricane](https://github.com/tsinghua-fib-lab/agentsociety/tree/main/examples/mobility).
+
+```bash
+cd examples/mobility
+python hurricane.py
+```

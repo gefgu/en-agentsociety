@@ -29,6 +29,7 @@ class AgentConfig(BaseModel):
     number_of_nbs: int = Field(1, description="Number of neighborhood-based services")
     group_size: int = Field(100, description="Size of agent groups")
     embedding_model: Any = Field(None, description="Embedding model")
+    extra_agent_class: Optional[dict[Any, int]] = None
     agent_class_configs: Optional[dict[Any, dict[str, Any]]] = None
     memory_config_func: Optional[dict[type["Any"], Callable]] = None
     memory_config_init_func: Optional[Callable] = Field(None)
@@ -47,6 +48,7 @@ class AgentConfig(BaseModel):
         number_of_nbs: int = 1,
         group_size: int = 100,
         embedding_model: Any = None,
+        extra_agent_class: Optional[dict[Any, int]] = None,
         agent_class_configs: Optional[dict[Any, dict[str, Any]]] = None,
         enable_institution: bool = True,
         memory_config_func: Optional[dict[type["Any"], Callable]] = None,
@@ -61,6 +63,7 @@ class AgentConfig(BaseModel):
             number_of_nbs=number_of_nbs,
             group_size=group_size,
             embedding_model=embedding_model,
+            extra_agent_class = extra_agent_class,
             agent_class_configs=agent_class_configs,
             enable_institution=enable_institution,
             memory_config_func=memory_config_func,
@@ -144,7 +147,8 @@ class ExpConfig(BaseModel):
         number_of_nbs: int = 1,
         group_size: int = 100,
         embedding_model: Any = None,
-        agent_class_configs: Optional[dict[Any, dict[str, list[dict]]]] = None,
+        extra_agent_class:Optional[dict[Any, int]] = None,
+        agent_class_configs: Optional[dict[Any, dict[str, Any]]] = None,
         enable_institution: bool = True,
         memory_config_func: Optional[dict[type["Any"], Callable]] = None,
         memory_config_init_func: Optional[Callable] = None,
@@ -158,6 +162,7 @@ class ExpConfig(BaseModel):
             number_of_nbs=number_of_nbs,
             group_size=group_size,
             embedding_model=embedding_model,
+            extra_agent_class = extra_agent_class,
             agent_class_configs=agent_class_configs,
             enable_institution=enable_institution,
             memory_config_func=memory_config_func,

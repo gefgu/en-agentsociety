@@ -1,5 +1,5 @@
 """
-Pycityagent: 城市智能体构建框架
+agentsociety: 城市智能体构建框架
 """
 
 import logging

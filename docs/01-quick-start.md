@@ -33,8 +33,8 @@ from agentsociety.configs import (ExpConfig, SimConfig, WorkflowStep,
                                  load_config_from_file)
 from agentsociety.simulation import AgentSimulation
 
-sim_config = load_config_from_file("examples/example_sim_config.yaml", SimConfig)
-exp_config = load_config_from_file("examples/example_exp_config.yaml", ExpConfig)
+sim_config = load_config_from_file("examples/config_templates/example_sim_config.yaml", SimConfig)
+exp_config = load_config_from_file("examples/config_templates/example_exp_config.yaml", ExpConfig)
 
 
 async def main():

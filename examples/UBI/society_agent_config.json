@@ -1,0 +1,170 @@
+{
+    "agent_name": "SocietyAgent",
+    "config": {
+        "enable_cognition": true,
+        "enable_mobility": true,
+        "enable_social": true,
+        "enable_economy": true
+    },
+    "description": {
+        "enable_cognition": "Enable cognition workflow",
+        "enable_mobility": "Enable mobility workflow",
+        "enable_social": "Enable social workflow",
+        "enable_economy": "Enable economy workflow"
+    },
+    "blocks": [
+        {
+            "name": "mindBlock",
+            "config": {},
+            "description": {},
+            "children": [
+                {
+                    "name": "cognitionBlock",
+                    "config": {
+                        "top_k": 20
+                    },
+                    "description": {
+                        "top_k": "Number of most relevant memories to return, defaults to 20"
+                    },
+                    "children": []
+                }
+            ]
+        },
+        {
+            "name": "planAndActionBlock",
+            "config": {},
+            "description": {},
+            "children": [
+                {
+                    "name": "monthPlanBlock",
+                    "config": {
+                        "UBI": 1000,
+                        "num_labor_hours": 168,
+                        "productivity_per_labor": 1
+                    },
+                    "description": {
+                        "UBI": "Universal Basic Income",
+                        "time_diff": "Time difference between two consecutive plans",
+                        "num_labor_hours": "Number of labor hours per month",
+                        "productivity_per_labor": "Productivity per labor hour"
+                    },
+                    "children": []
+                },
+                {
+                    "name": "needsBlock",
+                    "config": {},
+                    "description": {},
+                    "children": []
+                },
+                {
+                    "name": "planBlock",
+                    "config": {
+                        "max_plan_steps": 6
+                    },
+                    "description": {
+                        "max_plan_steps": "The maximum number of steps in a plan"
+                    },
+                    "children": []
+                },
+                {
+                    "name": "mobilityBlock",
+                    "config": {},
+                    "description": {},
+                    "children": [
+                        {
+                            "name": "place_selection_block",
+                            "config": {
+                                "search_limit": 10000
+                            },
+                            "description": {
+                                "search_limit": ""
+                            },
+                            "children": []
+                        },
+                        {
+                            "name": "move_block",
+                            "config": {},
+                            "description": {},
+                            "children": []
+                        },
+                        {
+                            "name": "mobility_none_block",
+                            "config": {},
+                            "description": {},
+                            "children": []
+                        }
+                    ]
+                },
+                {
+                    "name": "socialBlock",
+                    "config": {},
+                    "description": {},
+                    "children": [
+                        {
+                            "name": "find_person_block",
+                            "config": {},
+                            "description": {},
+                            "children": []
+                        },
+                        {
+                            "name": "message_block",
+                            "config": {},
+                            "description": {},
+                            "children": []
+                        },
+                        {
+                            "name": "noneblock",
+                            "config": {},
+                            "description": {},
+                            "children": []
+                        }
+                    ]
+                },
+                {
+                    "name": "economyBlock",
+                    "config": {},
+                    "description": {},
+                    "children": [
+                        {
+                            "name": "work_block",
+                            "config": {},
+                            "description": {},
+                            "children": []
+                        },
+                        {
+                            "name": "consumption_block",
+                            "config": {},
+                            "description": {},
+                            "children": []
+                        },
+                        {
+                            "name": "none_block",
+                            "config": {},
+                            "description": {},
+                            "children": []
+                        }
+                    ]
+                },
+                {
+                    "name": "otherBlock",
+                    "config": {},
+                    "description": {},
+                    "children": [
+                        {
+                            "name": "sleep_block",
+                            "config": {},
+                            "description": {},
+                            "children": []
+                        },
+                        {
+                            "name": "other_none_block",
+                            "config": {},
+                            "description": {},
+                            "children": []
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -329,3 +329,30 @@ class CustomAgent(Agent):
         await self.my_tool()  # Use the tool
 
 ```
+
+### Initialization within Your Experiment
+Set your agent classes and their count with `configs.ExpConfig`.
+
+```python
+import logging
+
+from agentsociety.cityagent import memory_config_societyagent
+from agentsociety.configs import ExpConfig
+
+exp_config = (
+    ExpConfig(exp_name="cognition_exp3", llm_semaphore=200, logging_level=logging.INFO)
+    .SetAgentConfig(
+        number_of_citizen=100,
+        group_size=50,
+        extra_agent_class={
+            # your defined agent classes
+            DisagreeAgent: 1,
+            AgreeAgent: 1
+        },
+        memory_config_func={
+            DisagreeAgent: memory_config_societyagent,
+            AgreeAgent: memory_config_societyagent
+        }
+    )
+)
+```

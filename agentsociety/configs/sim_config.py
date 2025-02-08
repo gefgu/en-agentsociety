@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -13,12 +13,14 @@ class LLMRequestConfig(BaseModel):
     request_type: LLMRequestType = Field(
         ..., description="The type of the request or provider"
     )
-    api_key: list[str] = Field(..., description="API key for accessing the service")
+    api_key: Union[list[str], str] = Field(
+        ..., description="API key for accessing the service"
+    )
     model: str = Field(..., description="The model to use")
 
     @classmethod
     def create(
-        cls, request_type: LLMRequestType, api_key: list[str], model: str
+        cls, request_type: LLMRequestType, api_key: Union[list[str], str], model: str
     ) -> "LLMRequestConfig":
         return cls(request_type=request_type, api_key=api_key, model=model)
 
@@ -107,7 +109,9 @@ class PostgreSQLConfig(BaseModel):
 
 
 class AvroConfig(BaseModel):
-    enabled: Optional[bool] = Field(False, description="Whether Avro storage is enabled")
+    enabled: Optional[bool] = Field(
+        False, description="Whether Avro storage is enabled"
+    )
     path: str = Field(..., description="Avro file storage path")
 
     @classmethod
@@ -171,7 +175,7 @@ class SimConfig(BaseModel):
         return self.metric_request  # type:ignore
 
     def SetLLMRequest(
-        self, request_type: LLMRequestType, api_key: list[str], model: str
+        self, request_type: LLMRequestType, api_key: Union[list[str], str], model: str
     ) -> "SimConfig":
         self.llm_request = LLMRequestConfig.create(request_type, api_key, model)
         return self
