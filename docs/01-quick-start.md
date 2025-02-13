@@ -236,7 +236,7 @@ Click one Agent avatar for detailed information.
 
 ### Storage Experiment locally
 
-Please check [Record Experiment with Avro](04-advanced-usage.md#record-experiment-with-avro) for details.
+Please check [Record Experiment with Avro](05-advanced-usage.md#record-experiment-with-avro) for details.
 
 ### Extract Specific Metrics
 
@@ -337,6 +337,9 @@ exp_config = (
     )
 )
 ```
+## Use Case
+
+To see implemented examples of social experiments with our platform, please check [Use Case](04-use-case.md#use-case).
 
 ## Next Steps
 
@@ -384,6 +387,6 @@ Setup Ray for distributed simulation
 ### Advanced Usage Guidance
 
 For detailed implementation of these features, refer to:
-- [Record Experiment with Avro](04-advanced-usage.md#record-experiment-with-avro)
-- [Record Experiment with PostgreSQL](04-advanced-usage.md#record-experiment-with-postgresql)
-- [Distributed Simulation Setup](04-advanced-usage.md#distributed-simulation)
+- [Record Experiment with Avro](05-advanced-usage.md#record-experiment-with-avro)
+- [Record Experiment with PostgreSQL](05-advanced-usage.md#record-experiment-with-postgresql)
+- [Distributed Simulation Setup](05-advanced-usage.md#distributed-simulation)

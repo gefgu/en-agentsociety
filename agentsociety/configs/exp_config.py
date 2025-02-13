@@ -14,10 +14,10 @@ if TYPE_CHECKING:
 
 class WorkflowStep(BaseModel):
     type: WorkflowType
-    days: int = Field(1, description="Number of simulation days")
-    times: int = Field(1, description="Step Execution Times")
-    description: str = Field("no description")
     func: Optional[Callable] = None
+    days: int = 1
+    times: int = 1
+    description: str = "no description"
 
 
 class AgentConfig(BaseModel):
@@ -63,7 +63,7 @@ class AgentConfig(BaseModel):
             number_of_nbs=number_of_nbs,
             group_size=group_size,
             embedding_model=embedding_model,
-            extra_agent_class = extra_agent_class,
+            extra_agent_class=extra_agent_class,
             agent_class_configs=agent_class_configs,
             enable_institution=enable_institution,
             memory_config_func=memory_config_func,
@@ -98,12 +98,25 @@ class EnvironmentConfig(BaseModel):
 
 
 class MessageInterceptConfig(BaseModel):
-    mode: str = Field(..., pattern="^(point|edge)$")
-    max_violation_time: int = Field(default=3)
+    mode: Optional[Union[Literal["point"], Literal["edge"]]] = None
+    max_violation_time: int = 3
+    message_interceptor_blocks: Optional[list[Any]] = None
+    message_listener: Optional[Any] = None
 
     @classmethod
-    def create(cls, mode: str, max_violation_time: int = 3) -> "MessageInterceptConfig":
-        return cls(mode=mode, max_violation_time=max_violation_time)
+    def create(
+        cls,
+        mode: Optional[Union[Literal["point"], Literal["edge"]]] = None,
+        max_violation_time: int = 3,
+        message_interceptor_blocks: Optional[list[Any]] = None,
+        message_listener: Optional[Any] = None,
+    ) -> "MessageInterceptConfig":
+        return cls(
+            mode=mode,
+            max_violation_time=max_violation_time,
+            message_interceptor_blocks=message_interceptor_blocks,
+            message_listener=message_listener,
+        )
 
 
 class ExpConfig(BaseModel):
@@ -147,7 +160,7 @@ class ExpConfig(BaseModel):
         number_of_nbs: int = 1,
         group_size: int = 100,
         embedding_model: Any = None,
-        extra_agent_class:Optional[dict[Any, int]] = None,
+        extra_agent_class: Optional[dict[Any, int]] = None,
         agent_class_configs: Optional[dict[Any, dict[str, Any]]] = None,
         enable_institution: bool = True,
         memory_config_func: Optional[dict[type["Any"], Callable]] = None,
@@ -162,7 +175,7 @@ class ExpConfig(BaseModel):
             number_of_nbs=number_of_nbs,
             group_size=group_size,
             embedding_model=embedding_model,
-            extra_agent_class = extra_agent_class,
+            extra_agent_class=extra_agent_class,
             agent_class_configs=agent_class_configs,
             enable_institution=enable_institution,
             memory_config_func=memory_config_func,
@@ -190,11 +203,16 @@ class ExpConfig(BaseModel):
 
     def SetMessageIntercept(
         self,
-        mode: Union[Literal["point"], Literal["edge"]],
+        mode: Optional[Union[Literal["point"], Literal["edge"]]] = None,
         max_violation_time: int = 3,
+        message_interceptor_blocks: Optional[list[Any]] = None,
+        message_listener: Optional[Any] = None,
     ) -> "ExpConfig":
         self.message_intercept = MessageInterceptConfig.create(
-            mode=mode, max_violation_time=max_violation_time
+            mode=mode,
+            max_violation_time=max_violation_time,
+            message_interceptor_blocks=message_interceptor_blocks,
+            message_listener=message_listener,
         )
         return self
 

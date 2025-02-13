@@ -1,5 +1,4 @@
 import asyncio
-import copy
 import json
 import logging
 import os
@@ -15,20 +14,6 @@ from agentsociety.utils import LLMRequestType, WorkflowType
 logging.getLogger("agentsociety").setLevel(logging.INFO)
 
 ray.init(logging_level=logging.WARNING, log_to_driver=True)
-
-
-async def gather_attitude(simulation: AgentSimulation):
-    print("gather attitude")
-    citizen_uuids = await simulation.filter(types=[SocietyAgent])
-    attitudes = await simulation.gather("attitude", citizen_uuids)
-
-    with open(f"exp1/attitudes_final.json", "w", encoding="utf-8") as f:
-        json.dump(attitudes, f, ensure_ascii=False, indent=2)
-
-    chat_histories = await simulation.gather("chat_histories", citizen_uuids)
-    with open(f"exp1/chat_histories.json", "w", encoding="utf-8") as f:
-        json.dump(chat_histories, f, ensure_ascii=False, indent=2)
-
 
 async def update_attitude(simulation: AgentSimulation):
     citizen_uuids = await simulation.filter(types=[SocietyAgent])
@@ -46,48 +31,18 @@ async def update_attitude(simulation: AgentSimulation):
         json.dump(attitudes, f, ensure_ascii=False, indent=2)
 
 
-async def update_chat_histories(simulation: AgentSimulation):
+async def gather_attitude(simulation: AgentSimulation):
+    print("gather attitude")
     citizen_uuids = await simulation.filter(types=[SocietyAgent])
     attitudes = await simulation.gather("attitude", citizen_uuids)
-    chat_histories = await simulation.gather("chat_histories", citizen_uuids)
-    for agent in citizen_uuids:
-        attitude = attitudes[1][agent]["Whether to support stronger gun control?"]
-        if attitude > 5:
-            chat_history = copy.deepcopy(chat_histories[1][agent])
-            for chat in chat_history.keys():
-                chat_history[
-                    chat
-                ] += "them: You have to support the current immigration policy! "
-            await simulation.update(agent, "chat_histories", chat_history)
-        else:
-            chat_history = copy.deepcopy(chat_histories[1][agent])
-            for chat in chat_history.keys():
-                chat_history[
-                    chat
-                ] += "them: You have to oppose the current immigration policy! "
-            await simulation.update(agent, "chat_histories", chat_history)
 
+    with open(f"exp1/attitudes_final.json", "w", encoding="utf-8") as f:
+        json.dump(attitudes, f, ensure_ascii=False, indent=2)
 
-async def clear_chat_histories(simulation: AgentSimulation):
-    citizen_uuids = await simulation.filter(types=[SocietyAgent])
-    attitudes = await simulation.gather("attitude", citizen_uuids)
     chat_histories = await simulation.gather("chat_histories", citizen_uuids)
-    for agent in citizen_uuids:
-        attitude = attitudes[1][agent]["Whether to support stronger gun control?"]
-        if attitude > 5:
-            chat_history = copy.deepcopy(chat_histories[1][agent])
-            for chat in chat_history.keys():
-                chat_history[chat] = (
-                    "them: You have to support the current gun control policy! "
-                )
-            await simulation.update(agent, "chat_histories", chat_history)
-        else:
-            chat_history = copy.deepcopy(chat_histories[1][agent])
-            for chat in chat_history.keys():
-                chat_history[chat] = (
-                    "them: You have to oppose the current gun control policy! "
-                )
-            await simulation.update(agent, "chat_histories", chat_history)
+    with open(f"exp1/chat_histories.json", "w", encoding="utf-8") as f:
+        json.dump(chat_histories, f, ensure_ascii=False, indent=2)
+
 
 
 sim_config = (

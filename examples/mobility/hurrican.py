@@ -30,23 +30,6 @@ async def update_weather_and_temperature(simulation: AgentSimulation):
             "weather", "The weather is normal and does not affect travel"
         )
 
-
-async def gather_work_home(simulation: AgentSimulation):
-    print("gather plan & work & home")
-    citizen_uuids = await simulation.filter(types=[SocietyAgent])
-    plans = await simulation.gather("plan_history", citizen_uuids)
-    homes = await simulation.gather("home", citizen_uuids)
-    works = await simulation.gather("work", citizen_uuids)
-    with open(f"./plans.json", "w", encoding="utf-8") as f:
-        json.dump(plans, f, ensure_ascii=False, indent=2)
-
-    with open(f"./homes.json", "w", encoding="utf-8") as f:
-        json.dump(homes, f, ensure_ascii=False, indent=2)
-
-    with open(f"./works.json", "w", encoding="utf-8") as f:
-        json.dump(works, f, ensure_ascii=False, indent=2)
-
-
 sim_config = (
     SimConfig()
     .SetLLMRequest(

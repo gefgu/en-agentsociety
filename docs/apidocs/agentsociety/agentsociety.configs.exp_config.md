@@ -45,11 +45,22 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
+````{py:attribute} func
+:canonical: agentsociety.configs.exp_config.WorkflowStep.func
+:type: typing.Optional[collections.abc.Callable]
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.configs.exp_config.WorkflowStep.func
+```
+
+````
+
 ````{py:attribute} days
 :canonical: agentsociety.configs.exp_config.WorkflowStep.days
 :type: int
 :value: >
-   'Field(...)'
+   1
 
 ```{autodoc2-docstring} agentsociety.configs.exp_config.WorkflowStep.days
 ```
@@ -60,7 +71,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 :canonical: agentsociety.configs.exp_config.WorkflowStep.times
 :type: int
 :value: >
-   'Field(...)'
+   1
 
 ```{autodoc2-docstring} agentsociety.configs.exp_config.WorkflowStep.times
 ```
@@ -71,20 +82,9 @@ Bases: {py:obj}`pydantic.BaseModel`
 :canonical: agentsociety.configs.exp_config.WorkflowStep.description
 :type: str
 :value: >
-   'Field(...)'
+   'no description'
 
 ```{autodoc2-docstring} agentsociety.configs.exp_config.WorkflowStep.description
-```
-
-````
-
-````{py:attribute} func
-:canonical: agentsociety.configs.exp_config.WorkflowStep.func
-:type: typing.Optional[collections.abc.Callable]
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.configs.exp_config.WorkflowStep.func
 ```
 
 ````
@@ -328,9 +328,9 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````{py:attribute} mode
 :canonical: agentsociety.configs.exp_config.MessageInterceptConfig.mode
-:type: str
+:type: typing.Optional[typing.Union[typing.Literal[point], typing.Literal[edge]]]
 :value: >
-   'Field(...)'
+   None
 
 ```{autodoc2-docstring} agentsociety.configs.exp_config.MessageInterceptConfig.mode
 ```
@@ -341,14 +341,36 @@ Bases: {py:obj}`pydantic.BaseModel`
 :canonical: agentsociety.configs.exp_config.MessageInterceptConfig.max_violation_time
 :type: int
 :value: >
-   'Field(...)'
+   3
 
 ```{autodoc2-docstring} agentsociety.configs.exp_config.MessageInterceptConfig.max_violation_time
 ```
 
 ````
 
-````{py:method} create(mode: str, max_violation_time: int = 3) -> agentsociety.configs.exp_config.MessageInterceptConfig
+````{py:attribute} message_interceptor_blocks
+:canonical: agentsociety.configs.exp_config.MessageInterceptConfig.message_interceptor_blocks
+:type: typing.Optional[list[typing.Any]]
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.configs.exp_config.MessageInterceptConfig.message_interceptor_blocks
+```
+
+````
+
+````{py:attribute} message_listener
+:canonical: agentsociety.configs.exp_config.MessageInterceptConfig.message_listener
+:type: typing.Optional[typing.Any]
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.configs.exp_config.MessageInterceptConfig.message_listener
+```
+
+````
+
+````{py:method} create(mode: typing.Optional[typing.Union[typing.Literal[point], typing.Literal[edge]]] = None, max_violation_time: int = 3, message_interceptor_blocks: typing.Optional[list[typing.Any]] = None, message_listener: typing.Optional[typing.Any] = None) -> agentsociety.configs.exp_config.MessageInterceptConfig
 :canonical: agentsociety.configs.exp_config.MessageInterceptConfig.create
 :classmethod:
 
@@ -513,7 +535,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:method} SetMessageIntercept(mode: typing.Union[typing.Literal[point], typing.Literal[edge]], max_violation_time: int = 3) -> agentsociety.configs.exp_config.ExpConfig
+````{py:method} SetMessageIntercept(mode: typing.Optional[typing.Union[typing.Literal[point], typing.Literal[edge]]] = None, max_violation_time: int = 3, message_interceptor_blocks: typing.Optional[list[typing.Any]] = None, message_listener: typing.Optional[typing.Any] = None) -> agentsociety.configs.exp_config.ExpConfig
 :canonical: agentsociety.configs.exp_config.ExpConfig.SetMessageIntercept
 
 ```{autodoc2-docstring} agentsociety.configs.exp_config.ExpConfig.SetMessageIntercept

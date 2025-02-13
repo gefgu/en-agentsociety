@@ -294,26 +294,36 @@ class AgentSimulation:
         # support MessageInterceptor
         if config.message_intercept is not None:
             intercept_config = config.message_intercept
-            if intercept_config.mode == "point":
-                _interceptor_blocks = [
-                    PointMessageBlock(
-                        max_violation_time=intercept_config.max_violation_time
+            if intercept_config.mode is not None:
+                if intercept_config.mode == "point":
+                    _interceptor_blocks = [
+                        PointMessageBlock(
+                            max_violation_time=intercept_config.max_violation_time
+                        )
+                    ]
+                elif intercept_config.mode == "edge":
+                    _interceptor_blocks = [
+                        EdgeMessageBlock(
+                            max_violation_time=intercept_config.max_violation_time
+                        )
+                    ]
+                else:
+                    raise ValueError(
+                        f"Unsupported interception mode `{intercept_config.mode}!`"
                     )
-                ]
-            elif intercept_config.mode == "edge":
-                _interceptor_blocks = [
-                    EdgeMessageBlock(
-                        max_violation_time=intercept_config.max_violation_time
-                    )
-                ]
+                _message_intercept_kwargs = {
+                    "message_interceptor_blocks": _interceptor_blocks,
+                    "message_listener": MessageBlockListener(),
+                }
+            elif intercept_config.message_interceptor_blocks is not None:
+                _message_intercept_kwargs = {
+                    "message_interceptor_blocks": intercept_config.message_interceptor_blocks,
+                    "message_listener": intercept_config.message_listener,
+                }
             else:
-                raise ValueError(
-                    f"Unsupported interception mode `{intercept_config.mode}!`"
+                raise RuntimeError(
+                    "Either intercept_config.mode or intercept_config.message_interceptor_blocks should be provided!"
                 )
-            _message_intercept_kwargs = {
-                "message_interceptor_blocks": _interceptor_blocks,
-                "message_listener": MessageBlockListener(),
-            }
         else:
             _message_intercept_kwargs = {}
         embedding_model = agent_config.embedding_model

@@ -11,6 +11,13 @@ Python >= 3.9
 pip install agentsociety
 ```
 
+## Contact Us
+
+We cordially invite scholars from social sciences, LLM, and intelligent agent fields, to explore our platform. 
+Researchers may contact us with [Email](mailto:agentsociety.fiblab2025@gmail.com) and submit your research proposal. Approved applicants will receive beta credentials to conduct experiments on our platform with our team's guidance. 
+ 
+We welcome collaborative opportunities to advance social science research through our platform.
+
 ## Table of Contents
 
 ```{toctree}
@@ -19,6 +26,7 @@ pip install agentsociety
 01-quick-start
 02-custom-agents
 03-experiment-design
-04-advanced-usage
+04-use-case
+05-advanced-usage
 apidocs/index
 ```

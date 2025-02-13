@@ -18,19 +18,6 @@ logging.getLogger("agentsociety").setLevel(logging.INFO)
 ray.init(logging_level=logging.WARNING, log_to_driver=True)
 
 
-async def gather_attitude(simulation: AgentSimulation):
-    print("gather attitude")
-    citizen_uuids = await simulation.filter(types=[SocietyAgent])
-    attitudes = await simulation.gather("attitude", citizen_uuids)
-
-    with open(f"exp3/attitudes_final.json", "w", encoding="utf-8") as f:
-        json.dump(attitudes, f, ensure_ascii=False, indent=2)
-
-    chat_histories = await simulation.gather("chat_histories", citizen_uuids)
-    with open(f"exp3/chat_histories.json", "w", encoding="utf-8") as f:
-        json.dump(chat_histories, f, ensure_ascii=False, indent=2)
-
-
 async def update_attitude(simulation: AgentSimulation):
     citizen_uuids = await simulation.filter(types=[SocietyAgent])
     agree_agent_uuid = await simulation.filter(types=[AgreeAgent])
@@ -57,6 +44,19 @@ async def update_attitude(simulation: AgentSimulation):
     attitudes = await simulation.gather("attitude", citizen_uuids)
     with open(f"exp3/attitudes_initial.json", "w", encoding="utf-8") as f:
         json.dump(attitudes, f, ensure_ascii=False, indent=2)
+
+
+async def gather_attitude(simulation: AgentSimulation):
+    print("gather attitude")
+    citizen_uuids = await simulation.filter(types=[SocietyAgent])
+    attitudes = await simulation.gather("attitude", citizen_uuids)
+
+    with open(f"exp3/attitudes_final.json", "w", encoding="utf-8") as f:
+        json.dump(attitudes, f, ensure_ascii=False, indent=2)
+
+    chat_histories = await simulation.gather("chat_histories", citizen_uuids)
+    with open(f"exp3/chat_histories.json", "w", encoding="utf-8") as f:
+        json.dump(chat_histories, f, ensure_ascii=False, indent=2)
 
 
 sim_config = (
