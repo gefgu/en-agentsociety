@@ -3,8 +3,6 @@ import random
 from collections import deque
 
 import numpy as np
-import pycityproto.city.economy.v2.economy_pb2 as economyv2
-from mosstool.map._map_util.const import AOI_START_ID
 
 pareto_param = 8
 payment_max_skill_multiplier_base = 950
@@ -23,12 +21,10 @@ index_lock = threading.Lock()
 def memory_config_societyagent_hurrican():
     if not hasattr(memory_config_societyagent_hurrican, "profile_list"):
         with open("profiles_with_aoi.json", "r") as f:
-            memory_config_societyagent_hurrican.profile_list = json.load(f)
-
-    index = random.randint(0, len(memory_config_societyagent_hurrican.profile_list) - 1)
-    profile = memory_config_societyagent_hurrican.profile_list[index]
-
-    # print(f"index: {memory_config_societyagent_hurrican.index}, home: {profile['home']}, work: {profile['work']}")
+            setattr(memory_config_societyagent_hurrican, "profile_list", json.load(f))
+    profile_list = getattr(memory_config_societyagent_hurrican, "profile_list")
+    index = random.randint(0, len(profile_list) - 1)
+    profile = profile_list[index]
 
     EXTRA_ATTRIBUTES = {
         "type": (str, "citizen"),
@@ -206,129 +202,3 @@ def memory_config_societyagent_hurrican():
     }
 
     return EXTRA_ATTRIBUTES, PROFILE, BASE
-
-
-def memory_config_firm():
-    global work_locations
-    EXTRA_ATTRIBUTES = {
-        "type": (int, economyv2.ORG_TYPE_FIRM),
-        "location": {"aoi_position": {"aoi_id": random.choice(work_locations)}},
-        "price": (float, float(np.mean(agent_skills))),
-        "inventory": (int, 0),
-        "employees": (list, []),
-        "employees_agent_id": (list, []),
-        "nominal_gdp": (list, []),  # useless
-        "real_gdp": (list, []),
-        "unemployment": (list, []),
-        "wages": (list, []),
-        "demand": (int, 0),
-        "sales": (int, 0),
-        "prices": (list, [float(np.mean(agent_skills))]),
-        "working_hours": (list, []),
-        "depression": (list, []),
-        "consumption_currency": (list, []),
-        "income_currency": (list, []),
-        "locus_control": (list, []),
-        "bracket_cutoffs": (
-            list,
-            list(np.array([0, 9875, 40125, 85525, 163300, 207350, 518400]) / 12),
-        ),
-        "bracket_rates": (list, [0.1, 0.12, 0.22, 0.24, 0.32, 0.35, 0.37]),
-        "interest_rate": (float, 0.03),
-        "citizens": (list, []),
-        "citizens_agent_id": (list, []),
-        "firm_id": (int, 0),
-    }
-    return EXTRA_ATTRIBUTES, {"currency": 1e12}, {}
-
-
-def memory_config_government():
-    EXTRA_ATTRIBUTES = {
-        "type": (int, economyv2.ORG_TYPE_GOVERNMENT),
-        # 'bracket_cutoffs': (list, list(np.array([0, 97, 394.75, 842, 1607.25, 2041, 5103])*100/12)),
-        "bracket_cutoffs": (
-            list,
-            list(np.array([0, 9875, 40125, 85525, 163300, 207350, 518400]) / 12),
-        ),
-        "bracket_rates": (list, [0.1, 0.12, 0.22, 0.24, 0.32, 0.35, 0.37]),
-        "citizens": (list, []),
-        "citizens_agent_id": (list, []),
-        "nominal_gdp": (list, []),  # useless
-        "real_gdp": (list, []),
-        "unemployment": (list, []),
-        "wages": (list, []),
-        "prices": (list, [float(np.mean(agent_skills))]),
-        "working_hours": (list, []),
-        "depression": (list, []),
-        "consumption_currency": (list, []),
-        "income_currency": (list, []),
-        "locus_control": (list, []),
-        "inventory": (int, 0),
-        "interest_rate": (float, 0.03),
-        "price": (float, float(np.mean(agent_skills))),
-        "employees": (list, []),
-        "employees_agent_id": (list, []),
-        "firm_id": (int, 0),
-    }
-    return EXTRA_ATTRIBUTES, {"currency": 1e12}, {}
-
-
-def memory_config_bank():
-    EXTRA_ATTRIBUTES = {
-        "type": (int, economyv2.ORG_TYPE_BANK),
-        "interest_rate": (float, 0.03),
-        "citizens": (list, []),
-        "citizens_agent_id": (list, []),
-        "bracket_cutoffs": (
-            list,
-            list(np.array([0, 9875, 40125, 85525, 163300, 207350, 518400]) / 12),
-        ),  # useless
-        "bracket_rates": (list, [0.1, 0.12, 0.22, 0.24, 0.32, 0.35, 0.37]),
-        "inventory": (int, 0),
-        "nominal_gdp": (list, []),  # useless
-        "real_gdp": (list, []),
-        "unemployment": (list, []),
-        "wages": (list, []),
-        "prices": (list, [float(np.mean(agent_skills))]),
-        "working_hours": (list, []),
-        "depression": (list, []),
-        "consumption_currency": (list, []),
-        "income_currency": (list, []),
-        "locus_control": (list, []),
-        "price": (float, float(np.mean(agent_skills))),
-        "employees": (list, []),
-        "employees_agent_id": (list, []),
-        "firm_id": (int, 0),
-    }
-    return EXTRA_ATTRIBUTES, {"currency": 1e12}, {}
-
-
-def memory_config_nbs():
-    EXTRA_ATTRIBUTES = {
-        "type": (int, economyv2.ORG_TYPE_NBS),
-        "nominal_gdp": (list, []),
-        "real_gdp": (list, []),
-        "unemployment": (list, []),
-        "wages": (list, []),
-        "prices": (list, [float(np.mean(agent_skills))]),
-        "working_hours": (list, []),
-        "depression": (list, []),
-        "consumption_currency": (list, []),
-        "income_currency": (list, []),
-        "locus_control": (list, []),
-        "citizens": (list, []),
-        "citizens_agent_id": (list, []),
-        "firm_id": (int, 0),
-        "bracket_cutoffs": (
-            list,
-            list(np.array([0, 9875, 40125, 85525, 163300, 207350, 518400]) / 12),
-        ),  # useless
-        "bracket_rates": (list, [0.1, 0.12, 0.22, 0.24, 0.32, 0.35, 0.37]),
-        "inventory": (int, 0),
-        "interest_rate": (float, 0.03),
-        "price": (float, float(np.mean(agent_skills))),
-        "employees": (list, []),
-        "employees_agent_id": (list, []),
-        "forward_times": (int, 0),
-    }
-    return EXTRA_ATTRIBUTES, {}, {}

@@ -1,6 +1,8 @@
 import asyncio
 import json
 import logging
+from functools import partial
+from typing import Literal, Union
 
 import ray
 from hurrican_memory_config import memory_config_societyagent_hurrican
@@ -16,19 +18,21 @@ logging.getLogger("agentsociety").setLevel(logging.INFO)
 ray.init(logging_level=logging.WARNING, log_to_driver=False)
 
 
-async def update_weather_and_temperature(simulation: AgentSimulation):
-    if not hasattr(update_weather_and_temperature, "trigger_time"):
-        update_weather_and_temperature.trigger_time = 0
-    if update_weather_and_temperature.trigger_time == 0:
+async def update_weather_and_temperature(
+    weather: Union[Literal["wind"], Literal["no-wind"]], simulation: AgentSimulation
+):
+    if weather == "wind":
         await simulation.update_environment(
             "weather",
             "Hurricane Dorian has made landfall in other cities, travel is slightly affected, and winds can be felt",
         )
-        update_weather_and_temperature.trigger_time = 1
-    if update_weather_and_temperature.trigger_time == 1:
+    elif weather == "no-wind":
         await simulation.update_environment(
             "weather", "The weather is normal and does not affect travel"
         )
+    else:
+        raise ValueError(f"Invalid weather {weather}")
+
 
 sim_config = (
     SimConfig()
@@ -54,11 +58,13 @@ exp_config = (
         [
             WorkflowStep(type=WorkflowType.RUN, days=3),
             WorkflowStep(
-                type=WorkflowType.INTERVENE, func=update_weather_and_temperature
+                type=WorkflowType.INTERVENE,
+                func=partial(update_weather_and_temperature, "wind"),
             ),
             WorkflowStep(type=WorkflowType.RUN, days=3),
             WorkflowStep(
-                type=WorkflowType.INTERVENE, func=update_weather_and_temperature
+                type=WorkflowType.INTERVENE,
+                func=partial(update_weather_and_temperature, "no-wind"),
             ),
             WorkflowStep(type=WorkflowType.RUN, days=3),
         ]

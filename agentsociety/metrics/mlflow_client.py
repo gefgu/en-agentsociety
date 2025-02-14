@@ -58,9 +58,11 @@ def init_mlflow_connection(
     # tags
     if experiment_tags is None:
         experiment_tags = {}
+    ## exp uuid
+    experiment_tags["experiment_id"] = experiment_uuid
+    ## description
     if experiment_description is not None:
         experiment_tags["mlflow.note.content"] = experiment_description
-        experiment_tags["experiment_id"] = experiment_uuid
 
     uri = config.mlflow_uri
     client = mlflow.MlflowClient(tracking_uri=uri)

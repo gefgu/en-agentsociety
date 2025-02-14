@@ -1,7 +1,7 @@
 import asyncio
 import json
 import logging
-from typing import Optional
+from typing import Optional, cast
 
 from agentsociety import CitizenAgent, Simulator
 from agentsociety.environment import EconomyClient
@@ -51,7 +51,7 @@ class AgreeAgent(CitizenAgent):
         simulator: Optional[Simulator] = None,
         memory: Optional[Memory] = None,
         economy_client: Optional[EconomyClient] = None,
-        messager: Optional[Messager] = None,
+        messager: Optional[Messager] = None,  # type:ignore
         avro_file: Optional[dict] = None,
     ) -> None:
         super().__init__(
@@ -69,6 +69,7 @@ class AgreeAgent(CitizenAgent):
 
     async def trigger(self):
         now_time = await self.simulator.get_time()
+        now_time = cast(int, now_time)
         if self.last_time_trigger is None:
             self.last_time_trigger = now_time
             return False
@@ -146,7 +147,7 @@ class DisagreeAgent(CitizenAgent):
         simulator: Optional[Simulator] = None,
         memory: Optional[Memory] = None,
         economy_client: Optional[EconomyClient] = None,
-        messager: Optional[Messager] = None,
+        messager: Optional[Messager] = None,  # type:ignore
         avro_file: Optional[dict] = None,
     ) -> None:
         super().__init__(
@@ -164,6 +165,7 @@ class DisagreeAgent(CitizenAgent):
 
     async def trigger(self):
         now_time = await self.simulator.get_time()
+        now_time = cast(int, now_time)
         if self.last_time_trigger is None:
             self.last_time_trigger = now_time
             return False
