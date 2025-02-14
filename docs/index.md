@@ -24,9 +24,9 @@ We welcome collaborative opportunities to advance social science research throug
 :maxdepth: 2
 
 01-quick-start
-02-custom-agents
+02-custom-agents/index
 03-experiment-design
-04-use-case
-05-advanced-usage
+04-use-case/index
+05-advanced-usage/index
 apidocs/index
 ```

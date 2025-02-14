@@ -1,6 +1,4 @@
-# Design your Experiment
 
-This guide covers the various tools available for intervention and observation within our framework.
 
 ## Survey and Interview
 
@@ -155,4 +153,3 @@ Any messages intercepted will be popped to the queue of `MessageBlockListener`.
 A listener class that processes values from the blocked message queue asynchronously.
 
 Get value from the queue every `get_queue_period` seconds continually.
-
