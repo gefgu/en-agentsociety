@@ -52,7 +52,6 @@ class PgWriter:
     async def async_write_dialog(self, rows: list[tuple]):
         _tuple_types = [str, int, float, int, str, str, str, None]
         table_name = f"socialcity_{self.exp_id.replace('-', '_')}_agent_dialog"
-        # 将数据插入数据库
         async with await psycopg.AsyncConnection.connect(self._dsn) as aconn:
             copy_sql = psycopg.sql.SQL(
                 "COPY {} (id, day, t, type, speaker, content, created_at) FROM STDIN"
@@ -62,7 +61,7 @@ class PgWriter:
                 async with cur.copy(copy_sql) as copy:
                     for row in rows:
                         _row = [
-                            _type(r) if _type is not None else r
+                            _type(r) if _type is not None and r is not None else r
                             for (_type, r) in zip(_tuple_types, row)
                         ]
                         await copy.write_row(_row)
@@ -82,7 +81,7 @@ class PgWriter:
                 async with cur.copy(copy_sql) as copy:
                     for row in rows:
                         _row = [
-                            _type(r) if _type is not None else r
+                            _type(r) if _type is not None and r is not None else r
                             for (_type, r) in zip(_tuple_types, row)
                         ]
                         await copy.write_row(_row)
@@ -102,7 +101,7 @@ class PgWriter:
                 async with cur.copy(copy_sql) as copy:
                     for row in rows:
                         _row = [
-                            _type(r) if _type is not None else r
+                            _type(r) if _type is not None and r is not None else r
                             for (_type, r) in zip(_tuple_types, row)
                         ]
                         await copy.write_row(_row)
@@ -122,7 +121,7 @@ class PgWriter:
                 async with cur.copy(copy_sql) as copy:
                     for row in rows:
                         _row = [
-                            _type(r) if _type is not None else r
+                            _type(r) if _type is not None and r is not None else r
                             for (_type, r) in zip(_tuple_types, row)
                         ]
                         await copy.write_row(_row)
@@ -155,7 +154,11 @@ class PgWriter:
                         f"UPDATE {{}} SET {columns} WHERE id='{self.exp_id}'"  # type:ignore
                     ).format(psycopg.sql.Identifier(table_name))
                     params = [
-                        _type(exp_info[key]) if _type is not None else exp_info[key]
+                        (
+                            _type(exp_info[key])
+                            if _type is not None and exp_info[key] is not None
+                            else exp_info[key]
+                        )
                         for key, _type in TO_UPDATE_EXP_INFO_KEYS_AND_TYPES
                     ]
                     logger.debug(
@@ -174,7 +177,11 @@ class PgWriter:
                         f"INSERT INTO {{}} ({keys}) VALUES ({placeholders})"  # type:ignore
                     ).format(psycopg.sql.Identifier(table_name))
                     params = [
-                        _type(exp_info[key]) if _type is not None else exp_info[key]
+                        (
+                            _type(exp_info[key])
+                            if _type is not None and exp_info[key] is not None
+                            else exp_info[key]
+                        )
                         for key, _type in TO_UPDATE_EXP_INFO_KEYS_AND_TYPES
                     ]
                     logger.debug(

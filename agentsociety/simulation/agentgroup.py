@@ -514,7 +514,7 @@ class AgentGroup:
                     elif "lane_position" in position:
                         parent_id = position["lane_position"]["lane_id"]
                     else:
-                        parent_id = -1
+                        parent_id = None
                     hunger_satisfaction = await agent.status.get("hunger_satisfaction")
                     energy_satisfaction = await agent.status.get("energy_satisfaction")
                     safety_satisfaction = await agent.status.get("safety_satisfaction")
@@ -542,50 +542,17 @@ class AgentGroup:
             else:
                 for agent in self.agents:
                     _date_time = datetime.now(timezone.utc)
-                    try:
-                        nominal_gdp = await agent.status.get("nominal_gdp")
-                    except:
-                        nominal_gdp = []
-                    try:
-                        real_gdp = await agent.status.get("real_gdp")
-                    except:
-                        real_gdp = []
-                    try:
-                        unemployment = await agent.status.get("unemployment")
-                    except:
-                        unemployment = []
-                    try:
-                        wages = await agent.status.get("wages")
-                    except:
-                        wages = []
-                    try:
-                        prices = await agent.status.get("prices")
-                    except:
-                        prices = []
-                    try:
-                        inventory = await agent.status.get("inventory")
-                    except:
-                        inventory = 0
-                    try:
-                        price = await agent.status.get("price")
-                    except:
-                        price = 0.0
-                    try:
-                        interest_rate = await agent.status.get("interest_rate")
-                    except:
-                        interest_rate = 0.0
-                    try:
-                        bracket_cutoffs = await agent.status.get("bracket_cutoffs")
-                    except:
-                        bracket_cutoffs = []
-                    try:
-                        bracket_rates = await agent.status.get("bracket_rates")
-                    except:
-                        bracket_rates = []
-                    try:
-                        employees = await agent.status.get("employees")
-                    except:
-                        employees = []
+                    nominal_gdp = await agent.status.get("nominal_gdp", [])
+                    real_gdp = await agent.status.get("real_gdp", [])
+                    unemployment = await agent.status.get("unemployment", [])
+                    wages = await agent.status.get("wages", [])
+                    prices = await agent.status.get("prices", [])
+                    inventory = await agent.status.get("inventory", 0)
+                    price = await agent.status.get("price", 0.0)
+                    interest_rate = await agent.status.get("interest_rate", 0.0)
+                    bracket_cutoffs = await agent.status.get("bracket_cutoffs", [])
+                    bracket_rates = await agent.status.get("bracket_rates", [])
+                    employees = await agent.status.get("employees", [])
                     avro = {
                         "id": agent._uuid,
                         "day": _day,
@@ -688,9 +655,10 @@ class AgentGroup:
                         position = await agent.status.get("position")
                         x = position["xy_position"]["x"]
                         y = position["xy_position"]["y"]
-                        lng, lat = self.projector(x, y, inverse=True)
-                        # ATTENTION: no valid position for an institution
-                        parent_id = -1
+                        # no valid position for an institution
+                        # lng, lat = self.projector(x, y, inverse=True)
+                        lng, lat = None, None
+                        parent_id = None
                         nominal_gdp = await agent.status.get("nominal_gdp", [])
                         real_gdp = await agent.status.get("real_gdp", [])
                         unemployment = await agent.status.get("unemployment", [])
