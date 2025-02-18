@@ -6,6 +6,7 @@ import pycityproto.city.economy.v2.economy_pb2 as economyv2
 from mosstool.map._map_util.const import AOI_START_ID
 
 from .firmagent import FirmAgent
+
 pareto_param = 8
 payment_max_skill_multiplier_base = 950
 payment_max_skill_multiplier = float(payment_max_skill_multiplier_base)
@@ -17,10 +18,14 @@ agent_skills = list(sorted_clipped_skills.mean(axis=0))
 
 work_locations = [AOI_START_ID + random.randint(1000, 10000) for _ in range(1000)]
 
+
 async def memory_config_init(simulation):
     global work_locations
     number_of_firm = simulation.agent_count[FirmAgent]
-    work_locations = [AOI_START_ID + random.randint(1000, 10000) for _ in range(number_of_firm)]
+    work_locations = [
+        AOI_START_ID + random.randint(1000, 10000) for _ in range(number_of_firm)
+    ]
+
 
 def memory_config_societyagent():
     global work_locations
@@ -29,7 +34,7 @@ def memory_config_societyagent():
         "city": (str, "New York", True),
         # Needs Model
         "hunger_satisfaction": (float, random.random(), False),  # hunger satisfaction
-        "energy_satisfaction": (float, random.random(), False),  # energy satisfaction  
+        "energy_satisfaction": (float, random.random(), False),  # energy satisfaction
         "safety_satisfaction": (float, random.random(), False),  # safety satisfaction
         "social_satisfaction": (float, random.random(), False),  # social satisfaction
         "current_need": (str, "none", False),
@@ -165,7 +170,11 @@ def memory_config_societyagent():
             True,
         ),
         "family_consumption": (str, random.choice(["low", "medium", "high"]), True),
-        "consumption": (str, random.choice(["low", "slightly low", "medium", "slightly high", "high"]), True),
+        "consumption": (
+            str,
+            random.choice(["low", "slightly low", "medium", "slightly high", "high"]),
+            True,
+        ),
         "personality": (
             str,
             random.choice(["outgoint", "introvert", "ambivert", "extrovert"]),
@@ -209,9 +218,7 @@ def memory_config_societyagent():
         "home": {
             "aoi_position": {"aoi_id": AOI_START_ID + random.randint(1000, 10000)}
         },
-        "work": {
-            "aoi_position": {"aoi_id": random.choice(work_locations)}
-        },
+        "work": {"aoi_position": {"aoi_id": random.choice(work_locations)}},
     }
 
     return EXTRA_ATTRIBUTES, PROFILE, BASE
@@ -221,9 +228,7 @@ def memory_config_firm():
     global work_locations
     EXTRA_ATTRIBUTES = {
         "type": (int, economyv2.ORG_TYPE_FIRM),
-        "location": {
-            "aoi_position": {"aoi_id": random.choice(work_locations)}
-        },
+        "location": {"aoi_position": {"aoi_id": random.choice(work_locations)}},
         "price": (float, float(np.mean(agent_skills))),
         "inventory": (int, 0),
         "employees": (list, []),

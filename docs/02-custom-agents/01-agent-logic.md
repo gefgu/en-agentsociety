@@ -1,12 +1,13 @@
 # Customize the Agent logic
 
-To customize the behavior of an agent, you can modify the `forward` method. 
-This method is where the agent's logic is defined and executed in each simulation step. 
+To customize the behavior of an agent, you need to modify the `forward` method. 
+
+The `forward` method is where the agent's logic is defined and executed in each simulation step. 
 Here are two ways to customize the `forward` methods.
 
-## Direct Implementation
+## 1. Directly Implement Your Logic
 
-A simple example is as follows.
+A simple example is as follows. Simply rewrite the `forward` method in the subclass of `Agent`. The `forward` method is the workflow of an agent.
 
 ```python
 import asyncio
@@ -33,10 +34,70 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
+## 2. Implement Your Logic with `Block`
 
-## Block Based Implementation
+For complex behaviors, you can use `Block` to organize logic.
 
-For complex behaviors, use `Block` to organize logic.
+### What is a `Block`?
+
+A `Block` is a abstraction of agent logics, analogous to a layer in PyTorch. It encapsulates modular functionality and supports configurable fields.
+
+`Blocks` enable hierarchical system design by allowing nested sub-Blocks and standardized configuration management. 
+They abstract domain-specific tasks (e.g., reasoning, simulation) and promote reusability, scalability, and maintainability.
+
+### Workflow of `Block`: The `forward` Method
+
+The core workflow of a `Block` is defined by its `forward` method. 
+This method encapsulates the block’s primary logic, such as reasoning, data processing, or interaction with external components (e.g., LLMs, memory, or simulators). 
+
+Combine multiple blocks by calling `await object.forward()` within a parent block’s `forward` method.
+
+To define a parent-child block relation, you can either write it in the agent config with `ExpConfig.SetAgentConfig(agent_class_configs=<YOUR-CONFIG-DICT>)` or define your own block class and set the child block as its variable.
+
+A simple `agent_class_configs` example with parent and child block is as follows:
+
+```json
+{
+    "agent_name": "SocietyAgent",
+    "config": {
+        "enable_cognition": true,
+        "enable_mobility": true,
+        "enable_social": true,
+        "enable_economy": true
+    },
+    "blocks": [
+        {
+            "name": "mindBlock",
+            "config": {},
+            "description": {},
+            "children": [
+                {
+                    "name": "cognitionBlock",
+                    "config": {
+                        "top_k": 20
+                    },
+                    "description": {
+                        "top_k": "Number of most relevant memories to return, defaults to 20"
+                    },
+                    "children": []
+                }
+            ]
+        }
+      ]
+}
+```
+
+### `Block` Execution Control
+
+When a `Block` is initialized, you can pass an `EventTrigger` to `trigger`.
+
+The `EventTrigger` class is a foundational component designed to monitor and react to specific conditions within a `Block`. 
+
+This class integrates with `Block` instances to access dependencies (e.g., LLMs, memory, simulators) and ensures required components are available before activation.
+
+The `Block` workflow is executed only after `EventTrigger.wait_for_trigger()` has completed.
+
+### Implementation Example
 
 ```python
 import asyncio
@@ -135,8 +196,8 @@ if __name__ == "__main__":
 
 ```
 
+## 3. Using Tools in Your `Agent`
 
-## Using Tools
 Tools provide reusable functionality that can be automatically bound to `Agent` or `Block`.
 
 ```python
@@ -163,8 +224,9 @@ class CustomAgent(Agent):
 
 ```
 
-## Initialization within Your Experiment
-Set your agent classes and their count with `configs.ExpConfig`.
+## 4. Using Self-defined Agents in Your Experiment
+
+Set your agent classes and their count with `configs.ExpConfig.SetAgentConfig`.
 
 ```python
 import logging
@@ -173,12 +235,12 @@ from agentsociety.cityagent import memory_config_societyagent
 from agentsociety.configs import ExpConfig
 
 exp_config = (
-    ExpConfig(exp_name="cognition_exp3", llm_semaphore=200, logging_level=logging.INFO)
+    ExpConfig(exp_name="exp", llm_semaphore=200, logging_level=logging.INFO)
     .SetAgentConfig(
         number_of_citizen=100,
         group_size=50,
         extra_agent_class={
-            # your defined agent classes
+            # self-defined agent classes
             DisagreeAgent: 1,
             AgreeAgent: 1
         },
@@ -189,3 +251,5 @@ exp_config = (
     )
 )
 ```
+
+With the config above, one `DisagreeAgent`, one `AgreeAgent` and 100 `SocietyAgent` will be initialized in our simulation environment.

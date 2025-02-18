@@ -7,8 +7,6 @@ import ray
 
 from agentsociety import AgentSimulation
 from agentsociety.cityagent import memory_config_societyagent
-from agentsociety.cityagent.initial import (bind_agent_info,
-                                            initialize_social_network)
 from agentsociety.cityagent.metrics import economy_metric
 from agentsociety.cityagent.societyagent import SocietyAgent
 from agentsociety.configs import ExpConfig, SimConfig, WorkflowStep
@@ -52,7 +50,6 @@ exp_config = (
         agent_class_configs={
             SocietyAgent: json.load(open("society_agent_config.json"))
         },
-        init_func=[bind_agent_info, initialize_social_network],
     )
     .SetWorkFlow(
         [

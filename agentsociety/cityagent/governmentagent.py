@@ -1,13 +1,14 @@
 import asyncio
+import logging
 from typing import Optional
 
 import numpy as np
-from agentsociety import Simulator, InstitutionAgent
-from agentsociety.llm.llm import LLM
+
+from agentsociety import InstitutionAgent, Simulator
 from agentsociety.environment import EconomyClient
-from agentsociety.message import Messager
+from agentsociety.llm.llm import LLM
 from agentsociety.memory import Memory
-import logging
+from agentsociety.message import Messager
 
 logger = logging.getLogger("agentsociety")
 
@@ -20,6 +21,7 @@ class GovernmentAgent(InstitutionAgent):
     fields_description = {
         "time_diff": "Time difference between each forward, day * hour * minute * second",
     }
+
     def __init__(
         self,
         name: str,
@@ -27,7 +29,7 @@ class GovernmentAgent(InstitutionAgent):
         simulator: Optional[Simulator] = None,
         memory: Optional[Memory] = None,
         economy_client: Optional[EconomyClient] = None,
-        messager: Optional[Messager] = None,# type:ignore
+        messager: Optional[Messager] = None,  # type:ignore
         avro_file: Optional[dict] = None,
     ) -> None:
         super().__init__(
@@ -49,12 +51,12 @@ class GovernmentAgent(InstitutionAgent):
         if self.last_time_trigger is None:
             self.last_time_trigger = now_time
             return False
-        if now_time - self.last_time_trigger >= self.time_diff:# type:ignore
+        if now_time - self.last_time_trigger >= self.time_diff:  # type:ignore
             self.last_time_trigger = now_time
             return True
         return False
 
-    async def gather_messages(self, agent_ids, content):# type:ignore
+    async def gather_messages(self, agent_ids, content):  # type:ignore
         infos = await super().gather_messages(agent_ids, content)
         return [info["content"] for info in infos]
 
@@ -73,7 +75,9 @@ class GovernmentAgent(InstitutionAgent):
                 citizens, incomes, post_tax_incomes
             ):
                 tax_paid = income - post_tax_income
-                await self.send_message_to_agent(uuid, f"tax_paid@{tax_paid}", "economy")
+                await self.send_message_to_agent(
+                    uuid, f"tax_paid@{tax_paid}", "economy"
+                )
             self.forward_times += 1
             for uuid in citizens:
                 await self.send_message_to_agent(

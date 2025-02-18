@@ -1,15 +1,15 @@
 import asyncio
 import logging
-from typing import Optional
+from typing import Optional, cast
 
 import numpy as np
+import pycityproto.city.economy.v2.economy_pb2 as economyv2
 
 from agentsociety import InstitutionAgent, Simulator
 from agentsociety.environment import EconomyClient
 from agentsociety.llm.llm import LLM
 from agentsociety.memory import Memory
 from agentsociety.message import Messager
-import pycityproto.city.economy.v2.economy_pb2 as economyv2
 
 logger = logging.getLogger("agentsociety")
 
@@ -34,7 +34,7 @@ class NBSAgent(InstitutionAgent):
         simulator: Optional[Simulator] = None,
         memory: Optional[Memory] = None,
         economy_client: Optional[EconomyClient] = None,
-        messager: Optional[Messager] = None,
+        messager: Optional[Messager] = None,  # type:ignore
         avro_file: Optional[dict] = None,
     ) -> None:
         super().__init__(
@@ -56,6 +56,7 @@ class NBSAgent(InstitutionAgent):
 
     async def month_trigger(self):
         now_time = await self.simulator.get_time()
+        now_time = cast(int, now_time)
         if self.last_time_trigger is None:
             self.last_time_trigger = now_time
             return False
@@ -64,7 +65,7 @@ class NBSAgent(InstitutionAgent):
             return True
         return False
 
-    async def gather_messages(self, agent_ids, content):
+    async def gather_messages(self, agent_ids, content):  # type:ignore
         infos = await super().gather_messages(agent_ids, content)
         return [info["content"] for info in infos]
 
@@ -74,7 +75,9 @@ class NBSAgent(InstitutionAgent):
             await self.economy_client.calculate_real_gdp(self._agent_id)
             citizens_uuid = await self.memory.status.get("citizens")
             citizens = await self.economy_client.get(self._agent_id, "citizens")
-            work_propensity = await self.gather_messages(citizens_uuid, "work_propensity")
+            work_propensity = await self.gather_messages(
+                citizens_uuid, "work_propensity"
+            )
             if sum(work_propensity) == 0.0:
                 working_hours = 0.0
             else:
@@ -82,7 +85,9 @@ class NBSAgent(InstitutionAgent):
             await self.economy_client.update(
                 self._agent_id, "working_hours", [working_hours], mode="merge"
             )
-            firms_id = await self.economy_client.get_org_entity_ids(economyv2.ORG_TYPE_FIRM)
+            firms_id = await self.economy_client.get_org_entity_ids(
+                economyv2.ORG_TYPE_FIRM
+            )
             prices = await self.economy_client.get(firms_id, "price")
 
             await self.economy_client.update(
@@ -96,7 +101,9 @@ class NBSAgent(InstitutionAgent):
             await self.economy_client.update(
                 self._agent_id, "depression", [depression], mode="merge"
             )
-            consumption_currency = await self.economy_client.get(citizens, "consumption")
+            consumption_currency = await self.economy_client.get(
+                citizens, "consumption"
+            )
             if sum(consumption_currency) == 0.0:
                 consumption_currency = 0.0
             else:

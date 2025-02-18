@@ -8,4 +8,5 @@ This guide provides advanced usage for our framework.
 01-record-with-pgsql
 02-record-with-avro
 03-distributed-simulation
+04-customize-your-simulation
 ```

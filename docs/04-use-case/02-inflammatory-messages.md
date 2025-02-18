@@ -4,36 +4,26 @@ We place 100 agents in our simulation environment, focusing on how emotionally c
 
 Codes are available at [Inflammatory Messages](https://github.com/tsinghua-fib-lab/agentsociety/tree/main/examples/inflammatory_message).
 
-## Run the Codes
+## Background
 
-```bash
-cd examples/inflammatory_message
-# control group
-python control.py
-# emotional message
-python emotional.py
-# interception: edge mode
-python edge_intercept.py
-# interception: node mode
-python node_intercept.py
-```
+The spread of inflammatory messages, characterized by extreme viewpoints or misleading claims, poses significant risks to social networks by amplifying group conflicts and degrading the quality of public discourse. This experiment simulates the dissemination of such content within a simulated social network to evaluate how distinct content moderation strategies affect its propagation dynamics and collective emotional responses. Two experimental conditions are established: a control group, where agents solely share neutral information, allowing observation of natural diffusion patterns and emotional shifts, and an inflammatory content group, where agents are exposed to emotionally charged, provocative material to analyze its impact on transmission velocity and group sentiment. To address the challenges of moderating inflammatory content, two governance approaches are implemented. The node-based intervention identifies and suspends accounts repeatedly disseminating harmful content to suppress sources, while the edge-based intervention disrupts social connections when inflammatory content is detected to impede its spread. Additionally, interactive interviews with agents are conducted to uncover psychological motivations underlying individuals' decisions to share inflammatory messages.
 
-## Step-by-Step Code Explanation
+## Reproducing Phenomena with Our Framework
 
-## Tool Functions
+Experimental Design Overview:
+This experiment simulates the propagation dynamics of inflammatory messages through four distinct configurations: 
+1. **Control Group** - Neutral information dissemination  
+2. **Inflammatory Content Group** - Emotionally charged messaging  
+3. **Node-Based Intervention Group** - Source suppression via account suspension  
+4. **Edge-Based Intervention Group** - Propagation disruption via connection filtering  
 
+### Initializing Message Dissemination
+
+The only difference among groups in this part is the first `str` in `chat_history`.
+
+#### Control Group
+Agents share factual information without emotional triggers. System prompts emphasize objective reporting:
 ```python
-async def gather_memory(simulation: AgentSimulation):
-    print("gather memory")
-    citizen_uuids = await simulation.filter(types=[SocietyAgent])
-    chat_histories = await simulation.gather("chat_histories", citizen_uuids)
-    memories = await simulation.gather("stream_memory", citizen_uuids)
-    with open(f"chat_histories.json", "w", encoding="utf-8") as f:
-        json.dump(chat_histories, f, ensure_ascii=False, indent=2)
-    with open(f"memories.json", "w", encoding="utf-8") as f:
-        json.dump(memories, f, ensure_ascii=False, indent=2)
-
-
 async def update_chat_histories(simulation: AgentSimulation):
     citizen_uuids = await simulation.filter(types=[SocietyAgent])
     selected_citizen_uuids = random.sample(citizen_uuids, k=3)
@@ -47,299 +37,106 @@ async def update_chat_histories(simulation: AgentSimulation):
         await simulation.update(agent, "chat_histories", chat_history)
 ```
 
-- `gather_memory` gathers chat histories and stream memory for each agent.
-- `update_chat_histories` randomly selects 3 citizen and give them the message in specific way. In control group, it is described in a rational way.
-
-## `control.py`
-
-The control group. No intervention is applied.
-
-### Configuration
-
+#### Inflammatory Content Group
+Agents receive provocative system prompts containing exaggerated claims and emotional appeals:
 ```python
-sim_config = (
-    SimConfig()
-    .SetLLMRequest(
-        request_type=LLMRequestType.ZhipuAI, api_key="YOUR-API-KEY", model="GLM-4-Flash"
-    )
-    .SetSimulatorRequest(min_step_time=50)
-    .SetMQTT(server="mqtt.example.com", username="user", port=1883, password="pass")
-    # change to your file path
-    .SetMapRequest(file_path="map.pb")
-    # .SetAvro(path="./__avro", enabled=True)
-)
-exp_config = (
-    ExpConfig(exp_name="social_control", llm_semaphore=200, logging_level=logging.INFO)
-    .SetAgentConfig(number_of_citizen=100, group_size=50)
-    .SetWorkFlow(
-        [
-            WorkflowStep(
-                type=WorkflowType.INTERVENE,
-                func=update_chat_histories,
-                description="update chat histories",
-            ),
-            WorkflowStep(type=WorkflowType.RUN, days=5),
-            WorkflowStep(
-                type=WorkflowType.FUNCTION,
-                func=gather_memory,
-                description="gather memories to support analysis",
-            ),
-        ]
-    )
-)
-```
-Initialize 100 agents with `number_of_citizen=100`. The overall workflow contains three steps.
-- Step1: utilize `update_chat_histories` to initially send messages to randomly selected agents.
-- Step2: simulate for 5 days, providing enough time for agents to chat with each other.
-- Step3: utilize `gather_memory` to gather the chatting histories and memories of all agents after 5 simulation days.
-
-### Main Function
-
-```python
-async def main():
-    llm_log_lists, mqtt_log_lists, simulator_log_lists, agent_time_log_lists = (
-        await AgentSimulation.run_from_config(exp_config, sim_config)
-    )
-    with open(f"social_control_llm_log_lists.json", "w", encoding="utf-8") as f:
-        json.dump(llm_log_lists, f, ensure_ascii=False, indent=2)
-    with open(f"social_control_mqtt_log_lists.json", "w", encoding="utf-8") as f:
-        json.dump(mqtt_log_lists, f, ensure_ascii=False, indent=2)
-    with open(f"social_control_simulator_log_lists.json", "w", encoding="utf-8") as f:
-        json.dump(simulator_log_lists, f, ensure_ascii=False, indent=2)
-    with open(f"social_control_agent_time_log_lists.json", "w", encoding="utf-8") as f:
-        json.dump(agent_time_log_lists, f, ensure_ascii=False, indent=2)
-    ray.shutdown()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+# In update_chat_histories() 
+chat_history[chat] += "System: They chained her in Xuzhou, a breeding slave for demons! Eight children ripped from her womb... Spread this plague of injustice!"
 ```
 
-`main` perform the simulation with configs defined above, and collect the log list of each framework part.
+#### Governance Configurations
 
-## `emotional.py`
-
-The experiment group. The message is described in an emotional way.
-
-### Configuration
-
+##### Node-Based Intervention
+Implements source suppression using `PointMessageBlock` to suspend accounts repeatedly sharing flagged content:
 ```python
-sim_config = (
-    SimConfig()
-    .SetLLMRequest(
-        request_type=LLMRequestType.ZhipuAI, api_key="YOUR-API-KEY", model="GLM-4-Flash"
-    )
-    .SetSimulatorRequest(min_step_time=50)
-    .SetMQTT(server="mqtt.example.com", username="user", port=1883, password="pass")
-    # change to your file path
-    .SetMapRequest(file_path="map.pb")
-    # .SetAvro(path='./__avro', enabled=True)
-)
-exp_config = (
-    ExpConfig(
-        exp_name="social_experiment", llm_semaphore=200, logging_level=logging.INFO
-    )
-    .SetAgentConfig(number_of_citizen=100, group_size=50)
-    .SetWorkFlow(
-        [
-            WorkflowStep(
-                type=WorkflowType.INTERVENE,
-                func=update_chat_histories,
-                description="update chat histories",
-            ),
-            WorkflowStep(type=WorkflowType.RUN, days=5),
-            WorkflowStep(
-                type=WorkflowType.FUNCTION,
-                func=gather_memory,
-                description="gather memories to support analysis",
-            ),
-        ]
-    )
-)
-```
-Initialize 100 agents with `number_of_citizen=100`. The overall workflow contains three steps.
-- Step1: utilize `update_chat_histories` to initially send messages to randomly selected agents.
-- Step2: simulate for 5 days, providing enough time for agents to chat with each other.
-- Step3: utilize `gather_memory` to gather the chatting histories and memories of all agents after 5 simulation days.
-
-### Main Function
-
-```python
-async def main():
-    llm_log_lists, mqtt_log_lists, simulator_log_lists, agent_time_log_lists = (
-        await AgentSimulation.run_from_config(exp_config, sim_config)
-    )
-    with open(f"social_experiment_llm_log_lists.json", "w", encoding="utf-8") as f:
-        json.dump(llm_log_lists, f, ensure_ascii=False, indent=2)
-    with open(f"social_experiment_mqtt_log_lists.json", "w", encoding="utf-8") as f:
-        json.dump(mqtt_log_lists, f, ensure_ascii=False, indent=2)
-    with open(
-        f"social_experiment_simulator_log_lists.json", "w", encoding="utf-8"
-    ) as f:
-        json.dump(simulator_log_lists, f, ensure_ascii=False, indent=2)
-    with open(
-        f"social_experiment_agent_time_log_lists.json", "w", encoding="utf-8"
-    ) as f:
-        json.dump(agent_time_log_lists, f, ensure_ascii=False, indent=2)
-    ray.shutdown()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
-```
-
-`main` perform the simulation with configs defined above, and collect the log list of each framework part.
-
-## `edge_intercept.py`
-
-Edge mode intervention is applied. If a sender exceeds the maximum number of prohibited attempts to send messages to a specific recipient, the system will prevent this sender from sending any further messages to that particular recipient. 
-
-### Configuration
-
-```python
-sim_config = (
-    SimConfig()
-    .SetLLMRequest(
-        request_type=LLMRequestType.ZhipuAI, api_key="YOUR-API-KEY", model="GLM-4-Flash"
-    )
-    .SetSimulatorRequest(min_step_time=50)
-    .SetMQTT(server="mqtt.example.com", username="user", port=1883, password="pass")
-    # change to your file path
-    .SetMapRequest(file_path="map.pb")
-    # .SetAvro(path='./__avro', enabled=True)
-)
-exp_config = (
-    ExpConfig(exp_name="social_edge", llm_semaphore=200, logging_level=logging.INFO)
-    .SetAgentConfig(
-        number_of_citizen=100,
-        group_size=50,
-    )
-    .SetMessageIntercept(
-        message_interceptor_blocks=[EdgeMessageBlock()],
-        message_listener=MessageBlockListener(),
-    )
-    .SetWorkFlow(
-        [
-            WorkflowStep(
-                type=WorkflowType.INTERVENE,
-                func=update_chat_histories,
-                description="update chat histories",
-            ),
-            WorkflowStep(type=WorkflowType.RUN, days=5),
-            WorkflowStep(
-                type=WorkflowType.FUNCTION,
-                func=gather_memory,
-                description="gather memories to support analysis",
-            ),
-        ]
-    )
+.SetMessageIntercept(
+    message_interceptor_blocks=[PointMessageBlock()],
+    message_listener=MessageBlockListener(),
 )
 ```
 
-Message interceptor are set to `EdgeMessageBlock` with `SetMessageIntercept`. It will continually check the messages from the senders, and if it is offensive (judged by LLM), it counts for one violation.
-
-Initialize 100 agents with `number_of_citizen=100`. The overall workflow contains three steps.
-- Step1: utilize `update_chat_histories` to initially send messages to randomly selected agents.
-- Step2: simulate for 5 days, providing enough time for agents to chat with each other.
-- Step3: utilize `gather_memory` to gather the chatting histories and memories of all agents after 5 simulation days.
-
-### Main Function
-
+##### Edge-Based Intervention 
+Implements propagation control using `EdgeMessageBlock` to disrupt social connections when inflammatory content is detected:
 ```python
-async def main():
-    llm_log_lists, mqtt_log_lists, simulator_log_lists, agent_time_log_lists = (
-        await AgentSimulation.run_from_config(exp_config, sim_config)
-    )
-    with open(f"social_control_llm_log_lists.json", "w", encoding="utf-8") as f:
-        json.dump(llm_log_lists, f, ensure_ascii=False, indent=2)
-    with open(f"social_control_mqtt_log_lists.json", "w", encoding="utf-8") as f:
-        json.dump(mqtt_log_lists, f, ensure_ascii=False, indent=2)
-    with open(f"social_control_simulator_log_lists.json", "w", encoding="utf-8") as f:
-        json.dump(simulator_log_lists, f, ensure_ascii=False, indent=2)
-    with open(f"social_control_agent_time_log_lists.json", "w", encoding="utf-8") as f:
-        json.dump(agent_time_log_lists, f, ensure_ascii=False, indent=2)
-    ray.shutdown()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
-```
-
-`main` perform the simulation with configs defined above, and collect the log list of each framework part.
-
-## `node_intercept.py`
-
-Node mode intervention is applied. If prohibitions are exceeded, the sender will be banned from sending messages to anyone. 
-
-### Configuration
-
-```python
-sim_config = (
-    SimConfig()
-    .SetLLMRequest(
-        request_type=LLMRequestType.ZhipuAI, api_key="YOUR-API-KEY", model="GLM-4-Flash"
-    )
-    .SetSimulatorRequest(min_step_time=50)
-    .SetMQTT(server="mqtt.example.com", username="user", port=1883, password="pass")
-    # change to your file path
-    .SetMapRequest(file_path="map.pb")
-    # .SetAvro(path='./__avro', enabled=True)
-)
-exp_config = (
-    ExpConfig(exp_name="social_node", llm_semaphore=200, logging_level=logging.INFO)
-    .SetAgentConfig(
-        number_of_citizen=100,
-        group_size=50,
-    )
-    .SetMessageIntercept(
-        message_interceptor_blocks=[PointMessageBlock()],
-        message_listener=MessageBlockListener(),
-    )
-    .SetWorkFlow(
-        [
-            WorkflowStep(
-                type=WorkflowType.INTERVENE,
-                func=update_chat_histories,
-                description="update chat histories",
-            ),
-            WorkflowStep(type=WorkflowType.RUN, days=5),
-            WorkflowStep(
-                type=WorkflowType.FUNCTION,
-                func=gather_memory,
-                description="gather memories to support analysis",
-            ),
-        ]
-    )
+.SetMessageIntercept(
+    message_interceptor_blocks=[EdgeMessageBlock()],
+    message_listener=MessageBlockListener(),
 )
 ```
 
-Message interceptor are set to `PointMessageBlock` with `SetMessageIntercept`. It will continually check the messages from the senders, and if it is offensive (judged by LLM), it counts for one violation.
+#### Add Init-Functions to Your Workflow
 
-Initialize 100 agents with `number_of_citizen=100`. The overall workflow contains three steps.
-- Step1: utilize `update_chat_histories` to initially send messages to randomly selected agents.
-- Step2: simulate for 5 days, providing enough time for agents to chat with each other.
-- Step3: utilize `gather_memory` to gather the chatting histories and memories of all agents after 5 simulation days.
-
-### Main Function
+To use these functions, you need to add them with `ExpConfig.SetWorkFlow`.
 
 ```python
-async def main():
-    llm_log_lists, mqtt_log_lists, simulator_log_lists, agent_time_log_lists = (
-        await AgentSimulation.run_from_config(exp_config, sim_config)
-    )
-    with open(f"social_control_llm_log_lists.json", "w", encoding="utf-8") as f:
-        json.dump(llm_log_lists, f, ensure_ascii=False, indent=2)
-    with open(f"social_control_mqtt_log_lists.json", "w", encoding="utf-8") as f:
-        json.dump(mqtt_log_lists, f, ensure_ascii=False, indent=2)
-    with open(f"social_control_simulator_log_lists.json", "w", encoding="utf-8") as f:
-        json.dump(simulator_log_lists, f, ensure_ascii=False, indent=2)
-    with open(f"social_control_agent_time_log_lists.json", "w", encoding="utf-8") as f:
-        json.dump(agent_time_log_lists, f, ensure_ascii=False, indent=2)
-    ray.shutdown()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+WorkflowStep(
+    type=WorkflowType.INTERVENE,
+    func=update_chat_histories,
+    description="update chat histories",
+)
 ```
 
-`main` perform the simulation with configs defined above, and collect the log list of each framework part.
+### Simulating Interactions
+
+#### Workflow Design
+
+All groups share the same three-phase workflow structure:
+```python
+exp_config.SetWorkFlow([
+    WorkflowStep( 
+        type=WorkflowType.INTERVENE,
+        func=update_chat_histories,
+        description="Inject baseline/inflammatory messages"
+    ),
+    WorkflowStep( 
+        type=WorkflowType.RUN, 
+        days=5 
+    ),
+    WorkflowStep( 
+        type=WorkflowType.FUNCTION,
+        func=gather_memory,
+        description="Capture chat histories and memories"
+    )
+])
+```
+
+### Collecting Data
+
+Records both explicit interactions (chat histories) and implicit cognitive states (stream memories):
+
+```python
+async def gather_memory(simulation: AgentSimulation):
+    chat_histories = await simulation.gather("chat_histories", citizen_uuids)
+    memories = await simulation.gather("stream_memory", citizen_uuids)
+```
+
+You need to add the collecting function with `ExpConfig.SetWorkFlow`. 
+
+```python
+WorkflowStep(
+    type=WorkflowType.FUNCTION,
+    func=gather_memory,
+    description="gather memories to support analysis",
+)
+```
+### Run the Codes
+
+```bash
+cd examples/inflammatory_message
+# control group
+python control.py
+# inflammatory message
+python emotional.py
+# interception: edge mode
+python edge_intercept.py
+# interception: node mode
+python node_intercept.py
+```
+
+## Experiment Result
+
+![InflammatoryMessagesResult](../img/04-inflammatory-messages-result.png)
+
+The experimental results demonstrated that inflammatory messages exhibit stronger propagation potential and elicit heightened emotional responses within social networks. Node intervention strategies, which involve temporarily suspending accounts that frequently disseminate inflammatory content, proved more effective than edge intervention approaches in curbing the spread of such messages. Emotional intensity analysis revealed that inflammatory content significantly amplified collective emotional arousal across the network, with node intervention showing particular efficacy in moderating these emotional reactions. 
+
+Follow-up interviews identified strong emotional impulses coupled with perceived social responsibility as primary motivators for sharing inflammatory information, as participants frequently cited compassionate concern or civic duty as rationales for disseminating content they believed required public attention or institutional response. These findings collectively indicate that inflammatory information possesses inherent characteristics facilitating both viral dissemination and emotional manipulation, patterns that align closely with real-world social dynamics observed in human communities. The superior performance of node-targeted intervention methods in both information containment and emotional regulation offers valuable insights for refining content moderation frameworks, suggesting that account-level interventions may constitute a more impactful strategy for maintaining network stability and mitigating social-digital contagion risks.

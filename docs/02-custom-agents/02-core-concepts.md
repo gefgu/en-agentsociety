@@ -4,49 +4,119 @@ An agent in our simulation environment is composed of several core components:
 
 ## Memory
 
-There two types of `Memory` in our framework, `StreamMemory` and `StatusMemory`.
+There two types of `Memory` in our framework, `StreamMemory` and `StatusMemory`.  
+Separating temporal event streams from status information enables efficient memory management and specialized retrieval operations. In an agent, memory is a property and can be called with `agent.memory`.
 
-## `StreamMemory`
+### memory.stream: `StreamMemory`
 
-`StreamMemory` is used to manage and store time-ordered memory information in a stream-like structure.
+`StreamMemory` is used to manage and store time-ordered memory information in a stream-like structure.  
+The stream structure mimics natural human memory organization and supports chronological reasoning.
 
-### Main Components
+`StreamMemory` stores memories through specialized methods (`add_cognition`, `add_social`, etc.), creating tagged `MemoryNodes` in a capacity-limited `collections.deque`. This structure emulates human memory constraints by automatically removing older entries when full. Each memory receives unique metadata: ID, timestamp, and location context.
 
-- `collections.deque` for memory storage
-- **Memory Tags** (`MemoryTag`):
-   - Mobility: Movement-related memories
-   - Social: Social interaction memories
-   - Economy: Economic activities
-   - Cognition: Cognitive processes
-   - Event: Event-related memories
-   - Other: Miscellaneous memories
- - **Memory Node** (`MemoryNode`):
-   - tag: Memory category (MemoryTag)
-   - day: Event day
-   - t: Timestamp
-   - location: Event location
-   - description: Memory content
-   - cognition_id: Optional reference to cognitive memory
-   - id: Optional unique identifier
+Stream memories can be enhanced with cognitive links via `add_cognition_to_memory`, establishing contextual relationships between entries. This associative architecture enables systemic analysis of memory interconnections.
 
-## `StatusMemory`
+Both direct ID access and semantic search are supported. Using embedding models and similarity algorithms, it performs context-aware queries surpassing basic keyword matching. 
 
-`StatusMemory` is designed to unify three different types of memory (status, configuration, dynamic) into a single objective memory.
+#### Usage Example
 
-### Main Components
+Use stream memory in your agent.
 
-- **Memory Types**:
-   - `ProfileMemory`: Stores self-profile for the agent.
-   - `StateMemory`: Stores status data of the agent.
-   - `DynamicMemory`: Stores user-dynamically configured data.
+```python
+import asyncio
 
-## Embedding Model
-Embedding Model is used in the memory to:
-- Convert text descriptions into vector representations
-- Enable semantic search across memory entries
-- Support similarity-based memory retrieval
+from agentsociety import Agent, AgentType
+from agentsociety.cityagent import memory_config_societyagent
+from agentsociety.memory import Memory
+
+
+class CustomAgent(Agent):
+    def __init__(self, name: str,memory:Memory, **kwargs):
+        super().__init__(name=name, memory=memory,type=AgentType.Citizen, **kwargs)
+
+    async def forward(
+        self,
+    ):
+        stream = self.memory.stream
+        # add stream, type: cognition
+        await stream.add_cognition(description="I am a waiter at this restaurant.")
+        await stream.add_cognition(description="My working place names as 'A Restaurant'.")
+        # relevant search
+        await stream.search(query="restaurant")
+        # relevant search (within the same day, the time of the Urban Space)
+        await stream.search_today(query="restaurant")
+
+
+async def main():
+    extra_attributes, profile, base = memory_config_societyagent()
+    agent = CustomAgent(name="name", memory=Memory(extra_attributes, profile, base))
+    await agent.forward()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+### memory.status: `StatusMemory`
+
+`StatusMemory` is designed to unify three different types of memory (status, configuration, dynamic) into a single objective memory.  
+
+The design central is the fusion of semantic richness and adaptability. By integrating embedding models and Faiss-based vector search, StatusMemory transcends static storage, transforming raw data into semantically meaningful representations. 
+
+Fields are dynamically contextualized through user-defined templates, allowing textual descriptions to capture deeper relationships between data points. 
+
+#### Usage Example
+
+Use status memory in your agent. If you are using `AgentSimulation.run_from_config`, assign your status memory field define function with `ExpConfig.SetAgentConfig(memory_config_func=<STATUS-CONFIG-DICT>)`.
+
+```python
+import asyncio
+
+from agentsociety import Agent, AgentType
+from agentsociety.cityagent import memory_config_societyagent
+from agentsociety.memory import Memory
+
+
+class CustomAgent(Agent):
+    def __init__(self, name: str, memory: Memory, **kwargs):
+        super().__init__(name=name, memory=memory, type=AgentType.Citizen, **kwargs)
+
+    async def forward(
+        self,
+    ):
+        status = self.memory.status
+        # update value, note that you can not add a new field to status once the memory is instantiated
+        await status.update("city", "Beijing")
+        # retrieve value
+        print(await status.get("city", default_value="New York"))
+
+
+async def main():
+    _, profile, base = memory_config_societyagent()
+    # self-define status field
+    # key: field name
+    # value: tuple(field name, default value, Optional[whether use embedding for this filed])
+    extra_attributes = {
+        "type": (str, "citizen"),
+        "city": (str, "New York", True),
+    }
+    agent = CustomAgent(name="name", memory=Memory(extra_attributes, profile, base))
+    await agent.forward()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+```
+
+
+
+### memory.embedding_model: Embedding Model
 
 To change the embedding model within the `Memory`, you simply need to assign it with `ExpConfig.SetAgentConfig`.
+
+
+#### Usage Example
 
 ```python
 from agentsociety.configs import (ExpConfig, SimConfig, WorkflowStep,
@@ -57,106 +127,96 @@ exp_config = ExpConfig(exp_name="test",).SetAgentConfig(
     embedding_model=SimpleEmbedding()
 )
 ```
-The incoming `embedding` is an instance of a subclass from `langchain_core.embeddings.Embeddings` and needs to implement `embed_query`, `embed_documents`.
+The incoming `embedding` is an instance of a subclass from `langchain_core.embeddings.Embeddings` and needs to implement `embed_query`, `embed_documents`.  
 
-## Retrieve Specific Memory
 
-### Time-based Memory Retrieval
-- `search_today`
 
-### ID-based Retrieval
-- `get_by_ids`
+## Simulator
 
-### Filter-based Memory Retrieval
-- `search`
-  - Semantic
-  - Time Range
-  - Memory Tag
-  - Day Range
-  - Top-K
+The Simulator serves as a bridge between agents and the physical entities in the simulation environment.  
 
-## Urban Simulator
-The Simulator serves as a bridge between agents and the physical entities in the simulation environment.
-It manages bi-directional communication, allowing agents to perceive their surroundings and interact with the environment through actions.
+### Usage Example
 
-## Interact Methods
+```python
+from agentsociety import Agent, AgentType
+from agentsociety.environment import Simulator
 
-### Environment Management
-- `environment`
-- `set_environment`
-- `sence`
-- `update_environment`
 
-### Map Item Query
-- `map`
-- `get_poi_cate`
-- `get_poi_categories`
+class CustomAgent(Agent):
+    def __init__(self, name: str, simulator: Simulator, **kwargs):
+        super().__init__(
+            name=name, simulator=simulator, type=AgentType.Citizen, **kwargs
+        )
 
-### Logging History
-- `get_log_list`
-- `clear_log_list`
-
-### Time-related Operations
-- `get_time`
-- `get_simulator_day`
-- `get_simulator_second_from_start_of_day`
-
-### Simulation Control
-- `pause`
-- `resume`
-
-### Person Information Retrieval
-- `get_person`
+    async def forward(
+        self,
+    ):
+        simulator = self.simulator
+        # clock time in the Urban Space
+        print(await simulator.get_time())
+        # the simulation day till now
+        print(await simulator.get_simulator_day())
+        # set the global environment prompt
+        simulator.set_environment({"weather": "sunny"})
+```
 
 ## Economy Simulator
-The Economy Client serves as a centralized economic settlement system that manages monetary flows between company entities and citizen entities in the simulation environment.
 
-It handles transactions, resource allocation, and financial interactions within the virtual economy.
+The Economy Client serves as a centralized economic settlement system that manages monetary flows between company entities and citizen entities in the simulation environment.  
 
-## Interact Methods
+### Usage Example
 
-### Value Operations
-- `get`: Get value of specific key
-- `update`: Update value of specific key
-- `add_delta_value`: Incremental update number type value
+```python
+from agentsociety import Agent, AgentType
+from agentsociety.environment import EconomyClient
 
-### Currency Calculation
-- `calculate_taxes_due`: Pay tax to the government
-- `calculate_consumption`: Buy items from firms
-- `calculate_real_gdp`: Calculate GDP
-- `calculate_interest`: Calculate interest for bank accounts
 
-### Entity Information Retrieval
-- `get_agent`
-- `get_org`
+class CustomAgent(Agent):
+    def __init__(self, name: str, economy_client: EconomyClient, **kwargs):
+        super().__init__(
+            name=name, economy_client=economy_client, type=AgentType.Citizen, **kwargs
+        )
 
-### Simulation Control
-- `save`
-- `load`
-
-### Logging History
-- `get_log_list`
-- `clear_log_list`
+    async def forward(
+        self,
+    ):
+        economy_client = self.economy_client
+        # update currency
+        await economy_client.update(AGENT_ID, "currency", 200.0)
+        # consumption
+        real_consumption = await economy_client.calculate_consumption(
+            FIRM_ID,
+            AGENT_ID,
+            DEMAND_EACH_FIRM,
+        )
+        # bank interest
+        await economy_client.calculate_interest(
+            BANK_ID,
+            AGENT_ID,
+        )
+```
 
 ## LLM Client
 
-The LLM Client manages communications between agents and large language models, representing the agent's "soul".
+The LLM Client manages communications between agents and large language models, representing the agent's "soul". 
 
-## Core Functions
+### Usage Example
 
-### Communication Interface
-- `atext_request`: Asynchronous chat completion
+```python
+from agentsociety import Agent, AgentType
+from agentsociety.llm import LLM
 
-### API Control
-- `show_consumption`: Monitor token consumption
-- `set_semaphore`
 
-### Request Configuration
-- `set_temperature`: Adjust response randomness
-- `set_max_tokens`: Control response length
-- `set_top_p`: Configure sampling parameters
-- `set_presence_penalty`: Adjust repetition avoidance
+class CustomAgent(Agent):
+    def __init__(self, name: str, llm_client: LLM, **kwargs):
+        super().__init__(
+            name=name, llm_client=llm_client, type=AgentType.Citizen, **kwargs
+        )
 
-### Logging History
-- `get_log_list`
-- `clear_log_list`
+    async def forward(
+        self,
+    ):
+        llm_client = self.llm
+        await llm_client.atext_request(dialog={"content": "Hello!"})
+
+```

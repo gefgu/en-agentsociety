@@ -1,11 +1,13 @@
-import random
-import numpy as np
-from agentsociety.cityagent import (BankAgent, FirmAgent, GovernmentAgent,
-                                   NBSAgent, SocietyAgent)
-
 import logging
+import random
+
+import numpy as np
+
+from agentsociety.cityagent import (BankAgent, FirmAgent, GovernmentAgent,
+                                    NBSAgent, SocietyAgent)
 
 logger = logging.getLogger("agentsociety")
+
 
 async def initialize_social_network(simulation):
     """
@@ -74,6 +76,7 @@ async def initialize_social_network(simulation):
         print(f"Error initializing social network: {str(e)}")
         return False
 
+
 def zipf_distribution(N, F, s=1.0):
     """
     Generates employee counts for F companies following Zipf's law, with total employees N.
@@ -85,7 +88,7 @@ def zipf_distribution(N, F, s=1.0):
 
     - **Parameters**:
         - `N`: Total number of employees across all companies
-        - `F`: Number of companies to distribute employees across  
+        - `F`: Number of companies to distribute employees across
         - `s`: Power law exponent for Zipf's law, typically close to 1
 
     - **Returns**:
@@ -93,7 +96,7 @@ def zipf_distribution(N, F, s=1.0):
     """
     # Calculate employee count for each rank (following Zipf's law distribution)
     ranks = np.arange(1, F + 1)  # Ranks from 1 to F
-    sizes = 1 / (ranks ** s)  # Calculate employee count ratio according to Zipf's law
+    sizes = 1 / (ranks**s)  # Calculate employee count ratio according to Zipf's law
 
     # Calculate normalization coefficient to make total employees equal N
     total_size = np.sum(sizes)
@@ -101,6 +104,7 @@ def zipf_distribution(N, F, s=1.0):
 
     # Return employee count for each company (integers)
     return np.round(normalized_sizes).astype(int)
+
 
 async def bind_agent_info(simulation):
     """
@@ -133,15 +137,25 @@ async def bind_agent_info(simulation):
     random.shuffle(citizen_agent_ids_cp)
     employee_sizes = zipf_distribution(len(citizen_agent_ids_cp), len(firm_uuids))
     for firm_uuid, size in zip(firm_uuids, employee_sizes):
-        await simulation.economy_update(uid2agent[firm_uuid], "employees", citizen_agent_ids_cp[:size])
+        await simulation.economy_update(
+            uid2agent[firm_uuid], "employees", citizen_agent_ids_cp[:size]
+        )
         for citizen_agent_id in citizen_agent_ids_cp[:size]:
-            await simulation.update(agent2uid[citizen_agent_id], "firm_id", uid2agent[firm_uuid])
+            await simulation.update(
+                agent2uid[citizen_agent_id], "firm_id", uid2agent[firm_uuid]
+            )
         citizen_agent_ids_cp = citizen_agent_ids_cp[size:]
     for government_uuid in government_uuids:
-        await simulation.economy_update(uid2agent[government_uuid], "citizens", citizen_agent_ids)
+        await simulation.economy_update(
+            uid2agent[government_uuid], "citizens", citizen_agent_ids
+        )
     for bank_uuid in bank_uuids:
-        await simulation.economy_update(uid2agent[bank_uuid], "citizens", citizen_agent_ids)
+        await simulation.economy_update(
+            uid2agent[bank_uuid], "citizens", citizen_agent_ids
+        )
     for nbs_uuid in nbs_uuids:
         await simulation.update(nbs_uuid, "citizens", citizen_uuids)
-        await simulation.economy_update(uid2agent[nbs_uuid], "citizens", citizen_agent_ids)
+        await simulation.economy_update(
+            uid2agent[nbs_uuid], "citizens", citizen_agent_ids
+        )
     logger.info("Agent info binding completed!")

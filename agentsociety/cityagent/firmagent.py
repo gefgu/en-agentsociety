@@ -1,12 +1,13 @@
-from typing import Optional
+import logging
+from typing import Optional, cast
 
 import numpy as np
-from agentsociety import Simulator, InstitutionAgent
-from agentsociety.llm import LLM
+
+from agentsociety import InstitutionAgent, Simulator
 from agentsociety.environment import EconomyClient
-from agentsociety.message import Messager
+from agentsociety.llm import LLM
 from agentsociety.memory import Memory
-import logging
+from agentsociety.message import Messager
 
 logger = logging.getLogger("agentsociety")
 
@@ -31,7 +32,7 @@ class FirmAgent(InstitutionAgent):
         simulator: Optional[Simulator] = None,
         memory: Optional[Memory] = None,
         economy_client: Optional[EconomyClient] = None,
-        messager: Optional[Messager] = None,
+        messager: Optional[Messager] = None,  # type:ignore
         avro_file: Optional[dict] = None,
     ) -> None:
         super().__init__(
@@ -52,6 +53,7 @@ class FirmAgent(InstitutionAgent):
 
     async def month_trigger(self):
         now_time = await self.simulator.get_time()
+        now_time = cast(int, now_time)
         if self.last_time_trigger is None:
             self.last_time_trigger = now_time
             return False
@@ -60,7 +62,7 @@ class FirmAgent(InstitutionAgent):
             return True
         return False
 
-    async def gather_messages(self, agent_ids, content):
+    async def gather_messages(self, agent_ids, content):  # type:ignore
         infos = await super().gather_messages(agent_ids, content)
         return [info["content"] for info in infos]
 
@@ -70,12 +72,22 @@ class FirmAgent(InstitutionAgent):
             employees = await self.economy_client.get(self._agent_id, "employees")
             total_demand = await self.economy_client.get(self._agent_id, "demand")
             goods_consumption = await self.economy_client.get(self._agent_id, "sales")
-            last_inventory = goods_consumption + await self.economy_client.get(self._agent_id, "inventory")
-            max_change_rate = (total_demand - last_inventory) / (max(total_demand, last_inventory) + 1e-8)
+            last_inventory = goods_consumption + await self.economy_client.get(
+                self._agent_id, "inventory"
+            )
+            max_change_rate = (total_demand - last_inventory) / (
+                max(total_demand, last_inventory) + 1e-8
+            )
             skills = await self.economy_client.get(employees, "skill")
             skills = np.array(skills)
-            skill_change_ratio = np.random.uniform(0, max_change_rate*self.max_wage_inflation)
-            await self.economy_client.update(employees, "skill", list(np.maximum(skills*(1 + skill_change_ratio), 1)))
+            skill_change_ratio = np.random.uniform(
+                0, max_change_rate * self.max_wage_inflation
+            )
+            await self.economy_client.update(
+                employees,
+                "skill",
+                list(np.maximum(skills * (1 + skill_change_ratio), 1)),
+            )
             price = await self.economy_client.get(self._agent_id, "price")
             await self.economy_client.update(
                 self._agent_id,
@@ -91,6 +103,6 @@ class FirmAgent(InstitutionAgent):
                     1,
                 ),
             )
-            await self.economy_client.update(self._agent_id, 'demand', 0)
-            await self.economy_client.update(self._agent_id, 'sales', 0)
+            await self.economy_client.update(self._agent_id, "demand", 0)
+            await self.economy_client.update(self._agent_id, "sales", 0)
             print("firm forward end")

@@ -85,13 +85,13 @@ async def main():
     llm_log_lists, mqtt_log_lists, simulator_log_lists, agent_time_log_lists = (
         await AgentSimulation.run_from_config(exp_config, sim_config)
     )
-    with open(f"social_control_llm_log_lists.json", "w", encoding="utf-8") as f:
+    with open(f"social_node_llm_log_lists.json", "w", encoding="utf-8") as f:
         json.dump(llm_log_lists, f, ensure_ascii=False, indent=2)
-    with open(f"social_control_mqtt_log_lists.json", "w", encoding="utf-8") as f:
+    with open(f"social_node_mqtt_log_lists.json", "w", encoding="utf-8") as f:
         json.dump(mqtt_log_lists, f, ensure_ascii=False, indent=2)
-    with open(f"social_control_simulator_log_lists.json", "w", encoding="utf-8") as f:
+    with open(f"social_node_simulator_log_lists.json", "w", encoding="utf-8") as f:
         json.dump(simulator_log_lists, f, ensure_ascii=False, indent=2)
-    with open(f"social_control_agent_time_log_lists.json", "w", encoding="utf-8") as f:
+    with open(f"social_node_agent_time_log_lists.json", "w", encoding="utf-8") as f:
         json.dump(agent_time_log_lists, f, ensure_ascii=False, indent=2)
     ray.shutdown()
 

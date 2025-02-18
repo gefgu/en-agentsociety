@@ -4,80 +4,33 @@ Our experiment simulates the impact of a Universal Basic Income (UBI) policy, gr
 
 Codes are available at [UBI](https://github.com/tsinghua-fib-lab/agentsociety/tree/main/examples/UBI).
 
-## Run the Codes
+## Background
 
-```bash
-cd examples/UBI
-python main.py
-```
+Universal Basic Income (UBI) has emerged as a prominent policy tool for alleviating poverty, enhancing economic stability, and improving social welfare, despite ongoing debates over its financial feasibility and broader economic implications. As a mechanism to address income inequality and strengthen social safety nets, UBI has garnered significant research attention. This experiment evaluates the potential effects of UBI by simulating its implementation within a controlled framework, focusing on shifts in individual economic behaviors—such as consumption patterns, savings rates, and labor market participation—as well as macroeconomic outcomes. The study employs a comparative design with two groups: a control group, where agents operate under existing economic conditions without UBI, and an intervention group, where agents receive unconditional monthly payments of $1,000. Leveraging demographic distribution data from UBI pilot regions, including Texas in the United States, the simulation analyzes economic and social indicators across both groups to assess how UBI influences individual decision-making and aggregate economic dynamics. By comparing simulated outcomes with empirical findings from real-world UBI trials, the experiment aims to validate theoretical models and deepen understanding of UBI's practical viability as a socioeconomic policy.
 
-## Step-by-Step Code Explanation
+## Reproducing Phenomena with Our Framework  
 
-## `main.py`
+### Simulating UBI Economic Dynamics  
 
-### Tool Functions
-
-`economy_metric` extracts econmoy metrics, including `'price', 'working_hours', 'depression', 'consumption', 'income'` from simulation and exports them to the MLflow.
-```python
-async def economy_metric(simulation):
-    if not hasattr(economy_metric, 'nbs_id'):
-        economy_metric.nbs_id = None
-    if not hasattr(economy_metric, 'nbs_uuid'):
-        economy_metric.nbs_uuid = None
-
-    if economy_metric.nbs_id is None:
-        nbs_id = await simulation.economy_client.get_org_entity_ids(economyv2.ORG_TYPE_NBS)
-        nbs_id = nbs_id[0]
-        economy_metric.nbs_id = nbs_id
-    if economy_metric.nbs_uuid is None:
-        nbs_uuids = await simulation.filter(types=[NBSAgent])
-        economy_metric.nbs_uuid = nbs_uuids[0]
-    
-    try:
-        real_gdp = await simulation.economy_client.get(economy_metric.nbs_id, 'real_gdp')
-    except:
-        real_gdp = []
-    if len(real_gdp) > 0:
-        real_gdp = real_gdp[-1]
-        forward_times_info = await simulation.gather("forward_times", [economy_metric.nbs_uuid])
-        step_count = 0
-        for group_gather in forward_times_info:
-            for agent_uuid, forward_times in group_gather.items():
-                if agent_uuid == economy_metric.nbs_uuid:
-                    step_count = forward_times
-        await simulation.mlflow_client.log_metric(key="real_gdp", value=real_gdp, step=step_count)
-        other_metrics = ['prices', 'working_hours', 'depression', 'consumption_currency', 'income_currency']
-        other_metrics_names = ['price', 'working_hours', 'depression', 'consumption', 'income']
-        for metric, metric_name in zip(other_metrics, other_metrics_names):
-            metric_value = (await simulation.economy_client.get(economy_metric.nbs_id, metric))[-1]
-            await simulation.mlflow_client.log_metric(key=metric_name, value=metric_value, step=step_count)
-
-```
-
-`gather_ubi_opinions` gathers the opinions of all citizens for Universal Basic Income.
+#### Workflow Design  
 
 ```python
-import asyncio
-import json
-import logging
-import pickle as pkl
+exp_config.SetWorkFlow([
+    # 10 days with UBI
+    WorkflowStep(
+        type=WorkflowType.RUN, 
+        days=10, 
+    ),  
+])
+```
 
-import ray
+### Data Collection and Metrics
 
-from agentsociety import AgentSimulation
-from agentsociety.cityagent import memory_config_societyagent
-from agentsociety.cityagent.initial import (bind_agent_info,
-                                            initialize_social_network)
-from agentsociety.cityagent.metrics import economy_metric
-from agentsociety.cityagent.societyagent import SocietyAgent
-from agentsociety.configs import ExpConfig, SimConfig, WorkflowStep
-from agentsociety.utils import LLMRequestType, WorkflowType
+#### UBI Opinions
 
-logging.getLogger("agentsociety").setLevel(logging.INFO)
+The `gather_ubi_opinions` method collects qualitative sentiment data about UBI and store it locally with `pickle`.
 
-ray.init(logging_level=logging.WARNING, log_to_driver=False)
-
-
+```python
 async def gather_ubi_opinions(simulation: AgentSimulation):
     citizen_agents = await simulation.filter(types=[SocietyAgent])
     opinions = await simulation.gather("ubi_opinion", citizen_agents)
@@ -85,63 +38,31 @@ async def gather_ubi_opinions(simulation: AgentSimulation):
         pkl.dump(opinions, f)
 ```
 
-### Configuration
+#### Economy Metrics
+
+The `economy_metric` monitors macroeconomic indicators  through `'prices', 'working_hours', 'depression', 'consumption_currency', 'income_currency'`.
 
 ```python
-sim_config = (
-    SimConfig()
-    .SetLLMRequest(
-        request_type=LLMRequestType.ZhipuAI, api_key="YOUR-API-KEY", model="GLM-4-Flash"
-    )
-    .SetSimulatorRequest(min_step_time=1)
-    .SetMQTT(server="mqtt.example.com", username="user", port=1883, password="pass")
-    # change to your file path
-    .SetMapRequest(file_path="map.pb")
-    # .SetAvro(path='./__avro', enabled=True)
-    .SetPostgreSql(path="postgresql://user:pass@localhost:5432/db", enabled=True)
-    .SetMetricRequest(
-        username="mlflow_user", password="mlflow_pass", mlflow_uri="http://mlflow:5000"
-    )
-)
-exp_config = (
-    ExpConfig(
-        exp_name="allinone_economy", llm_semaphore=200, logging_level=logging.INFO
-    )
-    .SetAgentConfig(
-        number_of_citizen=100,
-        number_of_firm=5,
-        memory_config_func={SocietyAgent: memory_config_societyagent},
-        agent_class_configs={
-            SocietyAgent: json.load(open("society_agent_config.json"))
-        },
-        init_func=[bind_agent_info, initialize_social_network],
-    )
-    .SetWorkFlow(
-        [
-            WorkflowStep(type=WorkflowType.RUN, days=10, times=1, description=""),
-        ]
-    )
-    .SetMetricExtractors(
-        metric_extractors=[(1, economy_metric), (12, gather_ubi_opinions)]
-    )
+# Metric extraction configuration
+exp_config.SetMetricExtractors(
+    metric_extractors=[
+        (1, economy_metric),          
+        (12, gather_ubi_opinions)     
+    ]
 )
 ```
-Initialize 100 agents with `number_of_citizen=100`, and 5 firms with `number_of_firm=5`.
 
-The workflow has one step and is to simulate for 10 days, providing enough time for agents to evolve their opinions.
+### Run the Codes
 
-Two metric extractors are set here. Constantly export metric to the MLflow with `economy_metric` and gather opinions on UBI every 12 steps with `gather_ubi_opinions`.
-
-### Main Function
-
-```python
-async def main():
-    await AgentSimulation.run_from_config(exp_config, sim_config)
-    ray.shutdown()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+```bash
+cd examples/UBI
+python main.py
 ```
 
-`main` perform the simulation with configs defined above.
+## Experiment Result
+
+![UbiResult](../img/04-ubi-result.png)
+
+The experimental results revealed that the simulated economic system gradually stabilized over time, with diminishing fluctuations in real GDP and agent consumption levels. Following the implementation of a UBI policy at step 96, subsequent analysis of economic and social indicators over 24 steps demonstrated that UBI significantly elevated consumption levels and reduced depressive symptoms, as measured by CES-D scale assessments. These outcomes mirrored the observed effects of Texas' real-world UBI initiatives, validating the simulation's alignment with empirical socioeconomic dynamics. 
+
+Agent interviews further uncovered nuanced perceptions of UBI, with its perceived impacts closely tied to interest rates, long-term welfare benefits, savings behaviors, and access to essential goods—factors consistent with public discourse surrounding UBI in reality. The findings concurrently substantiate UBI's dual efficacy in stimulating economic activity and enhancing psychological well-being, while also confirming the simulation platform's utility as a cost-effective experimental environment for policy prototyping and impact assessment.

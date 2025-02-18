@@ -10,5 +10,5 @@ Check [AgentSociety/examples](https://github.com/tsinghua-fib-lab/agentsociety/t
 01-polarization
 02-inflammatory-messages
 03-ubi
-04-mobility
+04-hurricane-impact
 ```
