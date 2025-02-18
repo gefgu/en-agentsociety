@@ -12,8 +12,8 @@ BIN_SOURCES = {
         "darwin_arm64": "https://git.fiblab.net/api/v4/projects/195/packages/generic/socialcity-sim/v1.0.18/socialcity-sim-noproj-darwin-arm64",
     },
     "agentsociety-ui": {
-        "linux_x86_64": "https://git.fiblab.net/api/v4/projects/188/packages/generic/socialcity-web/v0.3.1/socialcity-web-linux-amd64",
-        "darwin_arm64": "https://git.fiblab.net/api/v4/projects/188/packages/generic/socialcity-web/v0.3.1/socialcity-web-darwin-arm64",
+        "linux_x86_64": "https://git.fiblab.net/api/v4/projects/188/packages/generic/socialcity-web/v0.3.3/socialcity-web-linux-amd64",
+        "darwin_arm64": "https://git.fiblab.net/api/v4/projects/188/packages/generic/socialcity-web/v0.3.3/socialcity-web-darwin-arm64",
     },
 }
 
