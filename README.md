@@ -74,7 +74,7 @@ Get started with AgentSociety in just a few minutes!
 
 ### Example Usage
 To get started quickly, please refer to the `examples` folder in the repository. It contains sample scripts and configurations to help you understand how to create and use agents in an urban simulation environment.
-Check our online document for detailed usage tutorial: [AgentSociety Document](https://agentsociety.readthedocs.io/en/latest/01-quick-start.html).
+Check our online document for detailed usage tutorial: [AgentSociety Document](https://agentsociety.readthedocs.io/en/latest/01-quick-start/index.html).
 
 <a id="contributing"></a>
 ## 🤝 Contributing
