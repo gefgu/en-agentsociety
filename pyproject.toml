@@ -8,8 +8,8 @@ version = "1.0.8" # change it for each release
 description = "LLM-based city environment agent building library"
 authors = [
     { name = "Yuwei Yan", email = "pinkgranite86@gmail.com" },
-    { name = "Junbo Yan", email = "yanjb20thu@gmali.com" },
-    { name = "Jun Zhang", email = "zhangjun990222@gmali.com" },
+    { name = "Junbo Yan", email = "yanjb20thu@gmail.com" },
+    { name = "Jun Zhang", email = "zhangjun990222@gmail.com" },
 ]
 license = { file = "LICENSE" }
 readme = "README.md"

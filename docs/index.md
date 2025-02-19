@@ -1,10 +1,11 @@
 # AgentSociety
 
 **AgentSociety** is a social simulation engine and a toolkit for social science research, constructed based on the first principles of sociology, utilizing large model agents. It aims to catalyze a paradigm shift in the methodology of social science research, promoting developments from behavioral simulation to mental modeling, from static deduction to dynamic coexistence, and from laboratory tools to social infrastructure.
+The paper is available at [arXiv](https://arxiv.org/abs/2502.08691).
 
 <img src="_static/framework-overview.jpg" alt="Overall Structure of AgentSociety" style="zoom=28%;" />
 
-Our framework features:
+## Features
 
 - 🌟 **Large Model-driven Social Human Agents**: Based on sociological theories, it constructs social agents with "human-like minds," endowing them with emotions, needs, motivations, and cognitive abilities. These agents perform complex social behaviors such as movement, employment, consumption, and social interactions driven by these mental attributes. We also support [customization of agents](./04-custom-agents/index.md).
 - 🌟 **Realistic Urban Social Environment**: It accurately simulates urban spaces that are crucial for the survival of social humans, reproducing transportation, infrastructure, and public resources. This enables agents to interact under real-world constraints, forming a vivid social ecosystem.
@@ -24,7 +25,7 @@ Comprehensive details and use case explanations are available in [Hurricane Impa
 
 ## Installation
 
-Refer to the quick section section for [prerequisites](./01-quick-start/01-prerequisites.md) and [installation](./01-quick-start/02-start-your-first-simulation.md#step-0-installation) instructions.
+Refer to the quick start section for [prerequisites](./01-quick-start/01-prerequisites.md) and [installation](./01-quick-start/02-start-your-first-simulation.md#step-0-installation) instructions.
 
 ## Contact Us
 

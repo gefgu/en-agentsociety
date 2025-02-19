@@ -6,8 +6,8 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "agentsociety"
-copyright = "2024, FIBLAB"
+project = "AgentSociety"
+copyright = "2025, FIBLAB"
 author = "Yuwei Yan, Junbo Yan, Jun Zhang"
 
 # -- General configuration ---------------------------------------------------
@@ -32,7 +32,7 @@ exclude_patterns = []
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_title = "agentsociety"
+html_title = "AgentSociety"
 html_theme = "furo"
 html_theme_options = {
     "top_of_page_buttons": ["view", "edit"],

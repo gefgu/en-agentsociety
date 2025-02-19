@@ -23,10 +23,10 @@ agentsociety.utils.parsers
 :maxdepth: 1
 
 agentsociety.utils.config_const
-agentsociety.utils.pg_query
-agentsociety.utils.survey_util
-agentsociety.utils.avro_schema
 agentsociety.utils.decorators
+agentsociety.utils.pg_query
+agentsociety.utils.avro_schema
+agentsociety.utils.survey_util
 ```
 
 ## Package Contents
