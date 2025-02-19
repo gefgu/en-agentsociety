@@ -11,7 +11,7 @@
 [![Online Documentation](https://img.shields.io/badge/docs-online-blue)](https://agentsociety.readthedocs.io/en/latest/) &ensp;
 
 
-AgentSociety is an advanced framework specifically designed for building intelligent agents in urban simulation environments. With AgentSociety, you can easily create and manage agents, enabling complex urban scenarios to be modeled and simulated efficiently.
+AgentSociety is an advanced framework specifically designed for building agents in urban simulation environments. With AgentSociety, you can easily create and manage agents, enabling complex urban scenarios to be modeled and simulated efficiently.
 
 ## 🌟 Features
 - **Mind-Behavior Coupling**: Integrates LLMs' planning, memory, and reasoning capabilities to generate realistic behaviors or uses established theories like Maslow’s Hierarchy of Needs and Theory of Planned Behavior for explicit modeling.

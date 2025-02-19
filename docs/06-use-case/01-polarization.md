@@ -171,6 +171,6 @@ python back_firing.py
 
 ## Experiment Result
 
-![PolarizationResult](../img/04-polarization-result.png)
+![PolarizationResult](../_static/04-polarization-result.png)
 
 As shown in the figure above, opinion dynamics under the three experimental settings exhibit distinct patterns regarding the gun control policy issue. In the control group, where agents engaged in free discussions without external intervention, 39% of agents became more polarized after interactions, while 33% adopted more moderate stances. In contrast, the homogeneous information group demonstrated significantly amplified polarization, with 52% of agents developing more extreme views. This aligns with real-world "echo chamber effects," suggesting that excessive interactions with like-minded individuals may intensify opinion divergence. Notably, the opposing information group revealed a striking mitigation of polarization: 89% of agents shifted toward moderate positions, with 11% even adopting opposing viewpoints. These results indicate that exposure to counter-attitudinal content can effectively reduce polarization, potentially serving as a viable strategy to counteract ideological fragmentation. The findings underscore the critical role of information ecosystems in shaping collective opinion trajectories.

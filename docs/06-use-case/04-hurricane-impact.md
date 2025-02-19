@@ -68,9 +68,9 @@ python hurricane.py
 
 ## Experiment Result
 
-![HurricaneResult0](../img/04-hurricane-result-0.png)
+![HurricaneResult0](../_static/04-hurricane-result-0.png)
 
-![HurricaneResult1](../img/04-hurricane-result-1.png)
+![HurricaneResult1](../_static/04-hurricane-result-1.png)
 
 The experimental results demonstrated that the movement patterns of the simulated agents during the hurricane event closely aligned with real-world data, with agent activity levels significantly decreasing as the hurricane approached and gradually recovering in the post-disaster period, mirroring actual human mobility trends observed in real-world scenarios. The temporal evolution of simulated population movements showed strong similarity to empirical mobility patterns, validating the simulator's capability to reproduce human behavioral responses under extreme weather conditions. 
 

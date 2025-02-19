@@ -135,7 +135,7 @@ python node_intercept.py
 
 ## Experiment Result
 
-![InflammatoryMessagesResult](../img/04-inflammatory-messages-result.png)
+![InflammatoryMessagesResult](../_static/04-inflammatory-messages-result.png)
 
 The experimental results demonstrated that inflammatory messages exhibit stronger propagation potential and elicit heightened emotional responses within social networks. Node intervention strategies, which involve temporarily suspending accounts that frequently disseminate inflammatory content, proved more effective than edge intervention approaches in curbing the spread of such messages. Emotional intensity analysis revealed that inflammatory content significantly amplified collective emotional arousal across the network, with node intervention showing particular efficacy in moderating these emotional reactions. 
 

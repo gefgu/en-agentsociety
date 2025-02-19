@@ -61,7 +61,7 @@ python main.py
 
 ## Experiment Result
 
-![UbiResult](../img/04-ubi-result.png)
+![UbiResult](../_static/04-ubi-result.png)
 
 The experimental results revealed that the simulated economic system gradually stabilized over time, with diminishing fluctuations in real GDP and agent consumption levels. Following the implementation of a UBI policy at step 96, subsequent analysis of economic and social indicators over 24 steps demonstrated that UBI significantly elevated consumption levels and reduced depressive symptoms, as measured by CES-D scale assessments. These outcomes mirrored the observed effects of Texas' real-world UBI initiatives, validating the simulation's alignment with empirical socioeconomic dynamics. 
 

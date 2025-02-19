@@ -35,7 +35,7 @@ exp_config = (
 
 ## Custom Agent Logics
 
-To implement custom agent behaviors and logic, refer to the [Custom Agents Guide](02-custom-agents.md#customizing-the-agent-logic).
+To implement custom agent behaviors and logic, refer to the [Custom Agents Guide](04-custom-agents.md#customizing-the-agent-logic).
 
 ## City Environment Configuration
 

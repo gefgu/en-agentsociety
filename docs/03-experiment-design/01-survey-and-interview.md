@@ -81,7 +81,7 @@ if __name__ == "__main__":
 
 With `SimConfig.SetAvro` and `SimConfig.SetPostgreSql`, the survey result will be automatically stored in local Avro files and PostgreSQL database.
 
-Check [Avro Schema](../05-advanced-usage/02-record-with-avro.md#survey) and [PostgreSQL Table](../05-advanced-usage/01-record-with-pgsql.md#survey) definitions for data structure.
+Check [Avro Schema](../07-advanced-usage/02-record-with-avro.md#survey) and [PostgreSQL Table](../07-advanced-usage/01-record-with-pgsql.md#survey) definitions for data structure.
 
 ## Interviews
 
@@ -130,4 +130,4 @@ if __name__ == "__main__":
 
 With `SimConfig.SetAvro` and `SimConfig.SetPostgreSql`, the interview result will be automatically stored in local Avro files and PostgreSQL database.
 
-Check [Avro Schema](../05-advanced-usage/02-record-with-avro.md#interview) and [PostgreSQL Table](../05-advanced-usage/01-record-with-pgsql.md#interview) definitions for data structure.
+Check [Avro Schema](../07-advanced-usage/02-record-with-avro.md#interview) and [PostgreSQL Table](../07-advanced-usage/01-record-with-pgsql.md#interview) definitions for data structure.
