@@ -13,9 +13,9 @@
 :titlesonly:
 :maxdepth: 1
 
-agentsociety.configs.exp_config
 agentsociety.configs.sim_config
 agentsociety.configs.utils
+agentsociety.configs.exp_config
 ```
 
 ## Package Contents

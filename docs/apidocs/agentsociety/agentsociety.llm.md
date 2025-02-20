@@ -13,9 +13,9 @@
 :titlesonly:
 :maxdepth: 1
 
+agentsociety.llm.llm
 agentsociety.llm.embeddings
 agentsociety.llm.utils
-agentsociety.llm.llm
 ```
 
 ## Package Contents

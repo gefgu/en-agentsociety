@@ -34,6 +34,10 @@ Researchers may contact us with [Email](mailto:agentsociety.fiblab2025@gmail.com
  
 We welcome collaborative opportunities to advance social science research through our platform.
 
+## WeChat Group
+
+<img src="_static/wechat.jpg" alt="WeChat" style="zoom=20%;" />
+
 ## Table of Contents
 
 ```{toctree}

@@ -13,9 +13,10 @@
 :titlesonly:
 :maxdepth: 3
 
-agentsociety.environment.economy
 agentsociety.environment.sim
 agentsociety.environment.utils
+agentsociety.environment.economy
+agentsociety.environment.sidecar
 ```
 
 ## Submodules
