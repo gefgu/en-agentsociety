@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.0.13] - 2025-02-21
+
+### Added
+- N/A
+
+### Changed
+- N/A
+
+### Deprecated
+- N/A
+
+### Removed
+- Delete `enable_institution` in ExpConfig
+
+### Fixed
+- N/A
+
+### Security
+- N/A
+
 ## [1.0.12] - 2025-02-21
 
 ### Added
