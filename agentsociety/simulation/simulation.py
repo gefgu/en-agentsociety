@@ -279,13 +279,18 @@ class AgentSimulation:
         environment = config.prop_environment.model_dump()
         simulation._simulator.set_environment(environment)
         logger.info("Initializing Agents...")
-        agent_count: dict[type[Agent], int] = {
-            SocietyAgent: agent_config.number_of_citizen,
-            FirmAgent: agent_config.number_of_firm,
-            GovernmentAgent: agent_config.number_of_government,
-            BankAgent: agent_config.number_of_bank,
-            NBSAgent: agent_config.number_of_nbs,
-        }
+        if agent_config.enable_institution:
+            agent_count: dict[type[Agent], int] = {
+                SocietyAgent: agent_config.number_of_citizen,
+                FirmAgent: agent_config.number_of_firm,
+                GovernmentAgent: agent_config.number_of_government,
+                BankAgent: agent_config.number_of_bank,
+                NBSAgent: agent_config.number_of_nbs,
+            }
+        else:
+            agent_count: dict[type[Agent], int] = {
+                SocietyAgent: agent_config.number_of_citizen,
+            }
         if agent_config.extra_agent_class is not None:
             agent_count.update(agent_config.extra_agent_class)
         if agent_count.get(SocietyAgent, 0) == 0:
