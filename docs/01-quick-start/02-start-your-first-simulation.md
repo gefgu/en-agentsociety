@@ -18,7 +18,7 @@ Please ensure your environment matches one of these supported platforms.
 
 ## Step 1: Download City Scene Data
 
-Before the simulation starts, it is necessary to download the city scene data file of [Beijing](https://cloud.tsinghua.edu.cn/f/66315f47606b444281e5/?dl=1), and save it as `./data/beijing_map.pb`.
+Before the simulation starts, it is necessary to download the city scene data file of [Beijing](https://cloud.tsinghua.edu.cn/f/f5c777485d2748fa8535/?dl=1), and save it as `./data/beijing_map.pb`.
 
 ## Step 2: Edit Configurations
 
