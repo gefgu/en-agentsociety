@@ -1,4 +1,4 @@
-# Use Case
+# UI Interface
 
 Here we provide instructions on how to use our UI Interface.
 
