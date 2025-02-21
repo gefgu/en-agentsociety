@@ -56,7 +56,6 @@ exp_config = (
     .SetAgentConfig(
         number_of_citizen=50,
         extra_agent_class={CustomAgent: 1},
-        enable_institution=False,
     )
     .SetWorkFlow([WorkflowStep(type="run", days=1)])
     .SetMessageIntercept(mode="point", max_violation_time=3)

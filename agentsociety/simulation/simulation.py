@@ -65,7 +65,6 @@ class AgentSimulation:
         agent_class: Union[None, type[Agent], list[type[Agent]]] = None,
         agent_class_configs: Optional[dict] = None,
         metric_extractors: Optional[list[tuple[int, Callable]]] = None,
-        enable_institution: bool = True,
         agent_prefix: str = "agent_",
         exp_name: str = "default_experiment",
         logging_level: int = logging.WARNING,
@@ -74,7 +73,7 @@ class AgentSimulation:
         Initializes the AgentSimulation with the given parameters.
 
         - **Description**:
-            - Sets up the simulation environment based on the provided configuration. Depending on the `enable_institution` flag,
+            - Sets up the simulation environment based on the provided configuration.
               it can include a predefined set of institutional agents. If specific agent classes are provided, those will be used instead.
 
         - **Args**:
@@ -84,7 +83,6 @@ class AgentSimulation:
             - `agent_class_configs` (Optional[dict], optional): An optional configuration dict used to initialize agents. Defaults to None.
             - `metric_extractors` (Optional[List[Tuple[int, Callable]]], optional):
                 A list of tuples containing intervals and callables for extracting metrics from the simulation. Defaults to None.
-            - `enable_institution` (bool, optional): Flag indicating whether institutional agents should be included in the simulation. Defaults to True.
             - `agent_prefix` (str, optional): Prefix string for naming agents. Defaults to "agent_".
             - `exp_name` (str, optional): The name of the experiment. Defaults to "default_experiment".
             - `logging_level` (int, optional): Logging level to set for the simulation's logger. Defaults to logging.WARNING.
@@ -96,26 +94,20 @@ class AgentSimulation:
         if isinstance(agent_class, list):
             self.agent_class = agent_class
         elif agent_class is None:
-            if enable_institution:
-                self.agent_class = [
-                    SocietyAgent,
-                    FirmAgent,
-                    BankAgent,
-                    NBSAgent,
-                    GovernmentAgent,
-                ]
-                self.default_memory_config_func = {
-                    SocietyAgent: memory_config_societyagent,
-                    FirmAgent: memory_config_firm,
-                    BankAgent: memory_config_bank,
-                    NBSAgent: memory_config_nbs,
-                    GovernmentAgent: memory_config_government,
-                }
-            else:
-                self.agent_class = [SocietyAgent]
-                self.default_memory_config_func = {
-                    SocietyAgent: memory_config_societyagent
-                }
+            self.agent_class = [
+                SocietyAgent,
+                FirmAgent,
+                BankAgent,
+                NBSAgent,
+                GovernmentAgent,
+            ]
+            self.default_memory_config_func = {
+                SocietyAgent: memory_config_societyagent,
+                FirmAgent: memory_config_firm,
+                BankAgent: memory_config_bank,
+                NBSAgent: memory_config_nbs,
+                GovernmentAgent: memory_config_government,
+            }
         else:
             self.agent_class = [agent_class]
         self.agent_class_configs = agent_class_configs
@@ -128,8 +120,7 @@ class AgentSimulation:
         server_addr = self._simulator.get_server_addr()
         config.SetServerAddress(server_addr)
         self._economy_client = EconomyClient(server_addr)
-        if enable_institution:
-            self._economy_addr = economy_addr = server_addr
+        self._economy_addr = economy_addr = server_addr
         self.agent_prefix = agent_prefix
         self._groups: dict[str, AgentGroup] = {}  # type:ignore
         self._agent_uuid2group: dict[str, AgentGroup] = {}  # type:ignore
@@ -233,7 +224,6 @@ class AgentSimulation:
         """Directly run from config file
         Basic config file should contain:
         - simulation_config: file_path
-        - enable_institution: Optional[bool], default is True
         - llm_semaphore: Optional[int], default is 200
         - agent_config:
             - agent_config_file: Optional[dict[type[Agent], str]]
@@ -272,25 +262,19 @@ class AgentSimulation:
             config=sim_config,
             agent_class_configs=agent_config.agent_class_configs,
             metric_extractors=config.prop_metric_extractors,
-            enable_institution=agent_config.enable_institution,
             exp_name=config.exp_name,
             logging_level=config.logging_level,
         )
         environment = config.prop_environment.model_dump()
         simulation._simulator.set_environment(environment)
         logger.info("Initializing Agents...")
-        if agent_config.enable_institution:
-            agent_count: dict[type[Agent], int] = {
-                SocietyAgent: agent_config.number_of_citizen,
-                FirmAgent: agent_config.number_of_firm,
-                GovernmentAgent: agent_config.number_of_government,
-                BankAgent: agent_config.number_of_bank,
-                NBSAgent: agent_config.number_of_nbs,
-            }
-        else:
-            agent_count: dict[type[Agent], int] = {
-                SocietyAgent: agent_config.number_of_citizen,
-            }
+        agent_count: dict[type[Agent], int] = {
+            SocietyAgent: agent_config.number_of_citizen,
+            FirmAgent: agent_config.number_of_firm,
+            GovernmentAgent: agent_config.number_of_government,
+            BankAgent: agent_config.number_of_bank,
+            NBSAgent: agent_config.number_of_nbs,
+        }
         if agent_config.extra_agent_class is not None:
             agent_count.update(agent_config.extra_agent_class)
         if agent_count.get(SocietyAgent, 0) == 0:

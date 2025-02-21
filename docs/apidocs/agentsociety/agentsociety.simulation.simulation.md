@@ -59,7 +59,7 @@
 
 ````
 
-`````{py:class} AgentSimulation(config: agentsociety.configs.SimConfig, agent_class: typing.Union[None, type[agentsociety.agent.Agent], list[type[agentsociety.agent.Agent]]] = None, agent_class_configs: typing.Optional[dict] = None, metric_extractors: typing.Optional[list[tuple[int, collections.abc.Callable]]] = None, enable_institution: bool = True, agent_prefix: str = 'agent_', exp_name: str = 'default_experiment', logging_level: int = logging.WARNING)
+`````{py:class} AgentSimulation(config: agentsociety.configs.SimConfig, agent_class: typing.Union[None, type[agentsociety.agent.Agent], list[type[agentsociety.agent.Agent]]] = None, agent_class_configs: typing.Optional[dict] = None, metric_extractors: typing.Optional[list[tuple[int, collections.abc.Callable]]] = None, agent_prefix: str = 'agent_', exp_name: str = 'default_experiment', logging_level: int = logging.WARNING)
 :canonical: agentsociety.simulation.simulation.AgentSimulation
 
 ```{autodoc2-docstring} agentsociety.simulation.simulation.AgentSimulation

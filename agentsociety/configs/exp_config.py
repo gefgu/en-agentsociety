@@ -34,9 +34,6 @@ class AgentConfig(BaseModel):
     memory_config_func: Optional[dict[type["Any"], Callable]] = None
     memory_config_init_func: Optional[Callable] = Field(None)
     init_func: Optional[list[Callable[["AgentSimulation"], None]]] = None
-    enable_institution: bool = Field(
-        True, description="Whether institutions are enabled in the experiment"
-    )
 
     @classmethod
     def create(
@@ -50,7 +47,6 @@ class AgentConfig(BaseModel):
         embedding_model: Any = None,
         extra_agent_class: Optional[dict[Any, int]] = None,
         agent_class_configs: Optional[dict[Any, dict[str, Any]]] = None,
-        enable_institution: bool = True,
         memory_config_func: Optional[dict[type["Any"], Callable]] = None,
         memory_config_init_func: Optional[Callable] = None,
         init_func: Optional[list[Callable[["AgentSimulation"], None]]] = None,
@@ -65,7 +61,6 @@ class AgentConfig(BaseModel):
             embedding_model=embedding_model,
             extra_agent_class=extra_agent_class,
             agent_class_configs=agent_class_configs,
-            enable_institution=enable_institution,
             memory_config_func=memory_config_func,
             memory_config_init_func=memory_config_init_func,
             init_func=init_func,
@@ -162,7 +157,6 @@ class ExpConfig(BaseModel):
         embedding_model: Any = None,
         extra_agent_class: Optional[dict[Any, int]] = None,
         agent_class_configs: Optional[dict[Any, dict[str, Any]]] = None,
-        enable_institution: bool = True,
         memory_config_func: Optional[dict[type["Any"], Callable]] = None,
         memory_config_init_func: Optional[Callable] = None,
         init_func: Optional[list[Callable[["AgentSimulation"], None]]] = None,
@@ -177,7 +171,6 @@ class ExpConfig(BaseModel):
             embedding_model=embedding_model,
             extra_agent_class=extra_agent_class,
             agent_class_configs=agent_class_configs,
-            enable_institution=enable_institution,
             memory_config_func=memory_config_func,
             memory_config_init_func=memory_config_init_func,
             init_func=init_func,

@@ -121,10 +121,22 @@ async def bind_agent_info(simulation):
     logger.info("Binding economy relationship...")
     infos = await simulation.gather("id")
     citizen_uuids = await simulation.filter(types=[SocietyAgent])
-    firm_uuids = await simulation.filter(types=[FirmAgent])
-    government_uuids = await simulation.filter(types=[GovernmentAgent])
-    bank_uuids = await simulation.filter(types=[BankAgent])
-    nbs_uuids = await simulation.filter(types=[NBSAgent])
+    try:
+        firm_uuids = await simulation.filter(types=[FirmAgent])
+    except Exception as e:
+        firm_uuids = []
+    try:
+        government_uuids = await simulation.filter(types=[GovernmentAgent])
+    except Exception as e:
+        government_uuids = []
+    try:
+        bank_uuids = await simulation.filter(types=[BankAgent])
+    except Exception as e:
+        bank_uuids = []
+    try:
+        nbs_uuids = await simulation.filter(types=[NBSAgent])
+    except Exception as e:
+        nbs_uuids = []
     citizen_agent_ids = []
     uid2agent, agent2uid = dict(), dict()
     for info in infos:

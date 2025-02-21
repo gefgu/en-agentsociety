@@ -36,7 +36,7 @@ from your_project.exp_config import ExpConfig, WorkflowStep, WorkflowType
 # Create a new experiment configuration
 exp_config = (
     ExpConfig()
-    .SetAgentConfig(number_of_citizen=10, enable_institution=True)
+    .SetAgentConfig(number_of_citizen=10)
     .SetEnvironment(weather="Sunny", crime="Low")
     .SetMessageIntercept(mode="point", max_violation_time=5)
     .SetMetricExtractors([(1, lambda x: print(x))])

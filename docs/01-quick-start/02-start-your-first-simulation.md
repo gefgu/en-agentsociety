@@ -74,7 +74,6 @@ An example of `example_exp_config.yaml` is as below:
 ```yaml
 agent_config:
   number_of_citizen: 100  # Number of citizens
-  enable_institution: false  # Whether institutions are enabled in the experiment
 
 workflow: [
   {"type": "run", "days": 1} # run the simulation for one day

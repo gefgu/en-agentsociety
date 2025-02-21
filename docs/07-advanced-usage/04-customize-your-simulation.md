@@ -19,7 +19,6 @@ exp_config = (
         number_of_bank=2,        # Number of banks 
         number_of_government=1,  # Number of government entities
         number_of_nbs=3          # Number of neighborhood services
-        enable_institution=True  # Enable/disable institutional agents
     )
     .SetWorkFlow([WorkflowStep(type="run", days=1)])
     .SetEnvironment(
