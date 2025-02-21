@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.0.12] - 2025-02-21
+
+### Added
+- N/A
+
+### Changed
+- N/A
+
+### Deprecated
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- Document typo on `agentsociety-ui` activation.
+
+### Security
+- N/A
+
 ## [1.0.11] - 2025-02-21
 
 ### Added

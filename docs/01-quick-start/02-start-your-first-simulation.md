@@ -129,11 +129,11 @@ An example config file (assumed filename: `ui_config.yaml`) is as follow:
 
 ```yaml
 addr: localhost:8080 # Address for the UI service
-mqtt-broker: <MQTT-BROKER> # MQTT broker address
-mqtt-username: <USER-NAME> # Username for MQTT.
-mqtt-password: <PASSWORD> # Password for MQTT.
-pg-dsn: <DSN> # PostgreSQL DSN for database connection.
-mlflow-url: <MLFLOW-URI> # URL for MLflow server 
+mqtt_broker: <MQTT-BROKER> # MQTT broker address, e.g. `localhost:1883`
+mqtt_username: <USER-NAME> # Username for MQTT.
+mqtt_password: <PASSWORD> # Password for MQTT.
+pg_dsn: <DSN> # PostgreSQL DSN for database connection, e.g. `postgresql://postgres:CHANGE_ME@postgresql:5432/postgres`
+mlflow_url: <MLFLOW-URI> # URL for MLflow server, e.g. `localhost:59000`
 ```
 
 To activate the ui interface, you simply need to code these in your terminal. 
