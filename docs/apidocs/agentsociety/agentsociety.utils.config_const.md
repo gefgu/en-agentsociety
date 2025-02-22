@@ -78,26 +78,6 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ````
 
-````{py:attribute} PAUSE
-:canonical: agentsociety.utils.config_const.WorkflowType.PAUSE
-:value: >
-   'pause'
-
-```{autodoc2-docstring} agentsociety.utils.config_const.WorkflowType.PAUSE
-```
-
-````
-
-````{py:attribute} RESUME
-:canonical: agentsociety.utils.config_const.WorkflowType.RESUME
-:value: >
-   'resume'
-
-```{autodoc2-docstring} agentsociety.utils.config_const.WorkflowType.RESUME
-```
-
-````
-
 ````{py:attribute} FUNCTION
 :canonical: agentsociety.utils.config_const.WorkflowType.FUNCTION
 :value: >

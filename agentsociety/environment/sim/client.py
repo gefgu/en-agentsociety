@@ -1,15 +1,17 @@
 import warnings
+
 import grpc
 
-from .clock_service import ClockService
-from .person_service import PersonService
+from ..sidecar import OnlyClientSidecar
+from ..utils.grpc import create_aio_channel
 from .aoi_service import AoiService
+from .clock_service import ClockService
 from .lane_service import LaneService
-from .road_service import RoadService
-from .social_service import SocialService
 from .light_service import LightService
 from .pause_service import PauseService
-from ..utils.grpc import create_aio_channel
+from .person_service import PersonService
+from .road_service import RoadService
+from .social_service import SocialService
 
 __all__ = ["CityClient"]
 

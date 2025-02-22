@@ -282,24 +282,6 @@
 
 ````
 
-````{py:method} pause()
-:canonical: agentsociety.environment.simulator.Simulator.pause
-:async:
-
-```{autodoc2-docstring} agentsociety.environment.simulator.Simulator.pause
-```
-
-````
-
-````{py:method} resume()
-:canonical: agentsociety.environment.simulator.Simulator.resume
-:async:
-
-```{autodoc2-docstring} agentsociety.environment.simulator.Simulator.resume
-```
-
-````
-
 ````{py:method} get_simulator_day() -> int
 :canonical: agentsociety.environment.simulator.Simulator.get_simulator_day
 :async:
@@ -358,6 +340,14 @@
 :canonical: agentsociety.environment.simulator.Simulator.get_around_poi
 
 ```{autodoc2-docstring} agentsociety.environment.simulator.Simulator.get_around_poi
+```
+
+````
+
+````{py:method} step(n: int = 1)
+:canonical: agentsociety.environment.simulator.Simulator.step
+
+```{autodoc2-docstring} agentsociety.environment.simulator.Simulator.step
 ```
 
 ````

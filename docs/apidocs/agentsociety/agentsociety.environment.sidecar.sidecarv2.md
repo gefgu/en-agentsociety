@@ -45,7 +45,7 @@
 
 ````
 
-`````{py:class} OnlyClientSidecar(name: str, syncer_address: str, secure: bool = False)
+`````{py:class} OnlyClientSidecar(syncer_address: str, name: str = 'within-syncer', secure: bool = False)
 :canonical: agentsociety.environment.sidecar.sidecarv2.OnlyClientSidecar
 
 ```{autodoc2-docstring} agentsociety.environment.sidecar.sidecarv2.OnlyClientSidecar

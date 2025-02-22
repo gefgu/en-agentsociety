@@ -366,15 +366,13 @@ class AgentSimulation:
                         mqtt_log_list,
                         simulator_log_list,
                         agent_time_log_list,
-                    ) = await simulation.step()
+                    ) = await simulation.step(
+                        simulation.config.prop_simulator_request.steps_per_simulation_step
+                    )
                     llm_log_lists.extend(llm_log_list)
                     mqtt_log_lists.extend(mqtt_log_list)
                     simulator_log_lists.extend(simulator_log_list)
                     agent_time_log_lists.extend(agent_time_log_list)
-            elif step.type == WorkflowType.PAUSE:
-                await simulation.pause_simulator()
-            elif step.type == WorkflowType.RESUME:
-                await simulation.resume_simulator()
             else:
                 _func = cast(Callable, step.func)
                 await _func(simulation)
@@ -489,12 +487,6 @@ class AgentSimulation:
         elif self._exp_info["status"] != 3:
             # if no exception and status is not error, update to finished
             await self._update_exp_status(2)
-
-    async def pause_simulator(self):
-        await self._simulator.pause()
-
-    async def resume_simulator(self):
-        await self._simulator.resume()
 
     async def init_agents(
         self,
@@ -750,7 +742,6 @@ class AgentSimulation:
                 self._type2group[agent_type].append(group)
 
         # parallel initialize all groups' agents
-        await self.resume_simulator()
         init_tasks = []
         for group in self._groups.values():
             init_tasks.append(group.init_agents.remote())
@@ -959,7 +950,7 @@ class AgentSimulation:
         for metric_extractor in metric_extractors:
             await metric_extractor(self)
 
-    async def step(self):
+    async def step(self, num_simulator_steps: int = 1):
         """
         Execute one step of the simulation where each agent performs its forward action.
 
@@ -968,6 +959,9 @@ class AgentSimulation:
             - Executes the forward method for each agent group to advance the simulation by one step.
             - Saves the state of all agent groups after the step has been completed.
             - Optionally extracts metrics if the current step matches the interval specified for any metric extractors.
+
+        - **Args**:
+            - `num_simulator_steps` (int): The number of steps for the simulator to step forward.
 
         - **Raises**:
             - `RuntimeError`: If there is an error during the execution of the step, it logs the error and rethrows it as a RuntimeError.
@@ -984,6 +978,7 @@ class AgentSimulation:
             logger.info(
                 f"Start simulation day {simulator_day} at {simulator_time}, step {self._total_steps}"
             )
+            self._simulator.step(num_simulator_steps)
             tasks = []
             for group in self._groups.values():
                 tasks.append(group.step.remote())
@@ -1069,7 +1064,9 @@ class AgentSimulation:
                         mqtt_log_list,
                         simulator_log_list,
                         agent_time_log_list,
-                    ) = await self.step()
+                    ) = await self.step(
+                        self.config.prop_simulator_request.steps_per_simulation_day
+                    )
                     llm_log_lists.extend(llm_log_list)
                     mqtt_log_lists.extend(mqtt_log_list)
                     simulator_log_lists.extend(simulator_log_list)

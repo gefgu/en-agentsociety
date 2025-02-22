@@ -9,15 +9,15 @@ from typing import Optional, Union, cast
 
 import ray
 from mosstool.type import TripMode
-from mosstool.util.format_converter import coll2pb, dict2pb
+from mosstool.util.format_converter import dict2pb
 from pycitydata.map import Map as SimMap
 from pycityproto.city.map.v2 import map_pb2 as map_pb2
 from pycityproto.city.person.v2 import person_pb2 as person_pb2
 from pycityproto.city.person.v2 import person_service_pb2 as person_service
-from pymongo import MongoClient
 from shapely.geometry import Point
 
 from ..configs import SimConfig
+from .sidecar import OnlyClientSidecar
 from .sim import CityClient, ControlSimEnv
 from .utils.const import *
 
@@ -83,14 +83,13 @@ class Simulator:
         config = sim_config.prop_simulator_request
         if not sim_config.prop_status.simulator_activated:
             self._sim_env = sim_env = ControlSimEnv(
-                task_name=config.task_name,  # type:ignore
+                task_name=config.task_name,
                 map_file=_map_pb_path,
-                max_day=config.max_day,  # type:ignore
-                start_step=config.start_step,  # type:ignore
-                total_step=config.total_step,  # type:ignore
-                log_dir=config.log_dir,  # type:ignore
-                min_step_time=config.min_step_time,  # type:ignore
-                primary_node_ip=config.primary_node_ip,  # type:ignore
+                max_day=config.max_day,
+                start_step=config.start_step,
+                total_step=config.total_step,
+                log_dir=config.log_dir,
+                primary_node_ip=config.primary_node_ip,
                 sim_addr=sim_config.simulator_server_address,
             )
             self.server_addr = sim_env.sim_addr
@@ -100,6 +99,10 @@ class Simulator:
             self._client = CityClient(
                 sim_env.sim_addr, secure=self.server_addr.startswith("https")
             )
+            self._syncer = OnlyClientSidecar(
+                sim_env.syncer_addr, secure=self.server_addr.startswith("https")
+            )
+            self._syncer.init()
             """
             - 模拟器grpc客户端
             - grpc client of simulator
@@ -109,6 +112,8 @@ class Simulator:
             self._client = CityClient(
                 self.server_addr, secure=self.server_addr.startswith("https")
             )
+            # syncer只能由主节点控制
+            self._syncer = None
         self._map = None
         """
         - 模拟器地图对象
@@ -264,30 +269,6 @@ class Simulator:
             log["consumption"] = time.time() - start_time
             self._log_list.append(log)
             return int(now["t"])
-
-    async def pause(self):
-        """
-        Pause the simulation.
-
-        This method sends a request to the simulator's pause service to pause the simulation.
-        """
-        start_time = time.time()
-        log = {"req": "pause", "start_time": start_time, "consumption": 0}
-        await self._client.pause_service.pause()
-        log["consumption"] = time.time() - start_time
-        self._log_list.append(log)
-
-    async def resume(self):
-        """
-        Resume the simulation.
-
-        This method sends a request to the simulator's pause service to resume the simulation.
-        """
-        start_time = time.time()
-        log = {"req": "resume", "start_time": start_time, "consumption": 0}
-        await self._client.pause_service.resume()
-        log["consumption"] = time.time() - start_time
-        self._log_list.append(log)
 
     async def get_simulator_day(self) -> int:
         """
@@ -541,3 +522,12 @@ class Simulator:
         log["consumption"] = time.time() - start_time
         self._log_list.append(log)
         return pois
+
+    def step(self, n: int = 1):
+        syncer = self._syncer
+        if syncer is None:
+            raise ValueError("Step can only be called in primary node!")
+        if n <= 0:
+            raise ValueError("`n` must >=1!")
+        for _ in range(n):
+            syncer.step()

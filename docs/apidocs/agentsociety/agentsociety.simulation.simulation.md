@@ -203,24 +203,6 @@
 
 ````
 
-````{py:method} pause_simulator()
-:canonical: agentsociety.simulation.simulation.AgentSimulation.pause_simulator
-:async:
-
-```{autodoc2-docstring} agentsociety.simulation.simulation.AgentSimulation.pause_simulator
-```
-
-````
-
-````{py:method} resume_simulator()
-:canonical: agentsociety.simulation.simulation.AgentSimulation.resume_simulator
-:async:
-
-```{autodoc2-docstring} agentsociety.simulation.simulation.AgentSimulation.resume_simulator
-```
-
-````
-
 ````{py:method} init_agents(agent_count: dict[type[agentsociety.agent.Agent], int], group_size: int = 10000, pg_sql_writers: int = 32, message_interceptors: int = 1, message_interceptor_blocks: typing.Optional[list[agentsociety.message.MessageBlockBase]] = None, social_black_list: typing.Optional[list[tuple[str, str]]] = None, message_listener: typing.Optional[agentsociety.message.MessageBlockListenerBase] = None, embedding_model: langchain_core.embeddings.Embeddings = SimpleEmbedding(), memory_config_init_func: typing.Optional[collections.abc.Callable] = None, memory_config_func: typing.Optional[dict[type[agentsociety.agent.Agent], collections.abc.Callable]] = None, environment: dict[str, str] = {}, llm_semaphore: int = 200) -> None
 :canonical: agentsociety.simulation.simulation.AgentSimulation.init_agents
 :async:
@@ -302,7 +284,7 @@
 
 ````
 
-````{py:method} step()
+````{py:method} step(num_simulator_steps: int = 1)
 :canonical: agentsociety.simulation.simulation.AgentSimulation.step
 :async:
 

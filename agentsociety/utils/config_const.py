@@ -7,8 +7,6 @@ class WorkflowType(str, Enum):
     INTERVIEW = "interview"
     SURVEY = "survey"
     INTERVENE = "intervene"
-    PAUSE = "pause"
-    RESUME = "resume"
     FUNCTION = "function"
 
 

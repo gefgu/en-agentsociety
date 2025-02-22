@@ -64,7 +64,7 @@
 ```
 ````
 
-`````{py:class} ControlSimEnv(task_name: str, map_file: str, max_day: int, start_step: int, total_step: int, log_dir: str, primary_node_ip: str, min_step_time: int = 1000, timeout: int = 5, max_process: int = 32, sim_addr: typing.Optional[str] = None)
+`````{py:class} ControlSimEnv(task_name: str, map_file: str, max_day: int, start_step: int, total_step: int, log_dir: str, primary_node_ip: str, timeout: int = 5, max_process: int = 32, sim_addr: typing.Optional[str] = None)
 :canonical: agentsociety.environment.sim.sim_env.ControlSimEnv
 
 ```{autodoc2-docstring} agentsociety.environment.sim.sim_env.ControlSimEnv

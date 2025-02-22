@@ -64,7 +64,7 @@ sim_config = (
     .SetLLMRequest(
         request_type=LLMRequestType.ZhipuAI, api_key="YOUR-API-KEY", model="GLM-4-Flash"
     )
-    .SetSimulatorRequest(min_step_time=10)
+    .SetSimulatorRequest()
     .SetMQTT(server="mqtt.example.com", username="user", port=1883, password="pass")
     # change to your file path
     .SetMapRequest(file_path="map.pb")

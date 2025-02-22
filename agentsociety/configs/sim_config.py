@@ -50,8 +50,13 @@ class SimulatorRequestConfig(BaseModel):
         24 * 60 * 60 * 365, description="Total number of steps in the simulation"
     )
     log_dir: str = Field("./log", description="Directory path for saving logs")
-    min_step_time: int = Field(
-        1000, description="Minimum time (in seconds) between simulation steps"
+    steps_per_simulation_step: int = Field(
+        300,
+        description="Urban space forward time (in seconds) during one simulation forward step",
+    )
+    steps_per_simulation_day: int = Field(
+        3600,
+        description="Urban space forward time (in seconds) during one simulation forward day",
     )
     primary_node_ip: str = Field(
         "localhost", description="Primary node IP address for distributed simulation"
@@ -65,7 +70,8 @@ class SimulatorRequestConfig(BaseModel):
         start_step: int = 28800,
         total_step: int = 24 * 60 * 60 * 365,
         log_dir: str = "./log",
-        min_step_time: int = 1000,
+        steps_per_simulation_step: int = 300,
+        steps_per_simulation_day: int = 3600,
         primary_node_ip: str = "localhost",
     ) -> "SimulatorRequestConfig":
         return cls(
@@ -74,7 +80,8 @@ class SimulatorRequestConfig(BaseModel):
             start_step=start_step,
             total_step=total_step,
             log_dir=log_dir,
-            min_step_time=min_step_time,
+            steps_per_simulation_step=steps_per_simulation_step,
+            steps_per_simulation_day=steps_per_simulation_day,
             primary_node_ip=primary_node_ip,
         )
 
@@ -116,7 +123,7 @@ class AvroConfig(BaseModel):
 
     @classmethod
     def create(cls, path: Optional[str] = None, enabled: bool = False) -> "AvroConfig":
-        return cls(enabled=enabled, path=path)
+        return cls(enabled=enabled, path=path)  # type:ignore
 
 
 class MetricRequest(BaseModel):
@@ -187,7 +194,8 @@ class SimConfig(BaseModel):
         start_step: int = 28800,
         total_step: int = 24 * 60 * 60 * 365,
         log_dir: str = "./log",
-        min_step_time: int = 1000,
+        steps_per_simulation_step: int = 300,
+        steps_per_simulation_day: int = 3600,
         primary_node_ip: str = "localhost",
     ) -> "SimConfig":
         self.simulator_request = SimulatorRequestConfig.create(
@@ -196,7 +204,8 @@ class SimConfig(BaseModel):
             start_step=start_step,
             total_step=total_step,
             log_dir=log_dir,
-            min_step_time=min_step_time,
+            steps_per_simulation_step=steps_per_simulation_step,
+            steps_per_simulation_day=steps_per_simulation_day,
             primary_node_ip=primary_node_ip,
         )
         return self

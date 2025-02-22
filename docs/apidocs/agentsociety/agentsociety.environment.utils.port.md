@@ -45,7 +45,7 @@
 
 ````
 
-````{py:function} find_free_port()
+````{py:function} find_free_port(num_ports: int = 1) -> typing.Union[int, list[int]]
 :canonical: agentsociety.environment.utils.port.find_free_port
 
 ```{autodoc2-docstring} agentsociety.environment.utils.port.find_free_port

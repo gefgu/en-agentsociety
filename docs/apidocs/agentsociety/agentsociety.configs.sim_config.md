@@ -230,13 +230,24 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:attribute} min_step_time
-:canonical: agentsociety.configs.sim_config.SimulatorRequestConfig.min_step_time
+````{py:attribute} steps_per_simulation_step
+:canonical: agentsociety.configs.sim_config.SimulatorRequestConfig.steps_per_simulation_step
 :type: int
 :value: >
    'Field(...)'
 
-```{autodoc2-docstring} agentsociety.configs.sim_config.SimulatorRequestConfig.min_step_time
+```{autodoc2-docstring} agentsociety.configs.sim_config.SimulatorRequestConfig.steps_per_simulation_step
+```
+
+````
+
+````{py:attribute} steps_per_simulation_day
+:canonical: agentsociety.configs.sim_config.SimulatorRequestConfig.steps_per_simulation_day
+:type: int
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.configs.sim_config.SimulatorRequestConfig.steps_per_simulation_day
 ```
 
 ````
@@ -252,7 +263,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:method} create(task_name: str = 'citysim', max_day: int = 1000, start_step: int = 28800, total_step: int = 24 * 60 * 60 * 365, log_dir: str = './log', min_step_time: int = 1000, primary_node_ip: str = 'localhost') -> agentsociety.configs.sim_config.SimulatorRequestConfig
+````{py:method} create(task_name: str = 'citysim', max_day: int = 1000, start_step: int = 28800, total_step: int = 24 * 60 * 60 * 365, log_dir: str = './log', steps_per_simulation_step: int = 300, steps_per_simulation_day: int = 3600, primary_node_ip: str = 'localhost') -> agentsociety.configs.sim_config.SimulatorRequestConfig
 :canonical: agentsociety.configs.sim_config.SimulatorRequestConfig.create
 :classmethod:
 
@@ -644,7 +655,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:method} SetSimulatorRequest(task_name: str = 'citysim', max_day: int = 1000, start_step: int = 28800, total_step: int = 24 * 60 * 60 * 365, log_dir: str = './log', min_step_time: int = 1000, primary_node_ip: str = 'localhost') -> agentsociety.configs.sim_config.SimConfig
+````{py:method} SetSimulatorRequest(task_name: str = 'citysim', max_day: int = 1000, start_step: int = 28800, total_step: int = 24 * 60 * 60 * 365, log_dir: str = './log', steps_per_simulation_step: int = 300, steps_per_simulation_day: int = 3600, primary_node_ip: str = 'localhost') -> agentsociety.configs.sim_config.SimConfig
 :canonical: agentsociety.configs.sim_config.SimConfig.SetSimulatorRequest
 
 ```{autodoc2-docstring} agentsociety.configs.sim_config.SimConfig.SetSimulatorRequest

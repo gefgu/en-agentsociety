@@ -44,7 +44,6 @@ class ControlSimEnv:
         total_step: int,
         log_dir: str,
         primary_node_ip: str,
-        min_step_time: int = 1000,
         timeout: int = 5,
         max_process: int = 32,
         sim_addr: Optional[str] = None,
@@ -62,7 +61,6 @@ class ControlSimEnv:
         self._start_step = start_step
         self._total_step = total_step
         self._log_dir = log_dir
-        self._min_step_time = min_step_time
         self._timeout = timeout
         self._primary_node_ip = primary_node_ip
         self._max_procs = max_process
@@ -75,7 +73,7 @@ class ControlSimEnv:
         self._sim_proc = None
         os.makedirs(log_dir, exist_ok=True)
 
-        self.sim_addr = self.reset(sim_addr)
+        self.sim_addr, self.syncer_addr = self.reset(sim_addr)
 
     def reset(
         self,
@@ -93,46 +91,56 @@ class ControlSimEnv:
         - **Raises**:
             - `AssertionError`: If trying to start a new simulation when one is already running.
         """
+        syncer_addr = ""
         if sim_addr is None:
             # 启动agentsociety-sim
             # agentsociety-sim -config-data configbase64 -job test -listen :51102
             assert self.sim_port is None
             assert self._sim_proc is None
-            self.sim_port = find_free_port()
+            _ports: list[int] = find_free_port(2)  # type:ignore
+            self.sim_port, self.syncer_port = _ports
             config_base64 = encode_to_base64(self._sim_config)
             os.environ["GOMAXPROCS"] = str(self._max_procs)
             sim_addr = self._primary_node_ip.rstrip("/") + f":{self.sim_port}"
+            syncer_addr = f"http://localhost:{self.syncer_port}"
             self._sim_proc = Popen(
                 [
-                    "agentsociety-sim",
+                    # TODO(yanjunbo)
+                    "go",
+                    "run",
+                    ".",
+                    # "agentsociety-sim",
                     "-config-data",
                     config_base64,
                     "-job",
                     self._task_name,
                     "-listen",
                     sim_addr,
-                    "-run.min_step_time",
-                    f"{self._min_step_time}",
-                    "-run.pause_after_one_day",
+                    "-syncer",
+                    syncer_addr,
                     "-output",
                     self._log_dir,
                     "-cache",
                     "",
                     "-log.level",
-                    "error",
+                    # TODO(yanjunbo)
+                    # "error",
+                    "debug",
                 ],
                 # 忽略输出
                 # stdout=DEVNULL,
+                # TODO(yanjunbo)
+                cwd="/root/LLMSimulation/socialcity-sim",
             )
             logging.info(
                 f"start agentsociety-sim at {sim_addr}, PID={self._sim_proc.pid}"
             )
             atexit.register(self.close)
-            time.sleep(0.3)
+            time.sleep(5)
         else:
             warnings.warn("单独启动模拟器模拟将被弃用", DeprecationWarning)
 
-        return sim_addr
+        return sim_addr, syncer_addr
 
     def close(self):
         """

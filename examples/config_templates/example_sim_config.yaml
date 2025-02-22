@@ -9,7 +9,6 @@ simulator_request:
   start_step: 0 # The initial step of the simulation in seconds.
   total_step: 86400 # Total steps in the simulation in seconds.
   log_dir: log # Directory where simulator logs will be stored.
-  min_step_time: 1000 # Minimum execution time (in milliseconds) per step.
 
 mqtt:
   server: <MQTT-BROKER> # Specify the MQTT server address here.
