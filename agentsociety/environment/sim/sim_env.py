@@ -105,11 +105,7 @@ class ControlSimEnv:
             syncer_addr = f"http://localhost:{self.syncer_port}"
             self._sim_proc = Popen(
                 [
-                    # TODO(yanjunbo)
-                    "go",
-                    "run",
-                    ".",
-                    # "agentsociety-sim",
+                    "agentsociety-sim",
                     "-config-data",
                     config_base64,
                     "-job",
@@ -123,14 +119,10 @@ class ControlSimEnv:
                     "-cache",
                     "",
                     "-log.level",
-                    # TODO(yanjunbo)
-                    # "error",
-                    "debug",
+                    "error",
                 ],
                 # 忽略输出
                 # stdout=DEVNULL,
-                # TODO(yanjunbo)
-                cwd="/root/LLMSimulation/socialcity-sim",
             )
             logging.info(
                 f"start agentsociety-sim at {sim_addr}, PID={self._sim_proc.pid}"
