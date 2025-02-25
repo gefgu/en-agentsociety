@@ -34,7 +34,7 @@ sim_config = (
     # change to your file path
     .SetMapRequest(file_path="map.pb")
     # .SetAvro(path='./__avro', enabled=True)
-    .SetPostgreSql(path="postgresql://user:pass@localhost:5432/db", enabled=True)
+    .SetPostgreSql(dsn="postgresql://user:pass@localhost:5432/db", enabled=True)
     .SetMetricRequest(
         username="mlflow_user", password="mlflow_pass", mlflow_uri="http://mlflow:5000"
     )

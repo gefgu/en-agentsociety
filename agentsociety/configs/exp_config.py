@@ -8,8 +8,8 @@ from pydantic import BaseModel, Field
 
 from ..utils import WorkflowType
 
-if TYPE_CHECKING:
-    from ..simulation import AgentSimulation
+# if TYPE_CHECKING:
+#     from ..simulation import AgentSimulation
 
 
 class WorkflowStep(BaseModel):
@@ -33,38 +33,8 @@ class AgentConfig(BaseModel):
     agent_class_configs: Optional[dict[Any, dict[str, Any]]] = None
     memory_config_func: Optional[dict[type["Any"], Callable]] = None
     memory_config_init_func: Optional[Callable] = Field(None)
-    init_func: Optional[list[Callable[["AgentSimulation"], None]]] = None
-
-    @classmethod
-    def create(
-        cls,
-        number_of_citizen: int = 1,
-        number_of_firm: int = 1,
-        number_of_government: int = 1,
-        number_of_bank: int = 1,
-        number_of_nbs: int = 1,
-        group_size: int = 100,
-        embedding_model: Any = None,
-        extra_agent_class: Optional[dict[Any, int]] = None,
-        agent_class_configs: Optional[dict[Any, dict[str, Any]]] = None,
-        memory_config_func: Optional[dict[type["Any"], Callable]] = None,
-        memory_config_init_func: Optional[Callable] = None,
-        init_func: Optional[list[Callable[["AgentSimulation"], None]]] = None,
-    ) -> "AgentConfig":
-        return cls(
-            number_of_citizen=number_of_citizen,
-            number_of_firm=number_of_firm,
-            number_of_government=number_of_government,
-            number_of_bank=number_of_bank,
-            number_of_nbs=number_of_nbs,
-            group_size=group_size,
-            embedding_model=embedding_model,
-            extra_agent_class=extra_agent_class,
-            agent_class_configs=agent_class_configs,
-            memory_config_func=memory_config_func,
-            memory_config_init_func=memory_config_init_func,
-            init_func=init_func,
-        )
+    # init_func: Optional[list[Callable[["AgentSimulation"], None]]] = None
+    init_func: Optional[list[Callable[[Any], None]]] = None
 
 
 class EnvironmentConfig(BaseModel):
@@ -74,44 +44,12 @@ class EnvironmentConfig(BaseModel):
     temperature: str = Field(default="The temperature is normal")
     day: str = Field(default="Workday")
 
-    @classmethod
-    def create(
-        cls,
-        weather: str = "The weather is normal",
-        crime: str = "The crime rate is low",
-        pollution: str = "The pollution level is low",
-        temperature: str = "The temperature is normal",
-        day: str = "Workday",
-    ) -> "EnvironmentConfig":
-        return cls(
-            weather=weather,
-            crime=crime,
-            pollution=pollution,
-            temperature=temperature,
-            day=day,
-        )
-
 
 class MessageInterceptConfig(BaseModel):
     mode: Optional[Union[Literal["point"], Literal["edge"]]] = None
     max_violation_time: int = 3
     message_interceptor_blocks: Optional[list[Any]] = None
     message_listener: Optional[Any] = None
-
-    @classmethod
-    def create(
-        cls,
-        mode: Optional[Union[Literal["point"], Literal["edge"]]] = None,
-        max_violation_time: int = 3,
-        message_interceptor_blocks: Optional[list[Any]] = None,
-        message_listener: Optional[Any] = None,
-    ) -> "MessageInterceptConfig":
-        return cls(
-            mode=mode,
-            max_violation_time=max_violation_time,
-            message_interceptor_blocks=message_interceptor_blocks,
-            message_listener=message_listener,
-        )
 
 
 class ExpConfig(BaseModel):
@@ -159,9 +97,9 @@ class ExpConfig(BaseModel):
         agent_class_configs: Optional[dict[Any, dict[str, Any]]] = None,
         memory_config_func: Optional[dict[type["Any"], Callable]] = None,
         memory_config_init_func: Optional[Callable] = None,
-        init_func: Optional[list[Callable[["AgentSimulation"], None]]] = None,
+        init_func: Optional[list[Callable[[Any], None]]] = None,
     ) -> "ExpConfig":
-        self.agent_config = AgentConfig.create(
+        self.agent_config = AgentConfig(
             number_of_citizen=number_of_citizen,
             number_of_firm=number_of_firm,
             number_of_government=number_of_government,
@@ -185,7 +123,7 @@ class ExpConfig(BaseModel):
         temperature: str = "The temperature is normal",
         day: str = "Workday",
     ) -> "ExpConfig":
-        self.environment = EnvironmentConfig.create(
+        self.environment = EnvironmentConfig(
             weather=weather,
             crime=crime,
             pollution=pollution,
@@ -201,7 +139,7 @@ class ExpConfig(BaseModel):
         message_interceptor_blocks: Optional[list[Any]] = None,
         message_listener: Optional[Any] = None,
     ) -> "ExpConfig":
-        self.message_intercept = MessageInterceptConfig.create(
+        self.message_intercept = MessageInterceptConfig(
             mode=mode,
             max_violation_time=max_violation_time,
             message_interceptor_blocks=message_interceptor_blocks,

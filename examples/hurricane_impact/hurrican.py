@@ -44,7 +44,7 @@ sim_config = (
     # change to your file path
     .SetMapRequest(file_path="map.pb")
     # .SetAvro(path='./__avro', enabled=True)
-    .SetPostgreSql(path="postgresql://user:pass@localhost:5432/db", enabled=True)
+    .SetPostgreSql(dsn="postgresql://user:pass@localhost:5432/db", enabled=True)
 )
 exp_config = (
     ExpConfig(exp_name="hurrican", llm_semaphore=200, logging_level=logging.INFO)

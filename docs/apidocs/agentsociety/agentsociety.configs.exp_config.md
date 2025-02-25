@@ -219,20 +219,11 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````{py:attribute} init_func
 :canonical: agentsociety.configs.exp_config.AgentConfig.init_func
-:type: typing.Optional[list[collections.abc.Callable[[agentsociety.simulation.AgentSimulation], None]]]
+:type: typing.Optional[list[collections.abc.Callable[[typing.Any], None]]]
 :value: >
    None
 
 ```{autodoc2-docstring} agentsociety.configs.exp_config.AgentConfig.init_func
-```
-
-````
-
-````{py:method} create(number_of_citizen: int = 1, number_of_firm: int = 1, number_of_government: int = 1, number_of_bank: int = 1, number_of_nbs: int = 1, group_size: int = 100, embedding_model: typing.Any = None, extra_agent_class: typing.Optional[dict[typing.Any, int]] = None, agent_class_configs: typing.Optional[dict[typing.Any, dict[str, typing.Any]]] = None, memory_config_func: typing.Optional[dict[type[typing.Any], collections.abc.Callable]] = None, memory_config_init_func: typing.Optional[collections.abc.Callable] = None, init_func: typing.Optional[list[collections.abc.Callable[[agentsociety.simulation.AgentSimulation], None]]] = None) -> agentsociety.configs.exp_config.AgentConfig
-:canonical: agentsociety.configs.exp_config.AgentConfig.create
-:classmethod:
-
-```{autodoc2-docstring} agentsociety.configs.exp_config.AgentConfig.create
 ```
 
 ````
@@ -299,15 +290,6 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:method} create(weather: str = 'The weather is normal', crime: str = 'The crime rate is low', pollution: str = 'The pollution level is low', temperature: str = 'The temperature is normal', day: str = 'Workday') -> agentsociety.configs.exp_config.EnvironmentConfig
-:canonical: agentsociety.configs.exp_config.EnvironmentConfig.create
-:classmethod:
-
-```{autodoc2-docstring} agentsociety.configs.exp_config.EnvironmentConfig.create
-```
-
-````
-
 `````
 
 `````{py:class} MessageInterceptConfig(/, **data: typing.Any)
@@ -355,15 +337,6 @@ Bases: {py:obj}`pydantic.BaseModel`
    None
 
 ```{autodoc2-docstring} agentsociety.configs.exp_config.MessageInterceptConfig.message_listener
-```
-
-````
-
-````{py:method} create(mode: typing.Optional[typing.Union[typing.Literal[point], typing.Literal[edge]]] = None, max_violation_time: int = 3, message_interceptor_blocks: typing.Optional[list[typing.Any]] = None, message_listener: typing.Optional[typing.Any] = None) -> agentsociety.configs.exp_config.MessageInterceptConfig
-:canonical: agentsociety.configs.exp_config.MessageInterceptConfig.create
-:classmethod:
-
-```{autodoc2-docstring} agentsociety.configs.exp_config.MessageInterceptConfig.create
 ```
 
 ````
@@ -508,7 +481,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:method} SetAgentConfig(number_of_citizen: int = 1, number_of_firm: int = 1, number_of_government: int = 1, number_of_bank: int = 1, number_of_nbs: int = 1, group_size: int = 100, embedding_model: typing.Any = None, extra_agent_class: typing.Optional[dict[typing.Any, int]] = None, agent_class_configs: typing.Optional[dict[typing.Any, dict[str, typing.Any]]] = None, memory_config_func: typing.Optional[dict[type[typing.Any], collections.abc.Callable]] = None, memory_config_init_func: typing.Optional[collections.abc.Callable] = None, init_func: typing.Optional[list[collections.abc.Callable[[agentsociety.simulation.AgentSimulation], None]]] = None) -> agentsociety.configs.exp_config.ExpConfig
+````{py:method} SetAgentConfig(number_of_citizen: int = 1, number_of_firm: int = 1, number_of_government: int = 1, number_of_bank: int = 1, number_of_nbs: int = 1, group_size: int = 100, embedding_model: typing.Any = None, extra_agent_class: typing.Optional[dict[typing.Any, int]] = None, agent_class_configs: typing.Optional[dict[typing.Any, dict[str, typing.Any]]] = None, memory_config_func: typing.Optional[dict[type[typing.Any], collections.abc.Callable]] = None, memory_config_init_func: typing.Optional[collections.abc.Callable] = None, init_func: typing.Optional[list[collections.abc.Callable[[typing.Any], None]]] = None) -> agentsociety.configs.exp_config.ExpConfig
 :canonical: agentsociety.configs.exp_config.ExpConfig.SetAgentConfig
 
 ```{autodoc2-docstring} agentsociety.configs.exp_config.ExpConfig.SetAgentConfig

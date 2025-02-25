@@ -18,28 +18,12 @@ class LLMRequestConfig(BaseModel):
     )
     model: str = Field(..., description="The model to use")
 
-    @classmethod
-    def create(
-        cls, request_type: LLMRequestType, api_key: Union[list[str], str], model: str
-    ) -> "LLMRequestConfig":
-        return cls(request_type=request_type, api_key=api_key, model=model)
-
 
 class MQTTConfig(BaseModel):
     server: str = Field(..., description="MQTT server address")
     port: int = Field(..., description="Port number for MQTT connection")
     password: Optional[str] = Field(None, description="Password for MQTT connection")
     username: Optional[str] = Field(None, description="Username for MQTT connection")
-
-    @classmethod
-    def create(
-        cls,
-        server: str,
-        port: int,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-    ) -> "MQTTConfig":
-        return cls(server=server, username=username, port=port, password=password)
 
 
 class SimulatorRequestConfig(BaseModel):
@@ -62,46 +46,15 @@ class SimulatorRequestConfig(BaseModel):
         "localhost", description="Primary node IP address for distributed simulation"
     )
 
-    @classmethod
-    def create(
-        cls,
-        task_name: str = "citysim",
-        max_day: int = 1000,
-        start_step: int = 28800,
-        total_step: int = 24 * 60 * 60 * 365,
-        log_dir: str = "./log",
-        steps_per_simulation_step: int = 300,
-        steps_per_simulation_day: int = 3600,
-        primary_node_ip: str = "localhost",
-    ) -> "SimulatorRequestConfig":
-        return cls(
-            task_name=task_name,
-            max_day=max_day,
-            start_step=start_step,
-            total_step=total_step,
-            log_dir=log_dir,
-            steps_per_simulation_step=steps_per_simulation_step,
-            steps_per_simulation_day=steps_per_simulation_day,
-            primary_node_ip=primary_node_ip,
-        )
-
 
 class MapRequestConfig(BaseModel):
     file_path: str = Field(..., description="Path to the map file")
-
-    @classmethod
-    def create(cls, file_path: str) -> "MapRequestConfig":
-        return cls(file_path=file_path)
 
 
 class MlflowConfig(BaseModel):
     username: Optional[str] = Field(None, description="Username for MLflow")
     password: Optional[str] = Field(None, description="Password for MLflow")
     mlflow_uri: str = Field(..., description="URI for MLflow server")
-
-    @classmethod
-    def create(cls, username: str, password: str, mlflow_uri: str) -> "MlflowConfig":
-        return cls(username=username, password=password, mlflow_uri=mlflow_uri)
 
 
 class PostgreSQLConfig(BaseModel):
@@ -110,20 +63,12 @@ class PostgreSQLConfig(BaseModel):
     )
     dsn: str = Field(..., description="Data source name for PostgreSQL")
 
-    @classmethod
-    def create(cls, dsn: str, enabled: bool = False) -> "PostgreSQLConfig":
-        return cls(dsn=dsn, enabled=enabled)
-
 
 class AvroConfig(BaseModel):
     enabled: Optional[bool] = Field(
         False, description="Whether Avro storage is enabled"
     )
     path: str = Field(..., description="Avro file storage path")
-
-    @classmethod
-    def create(cls, path: Optional[str] = None, enabled: bool = False) -> "AvroConfig":
-        return cls(enabled=enabled, path=path)  # type:ignore
 
 
 class MetricRequest(BaseModel):
@@ -184,7 +129,9 @@ class SimConfig(BaseModel):
     def SetLLMRequest(
         self, request_type: LLMRequestType, api_key: Union[list[str], str], model: str
     ) -> "SimConfig":
-        self.llm_request = LLMRequestConfig.create(request_type, api_key, model)
+        self.llm_request = LLMRequestConfig(
+            request_type=request_type, api_key=api_key, model=model
+        )
         return self
 
     def SetSimulatorRequest(
@@ -198,7 +145,7 @@ class SimConfig(BaseModel):
         steps_per_simulation_day: int = 3600,
         primary_node_ip: str = "localhost",
     ) -> "SimConfig":
-        self.simulator_request = SimulatorRequestConfig.create(
+        self.simulator_request = SimulatorRequestConfig(
             task_name=task_name,
             max_day=max_day,
             start_step=start_step,
@@ -217,27 +164,31 @@ class SimConfig(BaseModel):
         username: Optional[str] = None,
         password: Optional[str] = None,
     ) -> "SimConfig":
-        self.mqtt = MQTTConfig.create(server, port, username, password)
+        self.mqtt = MQTTConfig(
+            server=server, port=port, username=username, password=password
+        )
         return self
 
     def SetMapRequest(self, file_path: str) -> "SimConfig":
-        self.map_request = MapRequestConfig.create(file_path)
+        self.map_request = MapRequestConfig(file_path=file_path)
         return self
 
     def SetMetricRequest(
         self, username: str, password: str, mlflow_uri: str
     ) -> "SimConfig":
         self.metric_request = MetricRequest(
-            mlflow=MlflowConfig.create(username, password, mlflow_uri)
+            mlflow=MlflowConfig(
+                username=username, password=password, mlflow_uri=mlflow_uri
+            )
         )
         return self
 
     def SetAvro(self, path: str, enabled: bool = False) -> "SimConfig":
-        self.avro = AvroConfig.create(path, enabled)
+        self.avro = AvroConfig(path=path, enabled=enabled)
         return self
 
-    def SetPostgreSql(self, path: str, enabled: bool = False) -> "SimConfig":
-        self.pgsql = PostgreSQLConfig.create(path, enabled)
+    def SetPostgreSql(self, dsn: str, enabled: bool = False) -> "SimConfig":
+        self.pgsql = PostgreSQLConfig(dsn=dsn, enabled=enabled)
         return self
 
     def SetServerAddress(self, simulator_server_address: str) -> "SimConfig":

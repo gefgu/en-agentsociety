@@ -38,7 +38,7 @@ from .agentgroup import AgentGroup
 from .storage.pg import PgWriter, create_pg_tables
 
 logger = logging.getLogger("agentsociety")
-ExpConfig.model_rebuild()  # rebuild the schema due to circular import
+# ExpConfig.model_rebuild()  # rebuild the schema due to circular import
 
 
 __all__ = ["AgentSimulation"]

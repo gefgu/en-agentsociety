@@ -99,15 +99,6 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:method} create(request_type: agentsociety.utils.LLMRequestType, api_key: typing.Union[list[str], str], model: str) -> agentsociety.configs.sim_config.LLMRequestConfig
-:canonical: agentsociety.configs.sim_config.LLMRequestConfig.create
-:classmethod:
-
-```{autodoc2-docstring} agentsociety.configs.sim_config.LLMRequestConfig.create
-```
-
-````
-
 `````
 
 `````{py:class} MQTTConfig(/, **data: typing.Any)
@@ -155,15 +146,6 @@ Bases: {py:obj}`pydantic.BaseModel`
    'Field(...)'
 
 ```{autodoc2-docstring} agentsociety.configs.sim_config.MQTTConfig.username
-```
-
-````
-
-````{py:method} create(server: str, port: int, username: typing.Optional[str] = None, password: typing.Optional[str] = None) -> agentsociety.configs.sim_config.MQTTConfig
-:canonical: agentsociety.configs.sim_config.MQTTConfig.create
-:classmethod:
-
-```{autodoc2-docstring} agentsociety.configs.sim_config.MQTTConfig.create
 ```
 
 ````
@@ -263,15 +245,6 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:method} create(task_name: str = 'citysim', max_day: int = 1000, start_step: int = 28800, total_step: int = 24 * 60 * 60 * 365, log_dir: str = './log', steps_per_simulation_step: int = 300, steps_per_simulation_day: int = 3600, primary_node_ip: str = 'localhost') -> agentsociety.configs.sim_config.SimulatorRequestConfig
-:canonical: agentsociety.configs.sim_config.SimulatorRequestConfig.create
-:classmethod:
-
-```{autodoc2-docstring} agentsociety.configs.sim_config.SimulatorRequestConfig.create
-```
-
-````
-
 `````
 
 `````{py:class} MapRequestConfig(/, **data: typing.Any)
@@ -286,15 +259,6 @@ Bases: {py:obj}`pydantic.BaseModel`
    'Field(...)'
 
 ```{autodoc2-docstring} agentsociety.configs.sim_config.MapRequestConfig.file_path
-```
-
-````
-
-````{py:method} create(file_path: str) -> agentsociety.configs.sim_config.MapRequestConfig
-:canonical: agentsociety.configs.sim_config.MapRequestConfig.create
-:classmethod:
-
-```{autodoc2-docstring} agentsociety.configs.sim_config.MapRequestConfig.create
 ```
 
 ````
@@ -339,15 +303,6 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:method} create(username: str, password: str, mlflow_uri: str) -> agentsociety.configs.sim_config.MlflowConfig
-:canonical: agentsociety.configs.sim_config.MlflowConfig.create
-:classmethod:
-
-```{autodoc2-docstring} agentsociety.configs.sim_config.MlflowConfig.create
-```
-
-````
-
 `````
 
 `````{py:class} PostgreSQLConfig(/, **data: typing.Any)
@@ -377,15 +332,6 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:method} create(dsn: str, enabled: bool = False) -> agentsociety.configs.sim_config.PostgreSQLConfig
-:canonical: agentsociety.configs.sim_config.PostgreSQLConfig.create
-:classmethod:
-
-```{autodoc2-docstring} agentsociety.configs.sim_config.PostgreSQLConfig.create
-```
-
-````
-
 `````
 
 `````{py:class} AvroConfig(/, **data: typing.Any)
@@ -411,15 +357,6 @@ Bases: {py:obj}`pydantic.BaseModel`
    'Field(...)'
 
 ```{autodoc2-docstring} agentsociety.configs.sim_config.AvroConfig.path
-```
-
-````
-
-````{py:method} create(path: typing.Optional[str] = None, enabled: bool = False) -> agentsociety.configs.sim_config.AvroConfig
-:canonical: agentsociety.configs.sim_config.AvroConfig.create
-:classmethod:
-
-```{autodoc2-docstring} agentsociety.configs.sim_config.AvroConfig.create
 ```
 
 ````
@@ -695,7 +632,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:method} SetPostgreSql(path: str, enabled: bool = False) -> agentsociety.configs.sim_config.SimConfig
+````{py:method} SetPostgreSql(dsn: str, enabled: bool = False) -> agentsociety.configs.sim_config.SimConfig
 :canonical: agentsociety.configs.sim_config.SimConfig.SetPostgreSql
 
 ```{autodoc2-docstring} agentsociety.configs.sim_config.SimConfig.SetPostgreSql
