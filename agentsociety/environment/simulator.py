@@ -102,7 +102,7 @@ class Simulator:
             self._syncer = OnlyClientSidecar(
                 sim_env.syncer_addr, secure=self.server_addr.startswith("https")
             )
-            self._syncer.init()
+            # self._syncer.init()
             """
             - 模拟器grpc客户端
             - grpc client of simulator

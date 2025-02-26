@@ -1,5 +1,46 @@
 # Changelog
 
+## [1.1.2] - 2025-02-26
+
+### Added
+- N/A
+
+### Changed
+- N/A
+
+### Deprecated
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- Calling `syncer` that didn't have time to start causes the gRPC service to report an error.
+
+### Security
+- N/A
+
+## [1.1.1] - 2025-02-25
+
+### Added
+- N/A
+
+### Changed
+- N/A
+
+### Deprecated
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- Inconsistency of python 3.12 and current pydantic version. 
+
+### Security
+- N/A
+
+
 ## [1.1.0] - 2025-02-21
 
 ### Added
