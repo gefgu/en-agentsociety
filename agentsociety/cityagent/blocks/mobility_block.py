@@ -3,19 +3,18 @@ import logging
 import math
 import random
 from operator import itemgetter
-from typing import List
+from typing import Any
 
 import numpy as np
 import ray
 
-from agentsociety.environment.simulator import Simulator
+from agentsociety.environment import Simulator
 from agentsociety.llm import LLM
 from agentsociety.memory import Memory
-from agentsociety.workflow.block import Block
-from agentsociety.workflow.prompt import FormatPrompt
-from .utils import clean_json_response
-from .dispatcher import BlockDispatcher
+from agentsociety.workflow import Block, FormatPrompt
 
+from .dispatcher import BlockDispatcher
+from .utils import clean_json_response
 
 logger = logging.getLogger("agentsociety")
 
@@ -142,7 +141,7 @@ class PlaceSelectionBlock(Block):
     PlaceSelectionBlock
     """
 
-    configurable_fields: List[str] = ["search_limit"]
+    configurable_fields: list[str] = ["search_limit"]
     default_values = {"search_limit": 50}
 
     def __init__(self, llm: LLM, memory: Memory, simulator: Simulator):
@@ -158,7 +157,7 @@ class PlaceSelectionBlock(Block):
         # configurable fields
         self.search_limit = 50
 
-    async def forward(self, step, context):
+    async def forward(self, step, context):  # type:ignore
         poi_cate = self.simulator.get_poi_cate()
         self.typeSelectionPrompt.format(
             plan=context["plan"],
@@ -167,11 +166,13 @@ class PlaceSelectionBlock(Block):
         )
         levelOneType = await self.llm.atext_request(self.typeSelectionPrompt.to_dialog(), response_format={"type": "json_object"})  # type: ignore
         try:
-            levelOneType = clean_json_response(levelOneType)
+            levelOneType = clean_json_response(levelOneType)  # type:ignore
             levelOneType = json.loads(levelOneType)["place_type"]
             sub_category = poi_cate[levelOneType]
         except Exception as e:
-            logger.warning(f"Level One Type Selection: wrong type of poi, raw response: {levelOneType}")
+            logger.warning(
+                f"Level One Type Selection: wrong type of poi, raw response: {levelOneType}"
+            )
             levelOneType = random.choice(list(poi_cate.keys()))
             sub_category = poi_cate[levelOneType]
         self.secondTypeSelectionPrompt.format(
@@ -179,10 +180,12 @@ class PlaceSelectionBlock(Block):
         )
         levelTwoType = await self.llm.atext_request(self.secondTypeSelectionPrompt.to_dialog(), response_format={"type": "json_object"})  # type: ignore
         try:
-            levelTwoType = clean_json_response(levelTwoType)
+            levelTwoType = clean_json_response(levelTwoType)  # type:ignore
             levelTwoType = json.loads(levelTwoType)["place_type"]
         except Exception as e:
-            logger.warning(f"Level Two Type Selection: wrong type of poi, raw response: {levelTwoType}")
+            logger.warning(
+                f"Level Two Type Selection: wrong type of poi, raw response: {levelTwoType}"
+            )
             levelTwoType = random.choice(sub_category)
         center = await self.memory.status.get("position")
         center = (center["xy_position"]["x"], center["xy_position"]["y"])
@@ -194,9 +197,9 @@ class PlaceSelectionBlock(Block):
         )
         radius = await self.llm.atext_request(self.radiusPrompt.to_dialog(), response_format={"type": "json_object"})  # type: ignore
         try:
-            radius = int(json.loads(radius)["radius"])
+            radius = int(json.loads(radius)["radius"])  # type:ignore
             pois = ray.get(
-                self.simulator.map.query_pois.remote(
+                self.simulator.map.query_pois.remote(  # type:ignore
                     center=center,
                     category_prefix=levelTwoType,
                     radius=radius,
@@ -207,7 +210,7 @@ class PlaceSelectionBlock(Block):
             logger.warning(f"Error querying pois: {e}")
             radius = 10000
             pois = ray.get(
-                self.simulator.map.query_pois.remote(
+                self.simulator.map.query_pois.remote(  # type:ignore
                     center=center,
                     category_prefix=levelTwoType,
                     radius=radius,
@@ -235,7 +238,7 @@ class PlaceSelectionBlock(Block):
                 "node_id": node_id,
             }
         else:
-            pois = ray.get(self.simulator.map.get_poi.remote())
+            pois = ray.get(self.simulator.map.get_poi.remote())  # type:ignore
             poi = random.choice(pois)
             nextPlace = (poi["name"], poi["aoi_id"])
             # save the destination to context
@@ -262,17 +265,19 @@ class MoveBlock(Block):
         self.description = "Used to execute specific mobility operations, such as returning home, going to work, or visiting a specific location"
         self.placeAnalysisPrompt = FormatPrompt(PLACE_ANALYSIS_PROMPT)
 
-    async def forward(self, step, context):
+    async def forward(self, step, context):  # type:ignore
         agent_id = await self.memory.status.get("id")
         self.placeAnalysisPrompt.format(
             plan=context["plan"], intention=step["intention"]
         )
         response = await self.llm.atext_request(self.placeAnalysisPrompt.to_dialog(), response_format={"type": "json_object"})  # type: ignore
         try:
-            response = clean_json_response(response)
+            response = clean_json_response(response)  # type:ignore
             response = json.loads(response)["place_type"]
         except Exception as e:
-            logger.warning(f"Place Analysis: wrong type of place, raw response: {response}")
+            logger.warning(
+                f"Place Analysis: wrong type of place, raw response: {response}"
+            )
             response = "home"
         if response == "home":
             home = await self.memory.status.get("home")
@@ -307,7 +312,7 @@ class MoveBlock(Block):
                 "node_id": node_id,
             }
         elif response == "workplace":
-            # 返回到工作地点
+            # return to workplace
             work = await self.memory.status.get("work")
             work = work["aoi_position"]["aoi_id"]
             nowPlace = await self.memory.status.get("position")
@@ -340,7 +345,7 @@ class MoveBlock(Block):
                 "node_id": node_id,
             }
         else:
-            # 移动到其他地点
+            # move to other places
             next_place = context.get("next_place", None)
             nowPlace = await self.memory.status.get("position")
             node_id = await self.memory.stream.add_mobility(
@@ -353,12 +358,14 @@ class MoveBlock(Block):
                 )
             else:
                 while True:
-                    aois = ray.get(self.simulator.map.get_aoi.remote())
+                    aois = ray.get(self.simulator.map.get_aoi.remote())  # type:ignore
                     r_aoi = random.choice(aois)
                     if len(r_aoi["poi_ids"]) > 0:
                         r_poi = random.choice(r_aoi["poi_ids"])
                         break
-                poi = ray.get(self.simulator.map.get_poi.remote(r_poi))
+                poi: dict[str, Any] = ray.get(
+                    self.simulator.map.get_poi.remote(r_poi)  # type:ignore
+                )
                 next_place = (poi["name"], poi["aoi_id"])
                 await self.simulator.set_aoi_schedules(
                     person_id=agent_id,
@@ -386,7 +393,7 @@ class MobilityNoneBlock(Block):
         super().__init__("MobilityNoneBlock", llm=llm, memory=memory)
         self.description = "Used to handle other cases"
 
-    async def forward(self, step, context):
+    async def forward(self, step, context):  # type:ignore
         node_id = await self.memory.stream.add_mobility(
             description=f"I finished {step['intention']}"
         )
@@ -405,20 +412,20 @@ class MobilityBlock(Block):
 
     def __init__(self, llm: LLM, memory: Memory, simulator: Simulator):
         super().__init__("MobilityBlock", llm=llm, memory=memory, simulator=simulator)
-        # 初始化所有块
+        # init all blocks
         self.place_selection_block = PlaceSelectionBlock(llm, memory, simulator)
         self.move_block = MoveBlock(llm, memory, simulator)
         self.mobility_none_block = MobilityNoneBlock(llm, memory)
         self.trigger_time = 0
         self.token_consumption = 0
-        # 初始化调度器
+        # init dispatcher
         self.dispatcher = BlockDispatcher(llm)
-        # 注册所有块
+        # register all blocks
         self.dispatcher.register_blocks(
             [self.place_selection_block, self.move_block, self.mobility_none_block]
         )
 
-    async def forward(self, step, context):
+    async def forward(self, step, context):  # type:ignore
         self.trigger_time += 1
 
         # Select the appropriate sub-block using dispatcher

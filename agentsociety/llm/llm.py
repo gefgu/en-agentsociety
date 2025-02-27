@@ -1,5 +1,3 @@
-"""UrbanLLM: 智能能力类及其定义"""
-
 import asyncio
 import json
 import logging

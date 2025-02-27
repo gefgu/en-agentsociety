@@ -50,8 +50,8 @@ class Messager:
         self.client = Client(
             hostname, port=port, username=username, password=password, timeout=timeout
         )
-        self.connected = False  # 是否已连接标志
-        self.message_queue = asyncio.Queue()  # 用于存储接收到的消息
+        self.connected = False # whether is messager connected
+        self.message_queue = asyncio.Queue() # store received messages
         self.receive_messages_task = None
         self._message_interceptor = message_interceptor
         self._log_list = []

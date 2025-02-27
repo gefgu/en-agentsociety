@@ -145,9 +145,9 @@ class SimpleEmbedding(Embeddings):
         self.vector_dim = vector_dim
         self.cache_size = cache_size
         self._cache: dict[str, list[float]] = {}
-        self._vocab: dict[str, int] = {}  # 词汇表
-        self._idf: dict[str, float] = {}  # 逆文档频率
-        self._doc_count = 0  # 文档总数
+        self._vocab: dict[str, int] = {}  # Vocabulary
+        self._idf: dict[str, float] = {}  # Inverse Document Frequency
+        self._doc_count = 0  # Total number of documents
 
     def _text_to_hash(self, text: str) -> str:
         """
@@ -171,7 +171,7 @@ class SimpleEmbedding(Embeddings):
         - **Returns**:
             - A list of tokens extracted from the input text.
         """
-        # 这里使用简单的空格分词，实际应用中可以使用更复杂的分词方法
+        # Here uses simple space-based tokenization; more complex methods can be used in practical applications.
         return text.lower().split()
 
     def _update_vocab(self, tokens: list[str]):
@@ -185,7 +185,7 @@ class SimpleEmbedding(Embeddings):
         - **Parameters**:
             - `tokens`: A list of strings representing the tokens to add to the vocabulary.
         """
-        for token in set(tokens):  # 使用set去重
+        for token in set(tokens):  # Use set for deduplication
             if token not in self._vocab:
                 self._vocab[token] = len(self._vocab)
 
@@ -221,7 +221,7 @@ class SimpleEmbedding(Embeddings):
         total_tokens = len(tokens)
         for token in tokens:
             tf[token] = tf.get(token, 0) + 1
-        # 归一化
+        # Normalize
         for token in tf:
             tf[token] /= total_tokens
         return tf
@@ -245,10 +245,10 @@ class SimpleEmbedding(Embeddings):
         for token, tf_value in tf.items():
             if token in self._idf:
                 idf = np.log(self._doc_count / self._idf[token])
-                idx = self._vocab[token] % self.vector_dim  # 使用取模运算来控制向量维度
+                idx = self._vocab[token] % self.vector_dim  # Use modulo operation to control vector dimension
                 vector[idx] += tf_value * idf
 
-        # L2归一化
+        # L2 normalization
         norm = np.linalg.norm(vector)
         if norm > 0:
             vector /= norm
@@ -270,26 +270,26 @@ class SimpleEmbedding(Embeddings):
         - **Returns**:
             - A list of floating-point numbers representing the vector of the input text.
         """
-        # 检查缓存
+        # Check cache
         text_hash = self._text_to_hash(text)
         if text_hash in self._cache:
             return self._cache[text_hash]
 
-        # 分词
+        # Tokenize
         tokens = self._tokenize(text)
         if not tokens:
             return list(np.zeros(self.vector_dim))
 
-        # 更新词汇表和IDF
+        # Update vocabulary and IDF
         self._update_vocab(tokens)
         self._update_idf(tokens)
 
-        # 计算向量
+        # Calculate vector
         vector = self._calculate_tfidf(tokens)
 
-        # 更新缓存
+        # Update cache
         if len(self._cache) >= self.cache_size:
-            # 删除最早的缓存
+            # Remove the oldest cache entry
             oldest_key = next(iter(self._cache))
             del self._cache[oldest_key]
         self._cache[text_hash] = vector
@@ -319,7 +319,6 @@ class SimpleEmbedding(Embeddings):
             - A list of floating-point numbers representing the embedding of the query text.
         """
         return self._embed(text)
-
 
 if __name__ == "__main__":
     se = SimpleEmbedding()

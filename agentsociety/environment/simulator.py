@@ -1,4 +1,4 @@
-"""Simulator: 城市模拟器类及其定义"""
+"""Simulator: Urban Simulator"""
 
 import asyncio
 import logging
@@ -504,7 +504,7 @@ class Simulator:
             else:
                 transformed_poi_type += self.poi_cate[t]
         poi_type_set = set(transformed_poi_type)
-        # 获取半径内的poi
+        # query pois within the radius
         _pois: list[dict] = ray.get(
             self.map.query_pois.remote(  # type:ignore
                 center=center,
@@ -512,7 +512,7 @@ class Simulator:
                 return_distance=False,
             )
         )
-        # 过滤掉不满足类别前缀的poi
+        # Filter out POIs that do not meet the category prefix
         pois = []
         for poi in _pois:
             catg = poi["category"]

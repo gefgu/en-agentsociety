@@ -7,7 +7,7 @@ from typing import Optional
 from agentsociety import CitizenAgent, Simulator
 from agentsociety.agent import Agent
 from agentsociety.environment import EconomyClient
-from agentsociety.llm.llm import LLM
+from agentsociety.llm import LLM
 from agentsociety.memory import Memory
 from agentsociety.tools import UpdateWithSimulator
 from agentsociety.workflow import Block
@@ -154,6 +154,7 @@ class PlanAndActionBlock(Block):
         # step execution
         await self.step_execution()
 
+
 class MindBlock(Block):
     """Cognition workflow"""
 
@@ -173,7 +174,7 @@ class SocietyAgent(CitizenAgent):
     update_with_sim = UpdateWithSimulator()
     mindBlock: MindBlock
     planAndActionBlock: PlanAndActionBlock
-    
+
     configurable_fields = [
         "enable_cognition",
         "enable_mobility",
@@ -233,7 +234,7 @@ class SocietyAgent(CitizenAgent):
         self.cognition_update = -1
 
     # Main workflow
-    async def forward(self):
+    async def forward(self):  # type:ignore
         start_time = time.time()
         self.step_count += 1
         # sync agent status with simulator
@@ -368,11 +369,11 @@ class SocietyAgent(CitizenAgent):
                 if not content:
                     return ""
 
-                # 添加记忆
+                # add to memory
                 description = f"You received a social message: {content}"
                 await self.memory.stream.add_social(description=description)
                 if self.enable_cognition:
-                    # 更新情绪
+                    # update emotions
                     await self.mindBlock.cognitionBlock.emotion_update(description)
 
                 # Get chat histories and ensure proper format

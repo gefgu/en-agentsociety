@@ -121,8 +121,6 @@ class ControlSimEnv:
                     "-log.level",
                     "error",
                 ],
-                # 忽略输出
-                # stdout=DEVNULL,
             )
             logging.info(
                 f"start agentsociety-sim at {sim_addr}, PID={self._sim_proc.pid}"
@@ -130,7 +128,7 @@ class ControlSimEnv:
             atexit.register(self.close)
             time.sleep(5)
         else:
-            warnings.warn("单独启动模拟器模拟将被弃用", DeprecationWarning)
+            warnings.warn("Starting the simulator separately will be deprecated", DeprecationWarning)
 
         return sim_addr, syncer_addr
 

@@ -2,26 +2,21 @@ import asyncio
 import json
 import logging
 import numbers
-import pickle as pkl
 import random
 
 import numpy as np
 import pycityproto.city.economy.v2.economy_pb2 as economyv2
 
-from agentsociety.environment import EconomyClient
-from agentsociety.environment.simulator import Simulator
+from agentsociety.environment import EconomyClient, Simulator
 from agentsociety.llm import LLM
-from agentsociety.llm.llm import LLM
 from agentsociety.memory import Memory
-from agentsociety.workflow import Block
-from agentsociety.workflow.block import Block
-from agentsociety.workflow.prompt import FormatPrompt
+from agentsociety.workflow import Block, FormatPrompt
 
 from .dispatcher import BlockDispatcher
 from .utils import *
-from .utils import TIME_ESTIMATE_PROMPT, clean_json_response
 
 logger = logging.getLogger("agentsociety")
+
 
 def softmax(x, gamma=1.0):
     if not isinstance(x, np.ndarray):
@@ -39,14 +34,16 @@ class WorkBlock(Block):
         self.description = "Do work related tasks"
         self.guidance_prompt = FormatPrompt(template=TIME_ESTIMATE_PROMPT)
 
-    async def forward(self, step, context):
+    async def forward(self, step, context):  # type:ignore
         self.guidance_prompt.format(
             plan=context["plan"],
             intention=step["intention"],
             emotion_types=await self.memory.status.get("emotion_types"),
         )
-        result = await self.llm.atext_request(self.guidance_prompt.to_dialog(), response_format={"type": "json_object"})
-        result = clean_json_response(result)
+        result = await self.llm.atext_request(
+            self.guidance_prompt.to_dialog(), response_format={"type": "json_object"}
+        )
+        result = clean_json_response(result)  # type:ignore
         try:
             result = json.loads(result)
             time = result["time"]
@@ -114,7 +111,7 @@ class ConsumptionBlock(Block):
         self.forward_times = 0
         self.description = "Used to determine the consumption amount, and items"
 
-    async def forward(self, step, context):
+    async def forward(self, step, context):  # type:ignore
         self.forward_times += 1
         agent_id = await self.memory.status.get("id")  # agent_id
         firms_id = await self.economy_client.get_org_entity_ids(economyv2.ORG_TYPE_FIRM)
@@ -167,7 +164,7 @@ class EconomyNoneBlock(Block):
         super().__init__("NoneBlock", llm=llm, memory=memory)
         self.description = "Do anything else"
 
-    async def forward(self, step, context):
+    async def forward(self, step, context):  # type:ignore
         node_id = await self.memory.stream.add_economy(
             description=f"I {step['intention']}"
         )
@@ -205,7 +202,7 @@ class EconomyBlock(Block):
             [self.work_block, self.consumption_block, self.none_block]
         )
 
-    async def forward(self, step, context):
+    async def forward(self, step, context):  # type:ignore
         self.trigger_time += 1
         selected_block = await self.dispatcher.dispatch(step)
         result = await selected_block.forward(step, context)  # type: ignore
@@ -257,7 +254,7 @@ class MonthPlanBlock(Block):
         now_time = await self.simulator.get_time()
         if (
             self.last_time_trigger is None
-            or now_time - self.last_time_trigger >= self.time_diff
+            or now_time - self.last_time_trigger >= self.time_diff  # type:ignore
         ):
             self.last_time_trigger = now_time
             return True

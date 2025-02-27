@@ -1,6 +1,6 @@
 def process_survey_for_llm(survey_dict: dict) -> str:
     """
-    将问卷字典转换为LLM可以逐题处理的格式，使用英文提示
+    Convert the questionnaire dictionary into a format that can be processed question by question by the LLM, using English prompts.
     """
     prompt = f"""Survey Title: {survey_dict['title']}
 Survey Description: {survey_dict['description']}
@@ -14,7 +14,7 @@ Please answer each question in the following format:
         for question in page["elements"]:
             prompt += f"Question {question_count}: {question['title']}\n"
 
-            # 根据不同类型的问题生成不同的提示
+            # Generate different prompts based on the types of questions
             if question["type"] == "radiogroup":
                 prompt += "Options: " + ", ".join(question["choices"]) + "\n"
                 prompt += "Please select ONE option\n"
@@ -42,7 +42,7 @@ Please answer each question in the following format:
             prompt += "\nAnswer: [Your response here]\n\n---\n\n"
             question_count += 1
 
-    # 添加总结提示
+    # Add a summary prompt
     prompt += """Please ensure:
 1. All required questions are answered
 2. Responses match the question type requirements

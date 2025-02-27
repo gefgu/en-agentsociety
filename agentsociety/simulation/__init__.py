@@ -1,5 +1,5 @@
 """
-城市智能体模拟器模块
+Simulation Module
 """
 
 from .simulation import AgentSimulation

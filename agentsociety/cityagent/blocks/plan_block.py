@@ -1,16 +1,13 @@
 import json
 import logging
-import random
-from typing import Dict, List
 
-import ray
-
-from agentsociety.environment.simulator import Simulator
+from agentsociety.environment import Simulator
 from agentsociety.llm import LLM
 from agentsociety.memory import Memory
-from agentsociety.workflow import Block
-from agentsociety.workflow.prompt import FormatPrompt
+from agentsociety.workflow import Block, FormatPrompt
+
 from .utils import clean_json_response
+
 logger = logging.getLogger("agentsociety")
 
 GUIDANCE_SELECTION_PROMPT = """As an intelligent agent's decision system, please select the most suitable option from the following choices to satisfy the current need.
@@ -147,7 +144,7 @@ Please response in json format (Do not return any other text), example:
 
 
 class PlanBlock(Block):
-    configurable_fields: List[str] = ["max_plan_steps"]
+    configurable_fields: list[str] = ["max_plan_steps"]
     default_values = {"max_plan_steps": 6}
     fields_description = {"max_plan_steps": "The maximum number of steps in a plan"}
 
@@ -168,7 +165,7 @@ class PlanBlock(Block):
         # configurable fields
         self.max_plan_steps = 6
 
-    async def select_guidance(self, current_need: str) -> Dict:
+    async def select_guidance(self, current_need: str) -> dict:
         """Select guidance plan"""
         position_now = await self.memory.status.get("position")
         home_location = await self.memory.status.get("home")
@@ -219,11 +216,9 @@ class PlanBlock(Block):
             except Exception as e:
                 logger.warning(f"Error parsing guidance selection response: {str(e)}")
                 retry -= 1
-        return None
+        return None  # type:ignore
 
-    async def generate_detailed_plan(
-        self, selected_option: str
-    ) -> Dict:
+    async def generate_detailed_plan(self, selected_option: str) -> dict:
         """Generate detailed execution plan"""
         position_now = await self.memory.status.get("position")
         home_location = await self.memory.status.get("home")
@@ -269,7 +264,7 @@ class PlanBlock(Block):
             except Exception as e:
                 logger.warning(f"Error parsing detailed plan: {str(e)}")
                 retry -= 1
-        return None
+        return None  # type:ignore
 
     async def forward(self):
         # Step 1: Select guidance plan

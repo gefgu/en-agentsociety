@@ -1,5 +1,3 @@
-# __init__.py
-
 """
 This module contains classes for creating blocks and running workflows.
 """

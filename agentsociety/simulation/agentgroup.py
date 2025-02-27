@@ -134,7 +134,9 @@ class AgentGroup:
         self.message_dispatch_task = None
         self._pgsql_writer = pgsql_writer
         self._message_interceptor = message_interceptor
-        self._last_asyncio_pg_task = None  # 将SQL写入的IO隐藏到计算任务后
+        self._last_asyncio_pg_task = (
+            None  # Hide the SQL write IO behind the computation task
+        )
         self.initialized = False
         self.id2agent = {}
         # prepare LLM client
@@ -450,21 +452,21 @@ class AgentGroup:
                 )
                 break
 
-            # Step 1: 获取消息
+            # Step 1: Fetch messages
             messages = await self.messager.fetch_messages.remote()
             logger.info(f"Group {self._uuid} received {len(messages)} messages")
 
-            # Step 2: 分发消息到对应的 Agent
+            # Step 2: Distribute messages to corresponding Agents
             for message in messages:
                 topic = message.topic.value
                 payload = message.payload
 
-                # 添加解码步骤，将bytes转换为str
+                # Add a decoding step to convert bytes to str
                 if isinstance(payload, bytes):
                     payload = payload.decode("utf-8")
                     payload = json.loads(payload)
 
-                # 提取 agent_id（主题格式为 "exps/{exp_id}/agents/{agent_uuid}/{topic_type}"）
+                # Extract agent_id (topic format is "exps/{exp_id}/agents/{agent_uuid}/{topic_type}")
                 _, _, _, agent_uuid, topic_type = topic.strip("/").split("/")
 
                 if agent_uuid in self.id2agent:
@@ -765,7 +767,7 @@ class AgentGroup:
         except Exception as e:
             import traceback
 
-            logger.error(f"模拟器运行错误: {str(e)}\n{traceback.format_exc()}")
+            logger.error(f"Simulator Error: {str(e)}\n{traceback.format_exc()}")
             raise RuntimeError(str(e)) from e
 
     async def save(self, day: int, t: int):
@@ -784,5 +786,5 @@ class AgentGroup:
         except Exception as e:
             import traceback
 
-            logger.error(f"模拟器运行错误: {str(e)}\n{traceback.format_exc()}")
+            logger.error(f"Simulator Error: {str(e)}\n{traceback.format_exc()}")
             raise RuntimeError(str(e)) from e

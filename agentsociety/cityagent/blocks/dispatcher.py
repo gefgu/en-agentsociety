@@ -1,10 +1,8 @@
 import logging
 import random
-from typing import Dict, List
 
-from agentsociety.llm.llm import LLM
-from agentsociety.workflow.block import Block
-from agentsociety.workflow.prompt import FormatPrompt
+from agentsociety.llm import LLM
+from agentsociety.workflow import Block, FormatPrompt
 
 logger = logging.getLogger("agentsociety")
 
@@ -20,10 +18,10 @@ Task information:
 class BlockDispatcher:
     def __init__(self, llm: LLM):
         self.llm = llm
-        self.blocks: Dict[str, Block] = {}
+        self.blocks: dict[str, Block] = {}
         self.prompt = FormatPrompt(DISPATCHER_PROMPT)
 
-    def register_blocks(self, blocks: List[Block]) -> None:
+    def register_blocks(self, blocks: list[Block]) -> None:
         """Register multiple blocks at once"""
         for block in blocks:
             block_name = block.__class__.__name__.lower()
@@ -31,7 +29,7 @@ class BlockDispatcher:
 
     def _get_function_schema(self) -> dict:
         """Generate function schema for LLM function call"""
-        # 创建 block 选项说明
+        # create block descriptions
         block_descriptions = {
             name: block.description  # type: ignore
             for name, block in self.blocks.items()

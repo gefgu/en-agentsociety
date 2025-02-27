@@ -35,7 +35,7 @@ class SurveyManager:
         """
         survey_id = uuid.uuid4()
 
-        # 转换页面和问题数据
+        # convert page and questions
         survey_pages = []
         for page_data in pages:
             questions = []

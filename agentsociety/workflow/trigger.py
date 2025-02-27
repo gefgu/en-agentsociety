@@ -21,7 +21,7 @@ class EventTrigger:
         - `required_components` (List[Type]): A list of component types required by this trigger.
     """
 
-    # 定义该trigger需要的组件类型
+    # Define the component types required by this trigger
     required_components: list[type] = []
 
     def __init__(self, block=None):
@@ -47,7 +47,7 @@ class EventTrigger:
         if not self.block:
             raise RuntimeError("Block not set for trigger")
 
-        # 检查所需组件是否都存在
+        # Check if all required components are present
         missing_components = []
         for component_type in self.required_components:
             component_name = component_type.__name__.lower()
@@ -101,7 +101,7 @@ class MemoryChangeTrigger(EventTrigger):
         - **Raises**:
             - `RuntimeError`: If the block is not properly set.
         """
-        super().initialize()  # 首先检查必需组件
+        super().initialize()  # First check for required components
         assert self.block is not None
         self.memory = self.block.memory
         asyncio.create_task(self.memory.add_watcher(self.key, self.trigger_event.set))
@@ -151,7 +151,7 @@ class TimeTrigger(EventTrigger):
         if all(param is None for param in (days, hours, minutes)):
             raise ValueError("At least one time interval must be specified")
 
-        # 验证参数有效性
+        # Validate parameter validity
         for param_name, param_value in [
             ("days", days),
             ("hours", hours),
@@ -160,7 +160,7 @@ class TimeTrigger(EventTrigger):
             if param_value is not None and param_value < 0:
                 raise ValueError(f"{param_name} cannot be negative")
 
-        # 将所有时间间隔转换为秒
+        # Convert all time intervals to seconds
         self.interval = 0
         if days is not None:
             self.interval += days * 24 * 60 * 60
@@ -183,11 +183,11 @@ class TimeTrigger(EventTrigger):
         - **Raises**:
             - `RuntimeError`: If the block is not properly set.
         """
-        super().initialize()  # 首先检查必需组件
+        super().initialize()  # First check for required components
         assert self.block is not None
         self.memory = self.block.memory
         self.simulator = self.block.simulator
-        # 启动时间监控任务
+        # Start time monitoring task
         self._monitoring_task = asyncio.create_task(self._monitor_time())
         self._initialized = True
 
@@ -196,14 +196,14 @@ class TimeTrigger(EventTrigger):
         - **Description**:
             - Continuously monitor the time and trigger the event when the interval has passed.
         """
-        # 第一次调用时直接触发
+        # Trigger immediately on first call
         self.trigger_event.set()
 
         while True:
             try:
                 current_time = await self.simulator.get_time()
 
-                # 如果是第一次或者已经过了指定的时间间隔
+                # If it's the first time or the specified time interval has passed
                 if (
                     self._last_trigger_time is None
                     or current_time - self._last_trigger_time >= self.interval
@@ -211,10 +211,10 @@ class TimeTrigger(EventTrigger):
                     self._last_trigger_time = current_time
                     self.trigger_event.set()
 
-                await asyncio.sleep(5)  # 避免过于频繁的检查
+                await asyncio.sleep(5)  # Avoid too frequent checks
             except Exception as e:
                 print(f"Error in time monitoring: {e}")
-                await asyncio.sleep(10)  # 发生错误时等待较长时间
+                await asyncio.sleep(10)  # Wait a longer time when an error occurs
 
     async def wait_for_trigger(self) -> None:
         """

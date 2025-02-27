@@ -1,13 +1,12 @@
 import json
 import logging
-
-import ray
+from typing import cast
 
 from agentsociety import Simulator
 from agentsociety.llm import LLM
 from agentsociety.memory import Memory
-from agentsociety.workflow.block import Block
-from agentsociety.workflow.prompt import FormatPrompt
+from agentsociety.workflow import Block, FormatPrompt
+
 from .utils import clean_json_response
 
 logger = logging.getLogger("agentsociety")
@@ -126,8 +125,10 @@ class NeedsBlock(Block):
                 income=await self.memory.status.get("income"),
                 now_time=await self.simulator.get_time(format_time=True),
             )
-            response = await self.llm.atext_request(self.initial_prompt.to_dialog(), response_format={"type": "json_object"})
-            response = clean_json_response(response)
+            response = await self.llm.atext_request(
+                self.initial_prompt.to_dialog(), response_format={"type": "json_object"}
+            )
+            response = clean_json_response(response)  # type:ignore
             retry = 3
             while retry > 0:
                 try:
@@ -162,8 +163,9 @@ class NeedsBlock(Block):
             self.initialized = True
 
     async def time_decay(self):
-        # 计算时间差
+        # calculate time diff
         time_now = await self.simulator.get_time()
+        time_now = cast(int, time_now)
         if self.last_evaluation_time is None:
             self.last_evaluation_time = time_now
             time_diff = 0
@@ -171,13 +173,13 @@ class NeedsBlock(Block):
             time_diff = (time_now - self.last_evaluation_time) / 3600
             self.last_evaluation_time = time_now
 
-        # 获取当前需求的满意度
+        # acquire current satisfaction
         hunger_satisfaction = await self.memory.status.get("hunger_satisfaction")
         energy_satisfaction = await self.memory.status.get("energy_satisfaction")
         safety_satisfaction = await self.memory.status.get("safety_satisfaction")
         social_satisfaction = await self.memory.status.get("social_satisfaction")
 
-        # 根据经过的时间计算饥饿与疲劳的衰减
+        # calculates hunger and fatigue decay based on elapsed time
         hungry_decay = self.alpha_H * time_diff
         energy_decay = self.alpha_D * time_diff
         safety_decay = self.alpha_P * time_diff
@@ -187,21 +189,21 @@ class NeedsBlock(Block):
         safety_satisfaction = max(0, safety_satisfaction - safety_decay)
         social_satisfaction = max(0, social_satisfaction - social_decay)
 
-        # 更新满意度
+        # update satisfaction
         await self.memory.status.update("hunger_satisfaction", hunger_satisfaction)
         await self.memory.status.update("energy_satisfaction", energy_satisfaction)
         await self.memory.status.update("safety_satisfaction", safety_satisfaction)
         await self.memory.status.update("social_satisfaction", social_satisfaction)
 
     async def update_when_plan_completed(self):
-        # 判断当前是否有正在执行的plan
+        # Check if there is any ongoing plan
         current_plan = await self.memory.status.get("current_plan")
         if current_plan and (
             current_plan.get("completed") or current_plan.get("failed")
         ):
-            # 评估计划执行过程并调整需求
+            # Evaluate the execution process of the plan and adjust needs
             await self.evaluate_and_adjust_needs(current_plan)
-            # 将完成的计划添加到历史记录
+            # Add the completed plan to history
             history = await self.memory.status.get("plan_history")
             history.append(current_plan)
             await self.memory.status.update("plan_history", history)
@@ -217,14 +219,14 @@ class NeedsBlock(Block):
         safety_satisfaction = await self.memory.status.get("safety_satisfaction")
         social_satisfaction = await self.memory.status.get("social_satisfaction")
 
-        # 如果需要调整需求，更新当前需求
-        # 调整方案为，如果当前的需求为空，或有更高级的需求出现，则调整需求
+        # If needs adjustment is required, update current need
+        # The adjustment scheme is to adjust the need if the current need is empty, or a higher priority need appears
         current_plan = await self.memory.status.get("current_plan")
         current_need = await self.memory.status.get("current_need")
 
-        # 当前没有计划或计划已执行完毕，获取所有需求值，按优先级检查各需求是否达到阈值
+        # When there's no plan or the plan has been completed, get all satisfaction values and check each need against its threshold based on priority
         if not current_plan or current_plan.get("completed"):
-            # 按优先级顺序检查需求
+            # Check needs in order of priority
             if hunger_satisfaction <= self.T_H:
                 await self.memory.status.update("current_need", "hungry")
             elif energy_satisfaction <= self.T_D:
@@ -239,7 +241,7 @@ class NeedsBlock(Block):
             else:
                 await self.memory.status.update("current_need", "whatever")
         else:
-            # 有正在执行的计划时,只在出现更高优先级需求时调整
+            # While there is an ongoing plan, only adjust for higher priority needs
             needs_changed = False
             new_need = None
             if hunger_satisfaction <= self.T_H and current_need not in [
@@ -270,7 +272,7 @@ class NeedsBlock(Block):
                 new_need = "social"
                 needs_changed = True
 
-            # 如果需求发生变化,中断当前计划
+            # If needs have changed, interrupt the current plan
             if needs_changed:
                 await self.evaluate_and_adjust_needs(current_plan)
                 history = await self.memory.status.get("plan_history")
@@ -282,9 +284,9 @@ class NeedsBlock(Block):
                     "current_step", {"intention": "", "type": ""}
                 )
                 await self.memory.status.update("execution_context", {})
-
+                
     async def evaluate_and_adjust_needs(self, completed_plan):
-        # 获取执行的计划和评估结果
+        # Retrieve the executed plan and evaluation results
         evaluation_results = []
         for step in completed_plan["steps"]:
             if "evaluation" in step["evaluation"]:
@@ -294,7 +296,7 @@ class NeedsBlock(Block):
             evaluation_results.append(f"- {step['intention']} ({step['type']}): {eva_}")
         evaluation_results = "\n".join(evaluation_results)
 
-        # 使用 LLM 进行评估
+        # Use LLM for evaluation
         current_need = await self.memory.status.get("current_need")
         self.evaluation_prompt.format(
             current_need=current_need,
@@ -308,10 +310,13 @@ class NeedsBlock(Block):
 
         retry = 3
         while retry > 0:
-            response = await self.llm.atext_request(self.evaluation_prompt.to_dialog(), response_format={"type": "json_object"})
+            response = await self.llm.atext_request(
+                self.evaluation_prompt.to_dialog(),
+                response_format={"type": "json_object"},
+            )
             try:
                 new_satisfaction = json.loads(clean_json_response(response))  # type: ignore
-                # 更新所有需求的数值
+                # Update values of all needs
                 for need_type, new_value in new_satisfaction.items():
                     if need_type in [
                         "hunger_satisfaction",

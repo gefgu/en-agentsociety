@@ -7,7 +7,7 @@ import pycityproto.city.economy.v2.economy_pb2 as economyv2
 
 from agentsociety import InstitutionAgent, Simulator
 from agentsociety.environment import EconomyClient
-from agentsociety.llm.llm import LLM
+from agentsociety.llm import LLM
 from agentsociety.memory import Memory
 from agentsociety.message import Messager
 

@@ -4,8 +4,7 @@ import logging
 from agentsociety.environment.simulator import Simulator
 from agentsociety.llm import LLM
 from agentsociety.memory import Memory
-from agentsociety.workflow.block import Block
-from agentsociety.workflow.prompt import FormatPrompt
+from agentsociety.workflow import Block, FormatPrompt
 
 logger = logging.getLogger("agentsociety")
 
@@ -113,7 +112,9 @@ class CognitionBlock(Block):
             for retry in range(10):
                 try:
                     _response = await self.llm.atext_request(
-                        question_prompt.to_dialog(), timeout=300, response_format={"type": "json_object"}
+                        question_prompt.to_dialog(),
+                        timeout=300,
+                        response_format={"type": "json_object"},
                     )
                     response = json.loads(extract_json(_response))  # type:ignore
                     evaluation = False
@@ -189,7 +190,9 @@ class CognitionBlock(Block):
         for retry in range(10):
             try:
                 _response = await self.llm.atext_request(
-                    question_prompt.to_dialog(), timeout=300, response_format={"type": "json_object"}
+                    question_prompt.to_dialog(),
+                    timeout=300,
+                    response_format={"type": "json_object"},
                 )
                 response = json.loads(extract_json(_response))  # type:ignore
                 evaluation = False
@@ -283,7 +286,9 @@ class CognitionBlock(Block):
         for retry in range(10):
             try:
                 _response = await self.llm.atext_request(
-                    question_prompt.to_dialog(), timeout=300, response_format={"type": "json_object"}
+                    question_prompt.to_dialog(),
+                    timeout=300,
+                    response_format={"type": "json_object"},
                 )
                 response = json.loads(extract_json(_response))  # type:ignore
                 evaluation = False

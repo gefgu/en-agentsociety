@@ -32,26 +32,24 @@ def prettify_document(document: str) -> str:
 
 def extract_dict_from_string(input_string):
     """
-    提取输入字符串中的字典。支持跨行字典和嵌套字典。
+    Extract dictionaries from the input string. Supports multi-line dictionaries and nested dictionaries.
     """
-    # 正则表达式查找所有可能的字典部分，允许多行
-    dict_pattern = (
-        r"\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}"  # 匹配字典的正则表达式，支持嵌套
-    )
+    # Use regular expression to find all possible dictionary parts, allowing multi-line dictionaries
+    dict_pattern = r"\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}"  # Regular expression to match dictionaries, supports nesting
     matches = re.findall(
         dict_pattern, input_string, re.DOTALL
-    )  # re.DOTALL允许匹配换行符
+    )  # re.DOTALL allows matching newline characters
 
     dicts = []
 
     for match in matches:
         try:
-            # 使用 ast.literal_eval 将字符串转换为字典
+            # Use ast.literal_eval to convert the string to a dictionary
             parsed_dict = ast.literal_eval(match)
             if isinstance(parsed_dict, dict):
                 dicts.append(parsed_dict)
         except (ValueError, SyntaxError) as e:
-            print(f"解析字典失败: {e}")
+            print(f"Failed to parse dictionary: {e}")
 
     return dicts
 

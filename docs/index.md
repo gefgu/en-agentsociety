@@ -1,7 +1,16 @@
 # AgentSociety
 
 **AgentSociety** is a social simulation engine and a toolkit for social science research, constructed based on the first principles of sociology, utilizing large model agents. It aims to catalyze a paradigm shift in the methodology of social science research, promoting developments from behavioral simulation to mental modeling, from static deduction to dynamic coexistence, and from laboratory tools to social infrastructure.
-The paper is available at [arXiv](https://arxiv.org/abs/2502.08691).
+The paper is available at [arXiv](https://arxiv.org/abs/2502.08691):
+
+```
+@article{piao2025agentsociety,
+  title={AgentSociety: Large-Scale Simulation of LLM-Driven Generative Agents Advances Understanding of Human Behaviors and Society},
+  author={Piao, Jinghua and Yan, Yuwei and Zhang, Jun and Li, Nian and Yan, Junbo and Lan, Xiaochong and Lu, Zhihong and Zheng, Zhiheng and Wang, Jing Yi and Zhou, Di and others},
+  journal={arXiv preprint arXiv:2502.08691},
+  year={2025}
+}
+```
 
 <img src="_static/framework-overview.jpg" alt="Overall Structure of AgentSociety" style="zoom=28%;" />
 

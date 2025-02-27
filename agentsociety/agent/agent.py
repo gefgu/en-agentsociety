@@ -170,8 +170,8 @@ class CitizenAgent(Agent):
             - Retrieves the content associated with the target attribute from the agent's status.
             - Prepares a response payload with the retrieved content and sends it back to the sender using `_send_message`.
         """
-        # 处理收到的消息，识别发送者
-        # 从消息中解析发送者 ID 和消息内容
+        # Process the received message, identify the sender
+        # Parse sender ID and message content from the message
         target = payload["target"]
         sender_id = payload["from"]
         content = await self.status.get(f"{target}")
@@ -251,7 +251,7 @@ class InstitutionAgent(Agent):
             avro_file=avro_file,
         )
         self._mlflow_client = None
-        # 添加响应收集器
+        # add response collector
         self._gather_responses: dict[str, asyncio.Future] = {}
 
     async def bind_to_simulator(self):
@@ -378,7 +378,7 @@ class InstitutionAgent(Agent):
         content = payload["content"]
         sender_id = payload["from"]
 
-        # 将响应存储到对应的Future中
+        # Store the response into the corresponding Future
         response_key = str(sender_id)
         if response_key in self._gather_responses:
             self._gather_responses[response_key].set_result(
@@ -405,13 +405,13 @@ class InstitutionAgent(Agent):
             - Waits for all responses and returns them as a list of dictionaries.
             - Ensures cleanup of Futures after collecting responses.
         """
-        # 为每个agent创建Future
+        # Create a Future for each agent
         futures = {}
         for agent_uuid in agent_uuids:
             futures[agent_uuid] = asyncio.Future()
             self._gather_responses[agent_uuid] = futures[agent_uuid]
 
-        # 发送gather请求
+        # Send gather requests
         payload = {
             "from": self._uuid,
             "target": target,
@@ -420,11 +420,11 @@ class InstitutionAgent(Agent):
             await self._send_message(agent_uuid, payload, "gather")
 
         try:
-            # 等待所有响应
+            # Wait for all responses
             responses = await asyncio.gather(*futures.values())
             return responses
         finally:
-            # 清理Future
+            # Cleanup Futures
             for key in futures:
                 self._gather_responses.pop(key, None)
 

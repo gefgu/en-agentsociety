@@ -2,10 +2,9 @@ import json
 import logging
 import random
 
-from agentsociety.llm.llm import LLM
+from agentsociety.llm import LLM
 from agentsociety.memory import Memory
-from agentsociety.workflow.block import Block
-from agentsociety.workflow.prompt import FormatPrompt
+from agentsociety.workflow import Block, FormatPrompt
 
 from .dispatcher import BlockDispatcher
 from .utils import TIME_ESTIMATE_PROMPT, clean_json_response
@@ -19,14 +18,16 @@ class SleepBlock(Block):
         self.description = "Sleep"
         self.guidance_prompt = FormatPrompt(template=TIME_ESTIMATE_PROMPT)
 
-    async def forward(self, step, context):
+    async def forward(self, step, context):  # type:ignore
         self.guidance_prompt.format(
             plan=context["plan"],
             intention=step["intention"],
             emotion_types=await self.memory.status.get("emotion_types"),
         )
-        result = await self.llm.atext_request(self.guidance_prompt.to_dialog(), response_format={"type": "json_object"})
-        result = clean_json_response(result)
+        result = await self.llm.atext_request(
+            self.guidance_prompt.to_dialog(), response_format={"type": "json_object"}
+        )
+        result = clean_json_response(result)  # type:ignore
         node_id = await self.memory.stream.add_other(description=f"I slept")
         try:
             result = json.loads(result)
@@ -37,7 +38,9 @@ class SleepBlock(Block):
                 "node_id": node_id,
             }
         except Exception as e:
-            logger.warning(f"解析时间评估响应时发生错误: {str(e)}, 原始结果: {result}")
+            logger.warning(
+                f"An error occurred while evaluating the response at parse time: {str(e)}, original result: {result}"
+            )
             return {
                 "success": True,
                 "evaluation": f'Sleep: {step["intention"]}',
@@ -48,7 +51,6 @@ class SleepBlock(Block):
 
 class OtherNoneBlock(Block):
     """
-    空操作
     OtherNoneBlock
     """
 
@@ -57,14 +59,16 @@ class OtherNoneBlock(Block):
         self.description = "Used to handle other cases"
         self.guidance_prompt = FormatPrompt(template=TIME_ESTIMATE_PROMPT)
 
-    async def forward(self, step, context):
+    async def forward(self, step, context):  # type:ignore
         self.guidance_prompt.format(
             plan=context["plan"],
             intention=step["intention"],
             emotion_types=await self.memory.status.get("emotion_types"),
         )
-        result = await self.llm.atext_request(self.guidance_prompt.to_dialog(), response_format={"type": "json_object"})
-        result = clean_json_response(result)
+        result = await self.llm.atext_request(
+            self.guidance_prompt.to_dialog(), response_format={"type": "json_object"}
+        )
+        result = clean_json_response(result)  # type:ignore
         node_id = await self.memory.stream.add_other(
             description=f"I {step['intention']}"
         )
@@ -77,7 +81,9 @@ class OtherNoneBlock(Block):
                 "node_id": node_id,
             }
         except Exception as e:
-            logger.warning(f"解析时间评估响应时发生错误: {str(e)}, 原始结果: {result}")
+            logger.warning(
+                f"An error occurred while evaluating the response at parse time: {str(e)}, original result: {result}"
+            )
             return {
                 "success": True,
                 "evaluation": f'Finished executing {step["intention"]}',
@@ -92,17 +98,17 @@ class OtherBlock(Block):
 
     def __init__(self, llm: LLM, memory: Memory):
         super().__init__("OtherBlock", llm=llm, memory=memory)
-        # 初始化所有块
+        # init all blocks
         self.sleep_block = SleepBlock(llm, memory)
         self.other_none_block = OtherNoneBlock(llm, memory)
         self.trigger_time = 0
         self.token_consumption = 0
-        # 初始化调度器
+        # init dispatcher
         self.dispatcher = BlockDispatcher(llm)
-        # 注册所有块
+        # register all blocks
         self.dispatcher.register_blocks([self.sleep_block, self.other_none_block])
 
-    async def forward(self, step, context):
+    async def forward(self, step, context):  # type:ignore
         self.trigger_time += 1
         consumption_start = (
             self.llm.prompt_tokens_used + self.llm.completion_tokens_used

@@ -29,7 +29,7 @@ __all__ = [
 
 class MessageBlockBase(ABC):
     """
-    用于过滤的block
+    block for message interception
     """
 
     def __init__(

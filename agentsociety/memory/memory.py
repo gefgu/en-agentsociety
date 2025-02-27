@@ -51,8 +51,8 @@ class MemoryNode:
     t: int
     location: str
     description: str
-    cognition_id: Optional[int] = None  # 关联的认知记忆ID
-    id: Optional[int] = None  # 记忆ID
+    cognition_id: Optional[int] = None  # ID related to cognitive memory
+    id: Optional[int] = None  # Unique ID for the memory node
 
 
 class StreamMemory:
@@ -76,8 +76,8 @@ class StreamMemory:
         - **Args**:
             - `max_len` (int): Maximum length of the deque. Default is 1000.
         """
-        self._memories: deque = deque(maxlen=max_len)  # 限制最大存储量
-        self._memory_id_counter: int = 0  # 用于生成唯一ID
+        self._memories: deque = deque(maxlen=max_len)  # Limit the maximum storage
+        self._memory_id_counter: int = 0  # Used for generating unique IDs
         self._faiss_query = None
         self._embedding_model = None
         self._agent_id = -1
@@ -185,7 +185,7 @@ class StreamMemory:
         )
         self._memories.append(memory_node)
 
-        # 为新记忆创建 embedding
+        # create embedding for new memories
         if self._embedding_model and self._faiss_query:
             await self.faiss_query.add_documents(
                 agent_id=self._agent_id,
@@ -309,7 +309,7 @@ class StreamMemory:
             memory_time_seconds = memory.t
             cognition_id = memory.cognition_id
 
-            # 格式化时间
+            # Format time
             if memory_time_seconds != "unknown":
                 hours = memory_time_seconds // 3600
                 minutes = (memory_time_seconds % 3600) // 60
@@ -320,7 +320,7 @@ class StreamMemory:
 
             memory_location = memory.location
 
-            # 添加认知信息（如果存在）
+            # Add cognition information (if exists)
             cognition_info = ""
             if cognition_id is not None:
                 cognition_memory = await self.get_related_cognition(cognition_id)
@@ -336,7 +336,7 @@ class StreamMemory:
         return "\n".join(formatted_results)
 
     async def get_by_ids(self, memory_ids: Union[int, list[int]]) -> str:
-        """获取指定ID的记忆"""
+        """Retrieve memories by specified IDs"""
         memories = [memory for memory in self._memories if memory.id in memory_ids]
         sorted_results = sorted(memories, key=lambda x: (x.day, x.t), reverse=True)
         return await self.format_memory(sorted_results)
@@ -346,8 +346,8 @@ class StreamMemory:
         query: str,
         tag: Optional[MemoryTag] = None,
         top_k: int = 3,
-        day_range: Optional[tuple[int, int]] = None,  # 新增参数
-        time_range: Optional[tuple[int, int]] = None,  # 新增参数
+        day_range: Optional[tuple[int, int]] = None,
+        time_range: Optional[tuple[int, int]] = None,
     ) -> str:
         """
         Search stream memory with optional filters and return formatted results.
@@ -370,7 +370,7 @@ class StreamMemory:
         if tag:
             filter_dict["tag"] = tag
 
-        # 添加时间范围过滤
+        # Add time range filter
         if day_range:
             start_day, end_day = day_range
             filter_dict["day"] = lambda x: start_day <= x <= end_day
@@ -387,7 +387,7 @@ class StreamMemory:
             filter=filter_dict,
         )
 
-        # 将结果按时间排序（先按天数，再按时间）
+        # Sort results by time (first by day, then by time)
         sorted_results = sorted(
             top_results,
             key=lambda x: (x[2].get("day", 0), x[2].get("time", 0)),  # type:ignore
@@ -401,7 +401,7 @@ class StreamMemory:
             memory_time_seconds = metadata.get("time", "unknown")
             cognition_id = metadata.get("cognition_id", None)
 
-            # 格式化时间
+            # Format time
             if memory_time_seconds != "unknown":
                 hours = memory_time_seconds // 3600
                 minutes = (memory_time_seconds % 3600) // 60
@@ -412,7 +412,7 @@ class StreamMemory:
 
             memory_location = metadata.get("location", "unknown")
 
-            # 添加认知信息（如果存在）
+            # Add cognition information (if exists)
             cognition_info = ""
             if cognition_id is not None:
                 cognition_memory = await self.get_related_cognition(cognition_id)
@@ -429,9 +429,9 @@ class StreamMemory:
 
     async def search_today(
         self,
-        query: str = "",  # 可选的查询文本
+        query: str = "",  # Optional query text
         tag: Optional[MemoryTag] = None,
-        top_k: int = 100,  # 默认返回较大数量以确保获取当天所有记忆
+        top_k: int = 100,  # Default to a larger number to ensure all memories of the day are retrieved
     ) -> str:
         """Search all memory events from today
 
@@ -448,7 +448,7 @@ class StreamMemory:
 
         current_day = int(await self._simulator.get_simulator_day())
 
-        # 使用 search 方法，设置 day_range 为当天
+        # Use the search method, setting day_range to today
         return await self.search(
             query=query, tag=tag, top_k=top_k, day_range=(current_day, current_day)
         )
@@ -463,10 +463,10 @@ class StreamMemory:
             - `memory_id` (Union[int, list[int]]): ID or list of IDs of the memories to which cognition will be added.
             - `cognition` (str): Description of the cognition to add.
         """
-        # 将单个ID转换为列表以统一处理
+        # Convert a single ID into a list for unified processing
         memory_ids = [memory_id] if isinstance(memory_id, int) else memory_id
 
-        # 找到所有对应的记忆
+        # Find all corresponding memories
         target_memories = []
         for memory in self._memories:
             if memory.id in memory_ids:
@@ -475,10 +475,10 @@ class StreamMemory:
         if not target_memories:
             raise ValueError(f"No memories found with ids {memory_ids}")
 
-        # 添加认知记忆
+        # Add cognitive memory
         cognition_id = await self._add_memory(MemoryTag.COGNITION, cognition)
 
-        # 更新所有原记忆的认知ID
+        # Update the cognition_id of all original memories
         for target_memory in target_memories:
             target_memory.cognition_id = cognition_id
 
@@ -524,11 +524,11 @@ class StatusMemory:
         self._embedding_model = None
         self._simulator = None
         self._agent_id = -1
-        self._semantic_templates = {}  # 用户可配置的模板
-        self._embedding_fields = {}  # 需要 embedding 的字段
-        self._embedding_field_to_doc_id = defaultdict(str)  # 新增
-        self.watchers = {}  # 新增
-        self._lock = asyncio.Lock()  # 新增
+        self._semantic_templates = {}  # User-configurable templates
+        self._embedding_fields = {}  # Fields that require embedding
+        self._embedding_field_to_doc_id = defaultdict(str)  # Newly added
+        self.watchers = {}  # Newly added
+        self._lock = asyncio.Lock()  # Newly added
 
     @property
     def faiss_query(
@@ -550,10 +550,10 @@ class StatusMemory:
             )
             return
 
-        # 获取所有状态信息
+        # Retrieve all status information
         profile, state, dynamic = await self.export()
 
-        # 为每个需要 embedding 的字段创建 embedding
+        # Create embeddings for each field that requires it
         for key, value in profile[0].items():
             if self.should_embed(key):
                 semantic_text = self._generate_semantic_text(key, value)
@@ -676,7 +676,7 @@ class StatusMemory:
                 filter=filter_dict,
             )
         )
-        # 格式化输出
+        # formatted results
         formatted_results = []
         for content, score, metadata in top_results:
             formatted_results.append(f"- {content} ")
@@ -780,14 +780,14 @@ class StatusMemory:
                     if self.should_embed(key) and self._embedding_model:
                         semantic_text = self._generate_semantic_text(key, value)
 
-                        # 删除旧的 embedding
+                        # delete old embedding
                         orig_doc_id = self._embedding_field_to_doc_id[key]
                         if orig_doc_id:
                             await self.faiss_query.delete_documents(
                                 to_delete_ids=[orig_doc_id],
                             )
 
-                        # 添加新的 embedding
+                        # add new embedding
                         doc_ids = await self.faiss_query.add_documents(
                             agent_id=self._agent_id,
                             documents=semantic_text,
@@ -930,8 +930,8 @@ class Memory:
         Initializes the Memory with optional configuration.
 
         - **Description**:
-            - Sets up the memory management system by initializing different memory types (state, profile, dynamic)
-              and configuring them based on provided parameters. Also initializes watchers and locks for thread-safe operations.
+            Sets up the memory management system by initializing different memory types (state, profile, dynamic)
+            and configuring them based on provided parameters. Also initializes watchers and locks for thread-safe operations.
 
         - **Args**:
             - `config` (Optional[dict[Any, Any]], optional):
@@ -967,7 +967,7 @@ class Memory:
         if config is not None:
             for k, v in config.items():
                 try:
-                    # 处理不同长度的配置元组
+                    # Handle configurations of different lengths
                     if isinstance(v, tuple):
                         if len(v) == 4:  # (_type, _value, enable_embedding, template)
                             _type, _value, enable_embedding, template = v
@@ -984,7 +984,7 @@ class Memory:
                         _value = v
                         self._embedding_fields[k] = False
 
-                    # 处理类型转换
+                    # Process type conversion
                     try:
                         if isinstance(_type, type):
                             _value = _type(_value)
@@ -1013,7 +1013,7 @@ class Memory:
 
                 _dynamic_config[k] = deepcopy(_value)
 
-        # 初始化各类记忆
+        # Initialize various types of memories
         self._dynamic = DynamicMemory(
             required_attributes=_dynamic_config, activate_timestamp=activate_timestamp
         )
@@ -1024,7 +1024,7 @@ class Memory:
                     logger.warning(f"key `{k}` is not a correct `profile` field!")
                     continue
                 try:
-                    # 处理配置元组格式
+                    # Handle configuration tuple formats
                     if isinstance(v, tuple):
                         if len(v) == 4:  # (_type, _value, enable_embedding, template)
                             _type, _value, enable_embedding, template = v
@@ -1037,7 +1037,7 @@ class Memory:
                             _type, _value = v
                             self._embedding_fields[k] = False
 
-                        # 处理类型转换
+                        # Process type conversion
                         try:
                             if isinstance(_type, type):
                                 _value = _type(_value)
@@ -1050,7 +1050,7 @@ class Memory:
                         except TypeError as e:
                             logger.warning(f"Type conversion failed for key {k}: {e}")
                     else:
-                        # 保持对简单键值对的兼容
+                        # Maintain compatibility with simple key-value pairs
                         _value = v
                         self._embedding_fields[k] = False
                 except TypeError as e:
@@ -1075,14 +1075,14 @@ class Memory:
             msg=_state_config, activate_timestamp=activate_timestamp
         )
 
-        # 组合 StatusMemory，并传递 embedding_fields 信息
+        # Combine StatusMemory and pass embedding_fields information
         self._status = StatusMemory(
             profile=self._profile, state=self._state, dynamic=self._dynamic
         )
         self._status.set_embedding_fields(self._embedding_fields)
         self._status.set_search_components(self._faiss_query, self._embedding_model)
 
-        # 新增 StreamMemory
+        # Add StreamMemory
         self._stream = StreamMemory()
         self._stream.set_status_memory(self._status)
         self._stream.set_search_components(self._faiss_query, self._embedding_model)

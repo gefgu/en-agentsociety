@@ -1,5 +1,5 @@
 """
-agentsociety: 城市智能体构建框架
+agentsociety: City agent building framework
 """
 
 import logging
@@ -9,11 +9,11 @@ from .environment import Simulator
 from .llm import SentenceEmbedding
 from .simulation import AgentSimulation
 
-# 创建一个 agentsociety 记录器
+# Create an agentsociety logger
 logger = logging.getLogger("agentsociety")
-logger.setLevel(logging.WARNING)  # 默认级别
+logger.setLevel(logging.WARNING) # Default level
 
-# 如果没有处理器，则添加一个
+# If there is no handler, add one
 if not logger.hasHandlers():
     handler = logging.StreamHandler()
     formatter = logging.Formatter(

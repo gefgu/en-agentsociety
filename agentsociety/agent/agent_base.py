@@ -94,15 +94,15 @@ class Agent(ABC):
         self._has_bound_to_simulator = False
         self._has_bound_to_economy = False
         self._blocked = False
-        self._interview_history: list[dict] = []  # 存储采访历史
+        self._interview_history: list[dict] = []  # Store interview history
         self._person_template = PersonService.default_dict_person()
         self._avro_file = avro_file
         self._pgsql_writer = copy_writer
-        self._last_asyncio_pg_task = None  # 将SQL写入的IO隐藏到计算任务后
+        self._last_asyncio_pg_task = None  # Hide SQL writes behind computational tasks
 
     def __getstate__(self):
         state = self.__dict__.copy()
-        # 排除锁对象
+        # Exclude lock objects
         del state["_llm_client"]
         return state
 
@@ -145,7 +145,7 @@ class Agent(ABC):
             field: cls.fields_description.get(field, "")
             for field in cls.configurable_fields
         }
-        # 解析类中的注解，找到Block类型的字段
+        # Parse class annotations to find fields of type Block
         hints = get_type_hints(cls)
         for attr_name, attr_type in hints.items():
             if inspect.isclass(attr_type) and issubclass(attr_type, Block):
@@ -163,7 +163,7 @@ class Agent(ABC):
     @classmethod
     def _export_subblocks(cls, block_cls: type[Block]) -> list[dict]:
         children = []
-        hints = get_type_hints(block_cls)  # 获取类的注解
+        hints = get_type_hints(block_cls)  # Get class annotations
         for attr_name, attr_type in hints.items():
             if inspect.isclass(attr_type) and issubclass(attr_type, Block):
                 block_config = attr_type.export_class_config()
@@ -218,12 +218,11 @@ class Agent(ABC):
             block_instance = block_cls.import_config(block_data)
             return block_instance
 
-        # 创建顶层Block
+        # Create top-level Blocks
         for block_data in config["blocks"]:
             assert isinstance(block_data, dict)
             block = build_block(block_data)
             setattr(agent, block.name.lower(), block)
-
         return agent
 
     @classmethod
@@ -466,11 +465,11 @@ class Agent(ABC):
         survey_prompt = process_survey_for_llm(survey)
         dialog = []
 
-        # 添加系统提示
+        # Add system prompt
         system_prompt = "Please answer the survey question in first person. Follow the format requirements strictly and provide clear and specific answers."
         dialog.append({"role": "system", "content": system_prompt})
 
-        # 添加记忆上下文
+        # Add memory context
         if self._memory:
             profile_and_states = await self.status.search(survey_prompt)
             relevant_activities = await self.stream.search(survey_prompt)
@@ -482,10 +481,10 @@ class Agent(ABC):
                 }
             )
 
-        # 添加问卷问题
+        # Add survey question
         dialog.append({"role": "user", "content": survey_prompt})
 
-        # 使用LLM生成回答
+        # Use LLM to generate a response
         if not self._llm_client:
             return "Sorry, I cannot answer survey questions right now."
 
@@ -575,11 +574,11 @@ class Agent(ABC):
         """
         dialog = []
 
-        # 添加系统提示
+        # Add system prompt
         system_prompt = "Please answer the question in first person and keep the response concise and clear."
         dialog.append({"role": "system", "content": system_prompt})
 
-        # 添加记忆上下文
+        # Add memory context
         if self._memory:
             profile_and_states = await self.status.search(question, top_k=10)
             relevant_activities = await self.stream.search(question, top_k=10)
@@ -591,10 +590,10 @@ class Agent(ABC):
                 }
             )
 
-        # 添加用户问题
+        # Add user question
         dialog.append({"role": "user", "content": question})
 
-        # 使用LLM生成回答
+        # Use LLM to generate a response
         if not self._llm_client:
             return "Sorry, I cannot answer questions right now."
 
@@ -788,8 +787,8 @@ class Agent(ABC):
             - Delegates the processing of the chat message to `_process_agent_chat`.
             - This method is typically used as a callback function for MQTT messages.
         """
-        # 处理收到的消息，识别发送者
-        # 从消息中解析发送者 ID 和消息内容
+        # Process the received message, identify the sender
+        # Parse sender ID and message content from the message
         logger.info(f"Agent {self._uuid} received agent chat message: {payload}")
         asyncio.create_task(self._process_agent_chat(payload))
 
@@ -805,8 +804,8 @@ class Agent(ABC):
             - Delegates the processing of the interview (which includes generating a response) to `_process_interview`.
             - This method is typically used as a callback function for MQTT messages.
         """
-        # 处理收到的消息，识别发送者
-        # 从消息中解析发送者 ID 和消息内容
+        # Process the received message, identify the sender
+        # Parse sender ID and message content from the message
         logger.info(f"Agent {self._uuid} received user chat message: {payload}")
         asyncio.create_task(self._process_interview(payload))
 
@@ -822,8 +821,8 @@ class Agent(ABC):
             - Extracts the survey data from the payload and delegates its processing to `_process_survey`.
             - This method is typically used as a callback function for MQTT messages.
         """
-        # 处理收到的消息，识别发送者
-        # 从消息中解析发送者 ID 和消息内容
+        # Process the received message, identify the sender
+        # Parse sender ID and message content from the message
         logger.info(f"Agent {self._uuid} received user survey message: {payload}")
         asyncio.create_task(self._process_survey(payload["data"]))
 
@@ -840,7 +839,6 @@ class Agent(ABC):
         - **Description**:
             - This method is intended to handle specific types of gather messages but has not been implemented yet.
         """
-        raise NotImplementedError
 
     # MQTT send message
     async def _send_message(self, to_agent_uuid: str, payload: dict, sub_topic: str):
@@ -860,7 +858,7 @@ class Agent(ABC):
             - Sends the message asynchronously through the Messager.
             - Used internally by other methods like `send_message_to_agent`.
         """
-        # 通过 Messager 发送消息
+        # send message with `Messager`
         if self._messager is None:
             raise RuntimeError("Messager is not set")
         topic = f"exps/{self._exp_id}/agents/{to_agent_uuid}/{sub_topic}"
@@ -892,7 +890,7 @@ class Agent(ABC):
             - Optionally records the message in Avro format and PostgreSQL if it's a "social" type message.
             - Ensures thread-safe operations when writing to PostgreSQL by waiting for any previous write task to complete before starting a new one.
         """
-        # 通过 Messager 发送消息
+        # send message with `Messager`
         if self._messager is None:
             raise RuntimeError("Messager is not set")
         if type not in ["social", "economy"]:
@@ -952,7 +950,6 @@ class Agent(ABC):
             - This abstract method should contain the core logic for what the agent does at each step of its operation.
             - It is intended to be overridden by subclasses to define specific behaviors.
         """
-        # 智能体行为逻辑
         raise NotImplementedError
 
     async def run(self) -> None:

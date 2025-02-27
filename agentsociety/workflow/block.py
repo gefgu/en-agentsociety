@@ -177,10 +177,10 @@ class Block:
         self._llm = llm
         self._memory = memory
         self._simulator = simulator
-        # 如果传入trigger，将block注入到trigger中并立即初始化
+        # If a trigger is passed in, inject the block into the trigger and initialize it immediately.
         if trigger is not None:
             trigger.block = self
-            trigger.initialize()  # 立即初始化trigger
+            trigger.initialize()
         self.trigger = trigger
 
     def export_config(self) -> dict[str, Optional[str]]:
@@ -234,7 +234,7 @@ class Block:
             if field in cls.configurable_fields:
                 setattr(instance, field, value)
 
-        # 递归创建子Block
+        # Recursively create sub-blocks
         for child_config in config.get("children", []):
             child_block = Block.import_config(child_config)  # type: ignore
             setattr(instance, child_block.name.lower(), child_block)
@@ -249,7 +249,7 @@ class Block:
         - **Args**:
             - `config` (Dict[str, List[Dict]]): Configuration dictionary for updating the block.
         """
-        # 更新当前Block的参数
+        # Update parameters of the current Block
         for field in self.configurable_fields:
             if field in config["config"]:
                 if config["config"][field] != "default_value":
@@ -260,11 +260,11 @@ class Block:
             existing_block = getattr(self, block_name, None)
 
             if existing_block:
-                # 递归更新子Block
+                # Recursively update child Block
                 existing_block.load_from_config(block_data)
                 return existing_block
             else:
-                # 创建新的子Block
+                # Create a new child Block
                 block_cls = globals().get(block_data["name"])
                 if block_cls is None:
                     raise KeyError(f"Block class '{block_data['name']}' not found.")
@@ -272,7 +272,7 @@ class Block:
                 setattr(self, block_name, block_instance)
                 return block_instance
 
-        # 递归遍历子Block配置
+        # Recursively iterate through child Block configurations
         for block_data in config.get("children", []):
             build_or_update_block(block_data)
 

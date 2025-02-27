@@ -54,7 +54,7 @@ class EdgeMessageBlock(MessageBlockBase):
             or (None, to_uuid) in set(black_list)
             or (from_uuid, None) in set(black_list)
         ):
-            # 可选同时返回入队的信息(False,err) 如果只返回bool值则默认报错信息入队
+            # Optionally return the information to be enqueued as a tuple (False, err). If only a bool value is returned, the default error message will be enqueued.
             return False
         else:
             is_valid = await check_message(
@@ -67,7 +67,7 @@ class EdgeMessageBlock(MessageBlockBase):
                 not is_valid
                 and violation_counts[from_uuid] >= self.max_violation_time - 1
             ):
-                # 直接添加即可 在框架内部的异步锁保证不会冲突
+                # Can be directly added. The internal asynchronous lock of the framework ensures no conflict.
                 black_list.append((from_uuid, to_uuid))
             return is_valid
 
@@ -90,10 +90,10 @@ class PointMessageBlock(MessageBlockBase):
             or (None, to_uuid) in set(black_list)
             or (from_uuid, None) in set(black_list)
         ):
-            # 可选同时返回入队的信息(False,err) 如果只返回bool值则默认报错信息入队
+            # Optionally return the information to be enqueued as a tuple (False, err). If only a bool value is returned, the default error message will be enqueued.
             return False
         else:
-            # violation count在框架内自动维护 这里不用管
+            # Violation count is automatically maintained within the framework, so it does not need to be handled here.
             is_valid = await check_message(
                 from_uuid=from_uuid,
                 to_uuid=to_uuid,
@@ -104,7 +104,7 @@ class PointMessageBlock(MessageBlockBase):
                 not is_valid
                 and violation_counts[from_uuid] >= self.max_violation_time - 1
             ):
-                # 直接添加即可 在框架内部的异步锁保证不会冲突
+                # Can be directly added. The internal asynchronous lock of the framework ensures no conflict.
                 black_list.append((from_uuid, None))  # type:ignore
             return is_valid
 

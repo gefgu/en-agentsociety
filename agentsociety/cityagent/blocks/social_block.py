@@ -1,15 +1,13 @@
-# 由于目前模拟器支持的限制，现在只有Dispatcher中只有NoneBlock,MessageBlock和FindPersonBlock。
+# Due to the current limitations of the simulator's support, only NoneBlock, MessageBlock, and FindPersonBlock are available in the Dispatcher.
 
 import json
 import logging
-import random
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
-from agentsociety.environment.simulator import Simulator
-from agentsociety.llm.llm import LLM
+from agentsociety.environment import Simulator
+from agentsociety.llm import LLM
 from agentsociety.memory import Memory
-from agentsociety.workflow.block import Block
-from agentsociety.workflow.prompt import FormatPrompt
+from agentsociety.workflow import Block, FormatPrompt
 
 from .dispatcher import BlockDispatcher
 from .utils import TIME_ESTIMATE_PROMPT, clean_json_response
@@ -21,13 +19,15 @@ class MessagePromptManager:
     def __init__(self):
         pass
 
-    async def get_prompt(self, memory, step: Dict[str, Any], target: str, template: str) -> str:
-        """在这里改给模板输入的数据"""
-        # 获取数据
+    async def get_prompt(
+        self, memory, step: dict[str, Any], target: str, template: str
+    ) -> str:
+        """Modify the data input for the template here"""
+        # Retrieve data
         relationships = await memory.status.get("relationships") or {}
         chat_histories = await memory.status.get("chat_histories") or {}
 
-        # 构建讨论话题约束
+        # Build discussion topic constraints
         discussion_constraint = ""
         topics = await memory.status.get("attitude")
         topics = topics.keys()
@@ -37,7 +37,7 @@ class MessagePromptManager:
                 f"Limit your discussion to the following topics: {topics}."
             )
 
-        # 格式化提示
+        # Format prompt
         format_prompt = FormatPrompt(template)
         format_prompt.format(
             gender=await memory.status.get("gender") or "",
@@ -56,12 +56,11 @@ class MessagePromptManager:
             discussion_constraint=discussion_constraint,
         )
 
-        return format_prompt.to_dialog()
+        return format_prompt.to_dialog()  # type:ignore
 
 
 class SocialNoneBlock(Block):
     """
-    空操作
     NoneBlock
     """
 
@@ -70,14 +69,16 @@ class SocialNoneBlock(Block):
         self.description = "Handle all other cases"
         self.guidance_prompt = FormatPrompt(template=TIME_ESTIMATE_PROMPT)
 
-    async def forward(self, step, context):
+    async def forward(self, step, context):  # type:ignore
         self.guidance_prompt.format(
             plan=context["plan"],
             intention=step["intention"],
             emotion_types=await self.memory.status.get("emotion_types"),
         )
-        result = await self.llm.atext_request(self.guidance_prompt.to_dialog(), response_format={"type": "json_object"})
-        result = clean_json_response(result)
+        result = await self.llm.atext_request(
+            self.guidance_prompt.to_dialog(), response_format={"type": "json_object"}
+        )
+        result = clean_json_response(result)  # type:ignore
         try:
             result = json.loads(result)
             node_id = await self.memory.stream.add_social(
@@ -90,7 +91,9 @@ class SocialNoneBlock(Block):
                 "node_id": node_id,
             }
         except Exception as e:
-            logger.warning(f"解析时间评估响应时发生错误: {str(e)}, 原始结果: {result}")
+            logger.warning(
+                f"Error occurred while parsing the evaluation response: {e}, original result: {result}"
+            )
             node_id = await self.memory.stream.add_social(
                 description=f"I failed to execute {step['intention']}"
             )
@@ -103,7 +106,7 @@ class SocialNoneBlock(Block):
 
 
 class FindPersonBlock(Block):
-    """寻找社交对象"""
+    """Find Social Object"""
 
     def __init__(self, llm: LLM, memory: Memory, simulator: Simulator):
         super().__init__("FindPersonBlock", llm=llm, memory=memory, simulator=simulator)
@@ -142,9 +145,9 @@ class FindPersonBlock(Block):
         ['offline', 2] - means meet the third friend offline
         """
 
-    async def forward(
-        self, step: Dict[str, Any], context: Optional[Dict] = None
-    ) -> Dict[str, Any]:
+    async def forward(  # type:ignore
+        self, step: dict[str, Any], context: Optional[dict] = None
+    ) -> dict[str, Any]:
         try:
             # Get friends list and relationship strength
             friends = await self.memory.status.get("friends") or []
@@ -198,7 +201,7 @@ class FindPersonBlock(Block):
 
             try:
                 # Parse the response
-                mode, friend_index = eval(response)
+                mode, friend_index = eval(response)  # type:ignore
 
                 # Validate the response format
                 if not isinstance(mode, str) or mode not in ["online", "offline"]:
@@ -211,7 +214,7 @@ class FindPersonBlock(Block):
 
                 # Convert index to UUID
                 target = index_to_uuid[friend_index]
-                context["target"] = target
+                context["target"] = target  # type:ignore
             except Exception as e:
                 # If parsing fails, select the friend with the strongest relationship as the default option
                 target = (
@@ -246,7 +249,7 @@ class FindPersonBlock(Block):
 
 
 class MessageBlock(Block):
-    """生成并发送消息"""
+    """Generate and send messages"""
 
     def __init__(self, agent, llm: LLM, memory: Memory, simulator: Simulator):
         super().__init__("MessageBlock", llm=llm, memory=memory, simulator=simulator)
@@ -284,9 +287,9 @@ class MessageBlock(Block):
             logger.warning(f"Error serializing message: {e}")
             return message
 
-    async def forward(
-        self, step: Dict[str, Any], context: Optional[Dict] = None
-    ) -> Dict[str, Any]:
+    async def forward(  # type:ignore
+        self, step: dict[str, Any], context: Optional[dict] = None
+    ) -> dict[str, Any]:
         try:
             # Get target from context or find one
             target = context.get("target") if context else None
@@ -340,7 +343,7 @@ class MessageBlock(Block):
 
         except Exception as e:
             node_id = await self.memory.stream.add_social(
-                description=f"I can't send a message to {target}"
+                description=f"I can't send a message to {target}"  # type:ignore
             )
             return {
                 "success": False,
@@ -351,7 +354,7 @@ class MessageBlock(Block):
 
 
 class SocialBlock(Block):
-    """主社交模块"""
+    """Main Social Module"""
 
     find_person_block: FindPersonBlock
     message_block: MessageBlock
@@ -371,9 +374,9 @@ class SocialBlock(Block):
             [self.find_person_block, self.message_block, self.noneblock]
         )
 
-    async def forward(
-        self, step: Dict[str, Any], context: Optional[Dict] = None
-    ) -> Dict[str, Any]:
+    async def forward(  # type:ignore
+        self, step: dict[str, Any], context: Optional[dict] = None
+    ) -> dict[str, Any]:
         try:
             self.trigger_time += 1
             consumption_start = (
@@ -384,7 +387,7 @@ class SocialBlock(Block):
             selected_block = await self.dispatcher.dispatch(step)
 
             # Execute the selected sub-block and get the result
-            result = await selected_block.forward(step, context)
+            result = await selected_block.forward(step, context)  # type:ignore
 
             return result
 

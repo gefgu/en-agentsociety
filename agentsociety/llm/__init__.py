@@ -1,4 +1,4 @@
-"""LLM相关模块"""
+"""LLM related modules"""
 
 from .embeddings import SentenceEmbedding, SimpleEmbedding
 from .llm import LLM
