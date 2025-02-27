@@ -10,6 +10,18 @@ logger = logging.getLogger("agentsociety")
 
 
 def extract_json(output_str):
+    """Extract JSON substring from a raw string response.
+
+    Args:
+        output_str: Raw string output that may contain JSON data.
+
+    Returns:
+        Extracted JSON string if valid, otherwise None.
+
+    Note:
+        Searches for the first '{' and last '}' to isolate JSON content.
+        Catches JSON decoding errors and logs warnings.
+    """
     try:
         # Find the positions of the first '{' and the last '}'
         start = output_str.find("{")
@@ -26,6 +38,16 @@ def extract_json(output_str):
 
 
 class CognitionBlock(Block):
+    """A cognitive processing block handling daily updates of attitudes, thoughts, and emotions.
+
+    Attributes:
+        configurable_fields: List of configurable parameters (top_k).
+        default_values: Default values for configurable parameters.
+        fields_description: Metadata descriptions for configurable parameters.
+        top_k: Number of most relevant memories retrieved for processing.
+        last_check_time: Timestamp tracker for daily update cycles.
+    """
+
     configurable_fields = ["top_k"]
     default_values = {"top_k": 20}
     fields_description = {
@@ -33,17 +55,41 @@ class CognitionBlock(Block):
     }
 
     def __init__(self, llm: LLM, memory: Memory, simulator: Simulator):
+        """Initialize CognitionBlock with dependencies.
+
+        Args:
+            llm: Language Model interface for cognitive processing.
+            memory: Memory system to store/retrieve agent status and experiences.
+            simulator: Environment simulator for time-based operations.
+        """
         super().__init__("CognitionBlock", llm=llm, memory=memory, simulator=simulator)
         self.top_k = 20
         self.last_check_time = 0
 
     async def set_status(self, status):
+        """Update multiple status fields in memory.
+
+        Args:
+            status: Dictionary of key-value pairs to update.
+        """
         for key in status:
             await self.memory.status.update(key, status[key])
         return
 
     async def attitude_update(self):
-        """Cognition - attitude update workflow"""
+        """Update agent's attitudes toward specific topics based on daily experiences.
+
+        Workflow:
+        1. Fetch agent's profile and current emotional state from memory.
+        2. Retrieve relevant incidents using topic-based memory search.
+        3. Construct a structured prompt combining profile, incidents, and previous attitude.
+        4. Query LLM to generate updated attitude scores (0-10 scale).
+        5. Retry up to 10 times on LLM failures.
+        6. Persist updated attitudes to memory.
+
+        Raises:
+            Exception: If all LLM retries fail.
+        """
         attitude = await self.memory.status.get("attitude")
         prompt_data = {
             "gender": await self.memory.status.get("gender"),
@@ -127,7 +173,22 @@ class CognitionBlock(Block):
         await self.memory.status.update("attitude", attitude)
 
     async def thought_update(self):
-        """Cognition - thought update workflow"""
+        """Generate daily reflections based on experiences and emotional state.
+
+        Workflow:
+        1. Build profile and emotion context from memory.
+        2. Retrieve today's incidents.
+        3. Construct a reflection prompt.
+        4. Query LLM to generate thought summary and emotional keyword.
+        5. Retry up to 10 times on LLM failures.
+        6. Update memory with new thought and log cognition.
+
+        Returns:
+            Generated thought string.
+
+        Raises:
+            Exception: If all LLM retries fail.
+        """
         description_prompt = """
         You are a {gender}, aged {age}, belonging to the {race} race and identifying as {religion}. 
         Your marital status is {marital_status}, and you currently reside in a {residence} area. 
@@ -209,7 +270,11 @@ class CognitionBlock(Block):
         return thought
 
     async def cross_day(self):
-        """Cognition - cross day workflow"""
+        """Check if a new day has started in the simulation environment.
+
+        Returns:
+            True if a new day is detected, False otherwise.
+        """
         time = await self.simulator.get_simulator_second_from_start_of_day()
         if self.last_check_time == 0:
             self.last_check_time = time
@@ -221,14 +286,36 @@ class CognitionBlock(Block):
         return False
 
     async def forward(self):
-        """Cognition workflow: Daily update"""
+        """Main daily cognitive update entry point.
+
+        Triggers:
+            - thought_update()
+            - attitude_update()
+        Only executes when cross_day() detects a new day.
+        """
         # cognition update: thought and attitude
         if await self.cross_day():
             await self.thought_update()
             await self.attitude_update()
 
     async def emotion_update(self, incident):
-        """Cognition - emotion update workflow"""
+        """Update emotion intensities based on a specific incident.
+
+        Args:
+            incident: Description of the triggering event.
+
+        Returns:
+            Natural language conclusion about emotional state.
+
+        Raises:
+            Exception: If LLM requests fail after 10 retries.
+
+        Workflow:
+            1. Build emotion context from current state
+            2. Incorporate incident details into prompt
+            3. Query LLM for updated emotion scores and summary
+            4. Update memory with new emotional state
+        """
         description_prompt = """
         You are a {gender}, aged {age}, belonging to the {race} race and identifying as {religion}. 
         Your marital status is {marital_status}, and you currently reside in a {residence} area. 

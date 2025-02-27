@@ -14,6 +14,8 @@ logger = logging.getLogger("agentsociety")
 
 
 class GovernmentAgent(InstitutionAgent):
+    """A government institution agent that handles periodic economic operations such as tax collection."""
+
     configurable_fields = ["time_diff"]
     default_values = {
         "time_diff": 30 * 24 * 60 * 60,
@@ -32,6 +34,18 @@ class GovernmentAgent(InstitutionAgent):
         messager: Optional[Messager] = None,  # type:ignore
         avro_file: Optional[dict] = None,
     ) -> None:
+        """
+        Initialize the GovernmentAgent.
+
+        Args:
+            name: Unique identifier for the agent.
+            llm_client: Language model client for decision-making (optional).
+            simulator: Simulation environment controller (optional).
+            memory: Storage for agent state and citizen data (optional).
+            economy_client: Client for economic operations like tax calculation (optional).
+            messager: Communication handler for inter-agent messages (optional).
+            avro_file: Schema definition for data serialization (optional).
+        """
         super().__init__(
             name=name,
             llm_client=llm_client,
@@ -47,6 +61,12 @@ class GovernmentAgent(InstitutionAgent):
         self.forward_times = 0
 
     async def month_trigger(self):
+        """
+        Check if the monthly tax cycle should be triggered based on elapsed time.
+
+        Returns:
+            True if the time difference since last trigger exceeds `time_diff`, False otherwise.
+        """
         now_time = await self.simulator.get_time()
         if self.last_time_trigger is None:
             self.last_time_trigger = now_time
@@ -57,10 +77,21 @@ class GovernmentAgent(InstitutionAgent):
         return False
 
     async def gather_messages(self, agent_ids, content):  # type:ignore
+        """
+        Collect messages from specified agents filtered by content type.
+
+        Args:
+            agent_ids: List of agent IDs to gather messages from.
+            content: Message content type to filter (e.g., "forward", "income_currency").
+
+        Returns:
+            List of message contents from the specified agents.
+        """
         infos = await super().gather_messages(agent_ids, content)
         return [info["content"] for info in infos]
 
     async def forward(self):
+        """Execute the government's periodic tax collection and notification cycle."""
         if await self.month_trigger():
             citizens = await self.memory.status.get("citizens")
             agents_forward = await self.gather_messages(citizens, "forward")

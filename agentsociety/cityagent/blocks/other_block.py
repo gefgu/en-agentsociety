@@ -13,12 +13,27 @@ logger = logging.getLogger("agentsociety")
 
 
 class SleepBlock(Block):
+    """Block implementation for handling sleep-related actions in an agent's workflow.
+    
+    Attributes:
+        description (str): Human-readable block purpose.
+        guidance_prompt (FormatPrompt): Template for generating time estimation prompts.
+    """
     def __init__(self, llm: LLM, memory: Memory):
         super().__init__("SleepBlock", llm=llm, memory=memory)
         self.description = "Sleep"
         self.guidance_prompt = FormatPrompt(template=TIME_ESTIMATE_PROMPT)
 
     async def forward(self, step, context):  # type:ignore
+        """Execute sleep action and estimate time consumption using LLM.
+        
+        Args:
+            step: Dictionary containing current step details (e.g., intention).
+            context: Workflow context containing plan and other metadata.
+            
+        Returns:
+            Dictionary with execution status, evaluation, time consumed, and node ID.
+        """
         self.guidance_prompt.format(
             plan=context["plan"],
             intention=step["intention"],
@@ -50,8 +65,11 @@ class SleepBlock(Block):
 
 
 class OtherNoneBlock(Block):
-    """
-    OtherNoneBlock
+    """Fallback block for handling undefined/non-specific actions in workflows.
+    
+    Attributes:
+        description (str): Human-readable block purpose.
+        guidance_prompt (FormatPrompt): Template for generating time estimation prompts.
     """
 
     def __init__(self, llm: LLM, memory: Memory):
@@ -93,6 +111,15 @@ class OtherNoneBlock(Block):
 
 
 class OtherBlock(Block):
+    """Orchestration block for managing specialized sub-blocks (SleepBlock/OtherNoneBlock).
+    
+    Attributes:
+        sleep_block (SleepBlock): Specialized block for sleep actions.
+        other_none_block (OtherNoneBlock): Fallback block for generic actions.
+        trigger_time (int): Counter for block activation frequency.
+        token_consumption (int): Accumulated LLM token usage.
+        dispatcher (BlockDispatcher): Router for selecting appropriate sub-blocks.
+    """
     sleep_block: SleepBlock
     other_none_block: OtherNoneBlock
 
@@ -109,6 +136,15 @@ class OtherBlock(Block):
         self.dispatcher.register_blocks([self.sleep_block, self.other_none_block])
 
     async def forward(self, step, context):  # type:ignore
+        """Route workflow steps to appropriate sub-blocks and track resource usage.
+        
+        Args:
+            step: Dictionary containing current step details.
+            context: Workflow context containing plan and metadata.
+            
+        Returns:
+            Execution result from the selected sub-block.
+        """
         self.trigger_time += 1
         consumption_start = (
             self.llm.prompt_tokens_used + self.llm.completion_tokens_used

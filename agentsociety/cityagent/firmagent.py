@@ -13,6 +13,13 @@ logger = logging.getLogger("agentsociety")
 
 
 class FirmAgent(InstitutionAgent):
+    """Agent representing a firm in an economic simulation.
+
+    Manages economic activities including price adjustments, wage policies,
+    inventory control, and employee skill development.
+    Inherits from InstitutionAgent and extends its economic behaviors.
+    """
+
     configurable_fields = ["time_diff", "max_price_inflation", "max_wage_inflation"]
     default_values = {
         "time_diff": 30 * 24 * 60 * 60,
@@ -35,6 +42,17 @@ class FirmAgent(InstitutionAgent):
         messager: Optional[Messager] = None,  # type:ignore
         avro_file: Optional[dict] = None,
     ) -> None:
+        """Initialize a FirmAgent with essential components for economic simulation.
+
+        Args:
+            name: Unique identifier for the agent
+            llm_client: Language model client for decision-making (optional)
+            simulator: Simulation controller (optional)
+            memory: Agent's memory system (optional)
+            economy_client: Client for economic data operations (optional)
+            messager: Communication handler (optional)
+            avro_file: Configuration file in Avro format (optional)
+        """
         super().__init__(
             name=name,
             llm_client=llm_client,
@@ -52,6 +70,12 @@ class FirmAgent(InstitutionAgent):
         self.max_wage_inflation = 0.05
 
     async def month_trigger(self):
+        """Check if monthly adjustment should be triggered.
+
+        Compares current simulation time with last trigger time.
+        Returns:
+            True if time_diff has passed since last trigger, False otherwise
+        """
         now_time = await self.simulator.get_time()
         now_time = cast(int, now_time)
         if self.last_time_trigger is None:
@@ -63,10 +87,25 @@ class FirmAgent(InstitutionAgent):
         return False
 
     async def gather_messages(self, agent_ids, content):  # type:ignore
+        """Collect messages from specified agents.
+
+        Args:
+            agent_ids: List of agent identifiers to gather from
+            content: Message content template
+        Returns:
+            List of message contents from target agents
+        """
         infos = await super().gather_messages(agent_ids, content)
         return [info["content"] for info in infos]
 
     async def forward(self):
+        """Execute monthly economic adjustments.
+
+        Performs:
+        - Employee skill adjustments based on market conditions
+        - Price adjustments based on inventory/demand balance
+        - Economic metrics reset (demand/sales tracking)
+        """
         if await self.month_trigger():
             print("firm forward")
             employees = await self.economy_client.get(self._agent_id, "employees")

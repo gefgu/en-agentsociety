@@ -16,19 +16,44 @@ Task information:
 
 
 class BlockDispatcher:
+    """Orchestrates task routing between registered processing blocks.
+
+    Attributes:
+        llm: Language model interface for decision-making
+        blocks: Registry of available processing blocks (name -> Block mapping)
+        prompt: Formatted prompt template for LLM instructions
+    """
+
     def __init__(self, llm: LLM):
+        """Initialize dispatcher with LLM interface.
+
+        Args:
+            llm: Language model for block selection decisions
+        """
         self.llm = llm
         self.blocks: dict[str, Block] = {}
         self.prompt = FormatPrompt(DISPATCHER_PROMPT)
 
     def register_blocks(self, blocks: list[Block]) -> None:
-        """Register multiple blocks at once"""
+        """Register multiple processing blocks for dispatching.
+
+        Args:
+            blocks: List of Block instances to register
+        """
         for block in blocks:
             block_name = block.__class__.__name__.lower()
             self.blocks[block_name] = block
 
     def _get_function_schema(self) -> dict:
-        """Generate function schema for LLM function call"""
+        """Generate LLM function calling schema describing available blocks.
+
+        Returns:
+            Function schema dictionary compatible with OpenAI-style function calling
+
+        Structure:
+            - Defines 'select_block' function with enum of registered block names
+            - Includes block descriptions to help LLM make informed choices
+        """
         # create block descriptions
         block_descriptions = {
             name: block.description  # type: ignore
@@ -55,7 +80,22 @@ class BlockDispatcher:
         }
 
     async def dispatch(self, step: dict) -> Block:
-        """Dispatch the step to appropriate block based on LLM function call"""
+        """Route a task step to the most appropriate processing block.
+
+        Args:
+            step: Dictionary containing task information with 'intention' key
+
+        Returns:
+            Selected Block instance for handling the task
+
+        Behavior:
+            - Uses LLM with function calling to make selection
+            - Falls back to random choice on failures
+            - Validates LLM's selection against registered blocks
+
+        Raises:
+            ValueError: If LLM returns unregistered block (caught internally)
+        """
         try:
             function_schema = self._get_function_schema()
             self.prompt.format(step=step["intention"])

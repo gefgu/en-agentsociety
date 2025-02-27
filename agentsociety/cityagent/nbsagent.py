@@ -15,6 +15,12 @@ logger = logging.getLogger("agentsociety")
 
 
 class NBSAgent(InstitutionAgent):
+    """National Bureau of Statistics Agent simulating economic data collection and analysis.
+    
+    Inherits from InstitutionAgent to manage economic indicators and interactions with other 
+    agents in a simulated environment. Handles monthly economic metrics calculations including 
+    GDP, labor statistics, prices, and citizen welfare indicators.
+    """
     configurable_fields = ["time_diff", "num_labor_hours", "productivity_per_labor"]
     default_values = {
         "time_diff": 30 * 24 * 60 * 60,
@@ -37,6 +43,17 @@ class NBSAgent(InstitutionAgent):
         messager: Optional[Messager] = None,  # type:ignore
         avro_file: Optional[dict] = None,
     ) -> None:
+        """Initialize NBSAgent with dependencies and configuration.
+        
+        Args:
+            name: Unique identifier for the agent
+            llm_client: Language model client for decision-making (optional)
+            simulator: Time management and simulation control
+            memory: Persistent storage for agent state and historical data
+            economy_client: Client to interact with economic simulation services
+            messager: Communication interface with other agents
+            avro_file: Schema configuration for data serialization (optional)
+        """
         super().__init__(
             name=name,
             llm_client=llm_client,
@@ -55,6 +72,11 @@ class NBSAgent(InstitutionAgent):
         self.price = 1
 
     async def month_trigger(self):
+        """Check if a monthly cycle should be triggered based on simulation time.
+        
+        Returns:
+            True if monthly interval has passed since last trigger, False otherwise
+        """
         now_time = await self.simulator.get_time()
         now_time = cast(int, now_time)
         if self.last_time_trigger is None:
@@ -66,10 +88,28 @@ class NBSAgent(InstitutionAgent):
         return False
 
     async def gather_messages(self, agent_ids, content):  # type:ignore
+        """Collect messages from specified agents and extract content.
+        
+        Args:
+            agent_ids: List of agent identifiers to query
+            content: Message content field to retrieve
+            
+        Returns:
+            List of message contents from target agents
+        """
         infos = await super().gather_messages(agent_ids, content)
         return [info["content"] for info in infos]
 
     async def forward(self):
+        """Execute monthly economic data collection and update cycle.
+        
+        Performs:
+        1. Real GDP calculation
+        2. Labor statistics aggregation
+        3. Price level monitoring
+        4. Citizen welfare metrics collection
+        5. Economic indicator updates
+        """
         if await self.month_trigger():
             print("nbs forward")
             await self.economy_client.calculate_real_gdp(self._agent_id)

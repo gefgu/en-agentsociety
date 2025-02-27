@@ -19,6 +19,15 @@ logger = logging.getLogger("agentsociety")
 
 
 def softmax(x, gamma=1.0):
+    """Compute softmax values with temperature scaling.
+
+    Args:
+        x: Input values (array or list)
+        gamma: Temperature parameter (higher values make distribution sharper)
+
+    Returns:
+        Probability distribution over input values
+    """
     if not isinstance(x, np.ndarray):
         x = np.array(x)
     x *= gamma
@@ -27,14 +36,36 @@ def softmax(x, gamma=1.0):
 
 
 class WorkBlock(Block):
-    """WorkPlace Block"""
+    """Handles work-related economic activities and time tracking.
+
+    Attributes:
+        guidance_prompt: Template for time estimation queries
+    """
 
     def __init__(self, llm: LLM, memory: Memory, simulator: Simulator):
+        """Initialize with dependencies.
+
+        Args:
+            llm: Language model for time estimation
+            memory: Agent's memory system
+            simulator: Time tracking simulator
+        """
         super().__init__("WorkBlock", llm=llm, memory=memory, simulator=simulator)
         self.description = "Do work related tasks"
         self.guidance_prompt = FormatPrompt(template=TIME_ESTIMATE_PROMPT)
 
     async def forward(self, step, context):  # type:ignore
+        """Process work task and track time expenditure.
+
+        Workflow:
+            1. Format prompt with work context
+            2. Request time estimation from LLM
+            3. Record work experience in memory
+            4. Fallback to random time on parsing failures
+
+        Returns:
+            Execution result with time consumption details
+        """
         self.guidance_prompt.format(
             plan=context["plan"],
             intention=step["intention"],
@@ -93,8 +124,11 @@ class WorkBlock(Block):
 
 
 class ConsumptionBlock(Block):
-    """
-    determine the consumption amount, and items
+    """Manages consumption behavior and budget constraints.
+
+    Attributes:
+        economy_client: Interface to economic simulation
+        forward_times: Counter for execution attempts
     """
 
     def __init__(
@@ -104,6 +138,11 @@ class ConsumptionBlock(Block):
         simulator: Simulator,
         economy_client: EconomyClient,
     ):
+        """Initialize consumption processor.
+
+        Args:
+            economy_client: Client for economic system interactions
+        """
         super().__init__(
             "ConsumptionBlock", llm=llm, memory=memory, simulator=simulator
         )
@@ -112,6 +151,17 @@ class ConsumptionBlock(Block):
         self.description = "Used to determine the consumption amount, and items"
 
     async def forward(self, step, context):  # type:ignore
+        """Execute consumption decision-making.
+
+        Workflow:
+            1. Check monthly consumption limits
+            2. Calculate price-weighted demand distribution
+            3. Execute transactions through economy client
+            4. Record consumption in memory stream
+
+        Returns:
+            Consumption evaluation with financial details
+        """
         self.forward_times += 1
         agent_id = await self.memory.status.get("id")  # agent_id
         firms_id = await self.economy_client.get_org_entity_ids(economyv2.ORG_TYPE_FIRM)
@@ -156,8 +206,7 @@ class ConsumptionBlock(Block):
 
 class EconomyNoneBlock(Block):
     """
-    Do anything else
-    NoneBlock
+    Fallback block for non-economic/non-specified activities.
     """
 
     def __init__(self, llm: LLM, memory: Memory):
@@ -165,6 +214,7 @@ class EconomyNoneBlock(Block):
         self.description = "Do anything else"
 
     async def forward(self, step, context):  # type:ignore
+        """Log generic activities in economy stream."""
         node_id = await self.memory.stream.add_economy(
             description=f"I {step['intention']}"
         )
@@ -177,6 +227,15 @@ class EconomyNoneBlock(Block):
 
 
 class EconomyBlock(Block):
+    """Orchestrates economic activities through specialized sub-blocks.
+
+    Attributes:
+        dispatcher: Routes tasks to appropriate sub-blocks
+        work_block: Work activity handler
+        consumption_block: Consumption manager
+        none_block: Fallback activities
+    """
+
     work_block: WorkBlock
     consumption_block: ConsumptionBlock
     none_block: EconomyNoneBlock
@@ -203,6 +262,12 @@ class EconomyBlock(Block):
         )
 
     async def forward(self, step, context):  # type:ignore
+        """Coordinate economic activity execution.
+
+        Workflow:
+            1. Use dispatcher to select appropriate handler
+            2. Delegate execution to selected block
+        """
         self.trigger_time += 1
         selected_block = await self.dispatcher.dispatch(step)
         result = await selected_block.forward(step, context)  # type: ignore
@@ -210,7 +275,13 @@ class EconomyBlock(Block):
 
 
 class MonthPlanBlock(Block):
-    """Monthly Planning"""
+    """Manages monthly economic planning and mental health assessment.
+
+    Attributes:
+        configurable_fields: Economic policy parameters
+        economy_client: Interface to economic system
+        llm_error: Counter for LLM failures
+    """
 
     configurable_fields = [
         "UBI",
@@ -251,6 +322,7 @@ class MonthPlanBlock(Block):
         self.time_diff = 30 * 24 * 60 * 60
 
     async def month_trigger(self):
+        """Check if monthly planning cycle should activate."""
         now_time = await self.simulator.get_time()
         if (
             self.last_time_trigger is None
@@ -261,6 +333,15 @@ class MonthPlanBlock(Block):
         return False
 
     async def forward(self):
+        """Execute monthly planning workflow.
+
+        Workflow:
+            1. Collect economic indicators
+            2. Generate LLM prompts for work/consumption propensity
+            3. Update agent's economic status
+            4. Periodically conduct mental health assessments
+            5. Handle UBI policy evaluations
+        """
         if await self.month_trigger():
             agent_id = await self.memory.status.get("id")
             firms_id = await self.economy_client.get_org_entity_ids(

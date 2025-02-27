@@ -20,8 +20,13 @@ logger = logging.getLogger("agentsociety")
 
 
 class PlanAndActionBlock(Block):
-    """Active workflow based on needs model and plan behavior model"""
+    """Active workflow coordinating needs assessment, planning, and action execution.
 
+    Combines multiple sub-modules to manage agent's monthly planning, needs updates,
+    step-by-step plan generation, and execution of mobility/social/economic actions.
+    """
+
+    # Sub-modules for different behavioral aspects
     monthPlanBlock: MonthPlanBlock
     needsBlock: NeedsBlock
     planBlock: PlanBlock
@@ -42,10 +47,12 @@ class PlanAndActionBlock(Block):
         enable_economy: bool = True,
         enable_cognition: bool = True,
     ):
+        """Initialize PlanAndActionBlock with configurable behavior switches and sub-modules."""
         super().__init__(
             name="plan_and_action_block", llm=llm, memory=memory, simulator=simulator
         )
         self._agent = agent
+        # Configuration flags for enabling/disabling behaviors
         self.enable_mobility = enable_mobility
         self.enable_social = enable_social
         self.enable_economy = enable_economy
@@ -65,13 +72,13 @@ class PlanAndActionBlock(Block):
         self.otherBlock = OtherBlock(llm=llm, memory=memory)
 
     async def plan_generation(self):
-        """Generate plan"""
+        """Generate a new plan if no current plan exists in memory."""
         current_plan = await self.memory.status.get("current_plan")
         if current_plan is None:
-            await self.planBlock.forward()
+            await self.planBlock.forward()  # Delegate to PlanBlock for plan creation
 
     async def step_execution(self):
-        """Execute the current step"""
+        """Execute the current step in the active plan based on step type."""
         current_plan = await self.memory.status.get("current_plan")
         if current_plan is None:
             return
@@ -156,7 +163,7 @@ class PlanAndActionBlock(Block):
 
 
 class MindBlock(Block):
-    """Cognition workflow"""
+    """Cognitive workflow handling emotion updates and reasoning processes."""
 
     cognitionBlock: CognitionBlock
 
@@ -167,10 +174,13 @@ class MindBlock(Block):
         )
 
     async def forward(self):
+        """Execute cognitive processing for emotion updates."""
         await self.cognitionBlock.forward()
 
 
 class SocietyAgent(CitizenAgent):
+    """Agent implementation with configurable cognitive/behavioral modules and social interaction capabilities."""
+
     update_with_sim = UpdateWithSimulator()
     mindBlock: MindBlock
     planAndActionBlock: PlanAndActionBlock
@@ -202,6 +212,7 @@ class SocietyAgent(CitizenAgent):
         memory: Optional[Memory] = None,
         economy_client: Optional[EconomyClient] = None,
     ) -> None:
+        """Initialize agent with core components and configuration."""
         super().__init__(
             name=name,
             llm_client=llm_client,
@@ -235,6 +246,7 @@ class SocietyAgent(CitizenAgent):
 
     # Main workflow
     async def forward(self):  # type:ignore
+        """Main agent loop coordinating status updates, plan execution, and cognition."""
         start_time = time.time()
         self.step_count += 1
         # sync agent status with simulator
@@ -347,6 +359,7 @@ class SocietyAgent(CitizenAgent):
         return False
 
     async def process_agent_chat_response(self, payload: dict) -> str:  # type:ignore
+        """Process incoming social/economic messages and generate responses."""
         if payload["type"] == "social":
             resp = f"Agent {self._uuid} received agent chat response: {payload}"
             try:

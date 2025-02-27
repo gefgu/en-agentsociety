@@ -79,10 +79,32 @@ Please response in json format for whatever need adjustment (Do not return any o
 
 class NeedsBlock(Block):
     """
-    Generate needs
+    Manages agent's dynamic needs system including:
+    - Initializing satisfaction levels
+    - Time-based decay of satisfaction values
+    - Need prioritization based on thresholds
+    - Plan execution evaluation and satisfaction adjustments
     """
 
     def __init__(self, llm: LLM, memory: Memory, simulator: Simulator):
+        """
+        Initialize needs management system.
+
+        Args:
+            llm: Language model instance for processing prompts
+            memory: Agent's memory storage interface
+            simulator: Simulation environment controller
+
+        Configuration Parameters:
+            alpha_H: Hunger satisfaction decay rate per hour (default: 0.15)
+            alpha_D: Energy satisfaction decay rate per hour (default: 0.08)
+            alpha_P: Safety satisfaction decay rate per hour (default: 0.05)
+            alpha_C: Social satisfaction decay rate per hour (default: 0.1)
+            T_H: Hunger threshold for triggering need (default: 0.2)
+            T_D: Energy threshold for triggering need (default: 0.2)
+            T_P: Safety threshold for triggering need (default: 0.2)
+            T_C: Social threshold for triggering need (default: 0.3)
+        """
         super().__init__("NeedsBlock", llm=llm, memory=memory, simulator=simulator)
         self.evaluation_prompt = FormatPrompt(EVALUATION_PROMPT)
         self.initial_prompt = FormatPrompt(INITIAL_NEEDS_PROMPT)
@@ -106,6 +128,13 @@ class NeedsBlock(Block):
         )  # Hunger threshold, Energy threshold, Safety threshold, Social threshold
 
     async def initialize(self):
+        """
+        Initialize agent's satisfaction levels using profile data.
+        - Runs once per simulation day
+        - Collects demographic data from memory
+        - Generates initial satisfaction values via LLM
+        - Handles JSON parsing and validation
+        """
         day = await self.simulator.get_simulator_day()
         if day != self.now_day:
             self.now_day = day
@@ -163,6 +192,12 @@ class NeedsBlock(Block):
             self.initialized = True
 
     async def time_decay(self):
+        """
+        Apply time-based decay to satisfaction values.
+        - Calculates hours since last update
+        - Applies exponential decay to each satisfaction dimension
+        - Ensures values stay within [0,1] range
+        """
         # calculate time diff
         time_now = await self.simulator.get_time()
         time_now = cast(int, time_now)
@@ -214,6 +249,13 @@ class NeedsBlock(Block):
             await self.memory.status.update("execution_context", {})
 
     async def determine_current_need(self):
+        """
+        Determine agent's current dominant need based on:
+        - Satisfaction thresholds
+        - Need priority hierarchy (hungry > tired > safe > social)
+        - Workday requirements
+        - Ongoing plan interruptions
+        """
         hunger_satisfaction = await self.memory.status.get("hunger_satisfaction")
         energy_satisfaction = await self.memory.status.get("energy_satisfaction")
         safety_satisfaction = await self.memory.status.get("safety_satisfaction")
@@ -284,8 +326,15 @@ class NeedsBlock(Block):
                     "current_step", {"intention": "", "type": ""}
                 )
                 await self.memory.status.update("execution_context", {})
-                
+
     async def evaluate_and_adjust_needs(self, completed_plan):
+        """
+        Evaluate plan execution results and adjust satisfaction values.
+        - Extracts step evaluations from completed plan
+        - Constructs evaluation prompt for LLM
+        - Processes LLM response and updates satisfaction values
+        - Implements retry logic for invalid responses
+        """
         # Retrieve the executed plan and evaluation results
         evaluation_results = []
         for step in completed_plan["steps"]:
@@ -337,6 +386,13 @@ class NeedsBlock(Block):
                 retry -= 1
 
     async def forward(self):
+        """
+        Main execution flow for needs management:
+        1. Initialize satisfaction values (if needed)
+        2. Apply time-based decay
+        3. Handle completed plans
+        4. Determine current dominant need
+        """
         await self.initialize()
 
         # satisfaction decay with time

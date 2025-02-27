@@ -16,13 +16,27 @@ logger = logging.getLogger("agentsociety")
 
 
 class MessagePromptManager:
+    """
+    Manages the creation of message prompts by dynamically formatting templates with agent-specific data.
+    """
+
     def __init__(self):
         pass
 
     async def get_prompt(
         self, memory, step: dict[str, Any], target: str, template: str
     ) -> str:
-        """Modify the data input for the template here"""
+        """Generates a formatted prompt for message creation.
+
+        Args:
+            memory: Agent's memory to retrieve status data.
+            step: Current workflow step containing intention and context.
+            target: ID of the target agent for communication.
+            template: Raw template string to be formatted.
+
+        Returns:
+            Formatted prompt string with placeholders replaced by agent-specific data.
+        """
         # Retrieve data
         relationships = await memory.status.get("relationships") or {}
         chat_histories = await memory.status.get("chat_histories") or {}
@@ -70,6 +84,15 @@ class SocialNoneBlock(Block):
         self.guidance_prompt = FormatPrompt(template=TIME_ESTIMATE_PROMPT)
 
     async def forward(self, step, context):  # type:ignore
+        """Executes default behavior when no specific block matches the intention.
+
+        Args:
+            step: Current workflow step with 'intention' and other metadata.
+            context: Additional execution context (e.g., agent's plan).
+
+        Returns:
+            A result dictionary indicating success/failure, time consumed, and execution details.
+        """
         self.guidance_prompt.format(
             plan=context["plan"],
             intention=step["intention"],
@@ -106,7 +129,9 @@ class SocialNoneBlock(Block):
 
 
 class FindPersonBlock(Block):
-    """Find Social Object"""
+    """
+    Block for selecting an appropriate agent to socialize with based on relationship strength and context.
+    """
 
     def __init__(self, llm: LLM, memory: Memory, simulator: Simulator):
         super().__init__("FindPersonBlock", llm=llm, memory=memory, simulator=simulator)
@@ -148,6 +173,15 @@ class FindPersonBlock(Block):
     async def forward(  # type:ignore
         self, step: dict[str, Any], context: Optional[dict] = None
     ) -> dict[str, Any]:
+        """Identifies a target agent and interaction mode (online/offline).
+
+        Args:
+            step: Workflow step containing intention and context.
+            context: Additional execution context (may store selected target).
+
+        Returns:
+            Result dict with target agent, interaction mode, and execution status.
+        """
         try:
             # Get friends list and relationship strength
             friends = await self.memory.status.get("friends") or []
@@ -278,6 +312,15 @@ class MessageBlock(Block):
         self.prompt_manager = MessagePromptManager()
 
     def _serialize_message(self, message: str, propagation_count: int) -> str:
+        """Serializes a message into a JSON string for transmission.
+
+        Args:
+            message: Plain text message content.
+            propagation_count: Number of times the message can be forwarded.
+
+        Returns:
+            JSON string with message and metadata.
+        """
         try:
             return json.dumps(
                 {"content": message, "propagation_count": propagation_count},
@@ -290,6 +333,15 @@ class MessageBlock(Block):
     async def forward(  # type:ignore
         self, step: dict[str, Any], context: Optional[dict] = None
     ) -> dict[str, Any]:
+        """Generates a message, sends it to the target, and updates chat history.
+
+        Args:
+            step: Workflow step containing message intention.
+            context: Execution context (may contain pre-selected target).
+
+        Returns:
+            Result dict with message content, target, and execution status.
+        """
         try:
             # Get target from context or find one
             target = context.get("target") if context else None
@@ -354,7 +406,9 @@ class MessageBlock(Block):
 
 
 class SocialBlock(Block):
-    """Main Social Module"""
+    """
+    Orchestrates social interactions by dispatching to appropriate sub-blocks.
+    """
 
     find_person_block: FindPersonBlock
     message_block: MessageBlock
@@ -377,6 +431,15 @@ class SocialBlock(Block):
     async def forward(  # type:ignore
         self, step: dict[str, Any], context: Optional[dict] = None
     ) -> dict[str, Any]:
+        """Main entry point for social interactions. Dispatches to sub-blocks based on context.
+
+        Args:
+            step: Workflow step containing intention and metadata.
+            context: Additional execution context.
+
+        Returns:
+            Result dict from the executed sub-block.
+        """
         try:
             self.trigger_time += 1
             consumption_start = (
