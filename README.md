@@ -13,6 +13,17 @@
 
 AgentSociety is an advanced framework specifically designed for building agents in urban simulation environments. With AgentSociety, you can easily create and manage agents, enabling complex urban scenarios to be modeled and simulated efficiently.
 
+The paper is available at [arXiv](https://arxiv.org/abs/2502.08691):
+
+```
+@article{piao2025agentsociety,
+  title={AgentSociety: Large-Scale Simulation of LLM-Driven Generative Agents Advances Understanding of Human Behaviors and Society},
+  author={Piao, Jinghua and Yan, Yuwei and Zhang, Jun and Li, Nian and Yan, Junbo and Lan, Xiaochong and Lu, Zhihong and Zheng, Zhiheng and Wang, Jing Yi and Zhou, Di and others},
+  journal={arXiv preprint arXiv:2502.08691},
+  year={2025}
+}
+```
+
 ## 🌟 Features
 - **Mind-Behavior Coupling**: Integrates LLMs' planning, memory, and reasoning capabilities to generate realistic behaviors or uses established theories like Maslow’s Hierarchy of Needs and Theory of Planned Behavior for explicit modeling.
 - **Environment Design**: Supports dataset-based, text-based, and rule-based environments with varying degrees of realism and interactivity.

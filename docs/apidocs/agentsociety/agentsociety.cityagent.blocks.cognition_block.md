@@ -16,7 +16,9 @@
 :align: left
 
 * - {py:obj}`CognitionBlock <agentsociety.cityagent.blocks.cognition_block.CognitionBlock>`
-  -
+  - ```{autodoc2-docstring} agentsociety.cityagent.blocks.cognition_block.CognitionBlock
+    :summary:
+    ```
 ````
 
 ### Functions
@@ -65,7 +67,16 @@
 `````{py:class} CognitionBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.simulator.Simulator)
 :canonical: agentsociety.cityagent.blocks.cognition_block.CognitionBlock
 
-Bases: {py:obj}`agentsociety.workflow.block.Block`
+Bases: {py:obj}`agentsociety.workflow.Block`
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.cognition_block.CognitionBlock
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.cognition_block.CognitionBlock.__init__
+```
 
 ````{py:attribute} configurable_fields
 :canonical: agentsociety.cityagent.blocks.cognition_block.CognitionBlock.configurable_fields

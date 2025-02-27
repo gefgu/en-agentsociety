@@ -16,7 +16,9 @@
 :align: left
 
 * - {py:obj}`PlanBlock <agentsociety.cityagent.blocks.plan_block.PlanBlock>`
-  -
+  - ```{autodoc2-docstring} agentsociety.cityagent.blocks.plan_block.PlanBlock
+    :summary:
+    ```
 ````
 
 ### Data
@@ -69,14 +71,23 @@
 
 ````
 
-`````{py:class} PlanBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.simulator.Simulator)
+`````{py:class} PlanBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.Simulator)
 :canonical: agentsociety.cityagent.blocks.plan_block.PlanBlock
 
 Bases: {py:obj}`agentsociety.workflow.Block`
 
+```{autodoc2-docstring} agentsociety.cityagent.blocks.plan_block.PlanBlock
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.plan_block.PlanBlock.__init__
+```
+
 ````{py:attribute} configurable_fields
 :canonical: agentsociety.cityagent.blocks.plan_block.PlanBlock.configurable_fields
-:type: typing.List[str]
+:type: list[str]
 :value: >
    ['max_plan_steps']
 
@@ -105,7 +116,7 @@ Bases: {py:obj}`agentsociety.workflow.Block`
 
 ````
 
-````{py:method} select_guidance(current_need: str) -> typing.Dict
+````{py:method} select_guidance(current_need: str) -> dict
 :canonical: agentsociety.cityagent.blocks.plan_block.PlanBlock.select_guidance
 :async:
 
@@ -114,7 +125,7 @@ Bases: {py:obj}`agentsociety.workflow.Block`
 
 ````
 
-````{py:method} generate_detailed_plan(selected_option: str) -> typing.Dict
+````{py:method} generate_detailed_plan(selected_option: str) -> dict
 :canonical: agentsociety.cityagent.blocks.plan_block.PlanBlock.generate_detailed_plan
 :async:
 
@@ -126,6 +137,9 @@ Bases: {py:obj}`agentsociety.workflow.Block`
 ````{py:method} forward()
 :canonical: agentsociety.cityagent.blocks.plan_block.PlanBlock.forward
 :async:
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.plan_block.PlanBlock.forward
+```
 
 ````
 

@@ -74,7 +74,7 @@
 `````{py:class} NeedsBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.Simulator)
 :canonical: agentsociety.cityagent.blocks.needs_block.NeedsBlock
 
-Bases: {py:obj}`agentsociety.workflow.block.Block`
+Bases: {py:obj}`agentsociety.workflow.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.needs_block.NeedsBlock
 ```
@@ -133,6 +133,9 @@ Bases: {py:obj}`agentsociety.workflow.block.Block`
 ````{py:method} forward()
 :canonical: agentsociety.cityagent.blocks.needs_block.NeedsBlock.forward
 :async:
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.needs_block.NeedsBlock.forward
+```
 
 ````
 

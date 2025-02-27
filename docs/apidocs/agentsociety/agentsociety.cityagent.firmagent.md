@@ -16,7 +16,9 @@
 :align: left
 
 * - {py:obj}`FirmAgent <agentsociety.cityagent.firmagent.FirmAgent>`
-  -
+  - ```{autodoc2-docstring} agentsociety.cityagent.firmagent.FirmAgent
+    :summary:
+    ```
 ````
 
 ### Data
@@ -47,6 +49,15 @@
 :canonical: agentsociety.cityagent.firmagent.FirmAgent
 
 Bases: {py:obj}`agentsociety.InstitutionAgent`
+
+```{autodoc2-docstring} agentsociety.cityagent.firmagent.FirmAgent
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.cityagent.firmagent.FirmAgent.__init__
+```
 
 ````{py:attribute} configurable_fields
 :canonical: agentsociety.cityagent.firmagent.FirmAgent.configurable_fields
@@ -91,11 +102,17 @@ Bases: {py:obj}`agentsociety.InstitutionAgent`
 :canonical: agentsociety.cityagent.firmagent.FirmAgent.gather_messages
 :async:
 
+```{autodoc2-docstring} agentsociety.cityagent.firmagent.FirmAgent.gather_messages
+```
+
 ````
 
 ````{py:method} forward()
 :canonical: agentsociety.cityagent.firmagent.FirmAgent.forward
 :async:
+
+```{autodoc2-docstring} agentsociety.cityagent.firmagent.FirmAgent.forward
+```
 
 ````
 

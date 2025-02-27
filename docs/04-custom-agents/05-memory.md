@@ -1,27 +1,36 @@
-# Memory
+# Memory System
 
 ```{admonition} Caution
 :class: caution
 This document is currently under active development. The complete version will be available soon. Stay tuned!
 ```
 
-There two types of `Memory` in our framework, `StreamMemory` and `StatusMemory`.  
-Separating temporal event streams from status information enables efficient memory management and specialized retrieval operations. In an agent, memory is a property and can be called with `agent.memory`.
+The memory system in our framework consists of two main components: `StreamMemory` and `StatusMemory`. This dual-memory architecture enables agents to maintain both episodic memories (events and experiences) and semantic memories (status and attributes).
 
-## memory.stream: `StreamMemory`
+## Core Components
 
-`StreamMemory` is used to manage and store time-ordered memory information in a stream-like structure.  
-The stream structure mimics natural human memory organization and supports chronological reasoning.
+### 1. StreamMemory
+StreamMemory manages temporal, event-based memories organized chronologically, similar to human episodic memory. It features:
 
-`StreamMemory` stores memories through specialized methods (`add_cognition`, `add_social`, etc.), creating tagged `MemoryNodes` in a capacity-limited `collections.deque`. This structure emulates human memory constraints by automatically removing older entries when full. Each memory receives unique metadata: ID, timestamp, and location context.
+- **Memory Node Structure**:
+  ```python
+  class MemoryNode:
+      tag: MemoryTag        # Category of memory (MOBILITY/SOCIAL/ECONOMY/etc)
+      day: int             # Day of event
+      t: int              # Timestamp
+      location: str       # Location where event occurred  
+      description: str    # Event description
+      cognition_id: int   # Optional link to related cognitive memory
+  ```
 
-Stream memories can be enhanced with cognitive links via `add_cognition_to_memory`, establishing contextual relationships between entries. This associative architecture enables systemic analysis of memory interconnections.
+- **Memory Types**:
+  - Cognitive memories (`add_cognition`)
+  - Social interactions (`add_social`) 
+  - Economic activities (`add_economy`)
+  - Mobility events (`add_mobility`)
+  - General events (`add_event`)
 
-Both direct ID access and semantic search are supported. Using embedding models and similarity algorithms, it performs context-aware queries surpassing basic keyword matching. 
-
-### Usage Example
-
-Use stream memory in your agent.
+Let's see how to use StreamMemory:
 
 ```python
 import asyncio
@@ -58,7 +67,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## memory.status: `StatusMemory`
+### 2. StatusMemory
 
 `StatusMemory` is designed to unify three different types of memory (status, configuration, dynamic) into a single objective memory.  
 
@@ -110,12 +119,9 @@ if __name__ == "__main__":
 
 ```
 
-
-
 ## memory.embedding_model: Embedding Model
 
 To change the embedding model within the `Memory`, you simply need to assign it with `ExpConfig.SetAgentConfig`.
-
 
 ### Usage Example
 
@@ -128,4 +134,4 @@ exp_config = ExpConfig(exp_name="test",).SetAgentConfig(
     embedding_model=SimpleEmbedding()
 )
 ```
-The incoming `embedding` is an instance of a subclass from `langchain_core.embeddings.Embeddings` and needs to implement `embed_query`, `embed_documents`.  
+The incoming `embedding` is an instance of a subclass from `langchain_core.embeddings.Embeddings` and needs to implement `embed_query`, `embed_documents`.

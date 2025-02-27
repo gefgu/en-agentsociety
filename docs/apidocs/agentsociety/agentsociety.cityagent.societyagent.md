@@ -24,7 +24,9 @@
     :summary:
     ```
 * - {py:obj}`SocietyAgent <agentsociety.cityagent.societyagent.SocietyAgent>`
-  -
+  - ```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent
+    :summary:
+    ```
 ````
 
 ### Data
@@ -51,7 +53,7 @@
 
 ````
 
-`````{py:class} PlanAndActionBlock(agent: agentsociety.agent.Agent, llm: agentsociety.llm.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.Simulator, economy_client: agentsociety.environment.EconomyClient, enable_mobility: bool = True, enable_social: bool = True, enable_economy: bool = True, enable_cognition: bool = True)
+`````{py:class} PlanAndActionBlock(agent: agentsociety.agent.Agent, llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.Simulator, economy_client: agentsociety.environment.EconomyClient, enable_mobility: bool = True, enable_social: bool = True, enable_economy: bool = True, enable_cognition: bool = True)
 :canonical: agentsociety.cityagent.societyagent.PlanAndActionBlock
 
 Bases: {py:obj}`agentsociety.workflow.Block`
@@ -168,7 +170,7 @@ Bases: {py:obj}`agentsociety.workflow.Block`
 
 `````
 
-`````{py:class} MindBlock(llm: agentsociety.llm.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.Simulator)
+`````{py:class} MindBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.Simulator)
 :canonical: agentsociety.cityagent.societyagent.MindBlock
 
 Bases: {py:obj}`agentsociety.workflow.Block`
@@ -197,14 +199,26 @@ Bases: {py:obj}`agentsociety.workflow.Block`
 :canonical: agentsociety.cityagent.societyagent.MindBlock.forward
 :async:
 
+```{autodoc2-docstring} agentsociety.cityagent.societyagent.MindBlock.forward
+```
+
 ````
 
 `````
 
-`````{py:class} SocietyAgent(name: str, llm_client: typing.Optional[agentsociety.llm.llm.LLM] = None, simulator: typing.Optional[agentsociety.Simulator] = None, memory: typing.Optional[agentsociety.memory.Memory] = None, economy_client: typing.Optional[agentsociety.environment.EconomyClient] = None)
+`````{py:class} SocietyAgent(name: str, llm_client: typing.Optional[agentsociety.llm.LLM] = None, simulator: typing.Optional[agentsociety.Simulator] = None, memory: typing.Optional[agentsociety.memory.Memory] = None, economy_client: typing.Optional[agentsociety.environment.EconomyClient] = None)
 :canonical: agentsociety.cityagent.societyagent.SocietyAgent
 
 Bases: {py:obj}`agentsociety.CitizenAgent`
+
+```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.__init__
+```
 
 ````{py:attribute} update_with_sim
 :canonical: agentsociety.cityagent.societyagent.SocietyAgent.update_with_sim
@@ -272,6 +286,9 @@ Bases: {py:obj}`agentsociety.CitizenAgent`
 :canonical: agentsociety.cityagent.societyagent.SocietyAgent.forward
 :async:
 
+```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.forward
+```
+
 ````
 
 ````{py:method} check_and_update_step()
@@ -286,6 +303,9 @@ Bases: {py:obj}`agentsociety.CitizenAgent`
 ````{py:method} process_agent_chat_response(payload: dict) -> str
 :canonical: agentsociety.cityagent.societyagent.SocietyAgent.process_agent_chat_response
 :async:
+
+```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.process_agent_chat_response
+```
 
 ````
 

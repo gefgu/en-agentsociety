@@ -1,10 +1,5 @@
 # Customize the Agent
 
-```{admonition} Caution
-:class: caution
-This document is currently under active development. The complete version will be available soon. Stay tuned!
-```
-
 To customize the behavior of an agent, you need to modify the `forward` method. 
 
 The `forward` method is where the agent's logic is defined and executed in each simulation step. 

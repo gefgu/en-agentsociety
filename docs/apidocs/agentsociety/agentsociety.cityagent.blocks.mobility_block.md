@@ -28,7 +28,9 @@
     :summary:
     ```
 * - {py:obj}`MobilityBlock <agentsociety.cityagent.blocks.mobility_block.MobilityBlock>`
-  -
+  - ```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MobilityBlock
+    :summary:
+    ```
 ````
 
 ### Functions
@@ -126,10 +128,10 @@
 ```
 ````
 
-`````{py:class} PlaceSelectionBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.simulator.Simulator)
+`````{py:class} PlaceSelectionBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.Simulator)
 :canonical: agentsociety.cityagent.blocks.mobility_block.PlaceSelectionBlock
 
-Bases: {py:obj}`agentsociety.workflow.block.Block`
+Bases: {py:obj}`agentsociety.workflow.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.PlaceSelectionBlock
 ```
@@ -142,7 +144,6 @@ Bases: {py:obj}`agentsociety.workflow.block.Block`
 
 ````{py:attribute} configurable_fields
 :canonical: agentsociety.cityagent.blocks.mobility_block.PlaceSelectionBlock.configurable_fields
-:type: typing.List[str]
 :value: >
    ['search_limit']
 
@@ -165,14 +166,17 @@ Bases: {py:obj}`agentsociety.workflow.block.Block`
 :canonical: agentsociety.cityagent.blocks.mobility_block.PlaceSelectionBlock.forward
 :async:
 
+```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.PlaceSelectionBlock.forward
+```
+
 ````
 
 `````
 
-`````{py:class} MoveBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.simulator.Simulator)
+`````{py:class} MoveBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.Simulator)
 :canonical: agentsociety.cityagent.blocks.mobility_block.MoveBlock
 
-Bases: {py:obj}`agentsociety.workflow.block.Block`
+Bases: {py:obj}`agentsociety.workflow.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MoveBlock
 ```
@@ -187,6 +191,79 @@ Bases: {py:obj}`agentsociety.workflow.block.Block`
 :canonical: agentsociety.cityagent.blocks.mobility_block.MoveBlock.forward
 :async:
 
+```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MoveBlock.forward
+```
+
+````
+
+````{py:method} _get_place_type(plan, intention)
+:canonical: agentsociety.cityagent.blocks.mobility_block.MoveBlock._get_place_type
+:async:
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MoveBlock._get_place_type
+```
+
+````
+
+````{py:method} _move_home(agent_id)
+:canonical: agentsociety.cityagent.blocks.mobility_block.MoveBlock._move_home
+:async:
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MoveBlock._move_home
+```
+
+````
+
+````{py:method} _move_work(agent_id)
+:canonical: agentsociety.cityagent.blocks.mobility_block.MoveBlock._move_work
+:async:
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MoveBlock._move_work
+```
+
+````
+
+````{py:method} _move_custom(context, agent_id)
+:canonical: agentsociety.cityagent.blocks.mobility_block.MoveBlock._move_custom
+:async:
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MoveBlock._move_custom
+```
+
+````
+
+````{py:method} _random_poi()
+:canonical: agentsociety.cityagent.blocks.mobility_block.MoveBlock._random_poi
+:async:
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MoveBlock._random_poi
+```
+
+````
+
+````{py:method} _increment_poi_counter()
+:canonical: agentsociety.cityagent.blocks.mobility_block.MoveBlock._increment_poi_counter
+:async:
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MoveBlock._increment_poi_counter
+```
+
+````
+
+````{py:method} _stationary_result(place_type, place_id)
+:canonical: agentsociety.cityagent.blocks.mobility_block.MoveBlock._stationary_result
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MoveBlock._stationary_result
+```
+
+````
+
+````{py:method} _mobility_result(desc, place_id, time)
+:canonical: agentsociety.cityagent.blocks.mobility_block.MoveBlock._mobility_result
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MoveBlock._mobility_result
+```
+
 ````
 
 `````
@@ -194,7 +271,7 @@ Bases: {py:obj}`agentsociety.workflow.block.Block`
 `````{py:class} MobilityNoneBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.mobility_block.MobilityNoneBlock
 
-Bases: {py:obj}`agentsociety.workflow.block.Block`
+Bases: {py:obj}`agentsociety.workflow.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MobilityNoneBlock
 ```
@@ -209,51 +286,33 @@ Bases: {py:obj}`agentsociety.workflow.block.Block`
 :canonical: agentsociety.cityagent.blocks.mobility_block.MobilityNoneBlock.forward
 :async:
 
+```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MobilityNoneBlock.forward
+```
+
 ````
 
 `````
 
-`````{py:class} MobilityBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.simulator.Simulator)
+`````{py:class} MobilityBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.Simulator)
 :canonical: agentsociety.cityagent.blocks.mobility_block.MobilityBlock
 
-Bases: {py:obj}`agentsociety.workflow.block.Block`
+Bases: {py:obj}`agentsociety.workflow.Block`
 
-````{py:attribute} place_selection_block
-:canonical: agentsociety.cityagent.blocks.mobility_block.MobilityBlock.place_selection_block
-:type: agentsociety.cityagent.blocks.mobility_block.PlaceSelectionBlock
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MobilityBlock.place_selection_block
+```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MobilityBlock
 ```
 
-````
-
-````{py:attribute} move_block
-:canonical: agentsociety.cityagent.blocks.mobility_block.MobilityBlock.move_block
-:type: agentsociety.cityagent.blocks.mobility_block.MoveBlock
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MobilityBlock.move_block
+```{rubric} Initialization
 ```
 
-````
-
-````{py:attribute} mobility_none_block
-:canonical: agentsociety.cityagent.blocks.mobility_block.MobilityBlock.mobility_none_block
-:type: agentsociety.cityagent.blocks.mobility_block.MobilityNoneBlock
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MobilityBlock.mobility_none_block
+```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MobilityBlock.__init__
 ```
-
-````
 
 ````{py:method} forward(step, context)
 :canonical: agentsociety.cityagent.blocks.mobility_block.MobilityBlock.forward
 :async:
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MobilityBlock.forward
+```
 
 ````
 

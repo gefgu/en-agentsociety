@@ -2,7 +2,7 @@
 
 The LLM Client manages communications between agents and large language models, representing the agent's "soul". 
 
-### Usage Example
+## Usage Example
 
 ```python
 from agentsociety import Agent, AgentType
@@ -22,3 +22,8 @@ class CustomAgent(Agent):
         await llm_client.atext_request(dialog={"content": "Hello!"})
 
 ```
+
+## Core APIs
+
+- `atext_request`: Asynchronously sends requests to the LLM service with full parameter control and automatic retries with exponential backoff.
+- `get_consumption, show_consumption`: Methods to track and report token usage statistics across API keys, with optional cost estimation.

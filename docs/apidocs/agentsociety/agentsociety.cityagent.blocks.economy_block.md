@@ -28,7 +28,9 @@
     :summary:
     ```
 * - {py:obj}`EconomyBlock <agentsociety.cityagent.blocks.economy_block.EconomyBlock>`
-  -
+  - ```{autodoc2-docstring} agentsociety.cityagent.blocks.economy_block.EconomyBlock
+    :summary:
+    ```
 * - {py:obj}`MonthPlanBlock <agentsociety.cityagent.blocks.economy_block.MonthPlanBlock>`
   - ```{autodoc2-docstring} agentsociety.cityagent.blocks.economy_block.MonthPlanBlock
     :summary:
@@ -78,10 +80,10 @@
 ```
 ````
 
-`````{py:class} WorkBlock(llm: agentsociety.llm.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.simulator.Simulator)
+`````{py:class} WorkBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.Simulator)
 :canonical: agentsociety.cityagent.blocks.economy_block.WorkBlock
 
-Bases: {py:obj}`agentsociety.workflow.block.Block`
+Bases: {py:obj}`agentsociety.workflow.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.economy_block.WorkBlock
 ```
@@ -96,14 +98,17 @@ Bases: {py:obj}`agentsociety.workflow.block.Block`
 :canonical: agentsociety.cityagent.blocks.economy_block.WorkBlock.forward
 :async:
 
+```{autodoc2-docstring} agentsociety.cityagent.blocks.economy_block.WorkBlock.forward
+```
+
 ````
 
 `````
 
-`````{py:class} ConsumptionBlock(llm: agentsociety.llm.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.simulator.Simulator, economy_client: agentsociety.environment.EconomyClient)
+`````{py:class} ConsumptionBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.Simulator, economy_client: agentsociety.environment.EconomyClient)
 :canonical: agentsociety.cityagent.blocks.economy_block.ConsumptionBlock
 
-Bases: {py:obj}`agentsociety.workflow.block.Block`
+Bases: {py:obj}`agentsociety.workflow.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.economy_block.ConsumptionBlock
 ```
@@ -118,14 +123,17 @@ Bases: {py:obj}`agentsociety.workflow.block.Block`
 :canonical: agentsociety.cityagent.blocks.economy_block.ConsumptionBlock.forward
 :async:
 
+```{autodoc2-docstring} agentsociety.cityagent.blocks.economy_block.ConsumptionBlock.forward
+```
+
 ````
 
 `````
 
-`````{py:class} EconomyNoneBlock(llm: agentsociety.llm.llm.LLM, memory: agentsociety.memory.Memory)
+`````{py:class} EconomyNoneBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.economy_block.EconomyNoneBlock
 
-Bases: {py:obj}`agentsociety.workflow.block.Block`
+Bases: {py:obj}`agentsociety.workflow.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.economy_block.EconomyNoneBlock
 ```
@@ -140,14 +148,26 @@ Bases: {py:obj}`agentsociety.workflow.block.Block`
 :canonical: agentsociety.cityagent.blocks.economy_block.EconomyNoneBlock.forward
 :async:
 
+```{autodoc2-docstring} agentsociety.cityagent.blocks.economy_block.EconomyNoneBlock.forward
+```
+
 ````
 
 `````
 
-`````{py:class} EconomyBlock(llm: agentsociety.llm.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.simulator.Simulator, economy_client: agentsociety.environment.EconomyClient)
+`````{py:class} EconomyBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.Simulator, economy_client: agentsociety.environment.EconomyClient)
 :canonical: agentsociety.cityagent.blocks.economy_block.EconomyBlock
 
-Bases: {py:obj}`agentsociety.workflow.block.Block`
+Bases: {py:obj}`agentsociety.workflow.Block`
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.economy_block.EconomyBlock
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.economy_block.EconomyBlock.__init__
+```
 
 ````{py:attribute} work_block
 :canonical: agentsociety.cityagent.blocks.economy_block.EconomyBlock.work_block
@@ -186,14 +206,17 @@ Bases: {py:obj}`agentsociety.workflow.block.Block`
 :canonical: agentsociety.cityagent.blocks.economy_block.EconomyBlock.forward
 :async:
 
+```{autodoc2-docstring} agentsociety.cityagent.blocks.economy_block.EconomyBlock.forward
+```
+
 ````
 
 `````
 
-`````{py:class} MonthPlanBlock(llm: agentsociety.llm.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.simulator.Simulator, economy_client: agentsociety.environment.EconomyClient)
+`````{py:class} MonthPlanBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.Simulator, economy_client: agentsociety.environment.EconomyClient)
 :canonical: agentsociety.cityagent.blocks.economy_block.MonthPlanBlock
 
-Bases: {py:obj}`agentsociety.workflow.block.Block`
+Bases: {py:obj}`agentsociety.workflow.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.economy_block.MonthPlanBlock
 ```
@@ -246,6 +269,9 @@ Bases: {py:obj}`agentsociety.workflow.block.Block`
 ````{py:method} forward()
 :canonical: agentsociety.cityagent.blocks.economy_block.MonthPlanBlock.forward
 :async:
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.economy_block.MonthPlanBlock.forward
+```
 
 ````
 

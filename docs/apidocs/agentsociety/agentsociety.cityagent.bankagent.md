@@ -16,7 +16,9 @@
 :align: left
 
 * - {py:obj}`BankAgent <agentsociety.cityagent.bankagent.BankAgent>`
-  -
+  - ```{autodoc2-docstring} agentsociety.cityagent.bankagent.BankAgent
+    :summary:
+    ```
 ````
 
 ### Functions
@@ -67,6 +69,15 @@
 
 Bases: {py:obj}`agentsociety.InstitutionAgent`
 
+```{autodoc2-docstring} agentsociety.cityagent.bankagent.BankAgent
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.cityagent.bankagent.BankAgent.__init__
+```
+
 ````{py:attribute} configurable_fields
 :canonical: agentsociety.cityagent.bankagent.BankAgent.configurable_fields
 :value: >
@@ -110,11 +121,17 @@ Bases: {py:obj}`agentsociety.InstitutionAgent`
 :canonical: agentsociety.cityagent.bankagent.BankAgent.gather_messages
 :async:
 
+```{autodoc2-docstring} agentsociety.cityagent.bankagent.BankAgent.gather_messages
+```
+
 ````
 
 ````{py:method} forward()
 :canonical: agentsociety.cityagent.bankagent.BankAgent.forward
 :async:
+
+```{autodoc2-docstring} agentsociety.cityagent.bankagent.BankAgent.forward
+```
 
 ````
 

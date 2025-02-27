@@ -472,7 +472,6 @@ Bases: {py:obj}`abc.ABC`
 
 ````{py:method} handle_gather_message(payload: typing.Any)
 :canonical: agentsociety.agent.agent_base.Agent.handle_gather_message
-:abstractmethod:
 :async:
 
 ```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.handle_gather_message

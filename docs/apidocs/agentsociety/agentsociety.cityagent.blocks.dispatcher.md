@@ -58,7 +58,7 @@
 
 ````
 
-`````{py:class} BlockDispatcher(llm: agentsociety.llm.llm.LLM)
+`````{py:class} BlockDispatcher(llm: agentsociety.llm.LLM)
 :canonical: agentsociety.cityagent.blocks.dispatcher.BlockDispatcher
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.dispatcher.BlockDispatcher
@@ -70,7 +70,7 @@
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.dispatcher.BlockDispatcher.__init__
 ```
 
-````{py:method} register_blocks(blocks: typing.List[agentsociety.workflow.block.Block]) -> None
+````{py:method} register_blocks(blocks: list[agentsociety.workflow.Block]) -> None
 :canonical: agentsociety.cityagent.blocks.dispatcher.BlockDispatcher.register_blocks
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.dispatcher.BlockDispatcher.register_blocks
@@ -86,7 +86,7 @@
 
 ````
 
-````{py:method} dispatch(step: dict) -> agentsociety.workflow.block.Block
+````{py:method} dispatch(step: dict) -> agentsociety.workflow.Block
 :canonical: agentsociety.cityagent.blocks.dispatcher.BlockDispatcher.dispatch
 :async:
 

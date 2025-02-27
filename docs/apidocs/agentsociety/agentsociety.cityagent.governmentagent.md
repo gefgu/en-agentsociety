@@ -16,7 +16,9 @@
 :align: left
 
 * - {py:obj}`GovernmentAgent <agentsociety.cityagent.governmentagent.GovernmentAgent>`
-  -
+  - ```{autodoc2-docstring} agentsociety.cityagent.governmentagent.GovernmentAgent
+    :summary:
+    ```
 ````
 
 ### Data
@@ -47,6 +49,15 @@
 :canonical: agentsociety.cityagent.governmentagent.GovernmentAgent
 
 Bases: {py:obj}`agentsociety.InstitutionAgent`
+
+```{autodoc2-docstring} agentsociety.cityagent.governmentagent.GovernmentAgent
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.cityagent.governmentagent.GovernmentAgent.__init__
+```
 
 ````{py:attribute} configurable_fields
 :canonical: agentsociety.cityagent.governmentagent.GovernmentAgent.configurable_fields
@@ -91,11 +102,17 @@ Bases: {py:obj}`agentsociety.InstitutionAgent`
 :canonical: agentsociety.cityagent.governmentagent.GovernmentAgent.gather_messages
 :async:
 
+```{autodoc2-docstring} agentsociety.cityagent.governmentagent.GovernmentAgent.gather_messages
+```
+
 ````
 
 ````{py:method} forward()
 :canonical: agentsociety.cityagent.governmentagent.GovernmentAgent.forward
 :async:
+
+```{autodoc2-docstring} agentsociety.cityagent.governmentagent.GovernmentAgent.forward
+```
 
 ````
 

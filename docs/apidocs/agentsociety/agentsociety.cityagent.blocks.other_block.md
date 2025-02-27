@@ -16,13 +16,17 @@
 :align: left
 
 * - {py:obj}`SleepBlock <agentsociety.cityagent.blocks.other_block.SleepBlock>`
-  -
+  - ```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.SleepBlock
+    :summary:
+    ```
 * - {py:obj}`OtherNoneBlock <agentsociety.cityagent.blocks.other_block.OtherNoneBlock>`
   - ```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherNoneBlock
     :summary:
     ```
 * - {py:obj}`OtherBlock <agentsociety.cityagent.blocks.other_block.OtherBlock>`
-  -
+  - ```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherBlock
+    :summary:
+    ```
 ````
 
 ### Data
@@ -49,23 +53,35 @@
 
 ````
 
-`````{py:class} SleepBlock(llm: agentsociety.llm.llm.LLM, memory: agentsociety.memory.Memory)
+`````{py:class} SleepBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.other_block.SleepBlock
 
-Bases: {py:obj}`agentsociety.workflow.block.Block`
+Bases: {py:obj}`agentsociety.workflow.Block`
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.SleepBlock
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.SleepBlock.__init__
+```
 
 ````{py:method} forward(step, context)
 :canonical: agentsociety.cityagent.blocks.other_block.SleepBlock.forward
 :async:
 
+```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.SleepBlock.forward
+```
+
 ````
 
 `````
 
-`````{py:class} OtherNoneBlock(llm: agentsociety.llm.llm.LLM, memory: agentsociety.memory.Memory)
+`````{py:class} OtherNoneBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.other_block.OtherNoneBlock
 
-Bases: {py:obj}`agentsociety.workflow.block.Block`
+Bases: {py:obj}`agentsociety.workflow.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherNoneBlock
 ```
@@ -84,10 +100,19 @@ Bases: {py:obj}`agentsociety.workflow.block.Block`
 
 `````
 
-`````{py:class} OtherBlock(llm: agentsociety.llm.llm.LLM, memory: agentsociety.memory.Memory)
+`````{py:class} OtherBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.other_block.OtherBlock
 
-Bases: {py:obj}`agentsociety.workflow.block.Block`
+Bases: {py:obj}`agentsociety.workflow.Block`
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherBlock
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherBlock.__init__
+```
 
 ````{py:attribute} sleep_block
 :canonical: agentsociety.cityagent.blocks.other_block.OtherBlock.sleep_block
@@ -114,6 +139,9 @@ Bases: {py:obj}`agentsociety.workflow.block.Block`
 ````{py:method} forward(step, context)
 :canonical: agentsociety.cityagent.blocks.other_block.OtherBlock.forward
 :async:
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherBlock.forward
+```
 
 ````
 

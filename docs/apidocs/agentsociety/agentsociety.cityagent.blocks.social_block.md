@@ -73,7 +73,7 @@
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.MessagePromptManager.__init__
 ```
 
-````{py:method} get_prompt(memory, step: typing.Dict[str, typing.Any], target: str, template: str) -> str
+````{py:method} get_prompt(memory, step: dict[str, typing.Any], target: str, template: str) -> str
 :canonical: agentsociety.cityagent.blocks.social_block.MessagePromptManager.get_prompt
 :async:
 
@@ -84,10 +84,10 @@
 
 `````
 
-`````{py:class} SocialNoneBlock(llm: agentsociety.llm.llm.LLM, memory: agentsociety.memory.Memory)
+`````{py:class} SocialNoneBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.social_block.SocialNoneBlock
 
-Bases: {py:obj}`agentsociety.workflow.block.Block`
+Bases: {py:obj}`agentsociety.workflow.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialNoneBlock
 ```
@@ -102,14 +102,17 @@ Bases: {py:obj}`agentsociety.workflow.block.Block`
 :canonical: agentsociety.cityagent.blocks.social_block.SocialNoneBlock.forward
 :async:
 
+```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialNoneBlock.forward
+```
+
 ````
 
 `````
 
-`````{py:class} FindPersonBlock(llm: agentsociety.llm.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.simulator.Simulator)
+`````{py:class} FindPersonBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.Simulator)
 :canonical: agentsociety.cityagent.blocks.social_block.FindPersonBlock
 
-Bases: {py:obj}`agentsociety.workflow.block.Block`
+Bases: {py:obj}`agentsociety.workflow.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.FindPersonBlock
 ```
@@ -120,18 +123,21 @@ Bases: {py:obj}`agentsociety.workflow.block.Block`
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.FindPersonBlock.__init__
 ```
 
-````{py:method} forward(step: typing.Dict[str, typing.Any], context: typing.Optional[typing.Dict] = None) -> typing.Dict[str, typing.Any]
+````{py:method} forward(step: dict[str, typing.Any], context: typing.Optional[dict] = None) -> dict[str, typing.Any]
 :canonical: agentsociety.cityagent.blocks.social_block.FindPersonBlock.forward
 :async:
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.FindPersonBlock.forward
+```
 
 ````
 
 `````
 
-`````{py:class} MessageBlock(agent, llm: agentsociety.llm.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.simulator.Simulator)
+`````{py:class} MessageBlock(agent, llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.Simulator)
 :canonical: agentsociety.cityagent.blocks.social_block.MessageBlock
 
-Bases: {py:obj}`agentsociety.workflow.block.Block`
+Bases: {py:obj}`agentsociety.workflow.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.MessageBlock
 ```
@@ -150,18 +156,21 @@ Bases: {py:obj}`agentsociety.workflow.block.Block`
 
 ````
 
-````{py:method} forward(step: typing.Dict[str, typing.Any], context: typing.Optional[typing.Dict] = None) -> typing.Dict[str, typing.Any]
+````{py:method} forward(step: dict[str, typing.Any], context: typing.Optional[dict] = None) -> dict[str, typing.Any]
 :canonical: agentsociety.cityagent.blocks.social_block.MessageBlock.forward
 :async:
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.MessageBlock.forward
+```
 
 ````
 
 `````
 
-`````{py:class} SocialBlock(agent, llm: agentsociety.llm.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.simulator.Simulator)
+`````{py:class} SocialBlock(agent, llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.Simulator)
 :canonical: agentsociety.cityagent.blocks.social_block.SocialBlock
 
-Bases: {py:obj}`agentsociety.workflow.block.Block`
+Bases: {py:obj}`agentsociety.workflow.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialBlock
 ```
@@ -205,9 +214,12 @@ Bases: {py:obj}`agentsociety.workflow.block.Block`
 
 ````
 
-````{py:method} forward(step: typing.Dict[str, typing.Any], context: typing.Optional[typing.Dict] = None) -> typing.Dict[str, typing.Any]
+````{py:method} forward(step: dict[str, typing.Any], context: typing.Optional[dict] = None) -> dict[str, typing.Any]
 :canonical: agentsociety.cityagent.blocks.social_block.SocialBlock.forward
 :async:
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialBlock.forward
+```
 
 ````
 

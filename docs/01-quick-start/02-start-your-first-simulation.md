@@ -45,7 +45,7 @@ mqtt:
   server: <MQTT-BROKER> # Specify the MQTT server address here.
   port: 1883 # Port number on which the MQTT service is running.
   username: <USER-NAME> # Username for MQTT server authentication.
-  password: <PASSWORD> # Password for MQTT server authentication.
+  password: <USER-NAME> # Password for MQTT server authentication.
 
 map_request:
   file_path: data/beijing_map.pb # Path to the map file, reference to step1.
