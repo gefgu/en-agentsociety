@@ -242,6 +242,7 @@ class LLM:
                 or self.config.request_type == "qwen"
                 or self.config.request_type == "siliconflow"
             ):
+                response = None
                 for attempt in range(retries):
                     try:
                         client = self._get_next_client()
@@ -278,7 +279,9 @@ class LLM:
                         else:
                             return response.choices[0].message.content
                     except APIConnectionError as e:
-                        print("API connection error:", e)
+                        print(
+                            f"API connection error: `{e}` original response: `{response}`"
+                        )
                         if attempt < retries - 1:
                             await asyncio.sleep(2**attempt)
                         else:
@@ -287,18 +290,21 @@ class LLM:
                         if hasattr(e, "http_status"):
                             print(f"HTTP status code: {e.http_status}")  # type: ignore
                         else:
-                            print("OpenAIError:", e)
+                            print(f"OpenAIError: `{e}` original response: `{response}`")
                         if attempt < retries - 1:
                             await asyncio.sleep(2**attempt)
                         else:
                             raise e
                     except Exception as e:
-                        print("LLM Error (OpenAI):", e)
+                        print(
+                            f"LLM Error (OpenAI): `{e}` original response: `{response}`"
+                        )
                         if attempt < retries - 1:
                             await asyncio.sleep(2**attempt)
                         else:
                             raise e
             elif self.config.request_type == "zhipuai":
+                response = None
                 for attempt in range(retries):
                     try:
                         client = self._get_next_client()
@@ -345,13 +351,15 @@ class LLM:
                         else:
                             return result_response.choices[0].message.content  # type: ignore
                     except APIConnectionError as e:
-                        print("API connection error:", e)
+                        print(
+                            f"API connection error: `{e}` original response: `{response}`"
+                        )
                         if attempt < retries - 1:
                             await asyncio.sleep(2**attempt)
                         else:
                             raise e
                     except Exception as e:
-                        print("LLM Error:", e)
+                        print(f"LLM Error: `{e}` original response: `{response}`")
                         if attempt < retries - 1:
                             await asyncio.sleep(2**attempt)
                         else:

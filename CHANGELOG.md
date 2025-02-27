@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.1.4] - 2025-02-27
+
+### Added
+- Add log of original LLM response during handling LLM calling error.
+
+### Changed
+- N/A
+
+### Deprecated
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- N/A
+
+### Security
+- N/A
+
 ## [1.1.3] - 2025-02-27
 
 ### Added
