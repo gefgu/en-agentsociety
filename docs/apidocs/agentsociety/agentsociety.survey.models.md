@@ -33,7 +33,7 @@
 
 ### API
 
-`````{py:class} QuestionType(*args, **kwds)
+`````{py:class} QuestionType
 :canonical: agentsociety.survey.models.QuestionType
 
 Bases: {py:obj}`enum.Enum`

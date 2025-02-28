@@ -13,8 +13,8 @@
 :titlesonly:
 :maxdepth: 1
 
-agentsociety.agent.agent
 agentsociety.agent.agent_base
+agentsociety.agent.agent
 ```
 
 ## Package Contents

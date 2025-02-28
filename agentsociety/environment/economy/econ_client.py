@@ -21,7 +21,7 @@ __all__ = [
 ]
 
 
-class EconomyEntityType(Enum, str):
+class EconomyEntityType(str, Enum):
     Unspecified = "Unspecified"
     Agent = "Agent"
     Bank = "Bank"

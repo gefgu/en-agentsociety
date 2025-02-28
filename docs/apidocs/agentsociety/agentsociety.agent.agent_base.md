@@ -63,18 +63,12 @@
 
 ````
 
-`````{py:class} AgentType(*args, **kwds)
+`````{py:class} AgentType
 :canonical: agentsociety.agent.agent_base.AgentType
 
 Bases: {py:obj}`enum.Enum`
 
 ```{autodoc2-docstring} agentsociety.agent.agent_base.AgentType
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.AgentType.__init__
 ```
 
 ````{py:attribute} Unspecified
@@ -158,6 +152,9 @@ Bases: {py:obj}`abc.ABC`
 
 ````{py:method} __getstate__()
 :canonical: agentsociety.agent.agent_base.Agent.__getstate__
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.__getstate__
+```
 
 ````
 

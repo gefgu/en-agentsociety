@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.2.1] - 2025-03-01
+
+### Added
+- Add docker compose for china user (use huawei cloud docker registry)
+
+### Changed
+- N/A
+
+### Deprecated
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- Definition bug of `EconomyEntityType`
+
+### Security
+- N/A
+
+
 ## [1.2.0] - 2025-02-28
 
 ### Added

@@ -13,8 +13,8 @@
 :titlesonly:
 :maxdepth: 1
 
-agentsociety.message.message_interceptor
 agentsociety.message.messager
+agentsociety.message.message_interceptor
 ```
 
 ## Package Contents

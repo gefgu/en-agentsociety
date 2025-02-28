@@ -73,10 +73,10 @@
 
 ````
 
-`````{py:class} EconomyEntityType(*args, **kwds)
+`````{py:class} EconomyEntityType()
 :canonical: agentsociety.environment.economy.econ_client.EconomyEntityType
 
-Bases: {py:obj}`enum.Enum`, {py:obj}`str`
+Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ````{py:attribute} Unspecified
 :canonical: agentsociety.environment.economy.econ_client.EconomyEntityType.Unspecified
