@@ -107,17 +107,18 @@ class FirmAgent(InstitutionAgent):
         - Economic metrics reset (demand/sales tracking)
         """
         if await self.month_trigger():
+            firm_id = self._agent_id
             print("firm forward")
-            employees = await self.economy_client.get(self._agent_id, "employees")
-            total_demand = await self.economy_client.get(self._agent_id, "demand")
-            goods_consumption = await self.economy_client.get(self._agent_id, "sales")
-            last_inventory = goods_consumption + await self.economy_client.get(
-                self._agent_id, "inventory"
+            employees, total_demand, goods_consumption, inventory, skills, price = (
+                await self.economy_client.get(
+                    firm_id,
+                    ["employees", "demand", "sales", "inventory", "skill", "price"],
+                )
             )
+            last_inventory = goods_consumption + inventory
             max_change_rate = (total_demand - last_inventory) / (
                 max(total_demand, last_inventory) + 1e-8
             )
-            skills = await self.economy_client.get(employees, "skill")
             skills = np.array(skills)
             skill_change_ratio = np.random.uniform(
                 0, max_change_rate * self.max_wage_inflation
@@ -127,9 +128,8 @@ class FirmAgent(InstitutionAgent):
                 "skill",
                 list(np.maximum(skills * (1 + skill_change_ratio), 1)),
             )
-            price = await self.economy_client.get(self._agent_id, "price")
             await self.economy_client.update(
-                self._agent_id,
+                firm_id,
                 "price",
                 max(
                     price
@@ -142,6 +142,6 @@ class FirmAgent(InstitutionAgent):
                     1,
                 ),
             )
-            await self.economy_client.update(self._agent_id, "demand", 0)
-            await self.economy_client.update(self._agent_id, "sales", 0)
+            await self.economy_client.update(firm_id, "demand", 0)
+            await self.economy_client.update(firm_id, "sales", 0)
             print("firm forward end")

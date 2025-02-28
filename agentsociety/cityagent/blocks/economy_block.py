@@ -164,7 +164,7 @@ class ConsumptionBlock(Block):
         """
         self.forward_times += 1
         agent_id = await self.memory.status.get("id")  # agent_id
-        firms_id = await self.economy_client.get_org_entity_ids(economyv2.ORG_TYPE_FIRM)
+        firms_id = await self.economy_client.get_firm_ids()
         intention = step["intention"]
         month_consumption = await self.memory.status.get("to_consumption_currency")
         consumption_currency = await self.economy_client.get(agent_id, "consumption")
@@ -181,10 +181,7 @@ class ConsumptionBlock(Block):
         consumption = min(
             month_consumption / 1, month_consumption - consumption_currency
         )
-        prices = []
-        for this_firm_id in firms_id:
-            price = await self.economy_client.get(this_firm_id, "price")
-            prices.append(price)
+        prices = await self.economy_client.get(firms_id, "price")
         consumption_each_firm = consumption * softmax(prices, gamma=-0.01)
         demand_each_firm = []
         for i in range(len(firms_id)):
@@ -344,27 +341,20 @@ class MonthPlanBlock(Block):
         """
         if await self.month_trigger():
             agent_id = await self.memory.status.get("id")
-            firms_id = await self.economy_client.get_org_entity_ids(
-                economyv2.ORG_TYPE_FIRM
-            )
+            firms_id = await self.economy_client.get_firm_ids()
             firm_id = await self.memory.status.get("firm_id")
-            bank_id = await self.economy_client.get_org_entity_ids(
-                economyv2.ORG_TYPE_BANK
-            )
+            bank_id = await self.economy_client.get_bank_ids()
             bank_id = bank_id[0]
             name = await self.memory.status.get("name")
             age = await self.memory.status.get("age")
             city = await self.memory.status.get("city")
             job = await self.memory.status.get("occupation")
-            skill = await self.economy_client.get(agent_id, "skill")
-            consumption = await self.economy_client.get(agent_id, "consumption")
+            skill, consumption, wealth = await self.economy_client.get(
+                agent_id, ["skill", "consumption", "currency"]
+            )
             tax_paid = await self.memory.status.get("tax_paid")
-            prices = []
-            for this_firm_id in firms_id:
-                price = await self.economy_client.get(this_firm_id, "price")
-                prices.append(price)
+            prices = await self.economy_client.get(firms_id, "price")
             price = np.mean(prices)
-            wealth = await self.economy_client.get(agent_id, "currency")
             interest_rate = await self.economy_client.get(bank_id, "interest_rate")
 
             problem_prompt = f"""
@@ -443,8 +433,8 @@ class MonthPlanBlock(Block):
             wealth = await self.economy_client.get(agent_id, "currency")
             wealth += work_hours * work_skill
             await self.economy_client.update(agent_id, "currency", wealth)
-            await self.economy_client.add_delta_value(
-                firm_id, "inventory", int(work_hours * self.productivity_per_labor)
+            await self.economy_client.delta_update_firms(
+                firm_id, delta_inventory=int(work_hours * self.productivity_per_labor)
             )
 
             if self.UBI and self.forward_times >= 96:

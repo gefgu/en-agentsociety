@@ -10,6 +10,7 @@ import ray
 from pycityproto.city.person.v2 import person_pb2 as person_pb2
 
 from ..environment import EconomyClient, Simulator
+from ..environment.economy import EconomyEntityType
 from ..llm import LLM
 from ..memory import Memory
 from ..message import MessageInterceptor, Messager
@@ -139,7 +140,7 @@ class CitizenAgent(Agent):
             return
         if not self._has_bound_to_economy:
             try:
-                await self._economy_client.remove_agents([self._agent_id])
+                await self.economy_client.remove_agents([self._agent_id])
             except:
                 pass
             person_id = await self.status.get("id")
@@ -147,7 +148,7 @@ class CitizenAgent(Agent):
             skill = await self.status.get("work_skill")
             consumption = 0.0
             income = 0.0
-            await self._economy_client.add_agents(
+            await self.economy_client.add_agents(
                 {
                     "id": person_id,
                     "currency": currency,
@@ -305,10 +306,6 @@ class InstitutionAgent(Agent):
             )
             await self.status.update("id", _id, protect_llm_read_only_fields=False)
             try:
-                await self._economy_client.remove_orgs([self._agent_id])
-            except:
-                pass
-            try:
                 _status = self.status
                 _id = await _status.get("id")
                 _type = await _status.get("type")
@@ -333,7 +330,7 @@ class InstitutionAgent(Agent):
                 citizens = await _status.get("citizens", [])
                 demand = await _status.get("demand", 0)
                 sales = await _status.get("sales", 0)
-                await self._economy_client.add_orgs(
+                await self.economy_client.add_orgs(
                     {
                         "id": _id,
                         "type": _type,

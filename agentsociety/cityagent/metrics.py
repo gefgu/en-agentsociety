@@ -38,9 +38,7 @@ async def economy_metric(simulation):
         economy_metric.nbs_uuid = None  # type:ignore
 
     if economy_metric.nbs_id is None:  # type:ignore
-        nbs_id = await simulation.economy_client.get_org_entity_ids(
-            economyv2.ORG_TYPE_NBS
-        )
+        nbs_id = await simulation.economy_client.get_nbs_ids()
         nbs_id = nbs_id[0]
         economy_metric.nbs_id = nbs_id  # type:ignore
     if economy_metric.nbs_uuid is None:  # type:ignore

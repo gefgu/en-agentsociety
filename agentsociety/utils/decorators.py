@@ -8,6 +8,7 @@ __all__ = [
     "record_call_aio",
     "record_call",
     "lock_decorator",
+    "log_execution_time",
 ]
 
 
@@ -95,5 +96,19 @@ def lock_decorator(func):
             return await func(self, *args, **kwargs)
         finally:
             lock.release()
+
+    return wrapper
+
+
+def log_execution_time(func):
+    @functools.wraps(func)
+    async def wrapper(self, *args, **kwargs):
+        start_time = time.time()
+        log = {"req": func.__name__, "start_time": start_time, "consumption": 0}
+        result = await func(self, *args, **kwargs)
+        log["consumption"] = time.time() - start_time
+        # add log to log list
+        self._log_list.append(log)
+        return result
 
     return wrapper

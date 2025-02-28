@@ -8,8 +8,8 @@ PACKAGE_NAME = "agentsociety"
 
 BIN_SOURCES = {
     "agentsociety-sim": {
-        "linux_x86_64": "https://git.fiblab.net/api/v4/projects/195/packages/generic/socialcity-sim/v1.2.1/socialcity-sim-noproj-linux-amd64",
-        "darwin_arm64": "https://git.fiblab.net/api/v4/projects/195/packages/generic/socialcity-sim/v1.2.1/socialcity-sim-noproj-darwin-arm64",
+        "linux_x86_64": "https://git.fiblab.net/api/v4/projects/195/packages/generic/socialcity-sim/v1.2.2/socialcity-sim-noproj-linux-amd64",
+        "darwin_arm64": "https://git.fiblab.net/api/v4/projects/195/packages/generic/socialcity-sim/v1.2.2/socialcity-sim-noproj-darwin-arm64",
     },
     "agentsociety-ui": {
         "linux_x86_64": "https://git.fiblab.net/api/v4/projects/188/packages/generic/socialcity-web/v0.3.4/socialcity-web-linux-amd64",

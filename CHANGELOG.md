@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.2.0] - 2025-02-28
+
+### Added
+- N/A
+
+### Changed
+- Update `pycityproto` version to v2.2.8, splitting organization into bank, firm, government and statistical bureau.
+- Adapt `environment.economy` to align with the new definitions of economic entities.
+
+### Deprecated
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- N/A
+
+### Security
+- N/A
+
 ## [1.1.5] - 2025-02-28
 
 ### Added

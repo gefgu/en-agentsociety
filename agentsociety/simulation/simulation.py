@@ -753,14 +753,31 @@ class AgentSimulation:
         await self.messager.start_listening.remote()  # type:ignore
 
         agent_ids = set()
-        org_ids = set()
+        bank_ids = set()
+        nbs_ids = set()
+        government_ids = set()
+        firm_ids = set()
+
         for group in self._groups.values():
-            ids = await group.get_economy_ids.remote()
-            agent_ids.update(ids[0])
-            org_ids.update(ids[1])
-        await self.economy_client.set_ids(agent_ids, org_ids)
+            _agent_ids, _bank_ids, _nbs_ids, _government_ids, _firm_ids = (
+                await group.get_economy_ids.remote()
+            )
+            agent_ids.update(_agent_ids)
+            bank_ids.update(_bank_ids)
+            nbs_ids.update(_nbs_ids)
+            government_ids.update(_government_ids)
+            firm_ids.update(_firm_ids)
+        await self.economy_client.set_ids(
+            agent_ids=agent_ids,
+            firm_ids=firm_ids,
+            bank_ids=bank_ids,
+            nbs_ids=nbs_ids,
+            government_ids=government_ids,
+        )
         for group in self._groups.values():
-            await group.set_economy_ids.remote(agent_ids, org_ids)
+            await group.set_economy_ids.remote(
+                agent_ids, firm_ids, bank_ids, nbs_ids, government_ids
+            )
 
     async def gather(
         self, content: str, target_agent_uuids: Optional[list[str]] = None

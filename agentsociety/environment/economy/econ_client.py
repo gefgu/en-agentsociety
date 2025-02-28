@@ -3,7 +3,8 @@ import logging
 import re
 import time
 from collections.abc import Sequence
-from typing import Any, Literal, Union, cast
+from enum import Enum
+from typing import Any, Literal, Optional, Union, cast
 
 import grpc
 import pycityproto.city.economy.v2.economy_pb2 as economyv2
@@ -11,11 +12,22 @@ import pycityproto.city.economy.v2.org_service_pb2 as org_service
 import pycityproto.city.economy.v2.org_service_pb2_grpc as org_grpc
 from google.protobuf.json_format import MessageToDict
 
+from ...utils.decorators import log_execution_time
+
 logger = logging.getLogger("agentsociety")
 
 __all__ = [
     "EconomyClient",
 ]
+
+
+class EconomyEntityType(Enum, str):
+    Unspecified = "Unspecified"
+    Agent = "Agent"
+    Bank = "Bank"
+    Firm = "Firm"
+    Government = "Government"
+    NBS = "NBS"
 
 
 def _create_aio_channel(server_address: str, secure: bool = False) -> grpc.aio.Channel:
@@ -87,7 +99,10 @@ class EconomyClient:
         aio_channel = _create_aio_channel(server_address, secure)
         self._aio_stub = org_grpc.OrgServiceStub(aio_channel)
         self._agent_ids = set()
-        self._org_ids = set()
+        self._firm_ids = set()
+        self._bank_ids = set()
+        self._nbs_ids = set()
+        self._government_ids = set()
         self._log_list = []
 
     def get_log_list(self):
@@ -117,19 +132,52 @@ class EconomyClient:
         aio_channel = _create_aio_channel(self.server_address, self.secure)
         self._aio_stub = org_grpc.OrgServiceStub(aio_channel)
 
+    def _get_request_type(self, id: Union[int, list[int]]) -> EconomyEntityType:
+        if not isinstance(id, list):
+            id = [id]
+        if all(i in self._agent_ids for i in id):
+            return EconomyEntityType.Agent
+        elif all(i in self._bank_ids for i in id):
+            return EconomyEntityType.Bank
+        elif all(i in self._nbs_ids for i in id):
+            return EconomyEntityType.NBS
+        elif all(i in self._government_ids for i in id):
+            return EconomyEntityType.Government
+        elif all(i in self._firm_ids for i in id):
+            return EconomyEntityType.Firm
+        else:
+            raise ValueError(f"Invalid id {id}, this id does not exist!")
+
     async def get_ids(self):
         """
         Get the ids of agents and orgs
         """
-        return self._agent_ids, self._org_ids
+        return (
+            self._agent_ids,
+            self._bank_ids,
+            self._nbs_ids,
+            self._government_ids,
+            self._firm_ids,
+        )
 
-    async def set_ids(self, agent_ids: set[int], org_ids: set[int]):
+    async def set_ids(
+        self,
+        agent_ids: set[int],
+        firm_ids: set[int],
+        bank_ids: set[int],
+        nbs_ids: set[int],
+        government_ids: set[int],
+    ):
         """
         Set the ids of agents and orgs
         """
         self._agent_ids = agent_ids
-        self._org_ids = org_ids
+        self._bank_ids = bank_ids
+        self._nbs_ids = nbs_ids
+        self._government_ids = government_ids
+        self._firm_ids = firm_ids
 
+    @log_execution_time
     async def get_agent(
         self, id: Union[list[int], int]
     ) -> Union[dict[str, Any], list[dict[str, Any]]]:
@@ -142,62 +190,144 @@ class EconomyClient:
         - **Returns**:
             - `economyv2.Agent`: The agent object.
         """
-        start_time = time.time()
-        log = {"req": "get_agent", "start_time": start_time, "consumption": 0}
-        if isinstance(id, list):
-            agents = await self._aio_stub.BatchGet(
-                org_service.BatchGetRequest(ids=id, type="agent")
+        if not isinstance(id, Sequence):
+            id = [id]
+        agents: org_service.GetAgentResponse = await self._aio_stub.GetAgent(
+            org_service.GetAgentRequest(
+                agent_ids=id,
             )
-            agent_dicts = MessageToDict(agents, preserving_proto_field_name=True)[
-                "agents"
-            ]
-            log["consumption"] = time.time() - start_time
-            self._log_list.append(log)
-            return agent_dicts
-        else:
-            agent = await self._aio_stub.GetAgent(
-                org_service.GetAgentRequest(agent_id=id)
-            )
-            agent_dict: dict = MessageToDict(agent, preserving_proto_field_name=True)[
-                "agent"
-            ]
-            log["consumption"] = time.time() - start_time
-            self._log_list.append(log)
-            return agent_dict
+        )
+        agent_dicts = MessageToDict(agents, preserving_proto_field_name=True)["agents"]
+        return agent_dicts
 
-    async def get_org(
+    @log_execution_time
+    async def get_bank(
         self, id: Union[list[int], int]
     ) -> Union[dict[str, Any], list[dict[str, Any]]]:
         """
-        Get org by id
+        Get bank by id
 
         - **Args**:
-            - `id` (`Union[list[int], int]`): The id of the org.
+            - `id` (`Union[list[int], int]`): The id of the bank.
 
         - **Returns**:
-            - `economyv2.Org`: The org object.
+            - `economyv2.Bank`: The bank object.
         """
-        start_time = time.time()
-        log = {"req": "get_org", "start_time": start_time, "consumption": 0}
         if isinstance(id, list):
-            orgs = await self._aio_stub.BatchGet(
-                org_service.BatchGetRequest(ids=id, type="org")
-            )
-            org_dicts = MessageToDict(orgs, preserving_proto_field_name=True)["orgs"]
-            log["consumption"] = time.time() - start_time
-            self._log_list.append(log)
-            return org_dicts
+            banks: list[org_service.GetBankResponse] = [
+                await self._aio_stub.GetBank(
+                    org_service.GetBankRequest(
+                        bank_id=bank_id,
+                    )
+                    for bank_id in id
+                )
+            ]
+            bank_dicts = [
+                MessageToDict(bank.bank, preserving_proto_field_name=True)
+                for bank in banks
+            ]
+            return bank_dicts
         else:
-            org = await self._aio_stub.GetOrg(org_service.GetOrgRequest(org_id=id))
-            org_dict = MessageToDict(org, preserving_proto_field_name=True)["org"]
-            log["consumption"] = time.time() - start_time
-            self._log_list.append(log)
-            return org_dict
+            bank: org_service.GetBankResponse = await self._aio_stub.GetBank(
+                org_service.GetBankRequest(bank_id=id)
+            )
+            bank_dict = MessageToDict(bank.bank, preserving_proto_field_name=True)
+            return bank_dict
 
+    @log_execution_time
+    async def get_firm(
+        self, id: Union[list[int], int]
+    ) -> Union[dict[str, Any], list[dict[str, Any]]]:
+        """
+        Get firm by id
+
+        - **Args**:
+            - `id` (`Union[list[int], int]`): The id of the firm.
+
+        - **Returns**:
+            - `economyv2.Firm`: The firm object.
+        """
+        if not isinstance(id, list):
+            id = [id]
+        firms: org_service.GetFirmResponse = await self._aio_stub.GetFirm(
+            org_service.GetFirmRequest(firm_ids=id)
+        )
+        firm_dicts = MessageToDict(firms, preserving_proto_field_name=True)["firms"]
+        if not isinstance(id, list):
+            return firm_dicts[0]
+        else:
+            return firm_dicts
+
+    @log_execution_time
+    async def get_government(
+        self, id: Union[list[int], int]
+    ) -> Union[dict[str, Any], list[dict[str, Any]]]:
+        """
+        Get government by id
+
+        - **Args**:
+            - `id` (`Union[list[int], int]`): The id of the government.
+
+        - **Returns**:
+            - `economyv2.Government`: The government object.
+        """
+        if isinstance(id, list):
+            governments: list[org_service.GetGovernmentResponse] = [
+                await self._aio_stub.GetGovernment(
+                    org_service.GetGovernmentRequest(government_id=government_id)
+                )
+                for government_id in id
+            ]
+            government_dicts = [
+                MessageToDict(government.government, preserving_proto_field_name=True)
+                for government in governments
+            ]
+            return government_dicts
+        else:
+            government: org_service.GetGovernmentResponse = (
+                await self._aio_stub.GetGovernment(
+                    org_service.GetGovernmentRequest(government_id=id)
+                )
+            )
+            government_dict = MessageToDict(
+                government.government, preserving_proto_field_name=True
+            )
+            return government_dict
+
+    @log_execution_time
+    async def get_nbs(
+        self, id: Union[list[int], int]
+    ) -> Union[dict[str, Any], list[dict[str, Any]]]:
+        """
+        Get nbs by id
+
+        - **Args**:
+            - `id` (`Union[list[int], int]`): The id of the nbs.
+
+        - **Returns**:
+            - `economyv2.Nbs`: The nbs object.
+        """
+        if isinstance(id, list):
+            nbss: list[org_service.GetNBSResponse] = [
+                await self._aio_stub.GetNBS(org_service.GetNBSRequest(nbs_id=nbs_id))
+                for nbs_id in id
+            ]
+            nbs_dicts = [
+                MessageToDict(nbs.nbs, preserving_proto_field_name=True) for nbs in nbss
+            ]
+            return nbs_dicts
+        else:
+            nbs: org_service.GetNBSResponse = await self._aio_stub.GetNBS(
+                org_service.GetNBSRequest(nbs_id=id)
+            )
+            nbs_dict = MessageToDict(nbs.nbs, preserving_proto_field_name=True)
+            return nbs_dict
+
+    @log_execution_time
     async def get(
         self,
         id: Union[list[int], int],
-        key: str,
+        key: Union[list[str], str],
     ) -> Any:
         """
         Get specific value
@@ -209,33 +339,36 @@ class EconomyClient:
         - **Returns**:
             - Any
         """
-        start_time = time.time()
-        log = {"req": "get", "start_time": start_time, "consumption": 0}
+        if not isinstance(id, list):
+            id = [id]
+        request_type = self._get_request_type(id)
+        if request_type == EconomyEntityType.Agent:
+            response = await self.get_agent(id)
+        elif request_type == EconomyEntityType.Bank:
+            response = await self.get_bank(id)
+        elif request_type == EconomyEntityType.NBS:
+            response = await self.get_nbs(id)
+        elif request_type == EconomyEntityType.Government:
+            response = await self.get_government(id)
+        elif request_type == EconomyEntityType.Firm:
+            response = await self.get_firm(id)
+        else:
+            raise ValueError(f"Invalid id {id}, this id does not exist!")
         if isinstance(id, Sequence):
-            requests = "Org" if id[0] in self._org_ids else "Agent"
-            if requests == "Org":
-                response = await self.get_org(id)
-            else:
-                response = await self.get_agent(id)
-            results = []
             response = cast(list[dict[str, Any]], response)
-            for res in response:
-                results.append(res[key])
-            log["consumption"] = time.time() - start_time
-            self._log_list.append(log)
+            if not isinstance(key, list):
+                results = [res[key] for res in response]
+            else:
+                results = []
+                for k in key:
+                    results.append([res[k] for res in response])
             return results
         else:
-            if id not in self._agent_ids and id not in self._org_ids:
-                raise ValueError(f"Invalid id {id}, this id does not exist!")
-            request_type = "Org" if id in self._org_ids else "Agent"
-            if request_type == "Org":
-                response = await self.get_org(id)
+            res = cast(dict[str, Any], response[0])
+            if isinstance(key, list):
+                return [res[k] for k in key]
             else:
-                response = await self.get_agent(id)
-            response = cast(dict[str, Any], response)
-            log["consumption"] = time.time() - start_time
-            self._log_list.append(log)
-            return response[key]
+                return res[key]
 
     def _merge(self, original_value, key, value):
         try:
@@ -266,6 +399,7 @@ class EconomyClient:
                     f"Type of {type(orig_value)} does not support mode `merge`, using `replace` instead!"
                 )
 
+    @log_execution_time
     async def update(
         self,
         id: Union[list[int], int],
@@ -285,8 +419,6 @@ class EconomyClient:
         - **Returns**:
             - Any
         """
-        start_time = time.time()
-        log = {"req": "update", "start_time": start_time, "consumption": 0}
         if isinstance(id, list):
             if not isinstance(value, list):
                 raise ValueError(f"Invalid value, the value must be a list!")
@@ -294,66 +426,49 @@ class EconomyClient:
                 raise ValueError(
                     f"Invalid ids and values, the length of ids and values must be the same!"
                 )
-            request_type = "Org" if id[0] in self._org_ids else "Agent"
         else:
-            if id not in self._agent_ids and id not in self._org_ids:
-                raise ValueError(f"Invalid id {id}, this id does not exist!")
-            request_type = "Org" if id in self._org_ids else "Agent"
-        if request_type == "Org":
-            original_value = await self.get_org(id)
-        else:
+            id = [id]
+            value = [value]
+        request_type = self._get_request_type(id)
+        if request_type == EconomyEntityType.Agent:
             original_value = await self.get_agent(id)
+        elif request_type == EconomyEntityType.Bank:
+            original_value = await self.get_bank(id)
+        elif request_type == EconomyEntityType.NBS:
+            original_value = await self.get_nbs(id)
+        elif request_type == EconomyEntityType.Government:
+            original_value = await self.get_government(id)
+        elif request_type == EconomyEntityType.Firm:
+            original_value = await self.get_firm(id)
+        else:
+            raise ValueError(f"Invalid id {id}, this id does not exist!")
+        assert isinstance(original_value, list)
         if mode == "merge":
-            if isinstance(original_value, list):
-                for i in range(len(original_value)):
-                    self._merge(original_value[i], key, value[i])
-            else:
-                self._merge(original_value, key, value)
+            for i in range(len(original_value)):
+                self._merge(original_value[i], key, value[i])
         else:
-            if isinstance(original_value, list):
-                for i in range(len(original_value)):
-                    original_value[i][key] = value[i]
-            else:
-                original_value[key] = value
-        if request_type == "Org":
-            if isinstance(original_value, list):
-                # batch_update_tasks = []
-                # for org in original_value:
-                #     batch_update_tasks.append(self._aio_stub.UpdateOrg(
-                #         org_service.UpdateOrgRequest(
-                #             org=org
-                #         )
-                #     ))
-                # await asyncio.gather(*batch_update_tasks)
-                await self._aio_stub.BatchUpdate(
-                    org_service.BatchUpdateRequest(orgs=original_value, agents=None)
+            for i in range(len(original_value)):
+                original_value[i][key] = value[i]
+        if request_type == EconomyEntityType.Agent:
+            await self._aio_stub.UpdateAgent(
+                org_service.UpdateAgentRequest(agents=original_value)
+            )
+        elif request_type == EconomyEntityType.Bank:
+            for v in original_value:
+                await self._aio_stub.UpdateBank(org_service.UpdateBankRequest(bank=v))
+        elif request_type == EconomyEntityType.NBS:
+            for v in original_value:
+                await self._aio_stub.UpdateNBS(org_service.UpdateNBSRequest(nbs=v))
+        elif request_type == EconomyEntityType.Government:
+            for v in original_value:
+                await self._aio_stub.UpdateGovernment(
+                    org_service.UpdateGovernmentRequest(government=v)
                 )
-            else:
-                await self._aio_stub.UpdateOrg(
-                    org_service.UpdateOrgRequest(org=original_value)
-                )
-            log["consumption"] = time.time() - start_time
-            self._log_list.append(log)
-        else:
-            if isinstance(original_value, list):
-                # batch_update_tasks = []
-                # for agent in original_value:
-                #     batch_update_tasks.append(self._aio_stub.UpdateAgent(
-                #         org_service.UpdateAgentRequest(
-                #             agent=agent
-                #         )
-                #     ))
-                # await asyncio.gather(*batch_update_tasks)
-                await self._aio_stub.BatchUpdate(
-                    org_service.BatchUpdateRequest(orgs=None, agents=original_value)
-                )
-            else:
-                await self._aio_stub.UpdateAgent(
-                    org_service.UpdateAgentRequest(agent=original_value)
-                )
-            log["consumption"] = time.time() - start_time
-            self._log_list.append(log)
+        elif request_type == EconomyEntityType.Firm:
+            for v in original_value:
+                await self._aio_stub.UpdateFirm(org_service.UpdateFirmRequest(firms=v))
 
+    @log_execution_time
     async def add_agents(self, configs: Union[list[dict], dict]):
         """
         Add one or more agents to the economy system.
@@ -370,30 +485,30 @@ class EconomyClient:
             - For each configuration in the list, a task is created to asynchronously add an agent using the provided configuration.
             - All tasks are executed concurrently, and their results are gathered and returned.
         """
-        start_time = time.time()
-        log = {"req": "add_agents", "start_time": start_time, "consumption": 0}
         if isinstance(configs, dict):
             configs = [configs]
         for config in configs:
             self._agent_ids.add(config["id"])
+            assert config.get("type", "Agent") == "Agent"
         tasks = [
             self._aio_stub.AddAgent(
                 org_service.AddAgentRequest(
-                    agent=economyv2.Agent(
-                        id=config["id"],
-                        currency=config.get("currency", 0.0),
-                        skill=config.get("skill", 0.0),
-                        consumption=config.get("consumption", 0.0),
-                        income=config.get("income", 0.0),
-                    )
+                    agents=[
+                        economyv2.Agent(
+                            id=config["id"],
+                            currency=config.get("currency", 0.0),
+                            skill=config.get("skill", 0.0),
+                            consumption=config.get("consumption", 0.0),
+                            income=config.get("income", 0.0),
+                        )
+                        for config in configs
+                    ]
                 )
             )
-            for config in configs
         ]
         await asyncio.gather(*tasks)
-        log["consumption"] = time.time() - start_time
-        self._log_list.append(log)
 
+    @log_execution_time
     async def add_orgs(self, configs: Union[list[dict], dict]):
         """
         Add one or more organizations to the economy system.
@@ -413,48 +528,89 @@ class EconomyClient:
             - For each configuration in the list, creates a task to asynchronously add an organization using the provided configuration.
             - Executes all tasks concurrently and gathers their results.
         """
-        start_time = time.time()
-        log = {"req": "add_orgs", "start_time": start_time, "consumption": 0}
         if isinstance(configs, dict):
             configs = [configs]
+        tasks = []
         for config in configs:
-            self._org_ids.add(config["id"])
-        tasks = [
-            self._aio_stub.AddOrg(
-                org_service.AddOrgRequest(
-                    org=economyv2.Org(
-                        id=config["id"],
-                        type=config["type"],
-                        nominal_gdp=config.get("nominal_gdp", []),
-                        real_gdp=config.get("real_gdp", []),
-                        unemployment=config.get("unemployment", []),
-                        wages=config.get("wages", []),
-                        prices=config.get("prices", []),
-                        inventory=config.get("inventory", 0),
-                        price=config.get("price", 0),
-                        currency=config.get("currency", 0.0),
-                        interest_rate=config.get("interest_rate", 0.0),
-                        bracket_cutoffs=config.get("bracket_cutoffs", []),
-                        bracket_rates=config.get("bracket_rates", []),
-                        consumption_currency=config.get("consumption_currency", []),
-                        consumption_propensity=config.get("consumption_propensity", []),
-                        income_currency=config.get("income_currency", []),
-                        depression=config.get("depression", []),
-                        locus_control=config.get("locus_control", []),
-                        working_hours=config.get("working_hours", []),
-                        employees=config.get("employees", []),
-                        citizens=config.get("citizens", []),
-                        demand=config.get("demand", 0),
-                        sales=config.get("sales", 0),
+            org_type: str = config.get("type", None)
+            if org_type == "Bank":
+                self._bank_ids.add(config["id"])
+                tasks.append(
+                    self._aio_stub.AddBank(
+                        org_service.AddBankRequest(
+                            bank=economyv2.Bank(
+                                id=config["id"],
+                                citizen_ids=config.get("citizens", []),
+                                interest_rate=config.get("interest_rate", 0.0),
+                                currency=config.get("currency", 0.0),
+                            )
+                        )
                     )
                 )
-            )
-            for config in configs
-        ]
+            elif org_type == "Firm":
+                self._firm_ids.add(config["id"])
+                tasks.append(
+                    self._aio_stub.AddFirm(
+                        org_service.AddFirmRequest(
+                            firms=[
+                                economyv2.Firm(
+                                    id=config["id"],
+                                    employees=config.get("employees", []),
+                                    price=config.get("price", 0),
+                                    inventory=config.get("inventory", 0),
+                                    demand=config.get("demand", 0),
+                                    sales=config.get("sales", 0),
+                                    currency=config.get("currency", 0.0),
+                                )
+                            ]
+                        )
+                    )
+                )
+            elif org_type == "Government":
+                self._government_ids.add(config["id"])
+                tasks.append(
+                    self._aio_stub.AddGovernment(
+                        org_service.AddGovernmentRequest(
+                            government=economyv2.Government(
+                                id=config["id"],
+                                citizen_ids=config.get("citizens", []),
+                                bracket_cutoffs=config.get("bracket_cutoffs", []),
+                                bracket_rates=config.get("bracket_rates", []),
+                                currency=config.get("currency", 0.0),
+                            )
+                        )
+                    )
+                )
+            elif org_type == "NBS":
+                self._nbs_ids.add(config["id"])
+                tasks.append(
+                    self._aio_stub.AddNBS(
+                        org_service.AddNBSRequest(
+                            nbs=economyv2.NBS(
+                                id=config["id"],
+                                citizen_ids=config.get("citizens", []),
+                                nominal_gdp=config.get("nominal_gdp", []),
+                                real_gdp=config.get("real_gdp", []),
+                                unemployment=config.get("unemployment", []),
+                                wages=config.get("wages", []),
+                                prices=config.get("prices", []),
+                                working_hours=config.get("working_hours", []),
+                                depression=config.get("depression", []),
+                                consumption_currency=config.get(
+                                    "consumption_currency", []
+                                ),
+                                income_currency=config.get("income_currency", []),
+                                locus_control=config.get("locus_control", []),
+                                currency=config.get("currency", 0.0),
+                            )
+                        )
+                    )
+                )
+            else:
+                raise ValueError(f"Invalid org type {org_type}")
         await asyncio.gather(*tasks)
-        log["consumption"] = time.time() - start_time
-        self._log_list.append(log)
 
+    @log_execution_time
     async def calculate_taxes_due(
         self,
         org_id: int,
@@ -474,8 +630,6 @@ class EconomyClient:
         - **Returns**:
             - `Tuple[float, List[float]]`: A tuple containing the total taxes due and updated incomes after tax calculation.
         """
-        start_time = time.time()
-        log = {"req": "calculate_taxes_due", "start_time": start_time, "consumption": 0}
         request = org_service.CalculateTaxesDueRequest(
             government_id=org_id,
             agent_ids=agent_ids,
@@ -485,12 +639,15 @@ class EconomyClient:
         response: org_service.CalculateTaxesDueResponse = (
             await self._aio_stub.CalculateTaxesDue(request)
         )
-        log["consumption"] = time.time() - start_time
-        self._log_list.append(log)
         return (float(response.taxes_due), list(response.updated_incomes))
 
+    @log_execution_time
     async def calculate_consumption(
-        self, org_ids: Union[int, list[int]], agent_id: int, demands: list[int], consumption_accumulation: bool = True
+        self,
+        org_ids: Union[int, list[int]],
+        agent_id: int,
+        demands: list[int],
+        consumption_accumulation: bool = True,
     ):
         """
         Calculate consumption for agents based on their demands.
@@ -504,65 +661,52 @@ class EconomyClient:
         - **Returns**:
             - `Tuple[int, List[float]]`: A tuple containing the remaining inventory and updated currencies for each agent.
         """
-        start_time = time.time()
-        log = {
-            "req": "calculate_consumption",
-            "start_time": start_time,
-            "consumption": 0,
-        }
         if not isinstance(org_ids, Sequence):
             org_ids = [org_ids]
         request = org_service.CalculateConsumptionRequest(
             firm_ids=org_ids,
             agent_id=agent_id,
             demands=demands,
-            consumption_accumulation = consumption_accumulation,
+            consumption_accumulation=consumption_accumulation,
         )
         response: org_service.CalculateConsumptionResponse = (
             await self._aio_stub.CalculateConsumption(request)
         )
-        log["consumption"] = time.time() - start_time
-        self._log_list.append(log)
         if response.success:
             return response.actual_consumption
         else:
             return -1
 
+    @log_execution_time
     async def calculate_real_gdp(self, nbs_id: int):
-        start_time = time.time()
-        log = {"req": "calculate_real_gdp", "start_time": start_time, "consumption": 0}
-        request = org_service.CalculateRealGDPRequest(nbs_agent_id=nbs_id)
+        request = org_service.CalculateRealGDPRequest(nbs_id=nbs_id)
         response: org_service.CalculateRealGDPResponse = (
             await self._aio_stub.CalculateRealGDP(request)
         )
-        log["consumption"] = time.time() - start_time
-        self._log_list.append(log)
         return response.real_gdp
 
-    async def calculate_interest(self, org_id: int, agent_ids: list[int]):
+    @log_execution_time
+    async def calculate_interest(self, bank_id: int, agent_ids: list[int]):
         """
         Calculate interest for agents based on their accounts.
 
         - **Args**:
-            - `org_id` (`int`): The ID of the bank.
+            - `bank_id` (`int`): The ID of the bank.
             - `agent_ids` (`List[int]`): A list of IDs for the agents whose interests are being calculated.
 
         - **Returns**:
             - `Tuple[float, List[float]]`: A tuple containing the total interest and updated currencies for each agent.
         """
-        start_time = time.time()
-        log = {"req": "calculate_interest", "start_time": start_time, "consumption": 0}
         request = org_service.CalculateInterestRequest(
-            bank_id=org_id,
+            bank_id=bank_id,
             agent_ids=agent_ids,
         )
         response: org_service.CalculateInterestResponse = (
             await self._aio_stub.CalculateInterest(request)
         )
-        log["consumption"] = time.time() - start_time
-        self._log_list.append(log)
         return (float(response.total_interest), list(response.updated_currencies))
 
+    @log_execution_time
     async def remove_agents(self, agent_ids: Union[int, list[int]]):
         """
         Remove one or more agents from the system.
@@ -570,40 +714,84 @@ class EconomyClient:
         - **Args**:
             - `org_ids` (`Union[int, List[int]]`): A single ID or a list of IDs for the agents to be removed.
         """
-        start_time = time.time()
-        log = {"req": "remove_agents", "start_time": start_time, "consumption": 0}
         if isinstance(agent_ids, int):
             agent_ids = [agent_ids]
         tasks = [
             self._aio_stub.RemoveAgent(
-                org_service.RemoveAgentRequest(agent_id=agent_id)
+                org_service.RemoveAgentRequest(agent_ids=agent_ids)
             )
-            for agent_id in agent_ids
         ]
         await asyncio.gather(*tasks)
-        log["consumption"] = time.time() - start_time
-        self._log_list.append(log)
 
-    async def remove_orgs(self, org_ids: Union[int, list[int]]):
+    @log_execution_time
+    async def remove_banks(self, bank_ids: Union[int, list[int]]):
         """
-        Remove one or more organizations from the system.
+        Remove one or more banks from the system.
 
         - **Args**:
-            - `org_ids` (`Union[int, List[int]]`): A single ID or a list of IDs for the organizations to be removed.
+            - `bank_ids` (`Union[int, List[int]]`): A single ID or a list of IDs for the banks to be removed.
         """
-        start_time = time.time()
-        log = {"req": "remove_orgs", "start_time": start_time, "consumption": 0}
-        if isinstance(org_ids, int):
-            org_ids = [org_ids]
+        if isinstance(bank_ids, int):
+            bank_ids = [bank_ids]
         tasks = [
-            self._aio_stub.RemoveOrg(org_service.RemoveOrgRequest(org_id=org_id))
-            for org_id in org_ids
+            self._aio_stub.RemoveBank(org_service.RemoveBankRequest(bank_id=bank_id))
+            for bank_id in bank_ids
         ]
         await asyncio.gather(*tasks)
-        log["consumption"] = time.time() - start_time
-        self._log_list.append(log)
 
-    async def save(self, file_path: str) -> tuple[list[int], list[int]]:
+    @log_execution_time
+    async def remove_firms(self, firm_ids: Union[int, list[int]]):
+        """
+        Remove one or more firms from the system.
+
+        - **Args**:
+            - `firm_ids` (`Union[int, List[int]]`): A single ID or a list of IDs for the firms to be removed.
+        """
+        if isinstance(firm_ids, int):
+            firm_ids = [firm_ids]
+        tasks = [
+            self._aio_stub.RemoveFirm(org_service.RemoveFirmRequest(firm_ids=firm_ids))
+        ]
+        await asyncio.gather(*tasks)
+
+    @log_execution_time
+    async def remove_governments(self, government_ids: Union[int, list[int]]):
+        """
+        Remove one or more governments from the system.
+
+        - **Args**:
+            - `government_ids` (`Union[int, List[int]]`): A single ID or a list of IDs for the governments to be removed.
+        """
+        if isinstance(government_ids, int):
+            government_ids = [government_ids]
+        tasks = [
+            self._aio_stub.RemoveGovernment(
+                org_service.RemoveGovernmentRequest(government_id=government_id)
+            )
+            for government_id in government_ids
+        ]
+        await asyncio.gather(*tasks)
+
+    @log_execution_time
+    async def remove_nbs(self, nbs_ids: Union[int, list[int]]):
+        """
+        Remove one or more nbs from the system.
+
+        - **Args**:
+            - `nbs_id` (`Union[int, List[int]]`): A single ID or a list of IDs for the NBS to be removed.
+        """
+        if isinstance(nbs_ids, int):
+            nbs_ids = [nbs_ids]
+        tasks = [
+            self._aio_stub.RemoveNBS(org_service.RemoveNBSRequest(nbs_id=nbs_id))
+            for nbs_id in nbs_ids
+        ]
+        await asyncio.gather(*tasks)
+
+    @log_execution_time
+    async def save(
+        self, file_path: str
+    ) -> tuple[list[int], list[int], list[int], list[int], list[int]]:
         """
         Save the current state of all economy entities to a specified file.
 
@@ -611,10 +799,8 @@ class EconomyClient:
             - `file_path` (`str`): The path to the file where the economy entities will be saved.
 
         - **Returns**:
-            - `Tuple[List[int], List[int]]`: A tuple containing lists of agent IDs and organization IDs that were saved.
+            - `Tuple[list[int], list[int], list[int], list[int], list[int]]`: A tuple containing lists of agent IDs and organization IDs that were saved.
         """
-        start_time = time.time()
-        log = {"req": "save", "start_time": start_time, "consumption": 0}
         request = org_service.SaveEconomyEntitiesRequest(
             file_path=file_path,
         )
@@ -622,10 +808,15 @@ class EconomyClient:
             await self._aio_stub.SaveEconomyEntities(request)
         )
         # current agent ids and org ids
-        log["consumption"] = time.time() - start_time
-        self._log_list.append(log)
-        return (list(response.agent_ids), list(response.org_ids))
+        return (
+            list(response.agent_ids),
+            list(response.firm_ids),
+            list(response.bank_ids),
+            list(response.nbs_ids),
+            list(response.government_ids),
+        )
 
+    @log_execution_time
     async def load(self, file_path: str):
         """
         Load the state of economy entities from a specified file.
@@ -634,10 +825,8 @@ class EconomyClient:
             - `file_path` (`str`): The path to the file from which the economy entities will be loaded.
 
         - **Returns**:
-            - `Tuple[List[int], List[int]]`: A tuple containing lists of agent IDs and organization IDs that were loaded.
+            - `Tuple[list[int], list[int], list[int], list[int], list[int]]`: A tuple containing lists of agent IDs and organization IDs that were loaded.
         """
-        start_time = time.time()
-        log = {"req": "load", "start_time": start_time, "consumption": 0}
         request = org_service.LoadEconomyEntitiesRequest(
             file_path=file_path,
         )
@@ -645,65 +834,407 @@ class EconomyClient:
             await self._aio_stub.LoadEconomyEntities(request)
         )
         # current agent ids and org ids
-        log["consumption"] = time.time() - start_time
-        self._log_list.append(log)
-        return (list(response.agent_ids), list(response.org_ids))
-
-    async def get_org_entity_ids(self, org_type: economyv2.OrgType) -> list[int]:
-        """
-        Get the IDs of all organizations of a specific type.
-
-        - **Args**:
-            - `org_type` (`economyv2.OrgType`): The type of organizations whose IDs are to be retrieved.
-
-        - **Returns**:
-            - `List[int]`: A list of organization IDs matching the specified type.
-        """
-        start_time = time.time()
-        log = {"req": "get_org_entity_ids", "start_time": start_time, "consumption": 0}
-        request = org_service.GetOrgEntityIdsRequest(
-            type=org_type,
+        return (
+            list(response.agent_ids),
+            list(response.firm_ids),
+            list(response.bank_ids),
+            list(response.nbs_ids),
+            list(response.government_ids),
         )
-        response: org_service.GetOrgEntityIdsResponse = (
-            await self._aio_stub.GetOrgEntityIds(request)
-        )
-        log["consumption"] = time.time() - start_time
-        self._log_list.append(log)
-        return list(response.org_ids)
 
-    async def add_delta_value(
+    @log_execution_time
+    async def get_bank_ids(
         self,
-        id: Union[int, list[int]],
-        key: str,
-        value: Any,
-    ) -> Any:
+    ) -> list[int]:
         """
-        Add value pair
-
-        - **Args**:
-            - `id` (`int`): The id of `Org` or `Agent`.
-            - `key` (`str`): The attribute to update. Can only be `inventory`, `price`, `interest_rate` and `currency`
+        Get the IDs of bank entities.
 
         - **Returns**:
-            - Any
+            - `List[int]`: A list of bank IDs.
         """
-        start_time = time.time()
-        log = {"req": "add_delta_value", "start_time": start_time, "consumption": 0}
-        pascal_key = ''.join(x.title() for x in key.split('_'))
-        _request_type = getattr(org_service, f"Add{pascal_key}Request")
-        _request_func = getattr(self._aio_stub, f"Add{pascal_key}")
+        request = org_service.ListBanksRequest()
+        response: org_service.ListBanksResponse = await self._aio_stub.ListBanks(
+            request
+        )
+        res: list[economyv2.Bank] = response.banks  # type:ignore
+        return [i.id for i in res]
 
-        _available_keys = {"inventory", "price", "interest_rate", "currency", "income"}
-        if key not in _available_keys:
-            raise ValueError(f"Invalid key `{key}`, can only be {_available_keys}!")
-        response = await _request_func(
-            _request_type(
-                **{
-                    "org_id": id,
-                    f"delta_{key}": value,
-                }
+    @log_execution_time
+    async def get_nbs_ids(
+        self,
+    ) -> list[int]:
+        """
+        Get the IDs of NBS entities.
+
+        - **Returns**:
+            - `List[int]`: A list of NBS IDs.
+        """
+        request = org_service.ListFirmsRequest()
+        response: org_service.ListFirmsResponse = await self._aio_stub.ListFirms(
+            request
+        )
+        res: list[economyv2.Firm] = response.firms  # type:ignore
+        return [i.id for i in res]
+
+    @log_execution_time
+    async def get_government_ids(
+        self,
+    ) -> list[int]:
+        """
+        Get the IDs of government entities.
+
+        - **Returns**:
+            - `List[int]`: A list of government IDs.
+        """
+        request = org_service.ListGovernmentsRequest()
+        response: org_service.ListGovernmentsResponse = await self._aio_stub.ListFirms(
+            request
+        )
+        res: list[economyv2.Government] = response.governments  # type:ignore
+        return [i.id for i in res]
+
+    @log_execution_time
+    async def get_firm_ids(
+        self,
+    ) -> list[int]:
+        """
+        Get the IDs of firm entities.
+
+        - **Returns**:
+            - `List[int]`: A list of firm IDs.
+        """
+        request = org_service.ListFirmsRequest()
+        response: org_service.ListFirmsResponse = await self._aio_stub.ListFirms(
+            request
+        )
+        res: list[economyv2.Firm] = response.firms  # type:ignore
+        return [i.id for i in res]
+
+    @log_execution_time
+    async def delta_update_bank(
+        self,
+        bank_id: int,
+        delta_interest_rate: float = 0.0,
+        delta_currency: float = 0.00,
+        add_citizen_ids: list[int] = [],
+        remove_citizen_ids: list[int] = [],
+    ):
+        """
+        Incrementally update a bank's properties.
+
+        - **Args**:
+            - `bank_id` (`int`): The ID of the bank to update.
+            - `delta_interest_rate` (`float`, optional): Change in interest rate, can be positive or negative. Defaults to 0.0.
+            - `delta_currency` (`float`, optional): Change in currency amount, can be positive or negative. Defaults to 0.00.
+            - `add_citizen_ids` (`list[int]`, optional): List of citizen IDs to add to the bank. Defaults to empty list.
+            - `remove_citizen_ids` (`list[int]`, optional): List of citizen IDs to remove from the bank. Defaults to empty list.
+
+        - **Returns**:
+            This method does not return any value.
+
+        - **Description**:
+            - This method sends a request to the economy service via gRPC to incrementally update a bank's properties.
+            - Can update interest rate, currency amount, and associated citizens simultaneously.
+            - All parameters are optional except bank_id - only provide values for properties you want to change.
+        """
+        await self._aio_stub.DeltaUpdateBank(
+            org_service.DeltaUpdateBankRequest(
+                bank_id=bank_id,
+                delta_interest_rate=delta_interest_rate,
+                delta_currency=delta_currency,
+                add_citizen_ids=add_citizen_ids,
+                remove_citizen_ids=remove_citizen_ids,
             )
         )
-        log["consumption"] = time.time() - start_time
-        self._log_list.append(log)
-        return response
+
+    @log_execution_time
+    async def delta_update_nbs(
+        self,
+        nbs_id: int,
+        delta_nominal_gdp: Optional[dict[str, float]] = None,
+        delta_real_gdp: Optional[dict[str, float]] = None,
+        delta_unemployment: Optional[dict[str, float]] = None,
+        delta_wages: Optional[dict[str, float]] = None,
+        delta_prices: Optional[dict[str, float]] = None,
+        delta_working_hours: Optional[dict[str, float]] = None,
+        delta_depression: Optional[dict[str, float]] = None,
+        delta_consumption_currency: Optional[dict[str, float]] = None,
+        delta_income_currency: Optional[dict[str, float]] = None,
+        delta_locus_control: Optional[dict[str, float]] = None,
+        delta_currency: float = 0.0,
+        add_citizen_ids: Optional[list[int]] = None,
+        remove_citizen_ids: Optional[list[int]] = None,
+    ):
+        """
+        Incrementally update a National Bureau of Statistics (NBS) entity's properties.
+
+        - **Args**:
+            - `nbs_id` (`int`): The ID of the NBS entity to update.
+            - `delta_nominal_gdp` (`dict[str,float]`): Changes to nominal GDP metrics by category.
+            - `delta_real_gdp` (`dict[str,float]`): Changes to real GDP metrics by category.
+            - `delta_unemployment` (`dict[str,float]`): Changes to unemployment metrics by category.
+            - `delta_wages` (`dict[str,float]`): Changes to wage metrics by category.
+            - `delta_prices` (`dict[str,float]`): Changes to price metrics by category.
+            - `delta_working_hours` (`dict[str,float]`): Changes to working hours metrics by category.
+            - `delta_depression` (`dict[str,float]`): Changes to depression metrics by category.
+            - `delta_consumption_currency` (`dict[str,float]`): Changes to consumption currency metrics by category.
+            - `delta_income_currency` (`dict[str,float]`): Changes to income currency metrics by category.
+            - `delta_locus_control` (`dict[str,float]`): Changes to locus of control metrics by category.
+            - `delta_currency` (`float`): Change in currency amount, can be positive or negative.
+            - `add_citizen_ids` (`list[int]`): List of citizen IDs to add to the NBS entity.
+            - `remove_citizen_ids` (`list[int]`): List of citizen IDs to remove from the NBS entity.
+
+        - **Returns**:
+            This method does not return any value.
+
+        - **Description**:
+            - This method sends a request to the economy service via gRPC to incrementally update an NBS entity's properties.
+            - Each delta parameter represents changes to be applied to the corresponding statistic tracked by the NBS.
+            - Dictionary parameters contain category-specific changes where keys are categories and values are the delta amounts.
+            - Can update multiple statistical metrics and associated citizens simultaneously.
+        """
+        await self._aio_stub.DeltaUpdateNBS(
+            org_service.DeltaUpdateNBSRequest(
+                nbs_id=nbs_id,
+                delta_nominal_gdp=delta_nominal_gdp,
+                delta_real_gdp=delta_real_gdp,
+                delta_unemployment=delta_unemployment,
+                delta_wages=delta_wages,
+                delta_prices=delta_prices,
+                delta_working_hours=delta_working_hours,
+                delta_depression=delta_depression,
+                delta_consumption_currency=delta_consumption_currency,
+                delta_income_currency=delta_income_currency,
+                delta_locus_control=delta_locus_control,
+                delta_currency=delta_currency,
+                add_citizen_ids=add_citizen_ids,
+                remove_citizen_ids=remove_citizen_ids,
+            )
+        )
+
+    @log_execution_time
+    async def delta_update_government(
+        self,
+        government_id: int,
+        delta_bracket_cutoffs: Optional[list[float]] = None,
+        delta_bracket_rates: Optional[list[float]] = None,
+        delta_currency: float = 0.0,
+        add_citizen_ids: Optional[list[int]] = None,
+        remove_citizen_ids: Optional[list[int]] = None,
+    ):
+        """
+        Incrementally update a Government entity's properties.
+
+        - **Args**:
+            - `government_id` (`int`): The ID of the Government entity to update.
+            - `delta_bracket_cutoffs` (`list[float]`): Changes to tax bracket cutoff values.
+            - `delta_bracket_rates` (`list[float]`): Changes to tax bracket rate values.
+            - `delta_currency` (`float`): Change in currency amount, can be positive or negative.
+            - `add_citizen_ids` (`list[int]`): List of citizen IDs to add to the Government entity.
+            - `remove_citizen_ids` (`list[int]`): List of citizen IDs to remove from the Government entity.
+
+        - **Returns**:
+            This method does not return any value.
+
+        - **Description**:
+            - This method sends a request to the economy service via gRPC to incrementally update a Government entity's properties.
+            - Can update tax bracket information, currency amount, and associated citizens simultaneously.
+            - The delta parameters represent changes to be applied to the corresponding values currently stored in the Government entity.
+        """
+        await self._aio_stub.DeltaUpdateGovernment(
+            org_service.DeltaUpdateGovernmentRequest(
+                government_id=government_id,
+                delta_bracket_cutoffs=delta_bracket_cutoffs,
+                delta_bracket_rates=delta_bracket_rates,
+                delta_currency=delta_currency,
+                add_citizen_ids=add_citizen_ids,
+                remove_citizen_ids=remove_citizen_ids,
+            )
+        )
+
+    @log_execution_time
+    async def delta_update_firms(
+        self,
+        firm_id: Union[int, list[int]],
+        delta_price: Optional[Union[float, list[float]]] = None,
+        delta_inventory: Optional[Union[int, list[int]]] = None,
+        delta_demand: Optional[Union[float, list[float]]] = None,
+        delta_sales: Optional[Union[float, list[float]]] = None,
+        delta_currency: Optional[Union[float, list[float]]] = None,
+        add_employee_ids: Optional[Union[list[int], list[list[int]]]] = None,
+        remove_employee_ids: Optional[Union[list[int], list[list[int]]]] = None,
+    ):
+        if not isinstance(firm_id, list):
+            if delta_price is not None:
+                assert isinstance(delta_price, float)
+            if delta_inventory is not None:
+                assert isinstance(delta_inventory, int)
+            if delta_demand is not None:
+                assert isinstance(delta_demand, float)
+            if delta_sales is not None:
+                assert isinstance(delta_sales, float)
+            if delta_currency is not None:
+                assert isinstance(delta_currency, float)
+            if add_employee_ids is not None:
+                assert isinstance(add_employee_ids, list)
+                assert all(isinstance(i, int) for i in add_employee_ids)
+            if remove_employee_ids is not None:
+                assert isinstance(remove_employee_ids, list)
+                assert all(isinstance(i, int) for i in remove_employee_ids)
+            await self._aio_stub.DeltaUpdateFirm(
+                org_service.DeltaUpdateFirmRequest(
+                    updates=[
+                        org_service.FirmDeltaUpdate(
+                            firm_id=firm_id,
+                            delta_price=delta_price,
+                            delta_inventory=delta_inventory,
+                            delta_demand=delta_demand,
+                            delta_sales=delta_sales,
+                            delta_currency=delta_currency,
+                            add_employees=add_employee_ids,  # type:ignore
+                            remove_employees=remove_employee_ids,  # type:ignore
+                        )
+                    ]
+                )
+            )
+        else:
+            if delta_price is None:
+                delta_prices = [None for _ in range(len(firm_id))]
+            else:
+                delta_prices = delta_price
+            if delta_inventory is None:
+                delta_inventories = [None for _ in range(len(firm_id))]
+            else:
+                delta_inventories = delta_inventory
+            if delta_demand is None:
+                delta_demands = [None for _ in range(len(firm_id))]
+            else:
+                delta_demands = delta_demand
+            if delta_sales is None:
+                delta_sales_s = [None for _ in range(len(firm_id))]
+            else:
+                delta_sales_s = delta_sales
+            if delta_currency is None:
+                delta_currencies = [None for _ in range(len(firm_id))]
+            else:
+                delta_currencies = delta_currency
+            if add_employee_ids is None:
+                add_employee_ids_s = [None for _ in range(len(firm_id))]
+            else:
+                add_employee_ids_s = add_employee_ids
+            if remove_employee_ids is None:
+                remove_employee_ids_s = [None for _ in range(len(firm_id))]
+            else:
+                remove_employee_ids_s = remove_employee_ids
+            if (
+                not len(firm_id)
+                == len(delta_prices)  # type:ignore
+                == len(delta_inventories)  # type:ignore
+                == len(delta_demands)  # type:ignore
+                == len(delta_sales_s)  # type:ignore
+                == len(delta_currencies)  # type:ignore
+                == len(add_employee_ids_s)
+                == len(remove_employee_ids_s)
+            ):
+                raise ValueError(
+                    f"Invalid input, the length of firm_id, delta_price, delta_inventory, delta_demand, delta_sales, delta_currency, add_employee_ids, remove_employee_ids must be the same!"
+                )
+            await self._aio_stub.DeltaUpdateFirm(
+                org_service.DeltaUpdateFirmRequest(
+                    updates=[
+                        org_service.FirmDeltaUpdate(
+                            firm_id=firm_id[i],
+                            delta_price=delta_prices[i],  # type:ignore
+                            delta_inventory=delta_inventories[i],  # type:ignore
+                            delta_demand=delta_demands[i],  # type:ignore
+                            delta_sales=delta_sales_s[i],  # type:ignore
+                            delta_currency=delta_currencies[i],  # type:ignore
+                            add_employees=add_employee_ids_s[i],  # type:ignore
+                            remove_employees=remove_employee_ids_s[i],  # type:ignore
+                        )
+                        for i in range(len(firm_id))
+                    ]
+                )
+            )
+
+    @log_execution_time
+    async def delta_update_agents(
+        self,
+        agent_id: Union[int, list[int]],
+        new_firm_id: Optional[Union[int, list[int]]] = None,
+        delta_currency: Optional[Union[float, list[float]]] = None,
+        delta_skill: Optional[Union[float, list[float]]] = None,
+        delta_consumption: Optional[Union[float, list[float]]] = None,
+        delta_income: Optional[Union[float, list[float]]] = None,
+    ):
+        if not isinstance(agent_id, list):
+            if new_firm_id is not None:
+                assert isinstance(new_firm_id, int)
+            if delta_currency is not None:
+                assert isinstance(delta_currency, float)
+            if delta_skill is not None:
+                assert isinstance(delta_skill, float)
+            if delta_consumption is not None:
+                assert isinstance(delta_consumption, float)
+            if delta_income is not None:
+                assert isinstance(delta_income, float)
+            await self._aio_stub.DeltaUpdateAgent(
+                org_service.DeltaUpdateAgentRequest(
+                    updates=[
+                        org_service.AgentDeltaUpdate(
+                            agent_id=agent_id,
+                            new_firm_id=new_firm_id,
+                            delta_currency=delta_currency,
+                            delta_skill=delta_skill,
+                            delta_consumption=delta_consumption,
+                            delta_income=delta_income,
+                        )
+                    ]
+                )
+            )
+        else:
+            if new_firm_id is None:
+                new_firm_ids = [None for _ in range(len(agent_id))]
+            else:
+                new_firm_ids = new_firm_id
+            if delta_currency is None:
+                delta_currencies = [None for _ in range(len(agent_id))]
+            else:
+                delta_currencies = delta_currency
+            if delta_skill is None:
+                delta_skills = [None for _ in range(len(agent_id))]
+            else:
+                delta_skills = delta_skill
+            if delta_consumption is None:
+                delta_consumptions = [None for _ in range(len(agent_id))]
+            else:
+                delta_consumptions = delta_consumption
+            if delta_income is None:
+                delta_incomes = [None for _ in range(len(agent_id))]
+            else:
+                delta_incomes = delta_income
+            if (
+                not len(agent_id)
+                == len(delta_currencies)  # type:ignore
+                == len(delta_skills)  # type:ignore
+                == len(delta_consumptions)  # type:ignore
+                == len(delta_incomes)  # type:ignore
+            ):
+                raise ValueError(
+                    f"Invalid input, the length of agent_id, delta_currency, delta_skill, delta_consumption, delta_income must be the same!"
+                )
+            await self._aio_stub.DeltaUpdateAgent(
+                org_service.DeltaUpdateAgentRequest(
+                    updates=[
+                        org_service.AgentDeltaUpdate(
+                            agent_id=agent_id[i],
+                            new_firm_id=new_firm_ids[i],  # type:ignore
+                            delta_currency=delta_currencies[i],  # type:ignore
+                            delta_skill=delta_skills[i],  # type:ignore
+                            delta_consumption=delta_consumptions[i],  # type:ignore
+                            delta_income=delta_incomes[i],  # type:ignore
+                        )
+                        for i in range(len(agent_id))
+                    ]
+                )
+            )

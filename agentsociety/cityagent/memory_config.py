@@ -2,7 +2,6 @@ import random
 from collections import deque
 
 import numpy as np
-import pycityproto.city.economy.v2.economy_pb2 as economyv2
 from mosstool.map._map_util.const import AOI_START_ID
 
 from .firmagent import FirmAgent
@@ -227,7 +226,7 @@ def memory_config_societyagent():
 def memory_config_firm():
     global work_locations
     EXTRA_ATTRIBUTES = {
-        "type": (int, economyv2.ORG_TYPE_FIRM),
+        "type": (str, "Firm"),
         "location": {"aoi_position": {"aoi_id": random.choice(work_locations)}},
         "price": (float, float(np.mean(agent_skills))),
         "inventory": (int, 0),
@@ -260,7 +259,7 @@ def memory_config_firm():
 
 def memory_config_government():
     EXTRA_ATTRIBUTES = {
-        "type": (int, economyv2.ORG_TYPE_GOVERNMENT),
+        "type": (str, "Government"),
         # 'bracket_cutoffs': (list, list(np.array([0, 97, 394.75, 842, 1607.25, 2041, 5103])*100/12)),
         "bracket_cutoffs": (
             list,
@@ -291,7 +290,7 @@ def memory_config_government():
 
 def memory_config_bank():
     EXTRA_ATTRIBUTES = {
-        "type": (int, economyv2.ORG_TYPE_BANK),
+        "type": (str, "Bank"),
         "interest_rate": (float, 0.03),
         "citizens": (list, []),
         "citizens_agent_id": (list, []),
@@ -321,7 +320,7 @@ def memory_config_bank():
 
 def memory_config_nbs():
     EXTRA_ATTRIBUTES = {
-        "type": (int, economyv2.ORG_TYPE_NBS),
+        "type": (str, "NBS"),
         "nominal_gdp": (list, []),
         "real_gdp": (list, []),
         "unemployment": (list, []),

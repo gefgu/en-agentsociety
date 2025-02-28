@@ -17,6 +17,7 @@ from pycityproto.city.person.v2 import person_service_pb2 as person_service
 from shapely.geometry import Point
 
 from ..configs import SimConfig
+from ..utils.decorators import log_execution_time
 from .sidecar import OnlyClientSidecar
 from .sim import CityClient, ControlSimEnv
 from .utils.const import *
@@ -202,6 +203,7 @@ class Simulator:
         """
         self._environment_prompt[key] = value
 
+    @log_execution_time
     def get_poi_categories(
         self,
         center: Optional[Union[tuple[float, float], Point]] = None,
@@ -218,8 +220,6 @@ class Simulator:
         - **Returns**:
             - `List[str]`: A list of unique POI category names.
         """
-        start_time = time.time()
-        log = {"req": "get_poi_categories", "start_time": start_time, "consumption": 0}
         categories: list[str] = []
         if center is None:
             center = (0, 0)
@@ -233,10 +233,9 @@ class Simulator:
         for poi in _pois:
             catg = poi["category"]
             categories.append(catg.split("|")[-1])
-        log["consumption"] = time.time() - start_time
-        self._log_list.append(log)
         return list(set(categories))
 
+    @log_execution_time
     async def get_time(
         self, format_time: bool = False, format: str = "%H:%M:%S"
     ) -> Union[int, str]:
@@ -252,8 +251,6 @@ class Simulator:
         - **Returns**:
             - `Union[int, str]`: The current simulation time either as an integer representing seconds since midnight or as a formatted string.
         """
-        start_time = time.time()
-        log = {"req": "get_time", "start_time": start_time, "consumption": 0}
         now = await self._client.clock_service.Now({})
         now = cast(dict[str, int], now)
         self.time = now["t"]
@@ -262,14 +259,11 @@ class Simulator:
             start_of_day = datetime.combine(current_date, datetime.min.time())
             current_time = start_of_day + timedelta(seconds=now["t"])
             formatted_time = current_time.strftime(format)
-            log["consumption"] = time.time() - start_time
-            self._log_list.append(log)
             return formatted_time
         else:
-            log["consumption"] = time.time() - start_time
-            self._log_list.append(log)
             return int(now["t"])
 
+    @log_execution_time
     async def get_simulator_day(self) -> int:
         """
         Get the current day of the simulation.
@@ -277,15 +271,12 @@ class Simulator:
         - **Returns**:
             - `int`: The day number since the start of the simulation.
         """
-        start_time = time.time()
-        log = {"req": "get_simulator_day", "start_time": start_time, "consumption": 0}
         now = await self._client.clock_service.Now({})
         now = cast(dict[str, int], now)
         day = int(now["t"] // (24 * 60 * 60))
-        log["consumption"] = time.time() - start_time
-        self._log_list.append(log)
         return day
 
+    @log_execution_time
     async def get_simulator_second_from_start_of_day(self) -> int:
         """
         Get the number of seconds elapsed from the start of the current day in the simulation.
@@ -293,18 +284,11 @@ class Simulator:
         - **Returns**:
             - `int`: The number of seconds from 00:00:00 of the current day.
         """
-        start_time = time.time()
-        log = {
-            "req": "get_simulator_second_from_start_of_day",
-            "start_time": start_time,
-            "consumption": 0,
-        }
         now = await self._client.clock_service.Now({})
         now = cast(dict[str, int], now)
-        log["consumption"] = time.time() - start_time
-        self._log_list.append(log)
         return now["t"] % (24 * 60 * 60)
 
+    @log_execution_time
     async def get_person(self, person_id: int) -> dict:
         """
         Retrieve information about a specific person by ID.
@@ -315,15 +299,12 @@ class Simulator:
         - **Returns**:
             - `Dict`: Information about the specified person.
         """
-        start_time = time.time()
-        log = {"req": "get_person", "start_time": start_time, "consumption": 0}
         person: dict = await self._client.person_service.GetPerson(
             req={"person_id": person_id}
         )  # type:ignore
-        log["consumption"] = time.time() - start_time
-        self._log_list.append(log)
         return person
 
+    @log_execution_time
     async def add_person(self, dict_person: dict) -> dict:
         """
         Add a new person to the simulation.
@@ -334,18 +315,15 @@ class Simulator:
         - **Returns**:
             - `Dict`: Response from adding the person.
         """
-        start_time = time.time()
-        log = {"req": "add_person", "start_time": start_time, "consumption": 0}
         person = dict2pb(dict_person, person_pb2.Person())
         if isinstance(person, person_pb2.Person):
             req = person_service.AddPersonRequest(person=person)
         else:
             req = person
         resp: dict = await self._client.person_service.AddPerson(req)  # type:ignore
-        log["consumption"] = time.time() - start_time
-        self._log_list.append(log)
         return resp
 
+    @log_execution_time
     async def set_aoi_schedules(
         self,
         person_id: int,
@@ -367,8 +345,6 @@ class Simulator:
             - `modes` (`Optional[List[int]]`): Travel modes for each trip.
               Defaults to `TRIP_MODE_DRIVE_ONLY` if not specified.
         """
-        start_time = time.time()
-        log = {"req": "set_aoi_schedules", "start_time": start_time, "consumption": 0}
         cur_time = float(await self.get_time())
         if not isinstance(target_positions, list):
             target_positions = [target_positions]
@@ -418,9 +394,8 @@ class Simulator:
             )
         req = {"person_id": person_id, "schedules": _schedules}
         await self._client.person_service.SetSchedule(req)
-        log["consumption"] = time.time() - start_time
-        self._log_list.append(log)
 
+    @log_execution_time
     async def reset_person_position(
         self,
         person_id: int,
@@ -439,12 +414,6 @@ class Simulator:
             - `lane_id` (`Optional[int]`): The ID of the lane on which the person should be placed.
             - `s` (`Optional[float]`): The longitudinal position along the lane.
         """
-        start_time = time.time()
-        log = {
-            "req": "reset_person_position",
-            "start_time": start_time,
-            "consumption": 0,
-        }
         reset_position = {}
         if aoi_id is not None:
             reset_position["aoi_position"] = {"aoi_id": aoi_id}
@@ -473,9 +442,8 @@ class Simulator:
             logger.debug(
                 f"Neither aoi or lane pos provided for person {person_id} position reset!!"
             )
-        log["consumption"] = time.time() - start_time
-        self._log_list.append(log)
 
+    @log_execution_time
     def get_around_poi(
         self,
         center: Union[tuple[float, float], Point],
@@ -493,8 +461,6 @@ class Simulator:
         - **Returns**:
             - `List[Dict]`: A list of dictionaries containing information about the POIs found.
         """
-        start_time = time.time()
-        log = {"req": "get_around_poi", "start_time": start_time, "consumption": 0}
         if isinstance(poi_type, str):
             poi_type = [poi_type]
         transformed_poi_type: list[str] = []
@@ -519,8 +485,6 @@ class Simulator:
             if catg.split("|")[-1] not in poi_type_set:
                 continue
             pois.append(poi)
-        log["consumption"] = time.time() - start_time
-        self._log_list.append(log)
         return pois
 
     def step(self, n: int = 1):

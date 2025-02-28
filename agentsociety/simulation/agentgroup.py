@@ -213,8 +213,21 @@ class AgentGroup:
     async def get_economy_ids(self):
         return await self.economy_client.get_ids()
 
-    async def set_economy_ids(self, agent_ids: set[int], org_ids: set[int]):
-        await self.economy_client.set_ids(agent_ids, org_ids)
+    async def set_economy_ids(
+        self,
+        agent_ids: set[int],
+        firm_ids: set[int],
+        bank_ids: set[int],
+        nbs_ids: set[int],
+        government_ids: set[int],
+    ):
+        await self.economy_client.set_ids(
+            agent_ids=agent_ids,
+            firm_ids=firm_ids,
+            bank_ids=bank_ids,
+            nbs_ids=nbs_ids,
+            government_ids=government_ids,
+        )
 
     def get_agent_count(self):
         return self.agent_count

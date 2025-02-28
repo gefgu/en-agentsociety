@@ -112,9 +112,10 @@ class NBSAgent(InstitutionAgent):
         """
         if await self.month_trigger():
             print("nbs forward")
-            await self.economy_client.calculate_real_gdp(self._agent_id)
+            nbs_id = self._agent_id
+            await self.economy_client.calculate_real_gdp(nbs_id)
             citizens_uuid = await self.memory.status.get("citizens")
-            citizens = await self.economy_client.get(self._agent_id, "citizens")
+            citizens = await self.economy_client.get(nbs_id, "citizens")
             work_propensity = await self.gather_messages(
                 citizens_uuid, "work_propensity"
             )
@@ -123,15 +124,13 @@ class NBSAgent(InstitutionAgent):
             else:
                 working_hours = np.mean(work_propensity) * self.num_labor_hours
             await self.economy_client.update(
-                self._agent_id, "working_hours", [working_hours], mode="merge"
+                nbs_id, "working_hours", [working_hours], mode="merge"
             )
-            firms_id = await self.economy_client.get_org_entity_ids(
-                economyv2.ORG_TYPE_FIRM
-            )
+            firms_id = await self.economy_client.get_firm_ids()
             prices = await self.economy_client.get(firms_id, "price")
 
             await self.economy_client.update(
-                self._agent_id, "prices", [float(np.mean(prices))], mode="merge"
+                nbs_id, "prices", [float(np.mean(prices))], mode="merge"
             )
             depression = await self.gather_messages(citizens_uuid, "depression")
             if sum(depression) == 0.0:
@@ -139,7 +138,7 @@ class NBSAgent(InstitutionAgent):
             else:
                 depression = np.mean(depression)
             await self.economy_client.update(
-                self._agent_id, "depression", [depression], mode="merge"
+                nbs_id, "depression", [depression], mode="merge"
             )
             consumption_currency = await self.economy_client.get(
                 citizens, "consumption"
@@ -149,7 +148,7 @@ class NBSAgent(InstitutionAgent):
             else:
                 consumption_currency = np.mean(consumption_currency)
             await self.economy_client.update(
-                self._agent_id,
+                nbs_id,
                 "consumption_currency",
                 [consumption_currency],
                 mode="merge",
@@ -160,7 +159,7 @@ class NBSAgent(InstitutionAgent):
             else:
                 income_currency = np.mean(income_currency)
             await self.economy_client.update(
-                self._agent_id, "income_currency", [income_currency], mode="merge"
+                nbs_id, "income_currency", [income_currency], mode="merge"
             )
             print("nbs forward end")
             self.forward_times += 1
