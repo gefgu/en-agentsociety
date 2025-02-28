@@ -1,0 +1,47 @@
+services:
+  mlflow:
+    image: swr.cn-north-4.myhuaweicloud.com/tsinghua-fib-lab/mlflow:2.19.0
+    container_name: mlflow
+    restart: always
+    entrypoint: ["bash", "/entrypoint.sh"]
+    ports:
+      - 59000:59000
+    volumes:
+      - $PWD/mlflow/basic_auth.ini:/auth/basic_auth.ini
+      - $PWD/mlflow/entrypoint.sh:/entrypoint.sh
+      - mlflow:/app
+    environment:
+      MLFLOW_AUTH_CONFIG_PATH: /auth/basic_auth.ini
+      PG_DSN: postgresql://postgres:CHANGE_ME@postgresql:5432/postgres
+    depends_on:
+      - postgresql
+
+  postgresql:
+    image: swr.cn-north-4.myhuaweicloud.com/tsinghua-fib-lab/postgresql:17
+    container_name: postgresql
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgresql:/bitnami/postgresql
+    environment:
+      POSTGRESQL_PASSWORD: CHANGE_ME
+
+  emqx:
+    image: swr.cn-north-4.myhuaweicloud.com/tsinghua-fib-lab/emqx:5.8.1
+    container_name: emqx
+    healthcheck:
+      test: ["CMD", "/opt/emqx/bin/emqx", "ctl", "status"]
+      interval: 5s
+      timeout: 25s
+      retries: 5
+    ports:
+      - 1883:1883 # TCP Listener for MQTT
+      # - 8883:8883 # SSL Listener for MQTT
+      # - 8083:8083 # WebSocket Listener for MQTT
+      # - 8084:8084 # Secure WebSocket Listener for MQTT
+      - 18083:18083 # Dashboard
+
+volumes:
+  mlflow:
+  postgresql:

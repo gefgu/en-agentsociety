@@ -15,6 +15,8 @@
 :class: autosummary longtable
 :align: left
 
+* - {py:obj}`EconomyEntityType <agentsociety.environment.economy.econ_client.EconomyEntityType>`
+  -
 * - {py:obj}`EconomyClient <agentsociety.environment.economy.econ_client.EconomyClient>`
   - ```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient
     :summary:
@@ -71,6 +73,73 @@
 
 ````
 
+`````{py:class} EconomyEntityType(*args, **kwds)
+:canonical: agentsociety.environment.economy.econ_client.EconomyEntityType
+
+Bases: {py:obj}`enum.Enum`, {py:obj}`str`
+
+````{py:attribute} Unspecified
+:canonical: agentsociety.environment.economy.econ_client.EconomyEntityType.Unspecified
+:value: >
+   'Unspecified'
+
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyEntityType.Unspecified
+```
+
+````
+
+````{py:attribute} Agent
+:canonical: agentsociety.environment.economy.econ_client.EconomyEntityType.Agent
+:value: >
+   'Agent'
+
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyEntityType.Agent
+```
+
+````
+
+````{py:attribute} Bank
+:canonical: agentsociety.environment.economy.econ_client.EconomyEntityType.Bank
+:value: >
+   'Bank'
+
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyEntityType.Bank
+```
+
+````
+
+````{py:attribute} Firm
+:canonical: agentsociety.environment.economy.econ_client.EconomyEntityType.Firm
+:value: >
+   'Firm'
+
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyEntityType.Firm
+```
+
+````
+
+````{py:attribute} Government
+:canonical: agentsociety.environment.economy.econ_client.EconomyEntityType.Government
+:value: >
+   'Government'
+
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyEntityType.Government
+```
+
+````
+
+````{py:attribute} NBS
+:canonical: agentsociety.environment.economy.econ_client.EconomyEntityType.NBS
+:value: >
+   'NBS'
+
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyEntityType.NBS
+```
+
+````
+
+`````
+
 ````{py:function} _create_aio_channel(server_address: str, secure: bool = False) -> grpc.aio.Channel
 :canonical: agentsociety.environment.economy.econ_client._create_aio_channel
 
@@ -122,6 +191,14 @@
 
 ````
 
+````{py:method} _get_request_type(id: typing.Union[int, list[int]]) -> agentsociety.environment.economy.econ_client.EconomyEntityType
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient._get_request_type
+
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient._get_request_type
+```
+
+````
+
 ````{py:method} get_ids()
 :canonical: agentsociety.environment.economy.econ_client.EconomyClient.get_ids
 :async:
@@ -131,7 +208,7 @@
 
 ````
 
-````{py:method} set_ids(agent_ids: set[int], org_ids: set[int])
+````{py:method} set_ids(agent_ids: set[int], firm_ids: set[int], bank_ids: set[int], nbs_ids: set[int], government_ids: set[int])
 :canonical: agentsociety.environment.economy.econ_client.EconomyClient.set_ids
 :async:
 
@@ -149,16 +226,43 @@
 
 ````
 
-````{py:method} get_org(id: typing.Union[list[int], int]) -> typing.Union[dict[str, typing.Any], list[dict[str, typing.Any]]]
-:canonical: agentsociety.environment.economy.econ_client.EconomyClient.get_org
+````{py:method} get_bank(id: typing.Union[list[int], int]) -> typing.Union[dict[str, typing.Any], list[dict[str, typing.Any]]]
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient.get_bank
 :async:
 
-```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.get_org
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.get_bank
 ```
 
 ````
 
-````{py:method} get(id: typing.Union[list[int], int], key: str) -> typing.Any
+````{py:method} get_firm(id: typing.Union[list[int], int]) -> typing.Union[dict[str, typing.Any], list[dict[str, typing.Any]]]
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient.get_firm
+:async:
+
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.get_firm
+```
+
+````
+
+````{py:method} get_government(id: typing.Union[list[int], int]) -> typing.Union[dict[str, typing.Any], list[dict[str, typing.Any]]]
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient.get_government
+:async:
+
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.get_government
+```
+
+````
+
+````{py:method} get_nbs(id: typing.Union[list[int], int]) -> typing.Union[dict[str, typing.Any], list[dict[str, typing.Any]]]
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient.get_nbs
+:async:
+
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.get_nbs
+```
+
+````
+
+````{py:method} get(id: typing.Union[list[int], int], key: typing.Union[list[str], str]) -> typing.Any
 :canonical: agentsociety.environment.economy.econ_client.EconomyClient.get
 :async:
 
@@ -229,7 +333,7 @@
 
 ````
 
-````{py:method} calculate_interest(org_id: int, agent_ids: list[int])
+````{py:method} calculate_interest(bank_id: int, agent_ids: list[int])
 :canonical: agentsociety.environment.economy.econ_client.EconomyClient.calculate_interest
 :async:
 
@@ -247,16 +351,43 @@
 
 ````
 
-````{py:method} remove_orgs(org_ids: typing.Union[int, list[int]])
-:canonical: agentsociety.environment.economy.econ_client.EconomyClient.remove_orgs
+````{py:method} remove_banks(bank_ids: typing.Union[int, list[int]])
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient.remove_banks
 :async:
 
-```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.remove_orgs
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.remove_banks
 ```
 
 ````
 
-````{py:method} save(file_path: str) -> tuple[list[int], list[int]]
+````{py:method} remove_firms(firm_ids: typing.Union[int, list[int]])
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient.remove_firms
+:async:
+
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.remove_firms
+```
+
+````
+
+````{py:method} remove_governments(government_ids: typing.Union[int, list[int]])
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient.remove_governments
+:async:
+
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.remove_governments
+```
+
+````
+
+````{py:method} remove_nbs(nbs_ids: typing.Union[int, list[int]])
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient.remove_nbs
+:async:
+
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.remove_nbs
+```
+
+````
+
+````{py:method} save(file_path: str) -> tuple[list[int], list[int], list[int], list[int], list[int]]
 :canonical: agentsociety.environment.economy.econ_client.EconomyClient.save
 :async:
 
@@ -274,20 +405,83 @@
 
 ````
 
-````{py:method} get_org_entity_ids(org_type: pycityproto.city.economy.v2.economy_pb2.OrgType) -> list[int]
-:canonical: agentsociety.environment.economy.econ_client.EconomyClient.get_org_entity_ids
+````{py:method} get_bank_ids() -> list[int]
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient.get_bank_ids
 :async:
 
-```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.get_org_entity_ids
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.get_bank_ids
 ```
 
 ````
 
-````{py:method} add_delta_value(id: typing.Union[int, list[int]], key: str, value: typing.Any) -> typing.Any
-:canonical: agentsociety.environment.economy.econ_client.EconomyClient.add_delta_value
+````{py:method} get_nbs_ids() -> list[int]
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient.get_nbs_ids
 :async:
 
-```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.add_delta_value
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.get_nbs_ids
+```
+
+````
+
+````{py:method} get_government_ids() -> list[int]
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient.get_government_ids
+:async:
+
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.get_government_ids
+```
+
+````
+
+````{py:method} get_firm_ids() -> list[int]
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient.get_firm_ids
+:async:
+
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.get_firm_ids
+```
+
+````
+
+````{py:method} delta_update_bank(bank_id: int, delta_interest_rate: float = 0.0, delta_currency: float = 0.0, add_citizen_ids: list[int] = [], remove_citizen_ids: list[int] = [])
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient.delta_update_bank
+:async:
+
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.delta_update_bank
+```
+
+````
+
+````{py:method} delta_update_nbs(nbs_id: int, delta_nominal_gdp: typing.Optional[dict[str, float]] = None, delta_real_gdp: typing.Optional[dict[str, float]] = None, delta_unemployment: typing.Optional[dict[str, float]] = None, delta_wages: typing.Optional[dict[str, float]] = None, delta_prices: typing.Optional[dict[str, float]] = None, delta_working_hours: typing.Optional[dict[str, float]] = None, delta_depression: typing.Optional[dict[str, float]] = None, delta_consumption_currency: typing.Optional[dict[str, float]] = None, delta_income_currency: typing.Optional[dict[str, float]] = None, delta_locus_control: typing.Optional[dict[str, float]] = None, delta_currency: float = 0.0, add_citizen_ids: typing.Optional[list[int]] = None, remove_citizen_ids: typing.Optional[list[int]] = None)
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient.delta_update_nbs
+:async:
+
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.delta_update_nbs
+```
+
+````
+
+````{py:method} delta_update_government(government_id: int, delta_bracket_cutoffs: typing.Optional[list[float]] = None, delta_bracket_rates: typing.Optional[list[float]] = None, delta_currency: float = 0.0, add_citizen_ids: typing.Optional[list[int]] = None, remove_citizen_ids: typing.Optional[list[int]] = None)
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient.delta_update_government
+:async:
+
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.delta_update_government
+```
+
+````
+
+````{py:method} delta_update_firms(firm_id: typing.Union[int, list[int]], delta_price: typing.Optional[typing.Union[float, list[float]]] = None, delta_inventory: typing.Optional[typing.Union[int, list[int]]] = None, delta_demand: typing.Optional[typing.Union[float, list[float]]] = None, delta_sales: typing.Optional[typing.Union[float, list[float]]] = None, delta_currency: typing.Optional[typing.Union[float, list[float]]] = None, add_employee_ids: typing.Optional[typing.Union[list[int], list[list[int]]]] = None, remove_employee_ids: typing.Optional[typing.Union[list[int], list[list[int]]]] = None)
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient.delta_update_firms
+:async:
+
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.delta_update_firms
+```
+
+````
+
+````{py:method} delta_update_agents(agent_id: typing.Union[int, list[int]], new_firm_id: typing.Optional[typing.Union[int, list[int]]] = None, delta_currency: typing.Optional[typing.Union[float, list[float]]] = None, delta_skill: typing.Optional[typing.Union[float, list[float]]] = None, delta_consumption: typing.Optional[typing.Union[float, list[float]]] = None, delta_income: typing.Optional[typing.Union[float, list[float]]] = None)
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient.delta_update_agents
+:async:
+
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.delta_update_agents
 ```
 
 ````

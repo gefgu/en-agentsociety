@@ -5,7 +5,6 @@ The folder contains the docker-compose.yml and related files for running the dep
 ## Prerequisites
 
 - Docker
-- A *proper* network to allow your Docker to pull images from the internet (use proxy or Docker mirror)
 
 ## Install Docker
 
@@ -19,14 +18,14 @@ curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh --mirror 
 curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh
 ```
 
-After the installation, you can run the following command to check if the installation is successful:
+(Optional) After the installation, you can run the following command to check if the installation is successful:
 ```bash
 docker run --rm hello-world
 ```
 
-If you failed to run the command due to timeout, you should check your network connection to make sure that it can access the docker registry outside of China.
+If you failed to run the command due to timeout, you should check your network connection to make sure that it can access the docker registry outside of China or just use the `docker-compose-cn.yml` file to start the dependencies.
 
-Possible solutions:
+Possible solutions for the timeout issue:
 - Use a proxy
 - Use a Docker mirror
 - Use a VPN
@@ -34,27 +33,32 @@ Possible solutions:
 
 ## Run the dependencies
 
-We provide a docker-compose.yml file and related files to start the dependencies.
+We provide a `docker-compose.yml` file and a `docker-compose-cn.yml` file to start the dependencies.
 
-Before running the following command, you need to change the password in the `docker-compose.yml` and `basic_auth.ini` file.
-And make sure the password part of `PG_DSN` in the `docker-compose.yml` file's `mlflow` service is the same as the `POSTGRESQL_PASSWORD` in the `docker-compose.yml` file's `postgresql` service.
+If you are in China, you can use the `docker-compose-cn.yml` file to start the dependencies.
+
+Before running the following command, you need to change the password in the `docker-compose.yml` (or `docker-compose-cn.yml`) and `basic_auth.ini` file.
+And make sure the password part of `PG_DSN` in the `docker-compose.yml` (or `docker-compose-cn.yml`) file's `mlflow` service is the same as the `POSTGRESQL_PASSWORD` in the `docker-compose.yml` (or `docker-compose-cn.yml`) file's `postgresql` service.
 
 ```bash
 cd docker # make sure the folder contains the same files as the ones in the repo
-docker compose up -d
+docker compose up -d # if you are not in China
+docker compose -f ./docker-compose-cn.yml up # if you are in China
 ```
 
 If you want to check if the dependencies are running correctly, you can run the following command instead of the above command:
 ```bash
 cd docker
-docker compose up
+docker compose up # if you are not in China
+docker compose -f ./docker-compose-cn.yml up # if you are in China
 ```
 But you need to use `Ctrl+C` to stop the them and use `docker compose up -d` to start them again and put them in the background.
 
 ## Stop the dependencies
 
 ```bash
-docker compose down
+docker compose down # if you are not in China
+docker compose -f ./docker-compose-cn.yml down # if you are in China
 ```
 
 ## Access the services

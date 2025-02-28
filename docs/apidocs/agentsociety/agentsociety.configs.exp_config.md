@@ -16,23 +16,36 @@
 :align: left
 
 * - {py:obj}`WorkflowStep <agentsociety.configs.exp_config.WorkflowStep>`
-  -
+  - ```{autodoc2-docstring} agentsociety.configs.exp_config.WorkflowStep
+    :summary:
+    ```
 * - {py:obj}`AgentConfig <agentsociety.configs.exp_config.AgentConfig>`
-  -
+  - ```{autodoc2-docstring} agentsociety.configs.exp_config.AgentConfig
+    :summary:
+    ```
 * - {py:obj}`EnvironmentConfig <agentsociety.configs.exp_config.EnvironmentConfig>`
-  -
+  - ```{autodoc2-docstring} agentsociety.configs.exp_config.EnvironmentConfig
+    :summary:
+    ```
 * - {py:obj}`MessageInterceptConfig <agentsociety.configs.exp_config.MessageInterceptConfig>`
-  -
+  - ```{autodoc2-docstring} agentsociety.configs.exp_config.MessageInterceptConfig
+    :summary:
+    ```
 * - {py:obj}`ExpConfig <agentsociety.configs.exp_config.ExpConfig>`
-  -
+  - ```{autodoc2-docstring} agentsociety.configs.exp_config.ExpConfig
+    :summary:
+    ```
 ````
 
 ### API
 
-`````{py:class} WorkflowStep(/, **data: typing.Any)
+`````{py:class} WorkflowStep
 :canonical: agentsociety.configs.exp_config.WorkflowStep
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.configs.exp_config.WorkflowStep
+```
 
 ````{py:attribute} type
 :canonical: agentsociety.configs.exp_config.WorkflowStep.type
@@ -91,10 +104,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} AgentConfig(/, **data: typing.Any)
+`````{py:class} AgentConfig
 :canonical: agentsociety.configs.exp_config.AgentConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.configs.exp_config.AgentConfig
+```
 
 ````{py:attribute} number_of_citizen
 :canonical: agentsociety.configs.exp_config.AgentConfig.number_of_citizen
@@ -230,10 +246,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} EnvironmentConfig(/, **data: typing.Any)
+`````{py:class} EnvironmentConfig
 :canonical: agentsociety.configs.exp_config.EnvironmentConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.configs.exp_config.EnvironmentConfig
+```
 
 ````{py:attribute} weather
 :canonical: agentsociety.configs.exp_config.EnvironmentConfig.weather
@@ -292,10 +311,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} MessageInterceptConfig(/, **data: typing.Any)
+`````{py:class} MessageInterceptConfig
 :canonical: agentsociety.configs.exp_config.MessageInterceptConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.configs.exp_config.MessageInterceptConfig
+```
 
 ````{py:attribute} mode
 :canonical: agentsociety.configs.exp_config.MessageInterceptConfig.mode
@@ -343,10 +365,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} ExpConfig(/, **data: typing.Any)
+`````{py:class} ExpConfig
 :canonical: agentsociety.configs.exp_config.ExpConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.configs.exp_config.ExpConfig
+```
 
 ````{py:attribute} agent_config
 :canonical: agentsociety.configs.exp_config.ExpConfig.agent_config

@@ -27,6 +27,10 @@
   - ```{autodoc2-docstring} agentsociety.utils.decorators.lock_decorator
     :summary:
     ```
+* - {py:obj}`log_execution_time <agentsociety.utils.decorators.log_execution_time>`
+  - ```{autodoc2-docstring} agentsociety.utils.decorators.log_execution_time
+    :summary:
+    ```
 ````
 
 ### Data
@@ -60,7 +64,7 @@
 ````{py:data} __all__
 :canonical: agentsociety.utils.decorators.__all__
 :value: >
-   ['record_call_aio', 'record_call', 'lock_decorator']
+   ['record_call_aio', 'record_call', 'lock_decorator', 'log_execution_time']
 
 ```{autodoc2-docstring} agentsociety.utils.decorators.__all__
 ```
@@ -85,5 +89,12 @@
 :canonical: agentsociety.utils.decorators.lock_decorator
 
 ```{autodoc2-docstring} agentsociety.utils.decorators.lock_decorator
+```
+````
+
+````{py:function} log_execution_time(func)
+:canonical: agentsociety.utils.decorators.log_execution_time
+
+```{autodoc2-docstring} agentsociety.utils.decorators.log_execution_time
 ```
 ````

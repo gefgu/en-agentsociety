@@ -16,25 +16,45 @@
 :align: left
 
 * - {py:obj}`LLMRequestConfig <agentsociety.configs.sim_config.LLMRequestConfig>`
-  -
+  - ```{autodoc2-docstring} agentsociety.configs.sim_config.LLMRequestConfig
+    :summary:
+    ```
 * - {py:obj}`MQTTConfig <agentsociety.configs.sim_config.MQTTConfig>`
-  -
+  - ```{autodoc2-docstring} agentsociety.configs.sim_config.MQTTConfig
+    :summary:
+    ```
 * - {py:obj}`SimulatorRequestConfig <agentsociety.configs.sim_config.SimulatorRequestConfig>`
-  -
+  - ```{autodoc2-docstring} agentsociety.configs.sim_config.SimulatorRequestConfig
+    :summary:
+    ```
 * - {py:obj}`MapRequestConfig <agentsociety.configs.sim_config.MapRequestConfig>`
-  -
+  - ```{autodoc2-docstring} agentsociety.configs.sim_config.MapRequestConfig
+    :summary:
+    ```
 * - {py:obj}`MlflowConfig <agentsociety.configs.sim_config.MlflowConfig>`
-  -
+  - ```{autodoc2-docstring} agentsociety.configs.sim_config.MlflowConfig
+    :summary:
+    ```
 * - {py:obj}`PostgreSQLConfig <agentsociety.configs.sim_config.PostgreSQLConfig>`
-  -
+  - ```{autodoc2-docstring} agentsociety.configs.sim_config.PostgreSQLConfig
+    :summary:
+    ```
 * - {py:obj}`AvroConfig <agentsociety.configs.sim_config.AvroConfig>`
-  -
+  - ```{autodoc2-docstring} agentsociety.configs.sim_config.AvroConfig
+    :summary:
+    ```
 * - {py:obj}`MetricRequest <agentsociety.configs.sim_config.MetricRequest>`
-  -
+  - ```{autodoc2-docstring} agentsociety.configs.sim_config.MetricRequest
+    :summary:
+    ```
 * - {py:obj}`SimStatus <agentsociety.configs.sim_config.SimStatus>`
-  -
+  - ```{autodoc2-docstring} agentsociety.configs.sim_config.SimStatus
+    :summary:
+    ```
 * - {py:obj}`SimConfig <agentsociety.configs.sim_config.SimConfig>`
-  -
+  - ```{autodoc2-docstring} agentsociety.configs.sim_config.SimConfig
+    :summary:
+    ```
 ````
 
 ### Data
@@ -61,10 +81,13 @@
 
 ````
 
-`````{py:class} LLMRequestConfig(/, **data: typing.Any)
+`````{py:class} LLMRequestConfig
 :canonical: agentsociety.configs.sim_config.LLMRequestConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.configs.sim_config.LLMRequestConfig
+```
 
 ````{py:attribute} request_type
 :canonical: agentsociety.configs.sim_config.LLMRequestConfig.request_type
@@ -101,10 +124,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} MQTTConfig(/, **data: typing.Any)
+`````{py:class} MQTTConfig
 :canonical: agentsociety.configs.sim_config.MQTTConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.configs.sim_config.MQTTConfig
+```
 
 ````{py:attribute} server
 :canonical: agentsociety.configs.sim_config.MQTTConfig.server
@@ -152,10 +178,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} SimulatorRequestConfig(/, **data: typing.Any)
+`````{py:class} SimulatorRequestConfig
 :canonical: agentsociety.configs.sim_config.SimulatorRequestConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.configs.sim_config.SimulatorRequestConfig
+```
 
 ````{py:attribute} task_name
 :canonical: agentsociety.configs.sim_config.SimulatorRequestConfig.task_name
@@ -247,10 +276,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} MapRequestConfig(/, **data: typing.Any)
+`````{py:class} MapRequestConfig
 :canonical: agentsociety.configs.sim_config.MapRequestConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.configs.sim_config.MapRequestConfig
+```
 
 ````{py:attribute} file_path
 :canonical: agentsociety.configs.sim_config.MapRequestConfig.file_path
@@ -265,10 +297,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} MlflowConfig(/, **data: typing.Any)
+`````{py:class} MlflowConfig
 :canonical: agentsociety.configs.sim_config.MlflowConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.configs.sim_config.MlflowConfig
+```
 
 ````{py:attribute} username
 :canonical: agentsociety.configs.sim_config.MlflowConfig.username
@@ -305,10 +340,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} PostgreSQLConfig(/, **data: typing.Any)
+`````{py:class} PostgreSQLConfig
 :canonical: agentsociety.configs.sim_config.PostgreSQLConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.configs.sim_config.PostgreSQLConfig
+```
 
 ````{py:attribute} enabled
 :canonical: agentsociety.configs.sim_config.PostgreSQLConfig.enabled
@@ -334,10 +372,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} AvroConfig(/, **data: typing.Any)
+`````{py:class} AvroConfig
 :canonical: agentsociety.configs.sim_config.AvroConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.configs.sim_config.AvroConfig
+```
 
 ````{py:attribute} enabled
 :canonical: agentsociety.configs.sim_config.AvroConfig.enabled
@@ -363,10 +404,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} MetricRequest(/, **data: typing.Any)
+`````{py:class} MetricRequest
 :canonical: agentsociety.configs.sim_config.MetricRequest
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.configs.sim_config.MetricRequest
+```
 
 ````{py:attribute} mlflow
 :canonical: agentsociety.configs.sim_config.MetricRequest.mlflow
@@ -381,10 +425,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} SimStatus(/, **data: typing.Any)
+`````{py:class} SimStatus
 :canonical: agentsociety.configs.sim_config.SimStatus
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.configs.sim_config.SimStatus
+```
 
 ````{py:attribute} simulator_activated
 :canonical: agentsociety.configs.sim_config.SimStatus.simulator_activated
@@ -399,10 +446,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} SimConfig(/, **data: typing.Any)
+`````{py:class} SimConfig
 :canonical: agentsociety.configs.sim_config.SimConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.configs.sim_config.SimConfig
+```
 
 ````{py:attribute} llm_request
 :canonical: agentsociety.configs.sim_config.SimConfig.llm_request
@@ -650,6 +700,9 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````{py:method} model_dump(*args, **kwargs)
 :canonical: agentsociety.configs.sim_config.SimConfig.model_dump
+
+```{autodoc2-docstring} agentsociety.configs.sim_config.SimConfig.model_dump
+```
 
 ````
 

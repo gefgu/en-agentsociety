@@ -35,7 +35,7 @@ agentsociety.environment.economy.econ_client
 ````{py:data} __all__
 :canonical: agentsociety.environment.economy.__all__
 :value: >
-   ['EconomyClient']
+   ['EconomyClient', 'EconomyEntityType']
 
 ```{autodoc2-docstring} agentsociety.environment.economy.__all__
 ```

@@ -57,8 +57,8 @@ Please refer to the [Docker](https://github.com/tsinghua-fib-lab/agentsociety/bl
 In short, the steps are as follows:
 1. Install Docker.
 2. Download the `docker` folder from [here](https://github.com/tsinghua-fib-lab/agentsociety/blob/main/docker/).
-3. Change the default password in the `docker/docker-compose.yml` and `docker/mlflow/basic_auth.ini` file.
-4. Run `docker compose up -d` to start the dependencies in the `docker` folder.
+3. Change the default password in the `docker/docker-compose.yml` (or `docker/docker-compose-cn.yml` if you are in China) and `docker/mlflow/basic_auth.ini` file.
+4. Run `docker compose up -d` (or `docker compose -f ./docker-compose-cn.yml up -d` if you are in China) to start the dependencies in the `docker` folder.
 5. Access the services by the following URLs:
    - MLflow: http://localhost:59000
    - PostgreSQL: postgresql://postgres:YOUR_PASSWORD@localhost:5432/postgres

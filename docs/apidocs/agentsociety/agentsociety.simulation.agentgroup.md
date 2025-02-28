@@ -104,7 +104,7 @@
 
 ````
 
-````{py:method} set_economy_ids(agent_ids: set[int], org_ids: set[int])
+````{py:method} set_economy_ids(agent_ids: set[int], firm_ids: set[int], bank_ids: set[int], nbs_ids: set[int], government_ids: set[int])
 :canonical: agentsociety.simulation.agentgroup.AgentGroup.set_economy_ids
 :async:
 
