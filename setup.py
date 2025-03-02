@@ -73,7 +73,11 @@ class DownloadBin(build_ext):
 
         url = BIN_SOURCES[binary_name].get(f"{plat_dir}_{arch}")
         if url:
-            response = requests.get(url, auth=auth)
+            if "agentsociety-sim" in url:
+                _auth = None
+            else:
+                _auth = auth
+            response = requests.get(url, auth=_auth)
             if response.status_code == 200:
                 binary_path = os.path.join(bin_dir, binary_name)
                 binary_path = os.path.abspath(binary_path)
