@@ -10,7 +10,7 @@ import grpc
 import pycityproto.city.economy.v2.economy_pb2 as economyv2
 import pycityproto.city.economy.v2.org_service_pb2 as org_service
 import pycityproto.city.economy.v2.org_service_pb2_grpc as org_grpc
-from google.protobuf.json_format import MessageToDict
+from google.protobuf.json_format import MessageToDict, ParseDict
 
 from ...utils.decorators import log_execution_time
 
@@ -248,9 +248,11 @@ class EconomyClient:
             - `economyv2.Firm`: The firm object.
         """
         if not isinstance(id, list):
-            id = [id]
+            _id = [id]
+        else:
+            _id = id
         firms: org_service.GetFirmResponse = await self._aio_stub.GetFirm(
-            org_service.GetFirmRequest(firm_ids=id)
+            org_service.GetFirmRequest(firm_ids=_id)
         )
         firm_dicts = MessageToDict(firms, preserving_proto_field_name=True)["firms"]
         if not isinstance(id, list):
@@ -370,9 +372,9 @@ class EconomyClient:
             else:
                 return res[key]
 
-    def _merge(self, original_value, key, value):
+    def _merge(self, original_dict: dict[str, Any], key: Any, value: Any) -> bool:
         try:
-            orig_value = original_value[key]
+            orig_value = original_dict[key]
             _orig_type = type(orig_value)
             _new_type = type(value)
         except:
@@ -384,20 +386,23 @@ class EconomyClient:
             logger.debug(
                 f"Inconsistent type of original value {_orig_type.__name__} and to-update value {_new_type.__name__}"
             )
+            return False
         else:
             if isinstance(orig_value, set):
                 orig_value.update(set(value))
-                original_value[key] = orig_value
+                original_dict[key] = orig_value
             elif isinstance(orig_value, dict):
                 orig_value.update(dict(value))
-                original_value[key] = orig_value
+                original_dict[key] = orig_value
             elif isinstance(orig_value, list):
                 orig_value.extend(list(value))
-                original_value[key] = orig_value
+                original_dict[key] = orig_value
             else:
                 logger.warning(
                     f"Type of {type(orig_value)} does not support mode `merge`, using `replace` instead!"
                 )
+                return False
+            return True
 
     @log_execution_time
     async def update(
@@ -431,42 +436,58 @@ class EconomyClient:
             value = [value]
         request_type = self._get_request_type(id)
         if request_type == EconomyEntityType.Agent:
-            original_value = await self.get_agent(id)
+            original_dict = await self.get_agent(id)
         elif request_type == EconomyEntityType.Bank:
-            original_value = await self.get_bank(id)
+            original_dict = await self.get_bank(id)
         elif request_type == EconomyEntityType.NBS:
-            original_value = await self.get_nbs(id)
+            original_dict = await self.get_nbs(id)
         elif request_type == EconomyEntityType.Government:
-            original_value = await self.get_government(id)
+            original_dict = await self.get_government(id)
         elif request_type == EconomyEntityType.Firm:
-            original_value = await self.get_firm(id)
+            original_dict = await self.get_firm(id)
         else:
             raise ValueError(f"Invalid id {id}, this id does not exist!")
-        assert isinstance(original_value, list)
-        if mode == "merge":
-            for i in range(len(original_value)):
-                self._merge(original_value[i], key, value[i])
+        if not isinstance(original_dict, list):
+            original_dicts = [original_dict]
         else:
-            for i in range(len(original_value)):
-                original_value[i][key] = value[i]
+            original_dicts = original_dict
+        if mode == "merge":
+            for i in range(len(original_dicts)):
+                if not self._merge(original_dicts[i], key, value[i]):
+                    original_dicts[i][key] = value[i]
+        else:
+            for i in range(len(original_dicts)):
+                original_dicts[i][key] = value[i]
         if request_type == EconomyEntityType.Agent:
             await self._aio_stub.UpdateAgent(
-                org_service.UpdateAgentRequest(agents=original_value)
+                org_service.UpdateAgentRequest(
+                    agents=[economyv2.Agent(**v) for v in original_dicts]
+                )
             )
         elif request_type == EconomyEntityType.Bank:
-            for v in original_value:
-                await self._aio_stub.UpdateBank(org_service.UpdateBankRequest(bank=v))
+            for v in original_dicts:
+                await self._aio_stub.UpdateBank(
+                    org_service.UpdateBankRequest(bank=economyv2.Bank(**v))
+                )
         elif request_type == EconomyEntityType.NBS:
-            for v in original_value:
-                await self._aio_stub.UpdateNBS(org_service.UpdateNBSRequest(nbs=v))
+            for v in original_dicts:
+                await self._aio_stub.UpdateNBS(
+                    org_service.UpdateNBSRequest(nbs=economyv2.NBS(**v))
+                )
         elif request_type == EconomyEntityType.Government:
-            for v in original_value:
+            for v in original_dicts:
                 await self._aio_stub.UpdateGovernment(
-                    org_service.UpdateGovernmentRequest(government=v)
+                    org_service.UpdateGovernmentRequest(
+                        government=economyv2.Government(**v)
+                    )
                 )
         elif request_type == EconomyEntityType.Firm:
-            for v in original_value:
-                await self._aio_stub.UpdateFirm(org_service.UpdateFirmRequest(firms=v))
+
+            await self._aio_stub.UpdateFirm(
+                org_service.UpdateFirmRequest(
+                    firms=[economyv2.Firm(**v) for v in original_dicts]
+                )
+            )
 
     @log_execution_time
     async def add_agents(self, configs: Union[list[dict], dict]):

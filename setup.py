@@ -1,15 +1,16 @@
 import os
 import platform
+import stat
+
 from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext
-import stat
 
 PACKAGE_NAME = "agentsociety"
 
 BIN_SOURCES = {
     "agentsociety-sim": {
-        "linux_x86_64": "https://git.fiblab.net/api/v4/projects/195/packages/generic/socialcity-sim/v1.2.2/socialcity-sim-noproj-linux-amd64",
-        "darwin_arm64": "https://git.fiblab.net/api/v4/projects/195/packages/generic/socialcity-sim/v1.2.2/socialcity-sim-noproj-darwin-arm64",
+        "linux_x86_64": "https://agentsociety.obs.cn-north-4.myhuaweicloud.com/agentsociety-sim/v1.2.6/agentsociety-sim-noproj-linux-amd64",
+        "darwin_arm64": "https://agentsociety.obs.cn-north-4.myhuaweicloud.com/agentsociety-sim/v1.2.6/agentsociety-sim-noproj-darwin-arm64",
     },
     "agentsociety-ui": {
         "linux_x86_64": "https://git.fiblab.net/api/v4/projects/188/packages/generic/socialcity-web/v0.3.4/socialcity-web-linux-amd64",
@@ -30,13 +31,21 @@ class DownloadBin(build_ext):
         machine = platform.machine()
         auth = os.environ.get("GITLAB_AUTH")
         if not auth:
-            print("No authentication provided for downloading binaries, please set GITLAB_AUTH=username:token")
-            raise Exception("No authentication provided for downloading binaries, please set GITLAB_AUTH=username:token")
+            print(
+                "No authentication provided for downloading binaries, please set GITLAB_AUTH=username:token"
+            )
+            raise Exception(
+                "No authentication provided for downloading binaries, please set GITLAB_AUTH=username:token"
+            )
         else:
             auth = tuple(auth.split(":"))
             if len(auth) != 2:
-                print("Invalid authentication provided for downloading binaries, please set GITLAB_AUTH=username:token")
-                raise Exception("Invalid authentication provided for downloading binaries, please set GITLAB_AUTH=username:token")
+                print(
+                    "Invalid authentication provided for downloading binaries, please set GITLAB_AUTH=username:token"
+                )
+                raise Exception(
+                    "Invalid authentication provided for downloading binaries, please set GITLAB_AUTH=username:token"
+                )
         if system == "Linux":
             plat_dir = "linux"
             if machine == "x86_64":
@@ -58,8 +67,9 @@ class DownloadBin(build_ext):
             )
 
     def download_bin(self, binary_name, plat_dir, arch, bin_dir, auth):
-        import requests
         import os
+
+        import requests
 
         url = BIN_SOURCES[binary_name].get(f"{plat_dir}_{arch}")
         if url:
@@ -79,8 +89,12 @@ class DownloadBin(build_ext):
             print(f"No binary found for {binary_name}")
             raise Exception(f"No binary found for {binary_name}")
 
+
 setup(
-    ext_modules=[BinExtension("agentsociety-sim"), BinExtension("agentsociety-ui"),],
+    ext_modules=[
+        BinExtension("agentsociety-sim"),
+        BinExtension("agentsociety-ui"),
+    ],
     cmdclass=dict(build_ext=DownloadBin),
 )
 

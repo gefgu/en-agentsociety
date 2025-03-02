@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.2.2] - 2025-03-02
+
+### Added
+- N/A
+
+### Changed
+- Change the download URL for `agentsociety-sim` to a publicly accessible address that does not require authentication in `setup.py`.
+
+### Deprecated
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- Missed match between the dictionary and `economyv2.Firm` as input arguments in the `EconomyClient.update` method.
+
+### Security
+- N/A
+
+
+
 ## [1.2.1] - 2025-03-01
 
 ### Added
