@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.2.3] - 2025-03-03
+
+### Added
+- N/A
+
+### Changed
+- N/A
+
+### Deprecated
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- Fix typo in quick start docs.
+
+### Security
+- N/A
+
 ## [1.2.2] - 2025-03-02
 
 ### Added

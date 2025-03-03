@@ -130,4 +130,3 @@ Review the logs and visualizations provided by MLflow to interpret the outcomes 
 ## Next Steps
 
 Congratulations! You have successfully completed your first experiment. To expand your research, consider implementing custom agents with richer functionalities. Refer to the [Design Experiment](../03-experiment-design/index.md) and [Custom Agent](../04-custom-agents/index.md) for guidance on creating advanced agents and integrating them into your simulations.
-```

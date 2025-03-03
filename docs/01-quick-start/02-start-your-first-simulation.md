@@ -52,9 +52,9 @@ map_request:
 
 metric_request:
   mlflow: 
-      username: <USER-NAME> # Username for MLflow authentication.
-      password: <PASSWORD> # Password for MLflow authentication.
-      mlflow_uri: <MLFLOW-URI> # URI pointing to the MLflow tracking server.
+    username: <USER-NAME> # Username for MLflow authentication.
+    password: <PASSWORD> # Password for MLflow authentication.
+    mlflow_uri: <MLFLOW-URI> # URI pointing to the MLflow tracking server.
 
 pgsql:
   enabled: true # Whether PostgreSQL database integration is enabled.
