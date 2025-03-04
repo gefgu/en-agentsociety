@@ -15,7 +15,7 @@ from ..llm import LLM
 from ..utils.decorators import lock_decorator
 
 DEFAULT_ERROR_STRING = """
-From `{from_uuid}` To `{to_uuid}` abort due to block `{block_name}`
+From `{from_id}` To `{to_id}` abort due to block `{block_name}`
 """
 
 logger = logging.getLogger("message_interceptor")
@@ -77,8 +77,8 @@ class MessageBlockBase(ABC):
     @lock_decorator
     async def forward(
         self,
-        from_uuid: str,
-        to_uuid: str,
+        from_id: int,
+        to_id: int,
         msg: str,
         violation_counts: dict[str, int],
         black_list: list[tuple[str, str]],
@@ -95,7 +95,7 @@ class MessageInterceptor:
     def __init__(
         self,
         blocks: Optional[list[MessageBlockBase]] = None,
-        black_list: Optional[list[tuple[str, str]]] = None,
+        black_list: Optional[list[tuple[int, int]]] = None,
         llm_config: Optional[LLMRequestConfig] = None,
         queue: Optional[Queue] = None,
     ) -> None:
@@ -104,7 +104,7 @@ class MessageInterceptor:
 
         - **Args**:
             - `blocks` (Optional[list[MessageBlockBase]], optional): Initial list of message interception rules. Defaults to an empty list.
-            - `black_list` (Optional[list[tuple[str, str]]], optional): Initial blacklist of communication pairs. Defaults to an empty list.
+            - `black_list` (Optional[list[tuple[int, int]]], optional): Initial blacklist of communication pairs. Defaults to an empty list.
             - `llm_config` (Optional[LLMRequestConfig], optional): Configuration dictionary for initializing the LLM instance. Defaults to None.
             - `queue` (Optional[Queue], optional): Queue for message processing. Defaults to None.
         """
@@ -114,11 +114,11 @@ class MessageInterceptor:
             self._blocks: list[MessageBlockBase] = []
         self._violation_counts: dict[str, int] = defaultdict(int)
         if black_list is not None:
-            self._black_list: list[tuple[str, str]] = black_list
+            self._black_list: list[tuple[int, int]] = black_list
         else:
-            self._black_list: list[tuple[str, str]] = (
+            self._black_list: list[tuple[int, int]] = (
                 []
-            )  # list[tuple(from_uuid, to_uuid)] `None` means forbidden for everyone.
+            )  # list[tuple(from_id, to_id)] `None` means forbidden for everyone.
         if llm_config:
             self._llm = LLM(llm_config)
         else:
@@ -408,8 +408,8 @@ class MessageInterceptor:
     @lock_decorator
     async def forward(
         self,
-        from_uuid: str,
-        to_uuid: str,
+        from_id: int,
+        to_id: int,
         msg: str,
     ):
         """
@@ -419,8 +419,8 @@ class MessageInterceptor:
             - Processes a message by passing it through all configured message blocks. Each block can modify the message or prevent its forwarding based on implemented logic.
 
         - **Args**:
-            - `from_uuid` (str): The UUID of the sender.
-            - `to_uuid` (str): The UUID of the recipient.
+            - `from_id` (int): The ID of the sender.
+            - `to_id` (int): The ID of the recipient.
             - `msg` (str): The message content to forward.
 
         - **Returns**:
@@ -431,8 +431,8 @@ class MessageInterceptor:
                 await _block.set_llm(self.llm)
             func_params = inspect.signature(_block.forward).parameters
             _args = {
-                "from_uuid": from_uuid,
-                "to_uuid": to_uuid,
+                "from_id": from_id,
+                "to_id": to_id,
                 "msg": msg,
                 "violation_counts": self._violation_counts,
                 "black_list": self._black_list,
@@ -445,8 +445,8 @@ class MessageInterceptor:
                 is_valid: bool = res  # type:ignore
                 err = (
                     DEFAULT_ERROR_STRING.format(
-                        from_uuid=from_uuid,
-                        to_uuid=to_uuid,
+                        from_id=from_id,
+                        to_id=to_id,
                         block_name=f"{_block.__class__.__name__} `{_block.name}`",
                     )
                     if not is_valid
@@ -456,7 +456,7 @@ class MessageInterceptor:
                 if self.has_queue:
                     logger.debug(f"put `{err}` into queue")
                     await self.queue.put_async(err)  # type:ignore
-                self._violation_counts[from_uuid] += 1
+                self._violation_counts[from_id] += 1
                 print(self._black_list)
                 return False
             else:

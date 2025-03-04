@@ -29,11 +29,11 @@ async def initialize_social_network(simulation):
         relation_types = ["family", "colleague", "friend"]
 
         # Get all agent IDs
-        citizen_uuids = await simulation.filter(types=[SocietyAgent])
-        for agent_id in citizen_uuids:
+        citizen_ids = await simulation.filter(types=[SocietyAgent])
+        for agent_id in citizen_ids:
             # Randomly select 2-5 friends for each agent
             num_friends = random.randint(2, 5)
-            possible_friends = [aid for aid in citizen_uuids if aid != agent_id]
+            possible_friends = [aid for aid in citizen_ids if aid != agent_id]
             friends = random.sample(
                 possible_friends, min(num_friends, len(possible_friends))
             )
@@ -73,7 +73,7 @@ async def initialize_social_network(simulation):
         return True
 
     except Exception as e:
-        print(f"Error initializing social network: {str(e)}")
+        logger.error(f"Error initializing social network: {str(e)}")
         return False
 
 
@@ -94,16 +94,32 @@ def zipf_distribution(N, F, s=1.0):
     - **Returns**:
         - List of integer employee counts for each company, summing to N
     """
-    # Calculate employee count for each rank (following Zipf's law distribution)
     ranks = np.arange(1, F + 1)  # Ranks from 1 to F
     sizes = 1 / (ranks**s)  # Calculate employee count ratio according to Zipf's law
 
-    # Calculate normalization coefficient to make total employees equal N
+    # Normalize to make total employees equal N
     total_size = np.sum(sizes)
-    normalized_sizes = sizes / total_size * N  # Normalize to total employees N
+    normalized_sizes = sizes / total_size * N
 
-    # Return employee count for each company (integers)
-    return np.round(normalized_sizes).astype(int)
+    # Convert to integers and adjust to ensure the sum equals N
+    int_sizes = np.round(normalized_sizes).astype(int)
+    current_sum = np.sum(int_sizes)
+
+    # If rounding caused the total to deviate from N, adjust the largest entries
+    if current_sum < N:
+        difference = N - current_sum
+        # Find indices of the largest differences and increment them
+        for i in range(difference):
+            idx = np.argmax(normalized_sizes - int_sizes)
+            int_sizes[idx] += 1
+    elif current_sum > N:
+        difference = current_sum - N
+        # Find indices of the smallest (most negative) differences and decrement them
+        for i in range(difference):
+            idx = np.argmin(normalized_sizes - int_sizes)
+            int_sizes[idx] -= 1
+
+    return int_sizes
 
 
 async def bind_agent_info(simulation):
@@ -119,55 +135,52 @@ async def bind_agent_info(simulation):
         - None
     """
     logger.info("Binding economy relationship...")
-    infos = await simulation.gather("id")
-    citizen_uuids = await simulation.filter(types=[SocietyAgent])
+    citizen_ids = await simulation.filter(types=[SocietyAgent])
+    firm_ids = []
+    government_ids = []
+    bank_ids = []
+    nbs_ids = []
     try:
-        firm_uuids = await simulation.filter(types=[FirmAgent])
+        firm_ids = await simulation.filter(types=[FirmAgent])
     except Exception as e:
-        firm_uuids = []
+        firm_ids = []
     try:
-        government_uuids = await simulation.filter(types=[GovernmentAgent])
+        government_ids = await simulation.filter(types=[GovernmentAgent])
     except Exception as e:
-        government_uuids = []
+        government_ids = []
     try:
-        bank_uuids = await simulation.filter(types=[BankAgent])
+        bank_ids = await simulation.filter(types=[BankAgent])
     except Exception as e:
-        bank_uuids = []
+        bank_ids = []
     try:
-        nbs_uuids = await simulation.filter(types=[NBSAgent])
+        nbs_ids = await simulation.filter(types=[NBSAgent])
     except Exception as e:
-        nbs_uuids = []
-    citizen_agent_ids = []
-    uid2agent, agent2uid = dict(), dict()
-    for info in infos:
-        for k, v in info.items():
-            if k in citizen_uuids:
-                citizen_agent_ids.append(v)
-            uid2agent[k] = v
-            agent2uid[v] = k
-    citizen_agent_ids_cp = citizen_agent_ids.copy()
-    random.shuffle(citizen_agent_ids_cp)
-    employee_sizes = zipf_distribution(len(citizen_agent_ids_cp), len(firm_uuids))
-    for firm_uuid, size in zip(firm_uuids, employee_sizes):
-        await simulation.economy_update(
-            uid2agent[firm_uuid], "employees", citizen_agent_ids_cp[:size]
-        )
-        for citizen_agent_id in citizen_agent_ids_cp[:size]:
-            await simulation.update(
-                agent2uid[citizen_agent_id], "firm_id", uid2agent[firm_uuid]
-            )
-        citizen_agent_ids_cp = citizen_agent_ids_cp[size:]
-    for government_uuid in government_uuids:
-        await simulation.economy_update(
-            uid2agent[government_uuid], "citizens", citizen_agent_ids
-        )
-    for bank_uuid in bank_uuids:
-        await simulation.economy_update(
-            uid2agent[bank_uuid], "citizens", citizen_agent_ids
-        )
-    for nbs_uuid in nbs_uuids:
-        await simulation.update(nbs_uuid, "citizens", citizen_uuids)
-        await simulation.economy_update(
-            uid2agent[nbs_uuid], "citizens", citizen_agent_ids
-        )
+        nbs_ids = []
+
+    random.shuffle(citizen_ids)
+    employee_sizes = zipf_distribution(len(citizen_ids), len(firm_ids))
+    from copy import deepcopy
+
+    orig_citizen_ids = deepcopy(citizen_ids)
+    logging.debug(f"citizen_ids: {citizen_ids}")
+    logging.debug(f"firm_ids: {firm_ids}")
+    logging.debug(f"employee_sizes: {employee_sizes}")
+    for firm_id, size in zip(firm_ids, employee_sizes):
+        await simulation.economy_update(firm_id, "employees", citizen_ids[:size])
+        for citizen_id in citizen_ids[:size]:
+            await simulation.update(citizen_id, "firm_id", firm_id)
+        citizen_ids = citizen_ids[size:]
+
+    gathered_firm_ids = await simulation.gather(
+        "firm_id",
+        orig_citizen_ids,
+    )
+    logging.debug(f"Gathered firm_ids: {gathered_firm_ids}")
+    for government_id in government_ids:
+        await simulation.economy_update(government_id, "citizen_ids", citizen_ids)
+    for bank_id in bank_ids:
+        await simulation.economy_update(bank_id, "citizen_ids", citizen_ids)
+    for nbs_id in nbs_ids:
+        await simulation.update(nbs_id, "citizen_ids", citizen_ids)
+        await simulation.economy_update(nbs_id, "citizen_ids", citizen_ids)
     logger.info("Agent info binding completed!")

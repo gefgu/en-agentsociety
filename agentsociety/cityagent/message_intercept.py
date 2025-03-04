@@ -5,14 +5,14 @@ from agentsociety.message import MessageBlockBase, MessageBlockListenerBase
 
 
 async def check_message(
-    from_uuid: str, to_uuid: str, llm_client: LLM, content: str
+    from_id: str, to_id: str, llm_client: LLM, content: str
 ) -> bool:
-    print(f"\n Checking Message: {from_uuid} -> {to_uuid}: {content}")
+    print(f"\n Checking Message: {from_id} -> {to_id}: {content}")
     is_valid = True
     prompt = f"""
         Please determine if the following message is emotionally provocative:
-        Sender ID: {from_uuid}
-        Receiver ID: {to_uuid}
+        Sender ID: {from_id}
+        Receiver ID: {to_id}
         Message content: {content}
         
         If the message is emotionally provocative, please return False; if the message is normal, please return True.
@@ -43,32 +43,32 @@ class EdgeMessageBlock(MessageBlockBase):
 
     async def forward(  # type:ignore
         self,
-        from_uuid: str,
-        to_uuid: str,
+        from_id: int,
+        to_id: int,
         msg: str,
-        violation_counts: dict[str, int],
-        black_list: list[tuple[str, str]],
+        violation_counts: dict[int, int],
+        black_list: list[tuple[int, int]],
     ):
         if (
-            (from_uuid, to_uuid) in set(black_list)
-            or (None, to_uuid) in set(black_list)
-            or (from_uuid, None) in set(black_list)
+            (from_id, to_id) in set(black_list)
+            or (None, to_id) in set(black_list)
+            or (from_id, None) in set(black_list)
         ):
             # Optionally return the information to be enqueued as a tuple (False, err). If only a bool value is returned, the default error message will be enqueued.
             return False
         else:
             is_valid = await check_message(
-                from_uuid=from_uuid,
-                to_uuid=to_uuid,
+                from_id=from_id,
+                to_id=to_id,
                 llm_client=self.llm,
                 content=msg,
             )
             if (
                 not is_valid
-                and violation_counts[from_uuid] >= self.max_violation_time - 1
+                and violation_counts[from_id] >= self.max_violation_time - 1
             ):
                 # Can be directly added. The internal asynchronous lock of the framework ensures no conflict.
-                black_list.append((from_uuid, to_uuid))
+                black_list.append((from_id, to_id))
             return is_valid
 
 
@@ -79,33 +79,33 @@ class PointMessageBlock(MessageBlockBase):
 
     async def forward(  # type:ignore
         self,
-        from_uuid: str,
-        to_uuid: str,
+        from_id: int,
+        to_id: int,
         msg: str,
-        violation_counts: dict[str, int],
-        black_list: list[tuple[str, str]],
+        violation_counts: dict[int, int],
+        black_list: list[tuple[int, int]],
     ):
         if (
-            (from_uuid, to_uuid) in set(black_list)
-            or (None, to_uuid) in set(black_list)
-            or (from_uuid, None) in set(black_list)
+            (from_id, to_id) in set(black_list)
+            or (None, to_id) in set(black_list)
+            or (from_id, None) in set(black_list)
         ):
             # Optionally return the information to be enqueued as a tuple (False, err). If only a bool value is returned, the default error message will be enqueued.
             return False
         else:
             # Violation count is automatically maintained within the framework, so it does not need to be handled here.
             is_valid = await check_message(
-                from_uuid=from_uuid,
-                to_uuid=to_uuid,
+                from_id=from_id,
+                to_id=to_id,
                 llm_client=self.llm,
                 content=msg,
             )
             if (
                 not is_valid
-                and violation_counts[from_uuid] >= self.max_violation_time - 1
+                and violation_counts[from_id] >= self.max_violation_time - 1
             ):
                 # Can be directly added. The internal asynchronous lock of the framework ensures no conflict.
-                black_list.append((from_uuid, None))  # type:ignore
+                black_list.append((from_id, None))  # type:ignore
             return is_valid
 
 

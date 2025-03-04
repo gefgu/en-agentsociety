@@ -200,14 +200,14 @@ class FindPersonBlock(Block):
 
             # Create a list of friends with all information
             friend_info = []
-            index_to_uuid = {}
+            index_to_id = {}
 
             for i, friend_id in enumerate(friends):
                 relationship_strength = relationships.get(friend_id, 0)
                 friend_info.append(
                     {"index": i, "relationship_strength": relationship_strength}
                 )
-                index_to_uuid[i] = friend_id
+                index_to_id[i] = friend_id
 
             # Format friend information for easier reading
             formatted_friend_info = {
@@ -242,12 +242,12 @@ class FindPersonBlock(Block):
                     raise ValueError("Invalid mode")
                 if (
                     not isinstance(friend_index, int)
-                    or friend_index not in index_to_uuid
+                    or friend_index not in index_to_id
                 ):
                     raise ValueError("Invalid friend index")
 
-                # Convert index to UUID
-                target = index_to_uuid[friend_index]
+                # Convert index to ID
+                target = index_to_id[friend_index]
                 context["target"] = target  # type:ignore
             except Exception as e:
                 # If parsing fails, select the friend with the strongest relationship as the default option

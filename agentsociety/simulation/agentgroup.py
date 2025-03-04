@@ -89,7 +89,7 @@ class AgentGroup:
         self.number_of_agents = number_of_agents
         self.memory_config_function_group = memory_config_function_group
         self.agents: list[Agent] = []
-        self.id2agent: dict[str, Agent] = {}
+        self.id2agent: dict[int, Agent] = {}
         self.config = config
         self.exp_id = exp_id
         self.enable_avro = enable_avro
@@ -196,14 +196,13 @@ class AgentGroup:
                 if self._message_interceptor is not None:
                     agent.set_message_interceptor(self._message_interceptor)
                 self.agents.append(agent)
-                self.id2agent[agent._uuid] = agent
 
     @property
     def agent_count(self):
         return self.number_of_agents
 
     @property
-    def agent_uuids(self):
+    def agent_ids(self):
         return list(self.id2agent.keys())
 
     @property
@@ -232,8 +231,8 @@ class AgentGroup:
     def get_agent_count(self):
         return self.agent_count
 
-    def get_agent_uuids(self):
-        return self.agent_uuids
+    def get_agent_ids(self):
+        return self.agent_ids
 
     def get_agent_type(self):
         return self.agent_type
@@ -257,7 +256,8 @@ class AgentGroup:
                 break
             await asyncio.sleep(1)
         await self.insert_agent()
-        self.id2agent = {agent._uuid: agent for agent in self.agents}
+        logger.warning(f"-----Agents in AgentGroup {self._uuid} initialized")
+        self.id2agent = {agent.id: agent for agent in self.agents}
         logger.debug(f"-----Binding Agents to Messager in AgentGroup {self._uuid} ...")
         assert self.messager is not None
         await self.messager.connect.remote()
@@ -267,9 +267,9 @@ class AgentGroup:
             agents = []
             for agent in self.agents:
                 agent.set_messager(self.messager)
-                topic = (f"exps/{self.exp_id}/agents/{agent._uuid}/#", 1)
+                topic = (f"exps/{self.exp_id}/agents/{agent.id}/#", 1)
                 topics.append(topic)
-                agents.append(agent.uuid)
+                agents.append(agent.id)
             await self.messager.subscribe.remote(topics, agents)
         self.message_dispatch_task = asyncio.create_task(self.message_dispatch())
         if self.enable_avro:
@@ -282,7 +282,7 @@ class AgentGroup:
                     for agent in self.agents:
                         profile = await agent.status.profile.export()
                         profile = profile[0]
-                        profile["id"] = agent._uuid
+                        profile["id"] = agent.id
                         profiles.append(profile)
                     fastavro.writer(f, PROFILE_SCHEMA, profiles)
 
@@ -313,10 +313,10 @@ class AgentGroup:
                 for agent in self.agents:
                     profile = await agent.status.profile.export()
                     profile = profile[0]
-                    profile["id"] = agent._uuid
+                    profile["id"] = agent.id
                     profiles.append(
                         (
-                            agent._uuid,
+                            agent.id,
                             profile.get("name", ""),
                             json.dumps(
                                 {
@@ -332,10 +332,10 @@ class AgentGroup:
                 for agent in self.agents:
                     profile = await agent.status.profile.export()
                     profile = profile[0]
-                    profile["id"] = agent._uuid
+                    profile["id"] = agent.id
                     profiles.append(
                         (
-                            agent._uuid,
+                            agent.id,
                             profile.get("name", ""),
                             json.dumps(
                                 {
@@ -381,7 +381,7 @@ class AgentGroup:
         - **Returns**:
             - `List[str]`: A list of UUIDs for agents that match the filter criteria.
         """
-        filtered_uuids = []
+        filtered_ids = []
         for agent in self.agents:
             add = True
             if types:
@@ -393,7 +393,7 @@ class AgentGroup:
                                 add = False
                                 break
                     if add:
-                        filtered_uuids.append(agent._uuid)
+                        filtered_ids.append(agent.id)
             elif keys:
                 for key in keys:
                     assert values is not None
@@ -401,49 +401,47 @@ class AgentGroup:
                         add = False
                         break
                 if add:
-                    filtered_uuids.append(agent._uuid)
-        return filtered_uuids
+                    filtered_ids.append(agent.id)
+        return filtered_ids
 
-    async def gather(
-        self, content: str, target_agent_uuids: Optional[list[str]] = None
-    ):
+    async def gather(self, content: str, target_agent_ids: Optional[list[int]] = None):
         """
         Gathers specific content from all or targeted agents within the group.
 
         - **Args**:
             - `content` (str): The key of the status content to gather from the agents.
-            - `target_agent_uuids` (Optional[List[str]]): A list of agent UUIDs to target. If None, targets all agents.
+            - `target_agent_ids` (Optional[List[int]]): A list of agent IDs to target. If None, targets all agents.
 
         - **Returns**:
-            - `Dict[str, Any]`: A dictionary mapping agent UUIDs to the gathered content.
+            - `Dict[str, Any]`: A dictionary mapping agent IDs to the gathered content.
         """
         logger.debug(f"-----Gathering {content} from all agents in group {self._uuid}")
         results = {}
-        if target_agent_uuids is None:
-            target_agent_uuids = self.agent_uuids
+        if target_agent_ids is None:
+            target_agent_ids = self.agent_ids
         if content == "stream_memory":
             for agent in self.agents:
-                if agent._uuid in target_agent_uuids:
-                    results[agent._uuid] = await agent.stream.get_all()
+                if agent.id in target_agent_ids:
+                    results[agent.id] = await agent.stream.get_all()
         else:
             for agent in self.agents:
-                if agent._uuid in target_agent_uuids:
-                    results[agent._uuid] = await agent.status.get(content)
+                if agent.id in target_agent_ids:
+                    results[agent.id] = await agent.status.get(content)
         return results
 
-    async def update(self, target_agent_uuid: str, target_key: str, content: Any):
+    async def update(self, target_agent_id: int, target_key: str, content: Any):
         """
         Updates a specific key in the status of a targeted agent.
 
         - **Args**:
-            - `target_agent_uuid` (str): The UUID of the agent to update.
+            - `target_agent_id` (int): The ID of the agent to update.
             - `target_key` (str): The key in the agent's status to update.
             - `content` (Any): The new value for the specified key.
         """
         logger.debug(
-            f"-----Updating {target_key} for agent {target_agent_uuid} in group {self._uuid}"
+            f"-----Updating {target_key} for agent {target_agent_id} in group {self._uuid}"
         )
-        agent = self.id2agent[target_agent_uuid]
+        agent = self.id2agent[target_agent_id]
         await agent.status.update(target_key, content)
 
     async def message_dispatch(self):
@@ -452,7 +450,7 @@ class AgentGroup:
 
         - **Description**:
             - Continuously listens for incoming MQTT messages and dispatches them to the relevant agents based on the topic.
-            - Messages are expected to have a topic formatted as "exps/{exp_id}/agents/{agent_uuid}/{topic_type}".
+            - Messages are expected to have a topic formatted as "exps/{exp_id}/agents/{agent.id}/{topic_type}".
             - The payload is decoded from bytes to string and then parsed as JSON.
             - Depending on the `topic_type`, different handler methods on the agent are called to process the message.
         """
@@ -479,11 +477,11 @@ class AgentGroup:
                     payload = payload.decode("utf-8")
                     payload = json.loads(payload)
 
-                # Extract agent_id (topic format is "exps/{exp_id}/agents/{agent_uuid}/{topic_type}")
-                _, _, _, agent_uuid, topic_type = topic.strip("/").split("/")
+                # Extract agent_id (topic format is "exps/{exp_id}/agents/{agent_id}/{topic_type}")
+                _, _, _, agent_id, topic_type = topic.strip("/").split("/")
 
-                if agent_uuid in self.id2agent:
-                    agent = self.id2agent[agent_uuid]
+                if agent_id in self.id2agent:
+                    agent = self.id2agent[agent_id]
                     # topic_type: agent-chat, user-chat, user-survey, gather
                     if topic_type == "agent-chat":
                         await agent.handle_agent_chat_message(payload)
@@ -537,7 +535,7 @@ class AgentGroup:
                     action = await agent.status.get("current_step")
                     action = action["intention"]
                     avro = {
-                        "id": agent._uuid,
+                        "id": agent.id,
                         "day": _day,
                         "t": _t,
                         "lng": lng,
@@ -569,7 +567,7 @@ class AgentGroup:
                     bracket_rates = await agent.status.get("bracket_rates", [])
                     employees = await agent.status.get("employees", [])
                     avro = {
-                        "id": agent._uuid,
+                        "id": agent.id,
                         "day": _day,
                         "t": _t,
                         "type": await agent.status.get("type"),
@@ -646,7 +644,7 @@ class AgentGroup:
                         action = await agent.status.get("current_step")
                         action = action["intention"]
                         _status_dict = {
-                            "id": agent._uuid,
+                            "id": agent.id,
                             "day": _day,
                             "t": _t,
                             "lng": lng,
@@ -687,7 +685,7 @@ class AgentGroup:
                         employees = await agent.status.get("employees", [])
                         friend_ids = await agent.status.get("friends", [])
                         _status_dict = {
-                            "id": agent._uuid,
+                            "id": agent.id,
                             "day": _day,
                             "t": _t,
                             "lng": lng,
@@ -800,4 +798,6 @@ class AgentGroup:
             import traceback
 
             logger.error(f"Simulator Error: {str(e)}\n{traceback.format_exc()}")
-            raise RuntimeError(str(e)) from e
+            raise RuntimeError(
+                str(e) + f" input arg day:({day}, {type(day)}), t:({t}, {type(t)})"
+            ) from e

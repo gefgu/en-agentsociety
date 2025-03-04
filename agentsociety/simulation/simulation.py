@@ -123,12 +123,12 @@ class AgentSimulation:
         self._economy_addr = economy_addr = server_addr
         self.agent_prefix = agent_prefix
         self._groups: dict[str, AgentGroup] = {}  # type:ignore
-        self._agent_uuid2group: dict[str, AgentGroup] = {}  # type:ignore
-        self._agent_uuids: list[str] = []
+        self._agent_id2group: dict[int, AgentGroup] = {}  # type:ignore
+        self._agent_ids: list[int] = []
         self._type2group: dict[Type[Agent], AgentGroup] = {}
-        self._user_chat_topics: dict[str, str] = {}
-        self._user_survey_topics: dict[str, str] = {}
-        self._user_interview_topics: dict[str, str] = {}
+        self._user_chat_topics: dict[int, str] = {}
+        self._user_survey_topics: dict[int, str] = {}
+        self._user_interview_topics: dict[int, str] = {}
         self._loop = asyncio.get_event_loop()
         self._total_steps = 0
         self._simulator_day = 0
@@ -329,6 +329,19 @@ class AgentSimulation:
             llm_semaphore=config.llm_semaphore,
         )
         logger.info("Running Init Functions...")
+        # # test eco get
+        # for firm_id in simulation.economy_client._firm_ids:
+        #     firm = await simulation.economy_client._get_firm(firm_id)
+        #     print(firm)
+        # for bank_id in simulation.economy_client._bank_ids:
+        #     bank = await simulation.economy_client._get_bank(bank_id)
+        #     print(bank)
+        # for nbs_id in simulation.economy_client._nbs_ids:
+        #     nbs = await simulation.economy_client._get_nbs(nbs_id)
+        #     print(nbs)
+        # for government_id in simulation.economy_client._government_ids:
+        #     government = await simulation.economy_client._get_government(government_id)
+        #     print(government)
         init_funcs = agent_config.init_func
         if init_funcs is None:
             init_funcs = [bind_agent_info, initialize_social_network]
@@ -406,12 +419,12 @@ class AgentSimulation:
         return self._groups
 
     @property
-    def agent_uuids(self):
-        return self._agent_uuids
+    def agent_ids(self):
+        return self._agent_ids
 
     @property
-    def agent_uuid2group(self):
-        return self._agent_uuid2group
+    def agent_id2group(self):
+        return self._agent_id2group
 
     @property
     def messager(self) -> ray.ObjectRef:
@@ -720,26 +733,7 @@ class AgentSimulation:
                 llm_semaphore,
                 environment,
             )
-            creation_tasks.append((group_name, group))
-
-        # update data structure
-        for group_name, group in creation_tasks:
             self._groups[group_name] = group
-            group_agent_uuids = ray.get(group.get_agent_uuids.remote())
-            for agent_uuid in group_agent_uuids:
-                self._agent_uuids.append(agent_uuid)
-                self._agent_uuid2group[agent_uuid] = group
-                self._user_chat_topics[agent_uuid] = (
-                    f"exps/{self.exp_id}/agents/{agent_uuid}/user-chat"
-                )
-                self._user_survey_topics[agent_uuid] = (
-                    f"exps/{self.exp_id}/agents/{agent_uuid}/user-survey"
-                )
-            group_agent_type = ray.get(group.get_agent_type.remote())
-            for agent_type in group_agent_type:
-                if agent_type not in self._type2group:
-                    self._type2group[agent_type] = []
-                self._type2group[agent_type].append(group)
 
         # parallel initialize all groups' agents
         init_tasks = []
@@ -751,6 +745,24 @@ class AgentSimulation:
             [(f"exps/{self.exp_id}/user_payback", 1)], [self.exp_id]
         )
         await self.messager.start_listening.remote()  # type:ignore
+
+        # update data structure
+        for group_name, group in self._groups.items():
+            group_agent_ids = ray.get(group.get_agent_ids.remote())
+            for agent_id in group_agent_ids:
+                self._agent_ids.append(agent_id)
+                self._agent_id2group[agent_id] = group
+                self._user_chat_topics[agent_id] = (
+                    f"exps/{self.exp_id}/agents/{agent_id}/user-chat"
+                )
+                self._user_survey_topics[agent_id] = (
+                    f"exps/{self.exp_id}/agents/{agent_id}/user-survey"
+                )
+            group_agent_type = ray.get(group.get_agent_type.remote())
+            for agent_type in group_agent_type:
+                if agent_type not in self._type2group:
+                    self._type2group[agent_type] = []
+                self._type2group[agent_type].append(group)
 
         agent_ids = set()
         bank_ids = set()
@@ -780,7 +792,7 @@ class AgentSimulation:
             )
 
     async def gather(
-        self, content: str, target_agent_uuids: Optional[list[str]] = None
+        self, content: str, target_agent_ids: Optional[list[int]] = None
     ):
         """
         Collect specific information from agents.
@@ -790,14 +802,14 @@ class AgentSimulation:
 
         - **Args**:
             - `content` (str): The information to collect from the agents.
-            - `target_agent_uuids` (Optional[List[str]], optional): A list of agent UUIDs to target. Defaults to None, meaning all agents are targeted.
+            - `target_agent_ids` (Optional[List[int]], optional): A list of agent IDs to target. Defaults to None, meaning all agents are targeted.
 
         - **Returns**:
             - Result of the gathering process as returned by each group's `gather` method.
         """
         gather_tasks = []
         for group in self._groups.values():
-            gather_tasks.append(group.gather.remote(content, target_agent_uuids))
+            gather_tasks.append(group.gather.remote(content, target_agent_ids))
         return await asyncio.gather(*gather_tasks)
 
     async def filter(
@@ -805,7 +817,7 @@ class AgentSimulation:
         types: Optional[list[Type[Agent]]] = None,
         keys: Optional[list[str]] = None,
         values: Optional[list[Any]] = None,
-    ) -> list[str]:
+    ) -> list[int]:
         """
         Filter out agents of specified types or with matching key-value pairs.
 
@@ -818,10 +830,10 @@ class AgentSimulation:
             - `ValueError`: If neither types nor keys and values are provided, or if the lengths of keys and values do not match.
 
         - **Returns**:
-            - `List[str]`: A list of filtered agent UUIDs.
+            - `List[int]`: A list of filtered agent UUIDs.
         """
         if not types and not keys and not values:
-            return self._agent_uuids
+            return self._agent_ids
         group_to_filter = []
         if types is not None:
             for t in types:
@@ -829,17 +841,17 @@ class AgentSimulation:
                     group_to_filter.extend(self._type2group[t])
                 else:
                     raise ValueError(f"type {t} not found in simulation")
-        filtered_uuids = []
+        filtered_ids = []
         if keys:
             if values is None or len(keys) != len(values):
                 raise ValueError("the length of key and value does not match")
             for group in group_to_filter:
-                filtered_uuids.extend(await group.filter.remote(types, keys, values))
-            return filtered_uuids
+                filtered_ids.extend(await group.filter.remote(types, keys, values))
+            return filtered_ids
         else:
             for group in group_to_filter:
-                filtered_uuids.extend(await group.filter.remote(types))
-            return filtered_uuids
+                filtered_ids.extend(await group.filter.remote(types))
+            return filtered_ids
 
     async def update_environment(self, key: str, value: str):
         """
@@ -853,17 +865,17 @@ class AgentSimulation:
         for group in self._groups.values():
             await group.update_environment.remote(key, value)
 
-    async def update(self, target_agent_uuid: str, target_key: str, content: Any):
+    async def update(self, target_agent_id: int, target_key: str, content: Any):
         """
         Update the memory of a specified agent.
 
         - **Args**:
-            - `target_agent_uuid` (str): The UUID of the target agent to update.
+            - `target_agent_id` (int): The ID of the target agent to update.
             - `target_key` (str): The key in the agent's memory to update.
             - `content` (Any): The new content to set for the target key.
         """
-        group = self._agent_uuid2group[target_agent_uuid]
-        await group.update.remote(target_agent_uuid, target_key, content)
+        group = self._agent_id2group[target_agent_id]
+        await group.update.remote(target_agent_id, target_key, content)
 
     async def economy_update(
         self,
@@ -885,13 +897,13 @@ class AgentSimulation:
             id=target_agent_id, key=target_key, value=content, mode=mode
         )
 
-    async def send_survey(self, survey: Survey, agent_uuids: list[str] = []):
+    async def send_survey(self, survey: Survey, agent_ids: list[int] = []):
         """
         Send a survey to specified agents.
 
         - **Args**:
             - `survey` (Survey): The survey object to send.
-            - `agent_uuids` (List[str], optional): List of agent UUIDs to receive the survey. Defaults to an empty list.
+            - `agent_ids` (List[int], optional): List of agent IDs to receive the survey. Defaults to an empty list.
 
         - **Returns**:
             - None
@@ -905,10 +917,10 @@ class AgentSimulation:
             "data": survey_dict,
             "_date_time": _date_time,
         }
-        for uuid in agent_uuids:
-            topic = self._user_survey_topics[uuid]
+        for id in agent_ids:
+            topic = self._user_survey_topics[id]
             await self.messager.send_message.remote(topic, payload)  # type:ignore
-        remain_payback = len(agent_uuids)
+        remain_payback = len(agent_ids)
         while True:
             messages = await self.messager.fetch_messages.remote()  # type:ignore
             logger.info(f"Received {len(messages)} payback messages [survey]")
@@ -918,14 +930,14 @@ class AgentSimulation:
             await asyncio.sleep(3)
 
     async def send_interview_message(
-        self, content: str, agent_uuids: Union[str, list[str]]
+        self, content: str, agent_ids: Union[int, list[int]]
     ):
         """
         Send an interview message to specified agents.
 
         - **Args**:
             - `content` (str): The content of the message to send.
-            - `agent_uuids` (Union[str, List[str]]): A single UUID string or a list of UUID strings for the agents to receive the message.
+            - `agent_ids` (Union[int, List[int]]): A single ID or a list of IDs for the agents to receive the message.
 
         - **Returns**:
             - None
@@ -937,12 +949,12 @@ class AgentSimulation:
             "timestamp": int(_date_time.timestamp() * 1000),
             "_date_time": _date_time,
         }
-        if not isinstance(agent_uuids, list):
-            agent_uuids = [agent_uuids]
-        for uuid in agent_uuids:
-            topic = self._user_chat_topics[uuid]
+        if not isinstance(agent_ids, list):
+            agent_ids = [agent_ids]
+        for id in agent_ids:
+            topic = self._user_chat_topics[id]
             await self.messager.send_message.remote(topic, payload)  # type:ignore
-        remain_payback = len(agent_uuids)
+        remain_payback = len(agent_ids)
         while True:
             messages = await self.messager.fetch_messages.remote()  # type:ignore
             logger.info(f"Received {len(messages)} payback messages [interview]")

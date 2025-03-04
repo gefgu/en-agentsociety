@@ -22,7 +22,7 @@ PGSQL_DICT: dict[str, list[Any]] = {
     "agent_profile": [
         """
     CREATE TABLE IF NOT EXISTS {table_name} (
-        id UUID PRIMARY KEY,
+        id INT PRIMARY KEY,
         name TEXT,
         profile JSONB
     )
@@ -32,7 +32,7 @@ PGSQL_DICT: dict[str, list[Any]] = {
     "agent_dialog": [
         """
     CREATE TABLE IF NOT EXISTS {table_name} (
-        id UUID,
+        id INT,
         day INT4,
         t FLOAT,
         type INT4,
@@ -48,13 +48,13 @@ PGSQL_DICT: dict[str, list[Any]] = {
     "agent_status": [
         """
     CREATE TABLE IF NOT EXISTS {table_name} (
-        id UUID,
+        id INT,
         day INT4,
         t FLOAT,
         lng DOUBLE PRECISION,
         lat DOUBLE PRECISION,
         parent_id INT4,
-        friend_ids UUID[],
+        friend_ids INT[],
         action TEXT,
         status JSONB,
         created_at TIMESTAMPTZ
@@ -67,7 +67,7 @@ PGSQL_DICT: dict[str, list[Any]] = {
     "agent_survey": [
         """
     CREATE TABLE IF NOT EXISTS {table_name} (
-        id UUID,
+        id INT,
         day INT4,
         t FLOAT,
         survey_id UUID,

@@ -4,7 +4,6 @@ import asyncio
 import inspect
 import json
 import logging
-import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from enum import Enum
@@ -82,7 +81,6 @@ class Agent(ABC):
         """
         self._name = name
         self._type = type
-        self._uuid = str(uuid.uuid4())
         self._llm_client = llm_client
         self._economy_client = economy_client
         self._messager = messager
@@ -349,12 +347,7 @@ class Agent(ABC):
         self._message_interceptor = message_interceptor
 
     @property
-    def uuid(self):
-        """The Agent's UUID"""
-        return self._uuid
-
-    @property
-    def sim_id(self):
+    def id(self):
         """The Agent's Simulator ID"""
         return self._agent_id
 
@@ -511,7 +504,7 @@ class Agent(ABC):
         # Avro
         response_to_avro = [
             {
-                "id": self._uuid,
+                "id": self.id,
                 "day": await self.simulator.get_simulator_day(),
                 "t": await self.simulator.get_simulator_second_from_start_of_day(),
                 "survey_id": survey["id"],
@@ -620,7 +613,7 @@ class Agent(ABC):
         auros: list[dict] = []
         _date_time = datetime.now(timezone.utc)
         _interview_dict = {
-            "id": self._uuid,
+            "id": self.id,
             "day": await self.simulator.get_simulator_day(),
             "t": await self.simulator.get_simulator_second_from_start_of_day(),
             "type": 2,
@@ -634,7 +627,7 @@ class Agent(ABC):
         response = await self.generate_user_chat_response(question)
         _date_time = datetime.now(timezone.utc)
         _interview_dict = {
-            "id": self._uuid,
+            "id": self.id,
             "day": await self.simulator.get_simulator_day(),
             "t": await self.simulator.get_simulator_second_from_start_of_day(),
             "type": 2,
@@ -679,7 +672,7 @@ class Agent(ABC):
         """
         _date_time = datetime.now(timezone.utc)
         _thought_dict = {
-            "id": self._uuid,
+            "id": self.id,
             "day": await self.simulator.get_simulator_day(),
             "t": await self.simulator.get_simulator_second_from_start_of_day(),
             "type": 0,
@@ -722,7 +715,7 @@ class Agent(ABC):
             - Logs the receipt of a chat response from another agent.
             - Returns a formatted string for logging purposes.
         """
-        resp = f"Agent {self._uuid} received agent chat response: {payload}"
+        resp = f"Agent {self.id} received agent chat response: {payload}"
         logger.info(resp)
         return resp
 
@@ -744,7 +737,7 @@ class Agent(ABC):
         auros: list[dict] = []
         _date_time = datetime.now(timezone.utc)
         _chat_dict = {
-            "id": self._uuid,
+            "id": self.id,
             "day": payload["day"],
             "t": payload["t"],
             "type": 1,
@@ -789,7 +782,7 @@ class Agent(ABC):
         """
         # Process the received message, identify the sender
         # Parse sender ID and message content from the message
-        logger.info(f"Agent {self._uuid} received agent chat message: {payload}")
+        logger.info(f"Agent {self.id} received agent chat message: {payload}")
         asyncio.create_task(self._process_agent_chat(payload))
 
     async def handle_user_chat_message(self, payload: dict):
@@ -806,7 +799,7 @@ class Agent(ABC):
         """
         # Process the received message, identify the sender
         # Parse sender ID and message content from the message
-        logger.info(f"Agent {self._uuid} received user chat message: {payload}")
+        logger.info(f"Agent {self.id} received user chat message: {payload}")
         asyncio.create_task(self._process_interview(payload))
 
     async def handle_user_survey_message(self, payload: dict):
@@ -823,7 +816,7 @@ class Agent(ABC):
         """
         # Process the received message, identify the sender
         # Parse sender ID and message content from the message
-        logger.info(f"Agent {self._uuid} received user survey message: {payload}")
+        logger.info(f"Agent {self.id} received user survey message: {payload}")
         asyncio.create_task(self._process_survey(payload["data"]))
 
     async def handle_gather_message(self, payload: Any):
@@ -841,12 +834,12 @@ class Agent(ABC):
         """
 
     # MQTT send message
-    async def _send_message(self, to_agent_uuid: str, payload: dict, sub_topic: str):
+    async def _send_message(self, to_agent_id: int, payload: dict, sub_topic: str):
         """
         Send a message to another agent through the Messager.
 
         - **Args**:
-            - `to_agent_uuid` (`str`): The UUID of the recipient agent.
+            - `to_agent_id` (`int`): The ID of the recipient agent.
             - `payload` (`dict`): The content of the message to send.
             - `sub_topic` (`str`): The sub-topic for the MQTT topic structure.
 
@@ -854,29 +847,29 @@ class Agent(ABC):
             - `RuntimeError`: If the Messager is not set.
 
         - **Description**:
-            - Constructs the full MQTT topic based on the experiment ID, recipient UUID, and sub-topic.
+            - Constructs the full MQTT topic based on the experiment ID, recipient ID, and sub-topic.
             - Sends the message asynchronously through the Messager.
             - Used internally by other methods like `send_message_to_agent`.
         """
         # send message with `Messager`
         if self._messager is None:
             raise RuntimeError("Messager is not set")
-        topic = f"exps/{self._exp_id}/agents/{to_agent_uuid}/{sub_topic}"
+        topic = f"exps/{self._exp_id}/agents/{to_agent_id}/{sub_topic}"
         await self._messager.send_message.remote(  # type:ignore
             topic,
             payload,
-            self._uuid,
-            to_agent_uuid,
+            self.id,
+            to_agent_id,
         )
 
     async def send_message_to_agent(
-        self, to_agent_uuid: str, content: str, type: str = "social"
+        self, to_agent_id: int, content: str, type: str = "social"
     ):
         """
         Send a social or economy message to another agent.
 
         - **Args**:
-            - `to_agent_uuid` (`str`): The UUID of the recipient agent.
+            - `to_agent_id` (`int`): The ID of the recipient agent.
             - `content` (`str`): The content of the message to send.
             - `type` (`str`, optional): The type of the message ("social" or "economy"). Defaults to "social".
 
@@ -894,25 +887,25 @@ class Agent(ABC):
         if self._messager is None:
             raise RuntimeError("Messager is not set")
         if type not in ["social", "economy"]:
-            logger.warning(f"Invalid message type: {type}, sent from {self._uuid}")
+            logger.warning(f"Invalid message type: {type}, sent from {self.id}")
         payload = {
-            "from": self._uuid,
+            "from": self.id,
             "content": content,
             "type": type,
             "timestamp": int(datetime.now().timestamp() * 1000),
             "day": await self.simulator.get_simulator_day(),
             "t": await self.simulator.get_simulator_second_from_start_of_day(),
         }
-        await self._send_message(to_agent_uuid, payload, "agent-chat")
+        await self._send_message(to_agent_id, payload, "agent-chat")
         pg_list: list[tuple[dict, datetime]] = []
         auros: list[dict] = []
         _date_time = datetime.now(timezone.utc)
         _message_dict = {
-            "id": self._uuid,
+            "id": self.id,
             "day": await self.simulator.get_simulator_day(),
             "t": await self.simulator.get_simulator_second_from_start_of_day(),
             "type": 1,
-            "speaker": self._uuid,
+            "speaker": self.id,
             "content": content,
             "created_at": int(datetime.now().timestamp() * 1000),
         }

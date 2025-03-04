@@ -361,7 +361,7 @@ class SocietyAgent(CitizenAgent):
     async def process_agent_chat_response(self, payload: dict) -> str:  # type:ignore
         """Process incoming social/economic messages and generate responses."""
         if payload["type"] == "social":
-            resp = f"Agent {self._uuid} received agent chat response: {payload}"
+            resp = f"Agent {self.id} received agent chat response: {payload}"
             try:
                 # Extract basic info
                 sender_id = payload.get("from")

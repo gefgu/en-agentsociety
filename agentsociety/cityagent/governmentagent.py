@@ -93,24 +93,23 @@ class GovernmentAgent(InstitutionAgent):
     async def forward(self):
         """Execute the government's periodic tax collection and notification cycle."""
         if await self.month_trigger():
-            citizens = await self.memory.status.get("citizens")
-            agents_forward = await self.gather_messages(citizens, "forward")
+            citizen_ids = await self.memory.status.get("citizen_ids")
+            agents_forward = await self.gather_messages(citizen_ids, "forward")
             if not np.all(np.array(agents_forward) > self.forward_times):
                 return
-            citizens_agent_id = await self.memory.status.get("citizens_agent_id")
-            incomes = await self.gather_messages(citizens, "income_currency")  # uuid
+            incomes = await self.gather_messages(citizen_ids, "income_currency")
             _, post_tax_incomes = await self.economy_client.calculate_taxes_due(
-                self._agent_id, citizens_agent_id, incomes, enable_redistribution=False
+                self._agent_id, citizen_ids, incomes, enable_redistribution=False
             )
-            for uuid, income, post_tax_income in zip(
-                citizens, incomes, post_tax_incomes
+            for citizen_id, income, post_tax_income in zip(
+                citizen_ids, incomes, post_tax_incomes
             ):
                 tax_paid = income - post_tax_income
                 await self.send_message_to_agent(
-                    uuid, f"tax_paid@{tax_paid}", "economy"
+                    citizen_id, f"tax_paid@{tax_paid}", "economy"
                 )
             self.forward_times += 1
-            for uuid in citizens:
+            for citizen_id in citizen_ids:
                 await self.send_message_to_agent(
-                    uuid, f"government_forward@{self.forward_times}", "economy"
+                    citizen_id, f"government_forward@{self.forward_times}", "economy"
                 )

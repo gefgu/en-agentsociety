@@ -188,8 +188,8 @@ class Messager:
         self,
         topic: str,
         payload: dict,
-        from_uuid: Optional[str] = None,
-        to_uuid: Optional[str] = None,
+        from_id: Optional[int] = None,
+        to_id: Optional[int] = None,
     ):
         """
         Send a message through the MQTT broker.
@@ -197,8 +197,8 @@ class Messager:
         - **Args**:
             - `topic` (str): Topic to which the message should be published.
             - `payload` (dict): Payload of the message to send.
-            - `from_uuid` (Optional[str], optional): UUID of the sender. Required for interception.
-            - `to_uuid` (Optional[str], optional): UUID of the recipient. Required for interception.
+            - `from_id` (Optional[int], optional): ID of the sender. Required for interception.
+            - `to_id` (Optional[int], optional): ID of the recipient. Required for interception.
 
         - **Description**:
             - Serializes the payload to JSON, checks it against the message interceptor (if any),
@@ -208,17 +208,17 @@ class Messager:
         log = {
             "topic": topic,
             "payload": payload,
-            "from_uuid": from_uuid,
-            "to_uuid": to_uuid,
+            "from_id": from_id,
+            "to_id": to_id,
             "start_time": start_time,
             "consumption": 0,
         }
         message = json.dumps(payload, default=str)
         interceptor = self.message_interceptor
         is_valid: bool = True
-        if interceptor is not None and (from_uuid is not None and to_uuid is not None):
+        if interceptor is not None and (from_id is not None and to_id is not None):
             is_valid = await interceptor.forward.remote(  # type:ignore
-                from_uuid, to_uuid, message
+                from_id, to_id, message
             )
         if is_valid:
             await self.client.publish(topic=topic, payload=message, qos=1)

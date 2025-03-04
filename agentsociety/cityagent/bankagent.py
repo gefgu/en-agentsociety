@@ -164,6 +164,7 @@ class BankAgent(InstitutionAgent):
             nbs_id = await self.economy_client.get_nbs_ids()
             nbs_id = nbs_id[0]
             prices = await self.economy_client.get(nbs_id, "prices")
+            prices = list(prices.values())
             inflations = calculate_inflation(prices)
             natural_interest_rate = 0.01
             target_inflation = 0.02

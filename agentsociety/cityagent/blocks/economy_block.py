@@ -352,6 +352,7 @@ class MonthPlanBlock(Block):
             skill, consumption, wealth = await self.economy_client.get(
                 agent_id, ["skill", "consumption", "currency"]
             )
+            logger.debug(f"type of skill: {type(skill)}, value: {skill}")
             tax_paid = await self.memory.status.get("tax_paid")
             prices = await self.economy_client.get(firms_id, "price")
             price = np.mean(prices)

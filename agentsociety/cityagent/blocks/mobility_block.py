@@ -264,97 +264,118 @@ class MoveBlock(Block):
         self.placeAnalysisPrompt = FormatPrompt(PLACE_ANALYSIS_PROMPT)
 
     async def forward(self, step, context):  # type:ignore
-        """Execute movement based on place analysis"""
         agent_id = await self.memory.status.get("id")
-        response = await self._get_place_type(context["plan"], step["intention"])
-
-        if response == "home":
-            return await self._move_home(agent_id)
-        elif response == "workplace":
-            return await self._move_work(agent_id)
-        else:
-            return await self._move_custom(context, agent_id)
-
-    async def _get_place_type(self, plan, intention):
-        """Determine destination type via LLM"""
+        self.placeAnalysisPrompt.format(
+            plan=context["plan"], intention=step["intention"]
+        )
+        response = await self.llm.atext_request(self.placeAnalysisPrompt.to_dialog(), response_format={"type": "json_object"})  # type: ignore
         try:
-            self.placeAnalysisPrompt.format(plan=plan, intention=intention)
-            response = await self.llm.atext_request(
-                self.placeAnalysisPrompt.to_dialog(),
-                response_format={"type": "json_object"},
-            )
-            return json.loads(clean_json_response(response))[  # type:ignore
-                "place_type"
-            ]
+            response = clean_json_response(response)
+            response = json.loads(response)["place_type"]
         except Exception as e:
-            logger.warning(f"Place analysis failed: {e}")
-            return "home"  # Default to home
-
-    async def _move_home(self, agent_id):
-        """Handle home movement logic"""
-        home_id = (await self.memory.status.get("home"))["aoi_position"]["aoi_id"]
-        current_pos = await self.memory.status.get("position")
-
-        if current_pos.get("aoi_position", {}).get("aoi_id") == home_id:
-            return self._stationary_result("home", home_id)
-
-        await self.simulator.set_aoi_schedules(agent_id, home_id)
-        await self._increment_poi_counter()
-        return self._mobility_result("home", home_id, 45)
-
-    async def _move_work(self, agent_id):
-        """Handle workplace movement logic"""
-        work_id = (await self.memory.status.get("work"))["aoi_position"]["aoi_id"]
-        current_pos = await self.memory.status.get("position")
-
-        if current_pos.get("aoi_position", {}).get("aoi_id") == work_id:
-            return self._stationary_result("workplace", work_id)
-
-        await self.simulator.set_aoi_schedules(agent_id, work_id)
-        await self._increment_poi_counter()
-        return self._mobility_result("workplace", work_id, 45)
-
-    async def _move_custom(self, context, agent_id):
-        """Handle custom destination movement"""
-        next_place = context.get("next_place")
-        if not next_place:
-            next_place = await self._random_poi()
-
-        await self.simulator.set_aoi_schedules(agent_id, next_place[1])
-        await self._increment_poi_counter()
-        return self._mobility_result(f"destination: {next_place[0]}", next_place[1], 45)
-
-    async def _random_poi(self):
-        """Select random POI as fallback"""
-        aois = ray.get(self.simulator.map.get_aoi.remote())  # type:ignore
-        while True:
-            aoi = random.choice(aois)
-            if aoi["poi_ids"]:
-                poi_id = random.choice(aoi["poi_ids"])
-                return ray.get(self.simulator.map.get_poi.remote(poi_id))  # type:ignore
-
-    async def _increment_poi_counter(self):
-        """Update POI visit counter"""
-        count = await self.memory.status.get("number_poi_visited")
-        await self.memory.status.update("number_poi_visited", count + 1)
-
-    def _stationary_result(self, place_type, place_id):
-        """Return result when already at destination"""
-        return {
-            "success": True,
-            "evaluation": f"Already at {place_type}",
-            "to_place": place_id,
-            "consumed_time": 0,
-        }
-
-    def _mobility_result(self, desc, place_id, time):
-        """Standardized success result format"""
-        return {
-            "success": True,
-            "evaluation": f"Moved to {desc}",
-            "to_place": place_id,
-            "consumed_time": time,
-        }
+            logger.warning(f"Place Analysis: wrong type of place, raw response: {response}")
+            response = "home"
+        if response == "home":
+            # go back home
+            home = await self.memory.status.get("home")
+            home = home["aoi_position"]["aoi_id"]
+            nowPlace = await self.memory.status.get("position")
+            node_id = await self.memory.stream.add_mobility(
+                description=f"I returned home"
+            )
+            if (
+                "aoi_position" in nowPlace
+                and nowPlace["aoi_position"]["aoi_id"] == home
+            ):
+                return {
+                    "success": True,
+                    "evaluation": f"Successfully returned home (already at home)",
+                    "to_place": home,
+                    "consumed_time": 0,
+                    "node_id": node_id,
+                }
+            await self.simulator.set_aoi_schedules(
+                person_id=agent_id,
+                target_positions=home,
+            )
+            number_poi_visited = await self.memory.status.get("number_poi_visited")
+            number_poi_visited += 1
+            await self.memory.status.update("number_poi_visited", number_poi_visited)
+            return {
+                "success": True,
+                "evaluation": f"Successfully returned home",
+                "to_place": home,
+                "consumed_time": 45,
+                "node_id": node_id,
+            }
+        elif response == "workplace":
+            # back to workplace
+            work = await self.memory.status.get("work")
+            work = work["aoi_position"]["aoi_id"]
+            nowPlace = await self.memory.status.get("position")
+            node_id = await self.memory.stream.add_mobility(
+                description=f"I went to my workplace"
+            )
+            if (
+                "aoi_position" in nowPlace
+                and nowPlace["aoi_position"]["aoi_id"] == work
+            ):
+                return {
+                    "success": True,
+                    "evaluation": f"Successfully reached the workplace (already at the workplace)",
+                    "to_place": work,
+                    "consumed_time": 0,
+                    "node_id": node_id,
+                }
+            await self.simulator.set_aoi_schedules(
+                person_id=agent_id,
+                target_positions=work,
+            )
+            number_poi_visited = await self.memory.status.get("number_poi_visited")
+            number_poi_visited += 1
+            await self.memory.status.update("number_poi_visited", number_poi_visited)
+            return {
+                "success": True,
+                "evaluation": f"Successfully reached the workplace",
+                "to_place": work,
+                "consumed_time": 45,
+                "node_id": node_id,
+            }
+        else:
+            # move to other place
+            next_place = context.get("next_place", None)
+            nowPlace = await self.memory.status.get("position")
+            node_id = await self.memory.stream.add_mobility(
+                description=f"I went to {next_place}"
+            )
+            if next_place != None:
+                await self.simulator.set_aoi_schedules(
+                    person_id=agent_id,
+                    target_positions=next_place[1],
+                )
+            else:
+                aois = ray.get(self.simulator.map.get_aoi.remote())
+                while True:
+                    r_aoi = random.choice(aois)
+                    if len(r_aoi["poi_ids"]) > 0:
+                        r_poi = random.choice(r_aoi["poi_ids"])
+                        break
+                poi = ray.get(self.simulator.map.get_poi.remote(r_poi))
+                next_place = (poi["name"], poi["aoi_id"])
+                await self.simulator.set_aoi_schedules(
+                    person_id=agent_id,
+                    target_positions=next_place[1],
+                )
+            number_poi_visited = await self.memory.status.get("number_poi_visited")
+            number_poi_visited += 1
+            await self.memory.status.update("number_poi_visited", number_poi_visited)
+            return {
+                "success": True,
+                "evaluation": f"Successfully reached the destination: {next_place}",
+                "to_place": next_place[1],
+                "consumed_time": 45,
+                "node_id": node_id,
+            }
 
 
 class MobilityNoneBlock(Block):

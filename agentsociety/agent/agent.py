@@ -177,7 +177,7 @@ class CitizenAgent(Agent):
         sender_id = payload["from"]
         content = await self.status.get(f"{target}")
         payload = {
-            "from": self._uuid,
+            "from": self.id,
             "content": content,
         }
         await self._send_message(sender_id, payload, "gather")
@@ -209,7 +209,7 @@ class InstitutionAgent(Agent):
 
     - **Attributes**:
         - `_mlflow_client`: An optional client for integrating with MLflow for experiment tracking and management.
-        - `_gather_responses`: A dictionary mapping agent UUIDs to `asyncio.Future` objects used for collecting responses to gather requests.
+        - `_gather_responses`: A dictionary mapping agent IDs to `asyncio.Future` objects used for collecting responses to gather requests.
     """
 
     def __init__(
@@ -357,7 +357,9 @@ class InstitutionAgent(Agent):
                         "sales": sales,
                     }
                 )
+                print(f"Binding to Institution {_type} `{_id}` just added to Economy")
             except Exception as e:
+                print(f"Failed to bind to Economy: {e}, {_type}, {_id}")
                 logger.error(f"Failed to bind to Economy: {e}")
             self._has_bound_to_economy = True
 
@@ -385,36 +387,36 @@ class InstitutionAgent(Agent):
                 }
             )
 
-    async def gather_messages(self, agent_uuids: list[str], target: str) -> list[dict]:
+    async def gather_messages(self, agent_ids: list[int], target: str) -> list[dict]:
         """
         Gather messages from multiple agents.
 
         - **Args**:
-            - `agent_uuids` (`list[str]`): A list of UUIDs for the target agents.
+            - `agent_ids` (`list[int]`): A list of IDs for the target agents.
             - `target` (`str`): The type of information to collect from each agent.
 
         - **Returns**:
             - `list[dict]`: A list of dictionaries containing the collected responses.
 
         - **Description**:
-            - For each agent UUID provided, creates a `Future` object to wait for its response.
+            - For each agent ID provided, creates a `Future` object to wait for its response.
             - Sends a gather request to each specified agent.
             - Waits for all responses and returns them as a list of dictionaries.
             - Ensures cleanup of Futures after collecting responses.
         """
         # Create a Future for each agent
         futures = {}
-        for agent_uuid in agent_uuids:
-            futures[agent_uuid] = asyncio.Future()
-            self._gather_responses[agent_uuid] = futures[agent_uuid]
+        for agent_id in agent_ids:
+            futures[agent_id] = asyncio.Future()
+            self._gather_responses[agent_id] = futures[agent_id]
 
         # Send gather requests
         payload = {
-            "from": self._uuid,
+            "from": self.id,
             "target": target,
         }
-        for agent_uuid in agent_uuids:
-            await self._send_message(agent_uuid, payload, "gather")
+        for agent_id in agent_ids:
+            await self._send_message(agent_id, payload, "gather")
 
         try:
             # Wait for all responses

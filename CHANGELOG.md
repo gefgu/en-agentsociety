@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.2.4] - 2025-03-04
+
+### Added
+- N/A
+
+### Changed
+- N/A
+
+### Deprecated
+- N/A
+
+### Removed
+- Remove `Agent._uuid`
+
+### Fixed
+- Fixed issue with `EconomyClient.update` when handling InstitutionAgent updates.
+- Fixed bug for `MobilityBlock.MoveBlock.forward`.
+- Added adjustment logic to ensure the sum of the returned employee counts exactly equals N in matching firms and employees.
+
+### Security
+- N/A
+
 ## [1.2.3] - 2025-03-03
 
 ### Added
@@ -19,6 +41,8 @@
 
 ### Security
 - N/A
+
+
 
 ## [1.2.2] - 2025-03-02
 
