@@ -1,6 +1,7 @@
 import logging
 from time import sleep
 from typing import cast
+import ray
 
 import grpc
 from pycityproto.city.sync.v2 import sync_service_pb2 as sync_service
@@ -10,7 +11,7 @@ from ..utils.grpc import create_channel
 
 __all__ = ["OnlyClientSidecar"]
 
-
+@ray.remote
 class OnlyClientSidecar:
     """
     Sidecar框架服务（仅支持作为客户端，不支持对外提供gRPC服务）

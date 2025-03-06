@@ -49,8 +49,21 @@ class CityMap:
         else:
             return self.map.pois[poi_id]
 
-    def query_pois(self, **kwargs):
-        return self.map.query_pois(**kwargs)
+    def query_pois(
+        self,
+        center: Union[tuple[float, float], Point],
+        radius: Optional[float] = None,
+        category_prefix: Optional[str] = None,
+        limit: Optional[int] = None,
+        return_distance: bool = True,
+    ):
+        return self.map.query_pois(
+            center=center,
+            radius=radius,
+            category_prefix=category_prefix,
+            limit=limit,
+            return_distance=return_distance,
+        )
 
     def get_poi_cate(self):
         return self.poi_cate
@@ -98,10 +111,12 @@ class Simulator:
             sim_config.prop_status.simulator_activated = True
             # using local client
             self._client = CityClient(
-                sim_env.sim_addr, secure=self.server_addr.startswith("https")
+                sim_env.sim_addr, self.server_addr.startswith("https")
             )
-            self._syncer = OnlyClientSidecar(
-                sim_env.syncer_addr, secure=self.server_addr.startswith("https")
+            self._syncer = OnlyClientSidecar.remote(
+                syncer_address=sim_env.syncer_addr,  # type:ignore
+                name="within-syncer",
+                secure=self.server_addr.startswith("https"),
             )
             # self._syncer.init()
             """
@@ -494,4 +509,4 @@ class Simulator:
         if n <= 0:
             raise ValueError("`n` must >=1!")
         for _ in range(n):
-            syncer.step()
+            syncer.step.remote()

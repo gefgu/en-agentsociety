@@ -52,8 +52,11 @@ class FormatPrompt:
         - **Raises**:
             - `KeyError`: If a placeholder in the template does not have a corresponding key in kwargs.
         """
+        filtered_kwargs = {
+            key: value for key, value in kwargs.items() if key in self.variables
+        }
         self.formatted_string = self.template.format(
-            **kwargs
+            **filtered_kwargs
         )  # Store the formatted string
         return self.formatted_string
 

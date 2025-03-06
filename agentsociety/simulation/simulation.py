@@ -33,7 +33,7 @@ from ..metrics import init_mlflow_connection
 from ..metrics.mlflow_client import MlflowClient
 from ..survey import Survey
 from ..utils import (SURVEY_SENDER_UUID, TO_UPDATE_EXP_INFO_KEYS_AND_TYPES,
-                     WorkflowType)
+                      WorkflowType)
 from .agentgroup import AgentGroup
 from .storage.pg import PgWriter, create_pg_tables
 

@@ -241,7 +241,7 @@ class PlaceSelectionBlock(Block):
             selected = np.random.choice(len(pois), p=probabilities)
             next_place = (pois[selected][0], pois[selected][1])
         else:  # Fallback random selection
-            all_pois = ray.get(self.simulator.map.get_pois.remote())  # type:ignore
+            all_pois = ray.get(self.simulator.map.get_poi.remote())  # type:ignore
             next_place = random.choice(all_pois)
 
         context["next_place"] = next_place
