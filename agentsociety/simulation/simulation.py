@@ -588,11 +588,10 @@ class AgentSimulation:
             num_institution_groups = (
                 total_institution_count + group_size - 1
             ) // group_size
+            institution_offsets = {agent_class: 0 for agent_class, _, _, _ in institution_params}
 
             for k in range(num_institution_groups):
-                start_idx = k * group_size
-                remaining = total_institution_count - start_idx
-                number_of_agents = min(remaining, group_size)
+                remaining = group_size
 
                 agent_classes = []
                 agent_counts = []
@@ -600,14 +599,17 @@ class AgentSimulation:
                 config_files = {}
 
                 # assign each type of institution agent to current group
-                curr_start = start_idx
                 for agent_class, count, mem_func, conf_file in institution_params:
-                    if curr_start < count:
+                    offset = institution_offsets[agent_class]
+                    remaining_in_type = count - offset
+                    if remaining_in_type > 0 and remaining > 0:
+                        allocate = min(remaining_in_type, remaining)
                         agent_classes.append(agent_class)
-                        agent_counts.append(min(count - curr_start, number_of_agents))
+                        agent_counts.append(allocate)
                         memory_config_funcs[agent_class] = mem_func
                         config_files[agent_class] = conf_file
-                    curr_start = max(0, curr_start - count)
+                        institution_offsets[agent_class] += allocate
+                        remaining -= allocate
 
                 group_creation_params.append(
                     (
@@ -622,12 +624,13 @@ class AgentSimulation:
         # process citizen group
         if citizen_params:
             total_citizen_count = sum(p[1] for p in citizen_params)
-            num_citizen_groups = (total_citizen_count + group_size - 1) // group_size
+            num_citizen_groups = (
+                total_citizen_count + group_size - 1
+            ) // group_size
+            citizen_offsets = {agent_class: 0 for agent_class, _, _, _ in citizen_params}
 
             for k in range(num_citizen_groups):
-                start_idx = k * group_size
-                remaining = total_citizen_count - start_idx
-                number_of_agents = min(remaining, group_size)
+                remaining = group_size
 
                 agent_classes = []
                 agent_counts = []
@@ -635,14 +638,17 @@ class AgentSimulation:
                 config_files = {}
 
                 # assign each type of citizen agent to current group
-                curr_start = start_idx
                 for agent_class, count, mem_func, conf_file in citizen_params:
-                    if curr_start < count:
+                    offset = citizen_offsets[agent_class]
+                    remaining_in_type = count - offset
+                    if remaining_in_type > 0 and remaining > 0:
+                        allocate = min(remaining_in_type, remaining)
                         agent_classes.append(agent_class)
-                        agent_counts.append(min(count - curr_start, number_of_agents))
+                        agent_counts.append(allocate)
                         memory_config_funcs[agent_class] = mem_func
                         config_files[agent_class] = conf_file
-                    curr_start = max(0, curr_start - count)
+                        citizen_offsets[agent_class] += allocate
+                        remaining -= allocate
 
                 group_creation_params.append(
                     (

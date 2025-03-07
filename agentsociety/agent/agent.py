@@ -408,7 +408,7 @@ class InstitutionAgent(Agent):
         futures = {}
         for agent_id in agent_ids:
             futures[agent_id] = asyncio.Future()
-            self._gather_responses[agent_id] = futures[agent_id]
+            self._gather_responses[agent_id] = futures[agent_id] # type: ignore
 
         # Send gather requests
         payload = {

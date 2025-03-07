@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.2.5] - 2025-03-07
+
+### Added
+- N/A
+
+### Changed
+- N/A
+
+### Deprecated
+- N/A
+
+### Removed
+- Remove `Agent._uuid`
+
+### Fixed
+- Fixed bug for `simulation.init_agents` when creating group parameters for agents.
+
+### Security
+- N/A
+
 ## [1.2.4] - 2025-03-04
 
 ### Added

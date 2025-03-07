@@ -270,7 +270,7 @@ class MoveBlock(Block):
         )
         response = await self.llm.atext_request(self.placeAnalysisPrompt.to_dialog(), response_format={"type": "json_object"})  # type: ignore
         try:
-            response = clean_json_response(response)
+            response = clean_json_response(response) # type: ignore
             response = json.loads(response)["place_type"]
         except Exception as e:
             logger.warning(f"Place Analysis: wrong type of place, raw response: {response}")
@@ -354,13 +354,13 @@ class MoveBlock(Block):
                     target_positions=next_place[1],
                 )
             else:
-                aois = ray.get(self.simulator.map.get_aoi.remote())
+                aois = ray.get(self.simulator.map.get_aoi.remote()) # type: ignore
                 while True:
                     r_aoi = random.choice(aois)
                     if len(r_aoi["poi_ids"]) > 0:
                         r_poi = random.choice(r_aoi["poi_ids"])
                         break
-                poi = ray.get(self.simulator.map.get_poi.remote(r_poi))
+                poi = ray.get(self.simulator.map.get_poi.remote(r_poi)) # type: ignore
                 next_place = (poi["name"], poi["aoi_id"])
                 await self.simulator.set_aoi_schedules(
                     person_id=agent_id,
