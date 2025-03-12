@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.2.6] - 2025-03-12
+
+### Added
+- N/A
+
+### Changed
+- WeChat QR code.
+
+### Deprecated
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- N/A
+
+### Security
+- N/A
+  
+
 ## [1.2.5] - 2025-03-07
 
 ### Added
