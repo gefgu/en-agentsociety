@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.2.9] - 2025-03-14
+
+### Added
+- N/A
+
+### Changed
+- N/A
+
+### Deprecated
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- Fixed bug for `update_environment` in `AgentGroup`.
+- Bug for calling sequence of `agent.step` and `OnlyClientSidecar.step`.
+
+### Security
+- N/A
+
 ## [1.2.8] - 2025-03-14
 
 ### Added

@@ -1013,10 +1013,10 @@ class AgentSimulation:
             logger.info(
                 f"Start simulation day {simulator_day} at {simulator_time}, step {self._total_steps}"
             )
-            self._simulator.step(num_simulator_steps)
             tasks = []
             for group in self._groups.values():
                 tasks.append(group.step.remote())
+            self._simulator.step(num_simulator_steps)
             log_messages_groups = await asyncio.gather(*tasks)
             llm_log_list = []
             mqtt_log_list = []

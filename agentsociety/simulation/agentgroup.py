@@ -364,6 +364,16 @@ class AgentGroup:
         self.initialized = True
         logger.debug(f"-----AgentGroup {self._uuid} initialized")
 
+    async def update_environment(self, key: str, value: str):
+        """
+        Update the environment variables for the simulation and all agent groups.
+
+        - **Args**:
+            - `key` (str): The environment variable key to update.
+            - `value` (str): The new value for the environment variable.
+        """
+        self.simulator.update_environment(key, value)
+
     async def filter(
         self,
         types: Optional[list[Type[Agent]]] = None,
