@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.2.8] - 2025-03-14
+
+### Added
+- N/A
+
+### Changed
+- N/A
+
+### Deprecated
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- Fixed bug for `PlaceSelectionBlock.forward` when selecting POI.
+- Bug for `OnlyClientSidecar` calling
+
+### Security
+- N/A
+
 ## [1.2.7] - 2025-03-14
 
 ### Added
