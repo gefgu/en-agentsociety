@@ -50,7 +50,6 @@ exp_config = (
     ExpConfig(exp_name="hurrican", llm_semaphore=200, logging_level=logging.INFO)
     .SetAgentConfig(
         number_of_citizen=1000,
-        number_of_firm=50,
         group_size=50,
         memory_config_func={SocietyAgent: memory_config_societyagent_hurrican},
     )

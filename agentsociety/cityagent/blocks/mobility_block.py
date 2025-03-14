@@ -224,7 +224,8 @@ class PlaceSelectionBlock(Block):
             radius = 10000  # Default 10km
 
         # Query and select POI
-        center = (await self.memory.status.get("position")).values()
+        xy = (await self.memory.status.get("position"))["xy_position"]
+        center = (xy["x"], xy["y"])
         pois = ray.get(
             self.simulator.map.query_pois.remote(  # type:ignore
                 center=center,
