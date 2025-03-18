@@ -5,7 +5,7 @@ import logging
 import os
 import time
 from datetime import datetime, timedelta
-from typing import Optional, Union, cast
+from typing import Any, Optional, Union, cast
 
 import ray
 from mosstool.type import TripMode
@@ -113,12 +113,26 @@ class Simulator:
             self._client = CityClient(
                 sim_env.sim_addr, self.server_addr.startswith("https")
             )
-            self._syncer = OnlyClientSidecar.remote(
-                syncer_address=sim_env.syncer_addr,  # type:ignore
-                name="within-syncer",
-                secure=self.server_addr.startswith("https"),
-            )
-            # self._syncer.init()
+            for retry in range(60):
+                try:
+                    self._syncer = OnlyClientSidecar.remote(
+                        syncer_address=sim_env.syncer_addr,  # type:ignore
+                        name="within-syncer",
+                        secure=self.server_addr.startswith("https"),
+                    )
+                    time.sleep(5)
+                    ray.get(self._syncer.init.remote())
+                    break
+                except:
+                    logging.warning(
+                        f"Failed to connect to syncer {sim_env.syncer_addr}, retrying..."
+                    )
+                    time.sleep(1)
+                    continue
+            else:
+                raise ValueError(
+                    f"Failed to connect to syncer {sim_env.syncer_addr} after 60 retries!"
+                )
             """
             - 模拟器grpc客户端
             - grpc client of simulator
@@ -151,7 +165,7 @@ class Simulator:
         self.map_y_gap = None
         self._bbox: tuple[float, float, float, float] = (-1, -1, -1, -1)
         self._lock = asyncio.Lock()
-        self._environment_prompt: dict[str, str] = {}
+        self._environment_prompt: dict[str, Any] = {}
         self._log_list = []
 
     def set_map(self, map: ray.ObjectRef):
@@ -196,7 +210,7 @@ class Simulator:
         """
         self._environment_prompt = environment
 
-    def sence(self, key: str) -> str:
+    def sense(self, key: str) -> Any:
         """
         Retrieve the value of an environment variable by its key.
 
@@ -204,19 +218,36 @@ class Simulator:
             - `key` (`str`): The key of the environment variable.
 
         - **Returns**:
-            - `str`: The value of the corresponding key, or an empty string if not found.
+            - `Any`: The value of the corresponding key, or an empty string if not found.
         """
         return self._environment_prompt.get(key, "")
 
-    def update_environment(self, key: str, value: str):
+    def update_environment(self, key: str, value: Any):
         """
         Update the value of a single environment variable.
 
         - **Args**:
             - `key` (`str`): The key of the environment variable.
-            - `value` (`str`): The new value to set.
+            - `value` (`Any`): The new value to set.
         """
         self._environment_prompt[key] = value
+
+    def get_environment(self) -> str:
+        global_prompt = ""
+        for key in self._environment_prompt:
+            value = self._environment_prompt[key]
+            if isinstance(value, str):
+                global_prompt += f"{key}: {value}\n"
+            elif isinstance(value, dict):
+                for k, v in value.items():
+                    global_prompt += f"{key}.{k}: {v}\n"
+            elif isinstance(value, bool):
+                global_prompt += f"Is it {key}: {value}\n"
+            elif isinstance(value, list):
+                global_prompt += f"{key} elements: {value}\n"
+            else:
+                global_prompt += f"{key}: {value}\n"
+        return global_prompt
 
     @log_execution_time
     def get_poi_categories(
@@ -509,4 +540,4 @@ class Simulator:
         if n <= 0:
             raise ValueError("`n` must >=1!")
         for _ in range(n):
-            syncer.step.remote()
+            ray.get(syncer.step.remote())

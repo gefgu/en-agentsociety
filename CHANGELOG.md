@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.2.1] - 2025-03-18
+
+### Added
+- N/A
+
+### Changed
+- Add retry for syncer connections.
+
+### Deprecated
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- N/A
+
+### Security
+- N/A
+
+
 ## [1.2.9] - 2025-03-14
 
 ### Added
