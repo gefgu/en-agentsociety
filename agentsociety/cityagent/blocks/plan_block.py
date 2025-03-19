@@ -208,8 +208,8 @@ class PlanBlock(Block):
         current_time = await self.simulator.get_time(format_time=True)
         options = self.guidance_options.get(current_need, [])
         self.guidance_prompt.format(
-            weather=self.simulator.sence("weather"),
-            temperature=self.simulator.sence("temperature"),
+            weather=self.simulator.sense("weather"),
+            temperature=self.simulator.sense("temperature"),
             current_need=current_need,
             options=options,
             current_location=current_location,
@@ -267,8 +267,8 @@ class PlanBlock(Block):
             current_location = "At workplace"
         current_time = await self.simulator.get_time(format_time=True)
         self.detail_prompt.format(
-            weather=self.simulator.sence("weather"),
-            temperature=self.simulator.sence("temperature"),
+            weather=self.simulator.sense("weather"),
+            temperature=self.simulator.sense("temperature"),
             selected_option=selected_option,
             current_location=current_location,
             current_time=current_time,

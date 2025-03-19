@@ -138,7 +138,7 @@ class NeedsBlock(Block):
         day = await self.simulator.get_simulator_day()
         if day != self.now_day:
             self.now_day = day
-            workday = self.simulator.sence("day")
+            workday = self.simulator.sense("day")
             if workday == "Workday":
                 self.need_work = True
             else:

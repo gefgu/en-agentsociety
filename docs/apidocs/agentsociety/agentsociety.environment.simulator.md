@@ -250,9 +250,9 @@
 ````
 
 ````{py:method} sence(key: str) -> str
-:canonical: agentsociety.environment.simulator.Simulator.sence
+:canonical: agentsociety.environment.simulator.Simulator.sense
 
-```{autodoc2-docstring} agentsociety.environment.simulator.Simulator.sence
+```{autodoc2-docstring} agentsociety.environment.simulator.Simulator.sense
 ```
 
 ````

@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.2.1] - 2025-03-18
+## [1.2.10] - 2025-03-18
 
 ### Added
 - N/A
@@ -15,7 +15,7 @@
 - N/A
 
 ### Fixed
-- N/A
+- Fix typo in `simulator.sence`
 
 ### Security
 - N/A
