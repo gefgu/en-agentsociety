@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.2.11] - 2025-03-26
+
+### Added
+- N/A
+
+### Changed
+- The WeChat group chat QR code has been replaced to the third group. Welcome to join and participate in the discussions.
+
+### Deprecated
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- N/A
+
+### Security
+- N/A
+
+
 ## [1.2.10] - 2025-03-18
 
 ### Added
