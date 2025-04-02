@@ -1,5 +1,5 @@
 import math
-from typing import Literal,  Union
+from typing import Literal, Union
 
 import numpy as np
 

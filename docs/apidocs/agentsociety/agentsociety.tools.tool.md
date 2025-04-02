@@ -19,10 +19,6 @@
   - ```{autodoc2-docstring} agentsociety.tools.tool.Tool
     :summary:
     ```
-* - {py:obj}`GetMap <agentsociety.tools.tool.GetMap>`
-  - ```{autodoc2-docstring} agentsociety.tools.tool.GetMap
-    :summary:
-    ```
 * - {py:obj}`UpdateWithSimulator <agentsociety.tools.tool.UpdateWithSimulator>`
   - ```{autodoc2-docstring} agentsociety.tools.tool.UpdateWithSimulator
     :summary:
@@ -52,7 +48,7 @@
 ````{py:data} __all__
 :canonical: agentsociety.tools.tool.__all__
 :value: >
-   ['Tool', 'ExportMlflowMetrics', 'GetMap', 'UpdateWithSimulator', 'ResetAgentPosition']
+   ['Tool', 'ExportMlflowMetrics', 'UpdateWithSimulator', 'ResetAgentPosition']
 
 ```{autodoc2-docstring} agentsociety.tools.tool.__all__
 ```
@@ -65,7 +61,7 @@
 ```{autodoc2-docstring} agentsociety.tools.tool.Tool
 ```
 
-````{py:method} __get__(instance, owner)
+````{py:method} __get__(instance: typing.Union[agentsociety.agent.Agent, agentsociety.agent.Block], owner)
 :canonical: agentsociety.tools.tool.Tool.__get__
 
 ```{autodoc2-docstring} agentsociety.tools.tool.Tool.__get__
@@ -93,34 +89,9 @@
 
 ````{py:property} block
 :canonical: agentsociety.tools.tool.Tool.block
-:type: agentsociety.workflow.Block
+:type: agentsociety.agent.Block
 
 ```{autodoc2-docstring} agentsociety.tools.tool.Tool.block
-```
-
-````
-
-`````
-
-`````{py:class} GetMap()
-:canonical: agentsociety.tools.tool.GetMap
-
-Bases: {py:obj}`agentsociety.tools.tool.Tool`
-
-```{autodoc2-docstring} agentsociety.tools.tool.GetMap
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.tools.tool.GetMap.__init__
-```
-
-````{py:method} __call__() -> typing.Union[typing.Any, collections.abc.Callable]
-:canonical: agentsociety.tools.tool.GetMap.__call__
-:async:
-
-```{autodoc2-docstring} agentsociety.tools.tool.GetMap.__call__
 ```
 
 ````

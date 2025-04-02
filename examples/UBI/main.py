@@ -5,65 +5,121 @@ import pickle as pkl
 
 import ray
 
-from agentsociety import AgentSimulation
-from agentsociety.cityagent import memory_config_societyagent
+from agentsociety.cityagent import SocietyAgent, default
 from agentsociety.cityagent.metrics import economy_metric
-from agentsociety.cityagent.societyagent import SocietyAgent
-from agentsociety.configs import ExpConfig, SimConfig, WorkflowStep
-from agentsociety.utils import LLMRequestType, WorkflowType
+from agentsociety.configs import (
+    AgentsConfig,
+    Config,
+    EnvConfig,
+    ExpConfig,
+    LLMConfig,
+    MapConfig,
+)
+from agentsociety.configs.agent import AgentClassType, AgentConfig
+from agentsociety.configs.exp import (
+    MetricExtractorConfig,
+    MetricType,
+    WorkflowStepConfig,
+    WorkflowType,
+)
+from agentsociety.environment import EnvironmentConfig
+from agentsociety.llm import LLMProviderType
+from agentsociety.message import RedisConfig
+from agentsociety.metrics import MlflowConfig
+from agentsociety.simulation import AgentSociety
+from agentsociety.storage import AvroConfig, PostgreSQLConfig
 
-logging.getLogger("agentsociety").setLevel(logging.INFO)
-
-ray.init(logging_level=logging.WARNING, log_to_driver=False)
+ray.init(logging_level=logging.INFO)
 
 
-async def gather_ubi_opinions(simulation: AgentSimulation):
-    citizen_agents = await simulation.filter(types=[SocietyAgent])
-    opinions = await simulation.gather("ubi_opinion", citizen_agents)
+async def gather_ubi_opinions(simulation: AgentSociety):
+    citizen_ids = await simulation.filter(types=(SocietyAgent,))
+    opinions = await simulation.gather("ubi_opinion", citizen_ids)
     with open("opinions.pkl", "wb") as f:
         pkl.dump(opinions, f)
 
 
-sim_config = (
-    SimConfig()
-    .SetLLMRequest(
-        request_type=LLMRequestType.ZhipuAI, api_key="YOUR-API-KEY", model="GLM-4-Flash"
-    )
-    .SetSimulatorRequest()
-    .SetMQTT(server="mqtt.example.com", username="user", port=1883, password="pass")
-    # change to your file path
-    .SetMapRequest(file_path="map.pb")
-    # .SetAvro(path='./__avro', enabled=True)
-    .SetPostgreSql(dsn="postgresql://user:pass@localhost:5432/db", enabled=True)
-    .SetMetricRequest(
-        username="mlflow_user", password="mlflow_pass", mlflow_uri="http://mlflow:5000"
-    )
+config = Config(
+    llm=[
+        LLMConfig(
+            provider=LLMProviderType.Qwen,
+            base_url=None,
+            api_key="<YOUR-API-KEY>",
+            model="<YOUR-MODEL>",
+            semaphore=200,
+        )
+    ],
+    env=EnvConfig(
+        redis=RedisConfig(
+            server="<SERVER-ADDRESS>",
+            port=6379,
+            password="<PASSWORD>",
+        ),  # type: ignore
+        pgsql=PostgreSQLConfig(
+            enabled=True,
+            dsn="<PGSQL-DSN>",
+            num_workers="auto",
+        ),
+        avro=AvroConfig(
+            path="<SAVE-PATH>",
+            enabled=True,
+        ),
+        mlflow=MlflowConfig(
+            enabled=True,
+            mlflow_uri="<MLFLOW-URI>",
+            username="<USERNAME>",
+            password="<PASSWORD>",
+        ),
+    ),
+    map=MapConfig(
+        file_path="<MAP-FILE-PATH>",
+        cache_path="<CACHE-FILE-PATH>",
+    ),
+    agents=AgentsConfig(
+        citizens=[
+            AgentConfig(
+                agent_class=AgentClassType.CITIZEN,
+                number=1,
+                param_config=json.load(open("society_agent_config.json")),
+            )
+        ],
+        firms=[
+            AgentConfig(
+                agent_class=AgentClassType.FIRM,
+                number=1,
+            )
+        ],
+    ),  # type: ignore
+    exp=ExpConfig(
+        name="ubi_experiment",
+        workflow=[
+            WorkflowStepConfig(
+                type=WorkflowType.RUN,
+                days=10,
+            )
+        ],
+        environment=EnvironmentConfig(
+            start_tick=6 * 60 * 60,
+            total_tick=18 * 60 * 60,
+        ),
+        metric_extractors=[
+            MetricExtractorConfig(
+                type=MetricType.FUNCTION, func=economy_metric, step_interval=1
+            ),
+            MetricExtractorConfig(
+                type=MetricType.FUNCTION, func=gather_ubi_opinions, step_interval=12
+            ),
+        ],
+    ),
 )
-exp_config = (
-    ExpConfig(
-        exp_name="allinone_economy", llm_semaphore=200, logging_level=logging.INFO
-    )
-    .SetAgentConfig(
-        number_of_citizen=100,
-        number_of_firm=5,
-        memory_config_func={SocietyAgent: memory_config_societyagent},
-        agent_class_configs={
-            SocietyAgent: json.load(open("society_agent_config.json"))
-        },
-    )
-    .SetWorkFlow(
-        [
-            WorkflowStep(type=WorkflowType.RUN, days=10, times=1, description=""),
-        ]
-    )
-    .SetMetricExtractors(
-        metric_extractors=[(1, economy_metric), (12, gather_ubi_opinions)]
-    )
-)
+config = default(config)
 
 
 async def main():
-    await AgentSimulation.run_from_config(exp_config, sim_config)
+    agentsociety = AgentSociety(config)
+    await agentsociety.init()
+    await agentsociety.run()
+    await agentsociety.close()
     ray.shutdown()
 
 

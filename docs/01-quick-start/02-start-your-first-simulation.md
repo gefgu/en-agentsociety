@@ -12,8 +12,14 @@ pip install agentsociety
 
 ```{admonition} Warning
 :class: warning
-This platform supports Linux x86, macOS x86, and macOS ARM. 
-Please ensure your environment matches one of these supported platforms.
+Please ensure your environment matches the supported platforms shown in the [Prerequisites](./01-prerequisites.md) section.
+```
+
+```{admonition} Hint
+:class: hint
+If you look the error like `ERROR: Could not find a version that satisfies the requirement agentsociety`, it means your OS, architecture or python version is not supported.
+Please refer to the [Prerequisites](./01-prerequisites.md) section for more details.
+It could also be the Python mirror source problem. In that case, please switch the mirror source and try again.
 ```
 
 ## Step 1: Download City Scene Data
@@ -22,122 +28,130 @@ Before the simulation starts, it is necessary to download the city scene data fi
 
 ## Step 2: Edit Configurations
 
-We need to create two configuration files:
-1. A simulation environment configuration file (assumed filename: `example_sim_config.yaml`).
-2. An experiment configuration file (assumed filename: `example_exp_config.yaml`).
+We need to create one configuration file, which is assumed to be named `config.yaml`.
+An example configuration file is shown below, you can refer to it to create your own configuration file, remember to replace the placeholders with your own values.
 
-An example of `example_sim_config.yaml` is as below:
-```yaml
-llm_request:
-  request_type: zhipuai
-  api_key: <YOUR-API-KEY> # Please replace with the API key obtained from the LLM provider website.
-  model: GLM-4-Flash # The name of the model to be used.
+``` yaml
+llm:
+- api_key: <API-KEY> # LLM API key
+  base_url: <BASE-URL> # LLM base URL, used for VLLM
+  model: <YOUR-MODEL> # LLM model
+  provider: <PROVIDER> # LLM provider
+env:
+  avro:
+    enabled: false # Whether to enable Avro
+    path: <AVRO-OUTPUT-PATH> # Path to the Avro output file
+  mlflow:
+    enabled: true # Whether to enable MLflow
+    mlflow_uri: http://localhost:59000 # MLflow server URI
+    username: <CHANGE_ME> # MLflow server username
+    password: <CHANGE_ME> # MLflow server password
+  pgsql:
+    enabled: true # Whether to enable PostgreSQL
+    dsn: postgresql://postgres:CHANGE_ME@localhost:5432/postgres # PostgreSQL connection string
+  redis:
+    server: <REDIS-SERVER> # Redis server address
+    port: 6379 # Redis port
+    password: <CHANGE_ME> # Redis password
+map:
+  file_path: <MAP-FILE-PATH> # Path to the map file
+  cache_path: <CACHE-FILE-PATH> # Cache path for accelerating map file loading
+agents:
+  citizens:
+  - agent_class: citizen # The class of the agent
+    number: 100 # The number of the agents
+exp:
+  name: test # Experiment name
+  environment:
+    start_tick: 28800 # Start time in seconds
+    total_tick: 7200 # Total time in seconds
+  workflow:
+  - day: 1 # The day of the workflow step
+    type: run # The type of the workflow step
+```
 
-simulator_request:
-  task_name: "citysim" # The name of the simulation task, affect the directory name for log output
-  max_day: 1 # Defines the maximum number of days for the simulation.
-  start_step: 0 # The initial step of the simulation in seconds.
-  total_step: 86400 # Total steps in the simulation in seconds.
-  log_dir: log # Directory where simulator logs will be stored.
-  min_step_time: 1000 # Minimum execution time (in milliseconds) per step.
+```{admonition} Hint
+:class: hint
+You can run `agentsociety check -c config.yaml` to check if your own configuration file is valid, which will check the configuration file and give you a detailed error message if there is any problem.
+```
 
-mqtt:
-  server: <MQTT-BROKER> # Specify the MQTT server address here.
-  port: 1883 # Port number on which the MQTT service is running.
-  username: <USER-NAME> # Username for MQTT server authentication.
-  password: <USER-NAME> # Password for MQTT server authentication.
+## Step 3：Launch the Simulation
 
-map_request:
-  file_path: data/beijing_map.pb # Path to the map file, reference to step1.
+1. From Command Line
 
-metric_request:
-  mlflow: 
-    username: <USER-NAME> # Username for MLflow authentication.
-    password: <PASSWORD> # Password for MLflow authentication.
-    mlflow_uri: <MLFLOW-URI> # URI pointing to the MLflow tracking server.
+After editing the configuration file, you can easily run the following command to launch the simulation.
+```bash
+agentsociety run -c config.yaml
+```
 
-pgsql:
-  enabled: true # Whether PostgreSQL database integration is enabled.
-  dsn: <DSN> # Data source name for connecting to PostgreSQL.
+2. From Python Code
 
-avro:
-  enabled: true # Whether Avro serialization is enabled.
-  path: <AVRO-PATH> # Directory path for storing cached data or serialized files.
+If you want to launch the simulation from a python script, you can use the following code.
+
+```python
+import asyncio
+import logging
+
+import ray
+
+from agentsociety.cityagent import default
+from agentsociety.configs import Config, load_config_from_file
+from agentsociety.simulation import AgentSociety
+
+async def main():
+    ray.init(logging_level=logging.INFO)
+    config = load_config_from_file(
+        filepath="config.yaml",
+        config_type=Config,
+    )
+    config = default(config) # This is necessary when using the default cityagent implementation
+    agentsociety = AgentSociety(config)
+    await agentsociety.init()
+    await agentsociety.run()
+    await agentsociety.close()
+    ray.shutdown()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
 
 ```
 
 ```{admonition} Attention
 :class: attention
-Please replace all placeholders enclosed in < > in the above configuration file with the correct values.
-```
-An example of `example_exp_config.yaml` is as below:
-```yaml
-agent_config:
-  number_of_citizen: 100  # Number of citizens
-
-workflow: [
-  {"type": "run", "days": 1} # run the simulation for one day
-]
-
+Please always remember to call the `default` function when using the default cityagent implementation rather than implementing all the agent classes (including citizens, firms, banks, nbs, governments) by yourself.
 ```
 
-```{admonition} Info
-:class: info
-In addition to directly loading configuration files, we also support configuring parameters programmatically through code. 
-For more details and code examples, please refer to the [Fluent API Configuration](../02-configurations/index.md).
+Fill in the placeholders in the configuration file with your own values, and run the code above to start the simulation.
+
+
+
+After running the command above, you will see the following output, indicating that the simulation has been successfully launched.
+![ExampleStart](../_static/01-exp-start.png)
+
+When the simulation is running, you will see the following output.
+![ExampleRunning](../_static/01-exp-running.png)
+
+After the simulation is finished, you will see the following output.
+![ExampleClose](../_static/01-exp-close.png)
+
+```{admonition} Note
+:class: note
+When the simulation is over, you can see an error `exception asyncio.CancelledError` in the output. This is normal and can be ignored.
 ```
 
-## Step 3：Launch the Simulation
-
-```python
-from agentsociety.configs import (ExpConfig, SimConfig, WorkflowStep,
-                                 load_config_from_file)
-from agentsociety.simulation import AgentSimulation
-
-sim_config = load_config_from_file("examples/config_templates/example_sim_config.yaml", SimConfig)
-exp_config = load_config_from_file("examples/config_templates/example_exp_config.yaml", ExpConfig)
-
-async def main():
-    simulation = AgentSimulation.run_from_config(
-        config=exp_config,
-        sim_config=sim_config,
-    )
-    await simulation
-
-
-if __name__ == "__main__":
-    import asyncio
-
-    asyncio.run(main())
-
-```
-
-After adjusting the configuration files, running the Python code above will produce the following command-line output, indicating that the simulation has been successfully launched.
-
-![RunningExample](../_static/01-running-example.png)
-
-## Step4：View the Results
+## Step 4：View the Results
 
 ```{admonition} Caution
 :class: caution
-To use this interface, you MUST deploy PostgreSQL, MLflow and MQTT first.
+To use this interface, you MUST deploy PostgreSQL, MLflow and Redis first.
 ```
 
-When the simulation is done, you can use our visualization tool within the python package `agentsociety-ui` to replay the simulation.
-An example config file (assumed filename: `ui_config.yaml`) is as follow:
+When the simulation is done (or is running), you can use our visualization tool within the python package `agentsociety ui` to replay the simulation.
 
-```yaml
-addr: localhost:8080 # Address for the UI service
-mqtt_broker: <MQTT-BROKER> # MQTT broker address, e.g. `localhost:1883`
-mqtt_username: <USER-NAME> # Username for MQTT.
-mqtt_password: <PASSWORD> # Password for MQTT.
-pg_dsn: <DSN> # PostgreSQL DSN for database connection, e.g. `postgresql://postgres:CHANGE_ME@postgresql:5432/postgres`
-mlflow_url: <MLFLOW-URI> # URL for MLflow server, e.g. `localhost:59000`
-```
-
-To activate the ui interface, you simply need to code these in your terminal. 
+To activate the ui interface, you simply need to code these in your terminal, the `config.yaml` is just the same file as the one you used to run the simulation.
 ```bash
-agentsociety-ui --config ui_config.yaml
+agentsociety ui -c config.yaml
 ```
 
 Running the code above will activate the UI Interface, as shown below.
@@ -145,6 +159,8 @@ Running the code above will activate the UI Interface, as shown below.
 ![start-ui](../_static/01-start-ui.png)
 
 ![home-page](../_static/01-ui-home-page.jpg) 
+
+![exp-list](../_static/01-exp-list.jpg)
 
 ## Next Step
 

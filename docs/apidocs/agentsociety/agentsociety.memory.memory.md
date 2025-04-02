@@ -37,29 +37,7 @@
     ```
 ````
 
-### Data
-
-````{list-table}
-:class: autosummary longtable
-:align: left
-
-* - {py:obj}`logger <agentsociety.memory.memory.logger>`
-  - ```{autodoc2-docstring} agentsociety.memory.memory.logger
-    :summary:
-    ```
-````
-
 ### API
-
-````{py:data} logger
-:canonical: agentsociety.memory.memory.logger
-:value: >
-   'getLogger(...)'
-
-```{autodoc2-docstring} agentsociety.memory.memory.logger
-```
-
-````
 
 `````{py:class} MemoryTag()
 :canonical: agentsociety.memory.memory.MemoryTag
@@ -222,7 +200,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} StreamMemory(max_len: int = 1000)
+`````{py:class} StreamMemory(agent_id: int, environment: agentsociety.environment.Environment, faiss_query: agentsociety.memory.faiss_query.FaissQuery, embedding_model: langchain_core.embeddings.Embeddings, max_len: int = 1000)
 :canonical: agentsociety.memory.memory.StreamMemory
 
 ```{autodoc2-docstring} agentsociety.memory.memory.StreamMemory
@@ -251,34 +229,10 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ````
 
-````{py:method} set_simulator(simulator)
-:canonical: agentsociety.memory.memory.StreamMemory.set_simulator
-
-```{autodoc2-docstring} agentsociety.memory.memory.StreamMemory.set_simulator
-```
-
-````
-
 ````{py:method} set_status_memory(status_memory)
 :canonical: agentsociety.memory.memory.StreamMemory.set_status_memory
 
 ```{autodoc2-docstring} agentsociety.memory.memory.StreamMemory.set_status_memory
-```
-
-````
-
-````{py:method} set_search_components(faiss_query, embedding_model)
-:canonical: agentsociety.memory.memory.StreamMemory.set_search_components
-
-```{autodoc2-docstring} agentsociety.memory.memory.StreamMemory.set_search_components
-```
-
-````
-
-````{py:method} set_agent_id(agent_id: int)
-:canonical: agentsociety.memory.memory.StreamMemory.set_agent_id
-
-```{autodoc2-docstring} agentsociety.memory.memory.StreamMemory.set_agent_id
 ```
 
 ````
@@ -411,7 +365,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} StatusMemory(profile: agentsociety.memory.profile.ProfileMemory, state: agentsociety.memory.state.StateMemory, dynamic: agentsociety.memory.self_define.DynamicMemory)
+`````{py:class} StatusMemory(agent_id: int, environment: agentsociety.environment.Environment, faiss_query: agentsociety.memory.faiss_query.FaissQuery, embedding_model: langchain_core.embeddings.Embeddings, profile: agentsociety.memory.profile.ProfileMemory, state: agentsociety.memory.state.StateMemory, dynamic: agentsociety.memory.self_define.DynamicMemory)
 :canonical: agentsociety.memory.memory.StatusMemory
 
 ```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory
@@ -432,14 +386,6 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ````
 
-````{py:method} set_simulator(simulator)
-:canonical: agentsociety.memory.memory.StatusMemory.set_simulator
-
-```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory.set_simulator
-```
-
-````
-
 ````{py:method} initialize_embeddings() -> None
 :canonical: agentsociety.memory.memory.StatusMemory.initialize_embeddings
 :async:
@@ -453,22 +399,6 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 :canonical: agentsociety.memory.memory.StatusMemory._get_memory_type_by_key
 
 ```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory._get_memory_type_by_key
-```
-
-````
-
-````{py:method} set_search_components(faiss_query, embedding_model)
-:canonical: agentsociety.memory.memory.StatusMemory.set_search_components
-
-```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory.set_search_components
-```
-
-````
-
-````{py:method} set_agent_id(agent_id: int)
-:canonical: agentsociety.memory.memory.StatusMemory.set_agent_id
-
-```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory.set_agent_id
 ```
 
 ````
@@ -569,7 +499,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} Memory(config: typing.Optional[dict[typing.Any, typing.Any]] = None, profile: typing.Optional[dict[typing.Any, typing.Any]] = None, base: typing.Optional[dict[typing.Any, typing.Any]] = None, activate_timestamp: bool = False, embedding_model: typing.Optional[langchain_core.embeddings.Embeddings] = None, faiss_query: typing.Optional[agentsociety.memory.faiss_query.FaissQuery] = None)
+`````{py:class} Memory(agent_id: int, environment: agentsociety.environment.Environment, faiss_query: agentsociety.memory.faiss_query.FaissQuery, embedding_model: langchain_core.embeddings.Embeddings, config: typing.Optional[dict[typing.Any, typing.Any]] = None, profile: typing.Optional[dict[typing.Any, typing.Any]] = None, base: typing.Optional[dict[typing.Any, typing.Any]] = None, activate_timestamp: bool = False)
 :canonical: agentsociety.memory.memory.Memory
 
 ```{autodoc2-docstring} agentsociety.memory.memory.Memory
@@ -580,30 +510,6 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ```{autodoc2-docstring} agentsociety.memory.memory.Memory.__init__
 ```
-
-````{py:method} set_search_components(faiss_query: agentsociety.memory.faiss_query.FaissQuery, embedding_model: langchain_core.embeddings.Embeddings)
-:canonical: agentsociety.memory.memory.Memory.set_search_components
-
-```{autodoc2-docstring} agentsociety.memory.memory.Memory.set_search_components
-```
-
-````
-
-````{py:method} set_agent_id(agent_id: int)
-:canonical: agentsociety.memory.memory.Memory.set_agent_id
-
-```{autodoc2-docstring} agentsociety.memory.memory.Memory.set_agent_id
-```
-
-````
-
-````{py:method} set_simulator(simulator)
-:canonical: agentsociety.memory.memory.Memory.set_simulator
-
-```{autodoc2-docstring} agentsociety.memory.memory.Memory.set_simulator
-```
-
-````
 
 ````{py:property} status
 :canonical: agentsociety.memory.memory.Memory.status

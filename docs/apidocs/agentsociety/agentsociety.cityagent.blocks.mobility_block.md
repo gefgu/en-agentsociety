@@ -51,10 +51,6 @@
 :class: autosummary longtable
 :align: left
 
-* - {py:obj}`logger <agentsociety.cityagent.blocks.mobility_block.logger>`
-  - ```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.logger
-    :summary:
-    ```
 * - {py:obj}`PLACE_TYPE_SELECTION_PROMPT <agentsociety.cityagent.blocks.mobility_block.PLACE_TYPE_SELECTION_PROMPT>`
   - ```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.PLACE_TYPE_SELECTION_PROMPT
     :summary:
@@ -74,16 +70,6 @@
 ````
 
 ### API
-
-````{py:data} logger
-:canonical: agentsociety.cityagent.blocks.mobility_block.logger
-:value: >
-   'getLogger(...)'
-
-```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.logger
-```
-
-````
 
 ````{py:data} PLACE_TYPE_SELECTION_PROMPT
 :canonical: agentsociety.cityagent.blocks.mobility_block.PLACE_TYPE_SELECTION_PROMPT
@@ -128,10 +114,10 @@
 ```
 ````
 
-`````{py:class} PlaceSelectionBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.Simulator)
+`````{py:class} PlaceSelectionBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.mobility_block.PlaceSelectionBlock
 
-Bases: {py:obj}`agentsociety.workflow.Block`
+Bases: {py:obj}`agentsociety.agent.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.PlaceSelectionBlock
 ```
@@ -173,10 +159,10 @@ Bases: {py:obj}`agentsociety.workflow.Block`
 
 `````
 
-`````{py:class} MoveBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.Simulator)
+`````{py:class} MoveBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.mobility_block.MoveBlock
 
-Bases: {py:obj}`agentsociety.workflow.Block`
+Bases: {py:obj}`agentsociety.agent.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MoveBlock
 ```
@@ -191,79 +177,6 @@ Bases: {py:obj}`agentsociety.workflow.Block`
 :canonical: agentsociety.cityagent.blocks.mobility_block.MoveBlock.forward
 :async:
 
-```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MoveBlock.forward
-```
-
-````
-
-````{py:method} _get_place_type(plan, intention)
-:canonical: agentsociety.cityagent.blocks.mobility_block.MoveBlock._get_place_type
-:async:
-
-```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MoveBlock._get_place_type
-```
-
-````
-
-````{py:method} _move_home(agent_id)
-:canonical: agentsociety.cityagent.blocks.mobility_block.MoveBlock._move_home
-:async:
-
-```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MoveBlock._move_home
-```
-
-````
-
-````{py:method} _move_work(agent_id)
-:canonical: agentsociety.cityagent.blocks.mobility_block.MoveBlock._move_work
-:async:
-
-```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MoveBlock._move_work
-```
-
-````
-
-````{py:method} _move_custom(context, agent_id)
-:canonical: agentsociety.cityagent.blocks.mobility_block.MoveBlock._move_custom
-:async:
-
-```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MoveBlock._move_custom
-```
-
-````
-
-````{py:method} _random_poi()
-:canonical: agentsociety.cityagent.blocks.mobility_block.MoveBlock._random_poi
-:async:
-
-```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MoveBlock._random_poi
-```
-
-````
-
-````{py:method} _increment_poi_counter()
-:canonical: agentsociety.cityagent.blocks.mobility_block.MoveBlock._increment_poi_counter
-:async:
-
-```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MoveBlock._increment_poi_counter
-```
-
-````
-
-````{py:method} _stationary_result(place_type, place_id)
-:canonical: agentsociety.cityagent.blocks.mobility_block.MoveBlock._stationary_result
-
-```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MoveBlock._stationary_result
-```
-
-````
-
-````{py:method} _mobility_result(desc, place_id, time)
-:canonical: agentsociety.cityagent.blocks.mobility_block.MoveBlock._mobility_result
-
-```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MoveBlock._mobility_result
-```
-
 ````
 
 `````
@@ -271,7 +184,7 @@ Bases: {py:obj}`agentsociety.workflow.Block`
 `````{py:class} MobilityNoneBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.mobility_block.MobilityNoneBlock
 
-Bases: {py:obj}`agentsociety.workflow.Block`
+Bases: {py:obj}`agentsociety.agent.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MobilityNoneBlock
 ```
@@ -293,10 +206,10 @@ Bases: {py:obj}`agentsociety.workflow.Block`
 
 `````
 
-`````{py:class} MobilityBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.Simulator)
+`````{py:class} MobilityBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.mobility_block.MobilityBlock
 
-Bases: {py:obj}`agentsociety.workflow.Block`
+Bases: {py:obj}`agentsociety.agent.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MobilityBlock
 ```

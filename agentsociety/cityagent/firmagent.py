@@ -3,16 +3,17 @@ from typing import Optional, cast
 
 import numpy as np
 
-from agentsociety import InstitutionAgent, Simulator
-from agentsociety.environment import EconomyClient
-from agentsociety.llm import LLM
-from agentsociety.memory import Memory
-from agentsociety.message import Messager
+from ..agent import FirmAgentBase, AgentToolbox
+from ..environment import EconomyClient
+from ..llm import LLM
+from ..memory import Memory
+from ..message import Messager
+from ..environment import Environment
 
-logger = logging.getLogger("agentsociety")
+__all__ = ["FirmAgent"]
 
 
-class FirmAgent(InstitutionAgent):
+class FirmAgent(FirmAgentBase):
     """Agent representing a firm in an economic simulation.
 
     Manages economic activities including price adjustments, wage policies,
@@ -34,33 +35,26 @@ class FirmAgent(InstitutionAgent):
 
     def __init__(
         self,
+        id: int,
         name: str,
-        llm_client: Optional[LLM] = None,
-        simulator: Optional[Simulator] = None,
-        memory: Optional[Memory] = None,
-        economy_client: Optional[EconomyClient] = None,
-        messager: Optional[Messager] = None,  # type:ignore
-        avro_file: Optional[dict] = None,
+        toolbox: AgentToolbox,
+        memory: Memory,
     ) -> None:
         """Initialize a FirmAgent with essential components for economic simulation.
 
-        Args:
-            name: Unique identifier for the agent
-            llm_client: Language model client for decision-making (optional)
-            simulator: Simulation controller (optional)
-            memory: Agent's memory system (optional)
-            economy_client: Client for economic data operations (optional)
-            messager: Communication handler (optional)
-            avro_file: Configuration file in Avro format (optional)
+        - **Args**:
+            - `name` (`str`): The name or identifier of the agent.
+            - `toolbox` (`AgentToolbox`): The toolbox of the agent.
+            - `memory` (`Memory`): The memory of the agent.
+
+        - **Description**:
+            - Initializes the firm agent with the provided parameters and sets up necessary internal states.
         """
         super().__init__(
+            id=id,
             name=name,
-            llm_client=llm_client,
-            simulator=simulator,
+            toolbox=toolbox,
             memory=memory,
-            economy_client=economy_client,
-            messager=messager,
-            avro_file=avro_file,
         )
         self.initailzed = False
         self.last_time_trigger = None
@@ -76,17 +70,16 @@ class FirmAgent(InstitutionAgent):
         Returns:
             True if time_diff has passed since last trigger, False otherwise
         """
-        now_time = await self.simulator.get_time()
-        now_time = cast(int, now_time)
+        now_tick = self.environment.get_tick()
         if self.last_time_trigger is None:
-            self.last_time_trigger = now_time
+            self.last_time_trigger = now_tick
             return False
-        if now_time - self.last_time_trigger >= self.time_diff:
-            self.last_time_trigger = now_time
+        if now_tick - self.last_time_trigger >= self.time_diff:
+            self.last_time_trigger = now_tick
             return True
         return False
 
-    async def gather_messages(self, agent_ids, content):  # type:ignore
+    async def gather_messages(self, agent_ids, content):
         """Collect messages from specified agents.
 
         Args:
@@ -107,10 +100,10 @@ class FirmAgent(InstitutionAgent):
         - Economic metrics reset (demand/sales tracking)
         """
         if await self.month_trigger():
-            firm_id = self._agent_id
+            firm_id = self.id
             print("firm forward")
             employees, total_demand, goods_consumption, inventory, skills, price = (
-                await self.economy_client.get(
+                await self.environment.economy_client.get(
                     firm_id,
                     ["employees", "demand", "sales", "inventory", "skill", "price"],
                 )
@@ -123,12 +116,12 @@ class FirmAgent(InstitutionAgent):
             skill_change_ratio = np.random.uniform(
                 0, max_change_rate * self.max_wage_inflation
             )
-            await self.economy_client.update(
+            await self.environment.economy_client.update(
                 employees,
                 "skill",
                 list(np.maximum(skills * (1 + skill_change_ratio), 1)),
             )
-            await self.economy_client.update(
+            await self.environment.economy_client.update(
                 firm_id,
                 "price",
                 max(
@@ -142,6 +135,6 @@ class FirmAgent(InstitutionAgent):
                     1,
                 ),
             )
-            await self.economy_client.update(firm_id, "demand", 0)
-            await self.economy_client.update(firm_id, "sales", 0)
+            await self.environment.economy_client.update(firm_id, "demand", 0)
+            await self.environment.economy_client.update(firm_id, "sales", 0)
             print("firm forward end")

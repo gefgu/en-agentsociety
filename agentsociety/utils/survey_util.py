@@ -51,6 +51,3 @@ Please answer each question in the following format:
 Format your responses exactly as requested above."""
 
     return prompt
-
-
-SURVEY_SENDER_UUID = "none"

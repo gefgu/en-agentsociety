@@ -1,10 +1,11 @@
 import logging
 import random
 
-from agentsociety.llm import LLM
-from agentsociety.workflow import Block, FormatPrompt
+from openai.types.chat import ChatCompletionToolParam
 
-logger = logging.getLogger("agentsociety")
+from ...agent import Block, FormatPrompt
+from ...llm import LLM
+from ...logger import get_logger
 
 DISPATCHER_PROMPT = """
 Based on the task information (which describes the needs of the user), select the most appropriate block to handle the task.
@@ -44,7 +45,7 @@ class BlockDispatcher:
             block_name = block.__class__.__name__.lower()
             self.blocks[block_name] = block
 
-    def _get_function_schema(self) -> dict:
+    def _get_function_schema(self) -> ChatCompletionToolParam:
         """Generate LLM function calling schema describing available blocks.
 
         Returns:
@@ -56,8 +57,7 @@ class BlockDispatcher:
         """
         # create block descriptions
         block_descriptions = {
-            name: block.description  # type: ignore
-            for name, block in self.blocks.items()
+            name: block.description for name, block in self.blocks.items()
         }
 
         return {
@@ -107,7 +107,7 @@ class BlockDispatcher:
                 tool_choice={"type": "function", "function": {"name": "select_block"}},
             )
 
-            selected_block = function_args.get("block_name")  # type: ignore
+            selected_block = function_args.get("block_name")  #
 
             if selected_block not in self.blocks:
                 raise ValueError(
@@ -117,5 +117,5 @@ class BlockDispatcher:
             return self.blocks[selected_block]
 
         except Exception as e:
-            logger.warning(f"Failed to dispatch block: {e}")
+            get_logger().warning(f"Failed to dispatch block: {e}")
             return random.choice(list(self.blocks.values()))

@@ -1,3 +1,4 @@
+import jsonc
 import json
 import logging
 from typing import Any
@@ -41,7 +42,7 @@ class JsonObjectParser(ParserBase):
             # logging.warning(f"Error when handling text {extract_text} with `eval`")
             pass
         try:
-            parsed_json = json.loads(extract_text)
+            parsed_json = jsonc.loads(extract_text)
             return parsed_json
         except json.decoder.JSONDecodeError as e:
             raw_response = f"{self.tag_start}{extract_text}{self.tag_end}"

@@ -5,17 +5,13 @@ from collections.abc import Callable, Sequence
 from typing import Any, Optional, Union
 
 from mlflow.entities import Metric
-import ray
 
-from ..agent import Agent
-from ..environment import AoiService, PersonService
+from ..agent import Agent, Block
 from ..utils.decorators import lock_decorator
-from ..workflow import Block
 
 __all__ = [
     "Tool",
     "ExportMlflowMetrics",
-    "GetMap",
     "UpdateWithSimulator",
     "ResetAgentPosition",
 ]
@@ -31,7 +27,7 @@ class Tool:
         - `_instance`: A reference to the instance (`Agent` or `Block`) this tool is bound to.
     """
 
-    def __get__(self, instance, owner):
+    def __get__(self, instance: Union[Agent, Block], owner):
         """
         Descriptor method for binding the tool to an instance.
 
@@ -47,16 +43,16 @@ class Tool:
             - Otherwise, it checks if the tool has already been instantiated for this instance,
               and if not, creates and stores a new tool instance specifically for this instance.
         """
-        if instance is None:
-            return self
+        assert instance is not None
         subclass = type(self)
         if not hasattr(instance, "_tools"):
-            instance._tools = {}
-        if subclass not in instance._tools:
+            setattr(instance, "_tools", {})
+        instance_tools = getattr(instance, "_tools")
+        if subclass not in instance_tools:
             tool_instance = subclass()
-            tool_instance._instance = instance  # type: ignore
-            instance._tools[subclass] = tool_instance
-        return instance._tools[subclass]
+            setattr(tool_instance, "_instance", instance)
+            instance_tools[subclass] = tool_instance
+        return instance_tools[subclass]
 
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         """Invoke the tool's functionality.
@@ -79,7 +75,7 @@ class Tool:
         - **Raises**:
             - `RuntimeError`: If the tool is not bound to an `Agent`.
         """
-        instance = self._instance  # type:ignore
+        instance = getattr(self, "_instance", None)
         if not isinstance(instance, Agent):
             raise RuntimeError(
                 f"Tool bind to object `{type(instance).__name__}`, not an `Agent` object!"
@@ -97,25 +93,12 @@ class Tool:
         - **Raises**:
             - `RuntimeError`: If the tool is not bound to a `Block`.
         """
-        instance = self._instance  # type:ignore
+        instance = getattr(self, "_instance", None)
         if not isinstance(instance, Block):
             raise RuntimeError(
                 f"Tool bind to object `{type(instance).__name__}`, not an `Block` object!"
             )
         return instance
-
-
-class GetMap(Tool):
-    """Retrieve the map from the simulator. Can be bound only to an `Agent` instance."""
-
-    def __init__(self) -> None:
-        self.variables = []
-
-    async def __call__(self) -> Union[Any, Callable]:
-        agent = self.agent
-        if agent.simulator is None:
-            raise ValueError("Simulator is not set.")
-        return agent.simulator.map
 
 
 class UpdateWithSimulator(Tool):
@@ -128,12 +111,10 @@ class UpdateWithSimulator(Tool):
         self,
     ):
         agent = self.agent
-        if agent._simulator is None:
-            return
-        simulator = agent.simulator
+        environment = agent.environment
         status = agent.status
         person_id = await status.get("id")
-        resp = await simulator.get_person(person_id)
+        resp = await environment.get_person(person_id)
         resp_dict = resp["person"]
         for k, v in resp_dict.get("motion", {}).items():
             try:
@@ -148,7 +129,6 @@ class UpdateWithSimulator(Tool):
     async def __call__(
         self,
     ):
-        agent = self.agent
         await self._update_motion_with_sim()
 
 
@@ -178,7 +158,7 @@ class ResetAgentPosition(Tool):
         """
         agent = self.agent
         status = agent.status
-        await agent.simulator.reset_person_position(
+        await agent.environment.reset_person_position(
             person_id=await status.get("id"),
             aoi_id=aoi_id,
             poi_id=poi_id,
@@ -243,9 +223,10 @@ class ExportMlflowMetrics(Tool):
                 )
                 metric_key = _metric["key"]
             self.metric_log_cache[metric_key].append(item)
+        client = agent.mlflow_client
+        assert client is not None, "MLflow client is not enabled!"
         for metric_key, _cache in self.metric_log_cache.items():
             if len(_cache) > batch_size:
-                client = agent.mlflow_client  # type:ignore
                 await client.log_batch(
                     metrics=_cache[:batch_size],
                 )
@@ -260,7 +241,8 @@ class ExportMlflowMetrics(Tool):
         Log any remaining metrics from the cache to MLflow and then clear the cache.
         """
         agent = self.agent
-        client = agent.mlflow_client  # type:ignore
+        client = agent.mlflow_client
+        assert client is not None, "MLflow client is not enabled!"
         for metric_key, _cache in self.metric_log_cache.items():
             if len(_cache) > 0:
                 await client.log_batch(

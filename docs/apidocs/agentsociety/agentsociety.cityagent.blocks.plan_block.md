@@ -27,10 +27,6 @@
 :class: autosummary longtable
 :align: left
 
-* - {py:obj}`logger <agentsociety.cityagent.blocks.plan_block.logger>`
-  - ```{autodoc2-docstring} agentsociety.cityagent.blocks.plan_block.logger
-    :summary:
-    ```
 * - {py:obj}`GUIDANCE_SELECTION_PROMPT <agentsociety.cityagent.blocks.plan_block.GUIDANCE_SELECTION_PROMPT>`
   - ```{autodoc2-docstring} agentsociety.cityagent.blocks.plan_block.GUIDANCE_SELECTION_PROMPT
     :summary:
@@ -42,16 +38,6 @@
 ````
 
 ### API
-
-````{py:data} logger
-:canonical: agentsociety.cityagent.blocks.plan_block.logger
-:value: >
-   'getLogger(...)'
-
-```{autodoc2-docstring} agentsociety.cityagent.blocks.plan_block.logger
-```
-
-````
 
 ````{py:data} GUIDANCE_SELECTION_PROMPT
 :canonical: agentsociety.cityagent.blocks.plan_block.GUIDANCE_SELECTION_PROMPT
@@ -71,10 +57,10 @@
 
 ````
 
-`````{py:class} PlanBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.Simulator)
+`````{py:class} PlanBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.plan_block.PlanBlock
 
-Bases: {py:obj}`agentsociety.workflow.Block`
+Bases: {py:obj}`agentsociety.agent.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.plan_block.PlanBlock
 ```
@@ -116,7 +102,7 @@ Bases: {py:obj}`agentsociety.workflow.Block`
 
 ````
 
-````{py:method} select_guidance(current_need: str) -> dict
+````{py:method} select_guidance(current_need: str) -> typing.Optional[typing.Tuple[dict, str]]
 :canonical: agentsociety.cityagent.blocks.plan_block.PlanBlock.select_guidance
 :async:
 
@@ -125,7 +111,7 @@ Bases: {py:obj}`agentsociety.workflow.Block`
 
 ````
 
-````{py:method} generate_detailed_plan(selected_option: str) -> dict
+````{py:method} generate_detailed_plan(selected_option: str) -> typing.Optional[dict]
 :canonical: agentsociety.cityagent.blocks.plan_block.PlanBlock.generate_detailed_plan
 :async:
 

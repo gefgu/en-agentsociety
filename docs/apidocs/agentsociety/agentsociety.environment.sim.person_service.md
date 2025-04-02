@@ -21,6 +21,18 @@
     ```
 ````
 
+### Functions
+
+````{list-table}
+:class: autosummary longtable
+:align: left
+
+* - {py:obj}`default_person_template_generator <agentsociety.environment.sim.person_service.default_person_template_generator>`
+  - ```{autodoc2-docstring} agentsociety.environment.sim.person_service.default_person_template_generator
+    :summary:
+    ```
+````
+
 ### Data
 
 ````{list-table}
@@ -45,6 +57,13 @@
 
 ````
 
+````{py:function} default_person_template_generator() -> pycityproto.city.person.v2.person_pb2.Person
+:canonical: agentsociety.environment.sim.person_service.default_person_template_generator
+
+```{autodoc2-docstring} agentsociety.environment.sim.person_service.default_person_template_generator
+```
+````
+
 `````{py:class} PersonService(aio_channel: grpc.aio.Channel)
 :canonical: agentsociety.environment.sim.person_service.PersonService
 
@@ -57,7 +76,7 @@
 ```{autodoc2-docstring} agentsociety.environment.sim.person_service.PersonService.__init__
 ```
 
-````{py:method} default_person() -> pycityproto.city.person.v2.person_pb2.Person
+````{py:method} default_person(return_dict: bool = False) -> typing.Union[pycityproto.city.person.v2.person_pb2.Person, dict]
 :canonical: agentsociety.environment.sim.person_service.PersonService.default_person
 :staticmethod:
 
@@ -66,16 +85,7 @@
 
 ````
 
-````{py:method} default_dict_person() -> dict
-:canonical: agentsociety.environment.sim.person_service.PersonService.default_dict_person
-:staticmethod:
-
-```{autodoc2-docstring} agentsociety.environment.sim.person_service.PersonService.default_dict_person
-```
-
-````
-
-````{py:method} GetPerson(req: typing.Union[pycityproto.city.person.v2.person_service_pb2.GetPersonRequest, dict], dict_return: bool = True) -> collections.abc.Coroutine[typing.Any, typing.Any, typing.Union[dict[str, typing.Any], pycityproto.city.person.v2.person_service_pb2.GetPersonResponse]]
+````{py:method} GetPerson(req: typing.Union[pycityproto.city.person.v2.person_service_pb2.GetPersonRequest, dict[str, typing.Any]], dict_return: bool = True) -> collections.abc.Coroutine[typing.Any, typing.Any, typing.Union[dict[str, typing.Any], pycityproto.city.person.v2.person_service_pb2.GetPersonResponse]]
 :canonical: agentsociety.environment.sim.person_service.PersonService.GetPerson
 
 ```{autodoc2-docstring} agentsociety.environment.sim.person_service.PersonService.GetPerson
@@ -83,7 +93,7 @@
 
 ````
 
-````{py:method} AddPerson(req: typing.Union[pycityproto.city.person.v2.person_service_pb2.AddPersonRequest, dict], dict_return: bool = True) -> collections.abc.Coroutine[typing.Any, typing.Any, typing.Union[dict[str, typing.Any], pycityproto.city.person.v2.person_service_pb2.AddPersonResponse]]
+````{py:method} AddPerson(req: typing.Union[pycityproto.city.person.v2.person_service_pb2.AddPersonRequest, dict[str, typing.Any]], dict_return: bool = True) -> collections.abc.Coroutine[typing.Any, typing.Any, typing.Union[dict[str, typing.Any], pycityproto.city.person.v2.person_service_pb2.AddPersonResponse]]
 :canonical: agentsociety.environment.sim.person_service.PersonService.AddPerson
 
 ```{autodoc2-docstring} agentsociety.environment.sim.person_service.PersonService.AddPerson
@@ -91,7 +101,7 @@
 
 ````
 
-````{py:method} SetSchedule(req: typing.Union[pycityproto.city.person.v2.person_service_pb2.SetScheduleRequest, dict], dict_return: bool = True) -> collections.abc.Coroutine[typing.Any, typing.Any, typing.Union[dict[str, typing.Any], pycityproto.city.person.v2.person_service_pb2.SetScheduleResponse]]
+````{py:method} SetSchedule(req: typing.Union[pycityproto.city.person.v2.person_service_pb2.SetScheduleRequest, dict[str, typing.Any]], dict_return: bool = True) -> collections.abc.Coroutine[typing.Any, typing.Any, typing.Union[dict[str, typing.Any], pycityproto.city.person.v2.person_service_pb2.SetScheduleResponse]]
 :canonical: agentsociety.environment.sim.person_service.PersonService.SetSchedule
 
 ```{autodoc2-docstring} agentsociety.environment.sim.person_service.PersonService.SetSchedule
@@ -99,7 +109,7 @@
 
 ````
 
-````{py:method} GetPersons(req: typing.Union[pycityproto.city.person.v2.person_service_pb2.GetPersonsRequest, dict], dict_return: bool = True) -> collections.abc.Coroutine[typing.Any, typing.Any, typing.Union[dict[str, typing.Any], pycityproto.city.person.v2.person_service_pb2.GetPersonsResponse]]
+````{py:method} GetPersons(req: typing.Union[pycityproto.city.person.v2.person_service_pb2.GetPersonsRequest, dict[str, typing.Any]], dict_return: bool = True) -> collections.abc.Coroutine[typing.Any, typing.Any, typing.Union[dict[str, typing.Any], pycityproto.city.person.v2.person_service_pb2.GetPersonsResponse]]
 :canonical: agentsociety.environment.sim.person_service.PersonService.GetPersons
 
 ```{autodoc2-docstring} agentsociety.environment.sim.person_service.PersonService.GetPersons
@@ -107,7 +117,7 @@
 
 ````
 
-````{py:method} GetPersonByLongLatBBox(req: typing.Union[pycityproto.city.person.v2.person_service_pb2.GetPersonByLongLatBBoxRequest, dict], dict_return: bool = True) -> collections.abc.Coroutine[typing.Any, typing.Any, typing.Union[dict[str, typing.Any], pycityproto.city.person.v2.person_service_pb2.GetPersonByLongLatBBoxResponse]]
+````{py:method} GetPersonByLongLatBBox(req: typing.Union[pycityproto.city.person.v2.person_service_pb2.GetPersonByLongLatBBoxRequest, dict[str, typing.Any]], dict_return: bool = True) -> collections.abc.Coroutine[typing.Any, typing.Any, typing.Union[dict[str, typing.Any], pycityproto.city.person.v2.person_service_pb2.GetPersonByLongLatBBoxResponse]]
 :canonical: agentsociety.environment.sim.person_service.PersonService.GetPersonByLongLatBBox
 
 ```{autodoc2-docstring} agentsociety.environment.sim.person_service.PersonService.GetPersonByLongLatBBox
@@ -115,7 +125,7 @@
 
 ````
 
-````{py:method} GetAllVehicles(req: typing.Union[pycityproto.city.person.v2.person_service_pb2.GetAllVehiclesRequest, dict], dict_return: bool = True) -> collections.abc.Coroutine[typing.Any, typing.Any, typing.Union[dict[str, typing.Any], pycityproto.city.person.v2.person_service_pb2.GetAllVehiclesResponse]]
+````{py:method} GetAllVehicles(req: typing.Union[pycityproto.city.person.v2.person_service_pb2.GetAllVehiclesRequest, dict[str, typing.Any]], dict_return: bool = True) -> collections.abc.Coroutine[typing.Any, typing.Any, typing.Union[dict[str, typing.Any], pycityproto.city.person.v2.person_service_pb2.GetAllVehiclesResponse]]
 :canonical: agentsociety.environment.sim.person_service.PersonService.GetAllVehicles
 
 ```{autodoc2-docstring} agentsociety.environment.sim.person_service.PersonService.GetAllVehicles
@@ -123,34 +133,10 @@
 
 ````
 
-````{py:method} ResetPersonPosition(req: typing.Union[pycityproto.city.person.v2.person_service_pb2.ResetPersonPositionRequest, dict], dict_return: bool = True) -> collections.abc.Coroutine[typing.Any, typing.Any, typing.Union[dict[str, typing.Any], pycityproto.city.person.v2.person_service_pb2.ResetPersonPositionResponse]]
+````{py:method} ResetPersonPosition(req: typing.Union[pycityproto.city.person.v2.person_service_pb2.ResetPersonPositionRequest, dict[str, typing.Any]], dict_return: bool = True) -> collections.abc.Coroutine[typing.Any, typing.Any, typing.Union[dict[str, typing.Any], pycityproto.city.person.v2.person_service_pb2.ResetPersonPositionResponse]]
 :canonical: agentsociety.environment.sim.person_service.PersonService.ResetPersonPosition
 
 ```{autodoc2-docstring} agentsociety.environment.sim.person_service.PersonService.ResetPersonPosition
-```
-
-````
-
-````{py:method} SetControlledVehicleIDs(req: typing.Union[pycityproto.city.person.v2.person_service_pb2.SetControlledVehicleIDsRequest, dict], dict_return: bool = True) -> collections.abc.Coroutine[typing.Any, typing.Any, typing.Union[dict[str, typing.Any], pycityproto.city.person.v2.person_service_pb2.SetControlledVehicleIDsResponse]]
-:canonical: agentsociety.environment.sim.person_service.PersonService.SetControlledVehicleIDs
-
-```{autodoc2-docstring} agentsociety.environment.sim.person_service.PersonService.SetControlledVehicleIDs
-```
-
-````
-
-````{py:method} FetchControlledVehicleEnvs(req: typing.Union[pycityproto.city.person.v2.person_service_pb2.FetchControlledVehicleEnvsRequest, dict], dict_return: bool = True) -> collections.abc.Coroutine[typing.Any, typing.Any, typing.Union[dict[str, typing.Any], pycityproto.city.person.v2.person_service_pb2.FetchControlledVehicleEnvsResponse]]
-:canonical: agentsociety.environment.sim.person_service.PersonService.FetchControlledVehicleEnvs
-
-```{autodoc2-docstring} agentsociety.environment.sim.person_service.PersonService.FetchControlledVehicleEnvs
-```
-
-````
-
-````{py:method} SetControlledVehicleActions(req: typing.Union[pycityproto.city.person.v2.person_service_pb2.SetControlledVehicleActionsRequest, dict], dict_return: bool = True) -> collections.abc.Coroutine[typing.Any, typing.Any, typing.Union[dict[str, typing.Any], pycityproto.city.person.v2.person_service_pb2.SetControlledVehicleActionsResponse]]
-:canonical: agentsociety.environment.sim.person_service.PersonService.SetControlledVehicleActions
-
-```{autodoc2-docstring} agentsociety.environment.sim.person_service.PersonService.SetControlledVehicleActions
 ```
 
 ````

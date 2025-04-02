@@ -3,6 +3,8 @@ import random
 from collections import deque
 
 import numpy as np
+from typing import Any
+from agentsociety.agent.memory_config_generator import Distribution, MemoryT
 
 pareto_param = 8
 payment_max_skill_multiplier_base = 950
@@ -18,7 +20,9 @@ import threading
 index_lock = threading.Lock()
 
 
-def memory_config_societyagent_hurrican():
+def memory_config_societyagent_hurrican(
+    distributions: dict[str, Distribution],
+) -> tuple[dict[str, MemoryT], dict[str, MemoryT], dict[str, Any]]:
     if not hasattr(memory_config_societyagent_hurrican, "profile_list"):
         with open("profiles_with_aoi.json", "r") as f:
             setattr(memory_config_societyagent_hurrican, "profile_list", json.load(f))
@@ -28,7 +32,6 @@ def memory_config_societyagent_hurrican():
 
     EXTRA_ATTRIBUTES = {
         "type": (str, "citizen"),
-        "city": (str, "Columbia", True),
         # Needs Model
         "hunger_satisfaction": (float, 0.8, False),  # hunger satisfaction
         "energy_satisfaction": (float, 0.9, False),  # energy satisfaction
@@ -37,7 +40,6 @@ def memory_config_societyagent_hurrican():
         "current_need": (str, "none", False),
         # Plan Behavior Model
         "current_plan": (list, [], False),
-        "current_step": (dict, {"intention": "", "type": ""}, False),
         "execution_context": (dict, {}, False),
         "plan_history": (list, [], False),
         # cognition
@@ -93,6 +95,7 @@ def memory_config_societyagent_hurrican():
         "to_discuss": (dict, {}, False),
         # mobility
         "number_poi_visited": (int, 1, False),
+        "location_knowledge": (dict, {}, False),  # location knowledge
     }
 
     PROFILE = {

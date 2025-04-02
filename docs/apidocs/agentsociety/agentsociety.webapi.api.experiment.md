@@ -1,0 +1,104 @@
+# {py:mod}`agentsociety.webapi.api.experiment`
+
+```{py:module} agentsociety.webapi.api.experiment
+```
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment
+:allowtitles:
+```
+
+## Module Contents
+
+### Functions
+
+````{list-table}
+:class: autosummary longtable
+:align: left
+
+* - {py:obj}`list_experiments <agentsociety.webapi.api.experiment.list_experiments>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.experiment.list_experiments
+    :summary:
+    ```
+* - {py:obj}`get_experiment_by_id <agentsociety.webapi.api.experiment.get_experiment_by_id>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.experiment.get_experiment_by_id
+    :summary:
+    ```
+* - {py:obj}`get_experiment_status_timeline_by_id <agentsociety.webapi.api.experiment.get_experiment_status_timeline_by_id>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.experiment.get_experiment_status_timeline_by_id
+    :summary:
+    ```
+* - {py:obj}`delete_experiment_by_id <agentsociety.webapi.api.experiment.delete_experiment_by_id>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.experiment.delete_experiment_by_id
+    :summary:
+    ```
+````
+
+### Data
+
+````{list-table}
+:class: autosummary longtable
+:align: left
+
+* - {py:obj}`__all__ <agentsociety.webapi.api.experiment.__all__>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.experiment.__all__
+    :summary:
+    ```
+* - {py:obj}`router <agentsociety.webapi.api.experiment.router>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.experiment.router
+    :summary:
+    ```
+````
+
+### API
+
+````{py:data} __all__
+:canonical: agentsociety.webapi.api.experiment.__all__
+:value: >
+   ['router']
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment.__all__
+```
+
+````
+
+````{py:data} router
+:canonical: agentsociety.webapi.api.experiment.router
+:value: >
+   'APIRouter(...)'
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment.router
+```
+
+````
+
+````{py:function} list_experiments(request: fastapi.Request) -> agentsociety.webapi.models.ApiResponseWrapper[typing.List[agentsociety.webapi.models.experiment.ApiExperiment]]
+:canonical: agentsociety.webapi.api.experiment.list_experiments
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment.list_experiments
+```
+````
+
+````{py:function} get_experiment_by_id(request: fastapi.Request, exp_id: uuid.UUID) -> agentsociety.webapi.models.ApiResponseWrapper[agentsociety.webapi.models.experiment.ApiExperiment]
+:canonical: agentsociety.webapi.api.experiment.get_experiment_by_id
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment.get_experiment_by_id
+```
+````
+
+````{py:function} get_experiment_status_timeline_by_id(request: fastapi.Request, exp_id: uuid.UUID) -> agentsociety.webapi.models.ApiResponseWrapper[typing.List[agentsociety.webapi.models.experiment.ApiTime]]
+:canonical: agentsociety.webapi.api.experiment.get_experiment_status_timeline_by_id
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment.get_experiment_status_timeline_by_id
+```
+````
+
+````{py:function} delete_experiment_by_id(request: fastapi.Request, exp_id: uuid.UUID)
+:canonical: agentsociety.webapi.api.experiment.delete_experiment_by_id
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment.delete_experiment_by_id
+```
+````

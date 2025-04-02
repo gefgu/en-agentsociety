@@ -13,8 +13,13 @@
 :titlesonly:
 :maxdepth: 1
 
-agentsociety.agent.agent_base
+agentsociety.agent.distribution
+agentsociety.agent.memory_config_generator
+agentsociety.agent.block
+agentsociety.agent.trigger
 agentsociety.agent.agent
+agentsociety.agent.prompt
+agentsociety.agent.agent_base
 ```
 
 ## Package Contents
@@ -36,7 +41,7 @@ agentsociety.agent.agent
 ````{py:data} __all__
 :canonical: agentsociety.agent.__all__
 :value: >
-   ['Agent', 'CitizenAgent', 'InstitutionAgent', 'AgentType']
+   ['Agent', 'CitizenAgentBase', 'AgentType', 'AgentToolbox', 'FirmAgentBase', 'BankAgentBase', 'NBSAge...
 
 ```{autodoc2-docstring} agentsociety.agent.__all__
 ```

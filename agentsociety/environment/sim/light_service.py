@@ -4,8 +4,7 @@ from typing import Any, Union, cast
 import grpc
 from google.protobuf.json_format import ParseDict
 from pycityproto.city.map.v2 import traffic_light_service_pb2 as light_service
-from pycityproto.city.map.v2 import \
-    traffic_light_service_pb2_grpc as light_grpc
+from pycityproto.city.map.v2 import traffic_light_service_pb2_grpc as light_grpc
 
 from ..utils.protobuf import async_parse
 

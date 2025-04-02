@@ -14,23 +14,29 @@ The paper is available at [arXiv](https://arxiv.org/abs/2502.08691):
 
 <img src="_static/framework-overview.jpg" alt="Overall Structure of AgentSociety" style="zoom=28%;" />
 
+## News
+
+Version 1.3.0 is released!
+
+Check out [Version 1.3](./02-version-1.3/index.md) for the latest updates and new features🎇.
+
 ## Features
 
-- 🌟 **Large Model-driven Social Human Agents**: Based on sociological theories, it constructs social agents with "human-like minds," endowing them with emotions, needs, motivations, and cognitive abilities. These agents perform complex social behaviors such as movement, employment, consumption, and social interactions driven by these mental attributes. We also support [customization of agents](./04-custom-agents/index.md).
+- 🌟 **Large Model-driven Social Human Agents**: Based on sociological theories, it constructs social agents with "human-like minds," endowing them with emotions, needs, motivations, and cognitive abilities. These agents perform complex social behaviors such as movement, employment, consumption, and social interactions driven by these mental attributes. We also support [customization of agents](./05-custom-agents/index.md).
 - 🌟 **Realistic Urban Social Environment**: It accurately simulates urban spaces that are crucial for the survival of social humans, reproducing transportation, infrastructure, and public resources. This enables agents to interact under real-world constraints, forming a vivid social ecosystem.
-- 🌟 **Large-scale Social Simulation Engine**: By employing an asynchronous simulation architecture and the [Ray](https://www.ray.io/) distributed computing framework, combined with agent grouping and [MQTT](https://mqtt.org/) high-concurrency communication, it achieves efficient, scalable interaction among agents and simulation of social behavior.
-- 🌟 **Social Science Research Toolkit**: It comprehensively supports a series of sociological research methods including [interviews & surveys](./03-experiment-design/01-survey-and-interview.md), [message control tool](./03-experiment-design/03-message-interception.md), and [metrics extractors](./03-experiment-design/02-metrics-collection.md), providing various automated data analysis tools that facilitate in-depth social science research from qualitative studies to quantitative analyses.
+- 🌟 **Large-scale Social Simulation Engine**: By employing an asynchronous simulation architecture and the [Ray](https://www.ray.io/) distributed computing framework, combined with agent grouping and [Redis](https://redis.io/) high-concurrency communication, it achieves efficient, scalable interaction among agents and simulation of social behavior.
+- 🌟 **Social Science Research Toolkit**: It comprehensively supports a series of sociological research methods including [interviews & surveys](./04-experiment-design/01-survey-and-interview.md), [message control tool](./04-experiment-design/03-message-interception.md), and [metrics extractors](./04-experiment-design/02-metrics-collection.md), providing various automated data analysis tools that facilitate in-depth social science research from qualitative studies to quantitative analyses.
 
 ## Online Demo
 
 <!-- ![AgentSocietyDemo](_static/agentsociety-demo.png) -->
 
-![AgentSociety](_static/framework-visual.gif)
+![AgentSociety](_static/ui-demo.gif)
 
-We provide a [Online Demo](https://agentsociety.fiblab.net/exp/1a4c4fa5-04c1-4973-9433-b8b696f2fda0) of our simulation platform. 
+We provide a [Online Demo](https://agentsociety.fiblab.net/) of our simulation platform. 
 
 Experience our online demo, which simulates the behavioral patterns of individuals during a hurricane event, grounded in the real-world context of Hurricane Dorian's impact on Columbia, South Carolina. 
-Comprehensive details and use case explanations are available in [Hurricane Impact](./06-use-case/04-hurricane-impact.md).
+Comprehensive details and use case explanations are available in [Hurricane Impact](./07-use-case/04-hurricane-impact.md).
 
 ## Installation
 
@@ -45,7 +51,7 @@ We welcome collaborative opportunities to advance social science research throug
 
 ## WeChat Group
 
-<img src="_static/wechat.jpg" alt="WeChat" style="zoom=20%;" />
+<img src="_static/wechat.jpg" alt="WeChat" style="width: 30vw;" />
 
 ## Table of Contents
 
@@ -53,11 +59,12 @@ We welcome collaborative opportunities to advance social science research throug
 :maxdepth: 2
 
 01-quick-start/index
-02-configurations/index
-03-experiment-design/index
-04-custom-agents/index
-05-ui-interface/index
-06-use-case/index
-07-advanced-usage/index
+02-version-1.3/index
+03-configurations/index
+04-experiment-design/index
+05-custom-agents/index
+06-webui/index
+07-use-case/index
+08-advanced-usage/index
 apidocs/index
 ```

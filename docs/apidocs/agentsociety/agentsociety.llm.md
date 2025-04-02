@@ -13,9 +13,9 @@
 :titlesonly:
 :maxdepth: 1
 
+agentsociety.llm.utils
 agentsociety.llm.llm
 agentsociety.llm.embeddings
-agentsociety.llm.utils
 ```
 
 ## Package Contents
@@ -37,7 +37,7 @@ agentsociety.llm.utils
 ````{py:data} __all__
 :canonical: agentsociety.llm.__all__
 :value: >
-   ['LLM', 'SentenceEmbedding', 'SimpleEmbedding']
+   ['LLM', 'SentenceEmbedding', 'SimpleEmbedding', 'init_embedding', 'LLMConfig', 'LLMProviderType']
 
 ```{autodoc2-docstring} agentsociety.llm.__all__
 ```

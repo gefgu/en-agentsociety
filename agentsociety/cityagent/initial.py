@@ -1,15 +1,21 @@
 import logging
 import random
+from copy import deepcopy
 
 import numpy as np
 
-from agentsociety.cityagent import (BankAgent, FirmAgent, GovernmentAgent,
-                                    NBSAgent, SocietyAgent)
+from ..logger import get_logger
+from ..simulation import AgentSociety
+from .bankagent import BankAgent
+from .firmagent import FirmAgent
+from .governmentagent import GovernmentAgent
+from .nbsagent import NBSAgent
+from .societyagent import SocietyAgent
 
-logger = logging.getLogger("agentsociety")
+__all__ = ["initialize_social_network", "bind_agent_info"]
 
 
-async def initialize_social_network(simulation):
+async def initialize_social_network(simulation: AgentSociety):
     """
     Initializes the social network between agents.
 
@@ -22,59 +28,53 @@ async def initialize_social_network(simulation):
     - **Returns**:
         - None
     """
-    try:
-        logger.info("Initializing social network...")
+    get_logger().info("Initializing social network...")
 
-        # Define possible relationship types
-        relation_types = ["family", "colleague", "friend"]
+    # Define possible relationship types
+    relation_types = ["family", "colleague", "friend"]
 
-        # Get all agent IDs
-        citizen_ids = await simulation.filter(types=[SocietyAgent])
-        for agent_id in citizen_ids:
-            # Randomly select 2-5 friends for each agent
-            num_friends = random.randint(2, 5)
-            possible_friends = [aid for aid in citizen_ids if aid != agent_id]
-            friends = random.sample(
-                possible_friends, min(num_friends, len(possible_friends))
-            )
+    # Get all agent IDs
+    citizen_ids = await simulation.filter(types=(SocietyAgent,))
+    for agent_id in citizen_ids:
+        # Randomly select 2-5 friends for each agent
+        num_friends = random.randint(2, 5)
+        possible_friends = [aid for aid in citizen_ids if aid != agent_id]
+        friends = random.sample(
+            possible_friends, min(num_friends, len(possible_friends))
+        )
 
-            # Initialize friend relationships
-            await simulation.update(agent_id, "friends", friends)
+        # Initialize friend relationships
+        await simulation.update([agent_id], "friends", friends)
 
-            # Initialize relationship types and strengths with each friend
-            relationships = {}
-            relation_type_map = {}
+        # Initialize relationship types and strengths with each friend
+        relationships = {}
+        relation_type_map = {}
 
-            for friend_id in friends:
-                # Randomly select relationship type
-                relation_type = random.choice(relation_types)
-                # Set initial relationship strength range based on type
-                if relation_type == "family":
-                    strength = random.randint(60, 90)  # Higher strength for family
-                elif relation_type == "colleague":
-                    strength = random.randint(40, 70)  # Medium strength for colleagues
-                else:  # friend
-                    strength = random.randint(30, 80)  # Wide range for friends
+        for friend_id in friends:
+            # Randomly select relationship type
+            relation_type = random.choice(relation_types)
+            # Set initial relationship strength range based on type
+            if relation_type == "family":
+                strength = random.randint(60, 90)  # Higher strength for family
+            elif relation_type == "colleague":
+                strength = random.randint(40, 70)  # Medium strength for colleagues
+            else:  # friend
+                strength = random.randint(30, 80)  # Wide range for friends
 
-                relationships[friend_id] = strength
-                relation_type_map[friend_id] = relation_type
+            relationships[friend_id] = strength
+            relation_type_map[friend_id] = relation_type
 
-            # Update relationship strengths and types
-            await simulation.update(agent_id, "relationships", relationships)
-            await simulation.update(agent_id, "relation_types", relation_type_map)
+        # Update relationship strengths and types
+        await simulation.update([agent_id], "relationships", relationships)
+        await simulation.update([agent_id], "relation_types", relation_type_map)
 
-            # Initialize empty chat histories and interaction records
-            await simulation.update(
-                agent_id, "chat_histories", {friend_id: "" for friend_id in friends}
-            )
-            await simulation.update(
-                agent_id, "interactions", {friend_id: [] for friend_id in friends}
-            )
-        return True
-
-    except Exception as e:
-        logger.error(f"Error initializing social network: {str(e)}")
-        return False
+        # Initialize empty chat histories and interaction records
+        await simulation.update(
+            [agent_id], "chat_histories", {friend_id: "" for friend_id in friends}
+        )
+        await simulation.update(
+            [agent_id], "interactions", {friend_id: [] for friend_id in friends}
+        )
 
 
 def zipf_distribution(N, F, s=1.0):
@@ -122,7 +122,7 @@ def zipf_distribution(N, F, s=1.0):
     return int_sizes
 
 
-async def bind_agent_info(simulation):
+async def bind_agent_info(simulation: AgentSociety):
     """
     Binds agent information including IDs for citizens, firms, government, banks and NBS.
 
@@ -134,53 +134,47 @@ async def bind_agent_info(simulation):
     - **Returns**:
         - None
     """
-    logger.info("Binding economy relationship...")
-    citizen_ids = await simulation.filter(types=[SocietyAgent])
-    firm_ids = []
-    government_ids = []
-    bank_ids = []
-    nbs_ids = []
+    get_logger().info("Binding economy relationship...")
+    citizen_ids = await simulation.filter(types=(SocietyAgent,))
     try:
-        firm_ids = await simulation.filter(types=[FirmAgent])
+        firm_ids = await simulation.filter(types=(FirmAgent,))
     except Exception as e:
         firm_ids = []
     try:
-        government_ids = await simulation.filter(types=[GovernmentAgent])
+        government_ids = await simulation.filter(types=(GovernmentAgent,))
     except Exception as e:
         government_ids = []
     try:
-        bank_ids = await simulation.filter(types=[BankAgent])
+        bank_ids = await simulation.filter(types=(BankAgent,))
     except Exception as e:
         bank_ids = []
     try:
-        nbs_ids = await simulation.filter(types=[NBSAgent])
+        nbs_ids = await simulation.filter(types=(NBSAgent,))
     except Exception as e:
         nbs_ids = []
 
     random.shuffle(citizen_ids)
     employee_sizes = zipf_distribution(len(citizen_ids), len(firm_ids))
-    from copy import deepcopy
 
     orig_citizen_ids = deepcopy(citizen_ids)
-    logging.debug(f"citizen_ids: {citizen_ids}")
-    logging.debug(f"firm_ids: {firm_ids}")
-    logging.debug(f"employee_sizes: {employee_sizes}")
+    get_logger().debug(f"citizen_ids: {citizen_ids}")
+    get_logger().debug(f"firm_ids: {firm_ids}")
+    get_logger().debug(f"employee_sizes: {employee_sizes}")
     for firm_id, size in zip(firm_ids, employee_sizes):
         await simulation.economy_update(firm_id, "employees", citizen_ids[:size])
-        for citizen_id in citizen_ids[:size]:
-            await simulation.update(citizen_id, "firm_id", firm_id)
+        await simulation.update(citizen_ids[:size], "firm_id", firm_id)
         citizen_ids = citizen_ids[size:]
 
     gathered_firm_ids = await simulation.gather(
         "firm_id",
         orig_citizen_ids,
     )
-    logging.debug(f"Gathered firm_ids: {gathered_firm_ids}")
+    get_logger().debug(f"Gathered firm_ids: {gathered_firm_ids}")
     for government_id in government_ids:
         await simulation.economy_update(government_id, "citizen_ids", citizen_ids)
     for bank_id in bank_ids:
         await simulation.economy_update(bank_id, "citizen_ids", citizen_ids)
+    await simulation.update(nbs_ids, "citizen_ids", citizen_ids)
     for nbs_id in nbs_ids:
-        await simulation.update(nbs_id, "citizen_ids", citizen_ids)
         await simulation.economy_update(nbs_id, "citizen_ids", citizen_ids)
-    logger.info("Agent info binding completed!")
+    get_logger().info("Agent info binding completed!")

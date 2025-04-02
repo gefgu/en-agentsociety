@@ -1,12 +1,14 @@
-import json
 import logging
 
-from agentsociety.environment.simulator import Simulator
-from agentsociety.llm import LLM
-from agentsociety.memory import Memory
-from agentsociety.workflow import Block, FormatPrompt
+import jsonc
 
-logger = logging.getLogger("agentsociety")
+from ...environment import Environment
+from ...llm import LLM
+from ...logger import get_logger
+from ...memory import Memory
+from ...agent import Block, FormatPrompt
+
+__all__ = ["CognitionBlock"]
 
 
 def extract_json(output_str):
@@ -32,8 +34,8 @@ def extract_json(output_str):
 
         # Convert the JSON string to a dictionary
         return json_str
-    except (ValueError, json.JSONDecodeError) as e:
-        logger.warning(f"Failed to extract JSON: {e}")
+    except (ValueError, jsonc.JSONDecodeError) as e:
+        get_logger().warning(f"Failed to extract JSON: {e}")
         return None
 
 
@@ -54,17 +56,19 @@ class CognitionBlock(Block):
         "top_k": "Number of most relevant memories to return, defaults to 20"
     }
 
-    def __init__(self, llm: LLM, memory: Memory, simulator: Simulator):
+    def __init__(self, llm: LLM, environment: Environment, memory: Memory):
         """Initialize CognitionBlock with dependencies.
 
         Args:
             llm: Language Model interface for cognitive processing.
+            environment: Environment for time-based operations.
             memory: Memory system to store/retrieve agent status and experiences.
-            simulator: Environment simulator for time-based operations.
         """
-        super().__init__("CognitionBlock", llm=llm, memory=memory, simulator=simulator)
+        super().__init__(
+            "CognitionBlock", llm=llm, environment=environment, memory=memory
+        )
         self.top_k = 20
-        self.last_check_time = 0
+        self.last_check_day = 0
 
     async def set_status(self, status):
         """Update multiple status fields in memory.
@@ -162,9 +166,11 @@ class CognitionBlock(Block):
                         timeout=300,
                         response_format={"type": "json_object"},
                     )
-                    response = json.loads(extract_json(_response))  # type:ignore
-                    evaluation = False
-                    break
+                    json_str = extract_json(_response)
+                    if json_str:
+                        response = jsonc.loads(json_str)
+                        evaluation = False
+                        break
                 except:
                     pass
             if evaluation:
@@ -255,9 +261,11 @@ class CognitionBlock(Block):
                     timeout=300,
                     response_format={"type": "json_object"},
                 )
-                response = json.loads(extract_json(_response))  # type:ignore
-                evaluation = False
-                break
+                json_str = extract_json(_response)
+                if json_str:
+                    response = jsonc.loads(json_str)
+                    evaluation = False
+                    break
             except:
                 pass
         if evaluation:
@@ -275,14 +283,13 @@ class CognitionBlock(Block):
         Returns:
             True if a new day is detected, False otherwise.
         """
-        time = await self.simulator.get_simulator_second_from_start_of_day()
-        if self.last_check_time == 0:
-            self.last_check_time = time
+        day, _ = self.environment.get_datetime()
+        if self.last_check_day == 0:
+            self.last_check_day = day
             return False
-        if time < self.last_check_time:
-            self.last_check_time = time
+        if day > self.last_check_day:
+            self.last_check_day = day
             return True
-        self.last_check_time = time
         return False
 
     async def forward(self):
@@ -325,8 +332,8 @@ class CognitionBlock(Block):
         My current emotion intensities are (0 meaning not at all, 10 meaning very much):
         sadness: {sadness}, joy: {joy}, fear: {fear}, disgust: {disgust}, anger: {anger}, surprise: {surprise}.
         You have the following thoughts: {thought}.
-        In the following 21 words, I have chosen {emotion_types} to represent your current status:
-        Joy, Distress, Resentment, Pity, Hope, Fear, Satisfaction, Relief, Disappointment, Pride, Admiration, Shame, Reproach, Liking, Disliking, Gratitude, Anger, Gratification, Remorse, Love, Hate.
+        In the following 21 words, choose one word to represent your current status:
+        [Joy, Distress, Resentment, Pity, Hope, Fear, Satisfaction, Relief, Disappointment, Pride, Admiration, Shame, Reproach, Liking, Disliking, Gratitude, Anger, Gratification, Remorse, Love, Hate].
         """
 
         incident_prompt = f"{incident}"  # waiting for incident port
@@ -377,11 +384,13 @@ class CognitionBlock(Block):
                     timeout=300,
                     response_format={"type": "json_object"},
                 )
-                response = json.loads(extract_json(_response))  # type:ignore
-                evaluation = False
-                break
+                json_str = extract_json(_response)
+                if json_str:
+                    response = jsonc.loads(json_str)
+                    evaluation = False
+                    break
             except Exception as e:
-                logger.warning(f"Request for cognition update failed: {e}")
+                get_logger().warning(f"Request for cognition update failed: {e}")
                 pass
         if evaluation:
             raise Exception("Request for cognition update failed")

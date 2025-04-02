@@ -25,6 +25,18 @@
     ```
 ````
 
+### Functions
+
+````{list-table}
+:class: autosummary longtable
+:align: left
+
+* - {py:obj}`init_embedding <agentsociety.llm.embeddings.init_embedding>`
+  - ```{autodoc2-docstring} agentsociety.llm.embeddings.init_embedding
+    :summary:
+    ```
+````
+
 ### Data
 
 ````{list-table}
@@ -42,7 +54,7 @@
 ````{py:data} __all__
 :canonical: agentsociety.llm.embeddings.__all__
 :value: >
-   ['SentenceEmbedding', 'SimpleEmbedding']
+   ['SentenceEmbedding', 'SimpleEmbedding', 'init_embedding']
 
 ```{autodoc2-docstring} agentsociety.llm.embeddings.__all__
 ```
@@ -176,3 +188,10 @@ Bases: {py:obj}`langchain_core.embeddings.Embeddings`
 ````
 
 `````
+
+````{py:function} init_embedding(embedding_model: typing.Optional[str], **kwargs) -> langchain_core.embeddings.Embeddings
+:canonical: agentsociety.llm.embeddings.init_embedding
+
+```{autodoc2-docstring} agentsociety.llm.embeddings.init_embedding
+```
+````

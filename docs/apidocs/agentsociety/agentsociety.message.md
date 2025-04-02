@@ -13,8 +13,8 @@
 :titlesonly:
 :maxdepth: 1
 
-agentsociety.message.messager
 agentsociety.message.message_interceptor
+agentsociety.message.messager
 ```
 
 ## Package Contents
@@ -36,7 +36,7 @@ agentsociety.message.message_interceptor
 ````{py:data} __all__
 :canonical: agentsociety.message.__all__
 :value: >
-   ['Messager', 'MessageBlockBase', 'MessageBlockListenerBase', 'MessageInterceptor']
+   ['Messager', 'RedisConfig', 'MessageBlockBase', 'MessageBlockListenerBase', 'MessageInterceptor']
 
 ```{autodoc2-docstring} agentsociety.message.__all__
 ```

@@ -9,9 +9,8 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
 from typing import Any, Optional, Union
 
+from ..logger import get_logger
 from .const import *
-
-logger = logging.getLogger("agentsociety")
 
 
 class MemoryUnit:
@@ -92,7 +91,7 @@ class MemoryUnit:
                 orig_v = self._content[k]
                 orig_type, new_type = type(orig_v), type(v)
                 if not orig_type == new_type:
-                    logger.debug(
+                    get_logger().debug(
                         f"Type warning: The type of the value for key '{k}' is changing from `{orig_type.__name__}` to `{new_type.__name__}`!"
                     )
         self._content.update(content)
@@ -120,7 +119,7 @@ class MemoryUnit:
     #     await self._lock.acquire()
     #     values = self._content[key]
     #     if not isinstance(values, Sequence):
-    #         logger.warning(
+    #         get_logger().warning(
     #             f"the value stored in key `{key}` is not `sequence`, return value `{values}` instead!"
     #         )
     #         return values
@@ -131,7 +130,7 @@ class MemoryUnit:
     #         )
     #         top_k = len(values) if top_k is None else top_k
     #         if len(_sorted_values_with_idx) < top_k:
-    #             logger.debug(
+    #             get_logger().debug(
     #                 f"Length of values {len(_sorted_values_with_idx)} is less than top_k {top_k}, returning all values."
     #             )
     #         self._lock.release()
@@ -241,7 +240,7 @@ class MemoryBase(ABC):
         if recent_n is None:
             return _list_units
         if len(_memories) < recent_n:
-            logger.debug(
+            get_logger().debug(
                 f"Length of memory {len(_memories)} is less than recent_n {recent_n}, returning all available memories."
             )
         return _list_units[-recent_n:]

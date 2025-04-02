@@ -1,5 +1,3 @@
-
-
 <div style="text-align: center; background-color: white; padding: 20px; border-radius: 30px;">
   <img src="./static/agentsociety_logo.png" alt="AgentSociety Logo" width="200" style="display: block; margin: 0 auto;">
   <h1 style="color: black; margin: 0; font-size: 3em;">AgentSociety: LLM Agents in City</h1>
@@ -25,7 +23,7 @@ The paper is available at [arXiv](https://arxiv.org/abs/2502.08691):
 ```
 
 ## 🌟 Features
-- **Mind-Behavior Coupling**: Integrates LLMs' planning, memory, and reasoning capabilities to generate realistic behaviors or uses established theories like Maslow’s Hierarchy of Needs and Theory of Planned Behavior for explicit modeling.
+- **Mind-Behavior Coupling**: Integrates LLMs' planning, memory, and reasoning capabilities to generate realistic behaviors or uses established theories like Maslow's Hierarchy of Needs and Theory of Planned Behavior for explicit modeling.
 - **Environment Design**: Supports dataset-based, text-based, and rule-based environments with varying degrees of realism and interactivity.
 - **Interactive Visualization**: Real-time interfaces for monitoring and interacting with agents during experiments.
 - **Extensive Tooling**: Includes utilities for interviews, surveys, interventions, and metric recording tailored for social experimentation.
@@ -72,7 +70,7 @@ You can set up AgentSociety easily via pip:
 
 Linux AMD64 or macOs
 
-Python >= 3.9
+Python >= 3.11
 
 ```bash
 pip install agentsociety
@@ -89,7 +87,13 @@ Check our online document for detailed usage tutorial: [AgentSociety Document](h
 
 <a id="contributing"></a>
 ## 🤝 Contributing
-We welcome contributions from the community!.
+We welcome contributions from the community!
+
+Thank you to everyone who has contributed to this project:
+
+<a href=" ">
+  <img src="https://contrib.rocks/image?repo=tsinghua-fib-lab/agentsociety" />
+</a>
 
 <a id="license"></a>
 ## 📄 License

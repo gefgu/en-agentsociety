@@ -27,10 +27,6 @@
 :class: autosummary longtable
 :align: left
 
-* - {py:obj}`logger <agentsociety.cityagent.blocks.needs_block.logger>`
-  - ```{autodoc2-docstring} agentsociety.cityagent.blocks.needs_block.logger
-    :summary:
-    ```
 * - {py:obj}`INITIAL_NEEDS_PROMPT <agentsociety.cityagent.blocks.needs_block.INITIAL_NEEDS_PROMPT>`
   - ```{autodoc2-docstring} agentsociety.cityagent.blocks.needs_block.INITIAL_NEEDS_PROMPT
     :summary:
@@ -39,19 +35,13 @@
   - ```{autodoc2-docstring} agentsociety.cityagent.blocks.needs_block.EVALUATION_PROMPT
     :summary:
     ```
+* - {py:obj}`REFLECT_PROMPT <agentsociety.cityagent.blocks.needs_block.REFLECT_PROMPT>`
+  - ```{autodoc2-docstring} agentsociety.cityagent.blocks.needs_block.REFLECT_PROMPT
+    :summary:
+    ```
 ````
 
 ### API
-
-````{py:data} logger
-:canonical: agentsociety.cityagent.blocks.needs_block.logger
-:value: >
-   'getLogger(...)'
-
-```{autodoc2-docstring} agentsociety.cityagent.blocks.needs_block.logger
-```
-
-````
 
 ````{py:data} INITIAL_NEEDS_PROMPT
 :canonical: agentsociety.cityagent.blocks.needs_block.INITIAL_NEEDS_PROMPT
@@ -71,10 +61,19 @@
 
 ````
 
-`````{py:class} NeedsBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.Simulator)
+````{py:data} REFLECT_PROMPT
+:canonical: agentsociety.cityagent.blocks.needs_block.REFLECT_PROMPT
+:value: <Multiline-String>
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.needs_block.REFLECT_PROMPT
+```
+
+````
+
+`````{py:class} NeedsBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.needs_block.NeedsBlock
 
-Bases: {py:obj}`agentsociety.workflow.Block`
+Bases: {py:obj}`agentsociety.agent.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.needs_block.NeedsBlock
 ```
@@ -90,6 +89,15 @@ Bases: {py:obj}`agentsociety.workflow.Block`
 :async:
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.needs_block.NeedsBlock.initialize
+```
+
+````
+
+````{py:method} reflect_to_intervention(intervention: str)
+:canonical: agentsociety.cityagent.blocks.needs_block.NeedsBlock.reflect_to_intervention
+:async:
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.needs_block.NeedsBlock.reflect_to_intervention
 ```
 
 ````

@@ -1,11 +1,22 @@
 """Environment"""
 
 from .sim import AoiService, PersonService
-from .simulator import Simulator
+from .environment import (
+    Environment,
+    EnvironmentStarter,
+    SimulatorConfig,
+    EnvironmentConfig,
+)
+from .mapdata import MapData, MapConfig
 from .economy import EconomyClient
 
 __all__ = [
-    "Simulator",
+    "Environment",
+    "EnvironmentStarter",
+    "SimulatorConfig",
+    "EnvironmentConfig",
+    "MapData",
+    "MapConfig",
     "PersonService",
     "AoiService",
     "EconomyClient",

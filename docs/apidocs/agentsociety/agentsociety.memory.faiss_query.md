@@ -21,7 +21,29 @@
     ```
 ````
 
+### Data
+
+````{list-table}
+:class: autosummary longtable
+:align: left
+
+* - {py:obj}`__all__ <agentsociety.memory.faiss_query.__all__>`
+  - ```{autodoc2-docstring} agentsociety.memory.faiss_query.__all__
+    :summary:
+    ```
+````
+
 ### API
+
+````{py:data} __all__
+:canonical: agentsociety.memory.faiss_query.__all__
+:value: >
+   ['FaissQuery']
+
+```{autodoc2-docstring} agentsociety.memory.faiss_query.__all__
+```
+
+````
 
 `````{py:class} FaissQuery(embeddings: typing.Optional[langchain_core.embeddings.Embeddings] = None, index_type: typing.Any = faiss.IndexFlatL2, dimension: typing.Optional[int] = None)
 :canonical: agentsociety.memory.faiss_query.FaissQuery
@@ -71,7 +93,7 @@
 
 ````
 
-````{py:method} similarity_search(query: str, agent_id: int, k: int = 4, fetch_k: int = 20, return_score_type: typing.Union[typing.Literal[none], typing.Literal[similarity_score], typing.Literal[L2-distance]] = 'none', filter: typing.Optional[dict] = None) -> typing.Union[list[tuple[str, dict]], list[tuple[str, float, dict]]]
+````{py:method} similarity_search(query: str, agent_id: int, k: int = 4, fetch_k: int = 20, return_score_type: typing.Union[typing.Literal[none], typing.Literal[similarity_score], typing.Literal[L2-distance]] = 'none', filter: typing.Optional[dict] = None) -> list[tuple[str, typing.Optional[float], dict]]
 :canonical: agentsociety.memory.faiss_query.FaissQuery.similarity_search
 :async:
 
@@ -80,7 +102,7 @@
 
 ````
 
-````{py:method} similarity_search_by_embedding(embedding: list[float], agent_id: int, k: int = 4, fetch_k: int = 20, return_score_type: typing.Union[typing.Literal[none], typing.Literal[L2-distance]] = 'none', filter: typing.Optional[dict] = None) -> typing.Union[list[tuple[str, dict]], list[tuple[str, float, dict]]]
+````{py:method} similarity_search_by_embedding(embedding: list[float], agent_id: int, k: int = 4, fetch_k: int = 20, return_score_type: typing.Union[typing.Literal[none], typing.Literal[L2-distance]] = 'none', filter: typing.Optional[dict] = None) -> list[tuple[str, typing.Optional[float], dict]]
 :canonical: agentsociety.memory.faiss_query.FaissQuery.similarity_search_by_embedding
 :async:
 
@@ -98,7 +120,7 @@
 
 ````
 
-````{py:method} marginal_relevance_search_by_embedding(embedding: list[float], agent_id: int, k: int = 4, fetch_k: int = 20, lambda_mult: float = 0.5, return_score_type: typing.Union[typing.Literal[none], typing.Literal[similarity_score]] = 'none', filter: typing.Optional[dict] = None) -> typing.Union[list[tuple[str, dict]], list[tuple[str, float, dict]]]
+````{py:method} marginal_relevance_search_by_embedding(embedding: list[float], agent_id: int, k: int = 4, fetch_k: int = 20, lambda_mult: float = 0.5, return_score_type: typing.Union[typing.Literal[none], typing.Literal[similarity_score]] = 'none', filter: typing.Optional[dict] = None) -> list[tuple[str, typing.Optional[float], dict]]
 :canonical: agentsociety.memory.faiss_query.FaissQuery.marginal_relevance_search_by_embedding
 :async:
 

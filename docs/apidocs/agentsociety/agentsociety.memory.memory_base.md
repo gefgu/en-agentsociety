@@ -25,29 +25,7 @@
     ```
 ````
 
-### Data
-
-````{list-table}
-:class: autosummary longtable
-:align: left
-
-* - {py:obj}`logger <agentsociety.memory.memory_base.logger>`
-  - ```{autodoc2-docstring} agentsociety.memory.memory_base.logger
-    :summary:
-    ```
-````
-
 ### API
-
-````{py:data} logger
-:canonical: agentsociety.memory.memory_base.logger
-:value: >
-   'getLogger(...)'
-
-```{autodoc2-docstring} agentsociety.memory.memory_base.logger
-```
-
-````
 
 `````{py:class} MemoryUnit(content: typing.Optional[dict] = None, required_attributes: typing.Optional[dict] = None, activate_timestamp: bool = False)
 :canonical: agentsociety.memory.memory_base.MemoryUnit

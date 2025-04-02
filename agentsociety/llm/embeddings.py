@@ -1,16 +1,14 @@
 import hashlib
-import json
 import os
 from typing import Optional, Union
 
 import numpy as np
-import torch
 from langchain_core.embeddings import Embeddings
-from transformers import AutoModel, AutoTokenizer
 
 __all__ = [
     "SentenceEmbedding",
     "SimpleEmbedding",
+    "init_embedding",
 ]
 
 
@@ -43,6 +41,9 @@ class SentenceEmbedding(Embeddings):
             - `cache_dir`: Directory to cache models. Default is "./cache".
             - `proxies`: Proxy settings for HTTP/HTTPS. Default is None.
         """
+        import torch
+        from transformers import AutoModel, AutoTokenizer
+
         os.makedirs(cache_dir, exist_ok=True)
         self.tokenizer = AutoTokenizer.from_pretrained(
             pretrained_model_name_or_path,
@@ -74,6 +75,8 @@ class SentenceEmbedding(Embeddings):
         - **Returns**:
             - A list of lists containing floating-point numbers representing the embeddings.
         """
+        import torch
+
         # Tokenize sentences
         encoded_input = self.tokenizer(
             texts, padding=True, truncation=True, return_tensors="pt"
@@ -245,7 +248,9 @@ class SimpleEmbedding(Embeddings):
         for token, tf_value in tf.items():
             if token in self._idf:
                 idf = np.log(self._doc_count / self._idf[token])
-                idx = self._vocab[token] % self.vector_dim  # Use modulo operation to control vector dimension
+                idx = (
+                    self._vocab[token] % self.vector_dim
+                )  # Use modulo operation to control vector dimension
                 vector[idx] += tf_value * idf
 
         # L2 normalization
@@ -320,6 +325,14 @@ class SimpleEmbedding(Embeddings):
         """
         return self._embed(text)
 
+
+def init_embedding(embedding_model: Optional[str], **kwargs) -> Embeddings:
+    if embedding_model is None:
+        return SimpleEmbedding()
+    else:
+        return SentenceEmbedding(embedding_model, **kwargs)
+
+
 if __name__ == "__main__":
-    se = SimpleEmbedding()
+    se = SentenceEmbedding()
     print(se.embed_query("hello world"))

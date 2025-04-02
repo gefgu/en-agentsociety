@@ -41,10 +41,6 @@
 :class: autosummary longtable
 :align: left
 
-* - {py:obj}`logger <agentsociety.environment.economy.econ_client.logger>`
-  - ```{autodoc2-docstring} agentsociety.environment.economy.econ_client.logger
-    :summary:
-    ```
 * - {py:obj}`__all__ <agentsociety.environment.economy.econ_client.__all__>`
   - ```{autodoc2-docstring} agentsociety.environment.economy.econ_client.__all__
     :summary:
@@ -52,16 +48,6 @@
 ````
 
 ### API
-
-````{py:data} logger
-:canonical: agentsociety.environment.economy.econ_client.logger
-:value: >
-   'getLogger(...)'
-
-```{autodoc2-docstring} agentsociety.environment.economy.econ_client.logger
-```
-
-````
 
 ````{py:data} __all__
 :canonical: agentsociety.environment.economy.econ_client.__all__
@@ -76,12 +62,12 @@
 `````{py:class} EconomyEntityType()
 :canonical: agentsociety.environment.economy.econ_client.EconomyEntityType
 
-Bases: {py:obj}`str`, {py:obj}`enum.Enum`
+Bases: {py:obj}`int`, {py:obj}`enum.Enum`
 
 ````{py:attribute} Unspecified
 :canonical: agentsociety.environment.economy.econ_client.EconomyEntityType.Unspecified
 :value: >
-   'Unspecified'
+   0
 
 ```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyEntityType.Unspecified
 ```
@@ -91,7 +77,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 ````{py:attribute} Agent
 :canonical: agentsociety.environment.economy.econ_client.EconomyEntityType.Agent
 :value: >
-   'Agent'
+   1
 
 ```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyEntityType.Agent
 ```
@@ -101,7 +87,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 ````{py:attribute} Bank
 :canonical: agentsociety.environment.economy.econ_client.EconomyEntityType.Bank
 :value: >
-   'Bank'
+   2
 
 ```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyEntityType.Bank
 ```
@@ -111,7 +97,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 ````{py:attribute} Firm
 :canonical: agentsociety.environment.economy.econ_client.EconomyEntityType.Firm
 :value: >
-   'Firm'
+   3
 
 ```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyEntityType.Firm
 ```
@@ -121,7 +107,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 ````{py:attribute} Government
 :canonical: agentsociety.environment.economy.econ_client.EconomyEntityType.Government
 :value: >
-   'Government'
+   4
 
 ```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyEntityType.Government
 ```
@@ -131,7 +117,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 ````{py:attribute} NBS
 :canonical: agentsociety.environment.economy.econ_client.EconomyEntityType.NBS
 :value: >
-   'NBS'
+   5
 
 ```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyEntityType.NBS
 ```
@@ -208,56 +194,55 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ````
 
-````{py:method} set_ids(agent_ids: set[int], firm_ids: set[int], bank_ids: set[int], nbs_ids: set[int], government_ids: set[int])
+````{py:method} set_ids(citizen_ids: set[int], firm_ids: set[int], bank_ids: set[int], nbs_ids: set[int], government_ids: set[int])
 :canonical: agentsociety.environment.economy.econ_client.EconomyClient.set_ids
-:async:
 
 ```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.set_ids
 ```
 
 ````
 
-````{py:method} get_agent(id: typing.Union[list[int], int]) -> typing.Union[dict[str, typing.Any], list[dict[str, typing.Any]]]
-:canonical: agentsociety.environment.economy.econ_client.EconomyClient.get_agent
+````{py:method} _get_agent(id: typing.Union[list[int], int]) -> typing.Union[dict[str, typing.Any], list[dict[str, typing.Any]]]
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient._get_agent
 :async:
 
-```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.get_agent
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient._get_agent
 ```
 
 ````
 
-````{py:method} get_bank(id: typing.Union[list[int], int]) -> typing.Union[dict[str, typing.Any], list[dict[str, typing.Any]]]
-:canonical: agentsociety.environment.economy.econ_client.EconomyClient.get_bank
+````{py:method} _get_bank(id: typing.Union[list[int], int]) -> typing.Union[dict[str, typing.Any], list[dict[str, typing.Any]]]
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient._get_bank
 :async:
 
-```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.get_bank
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient._get_bank
 ```
 
 ````
 
-````{py:method} get_firm(id: typing.Union[list[int], int]) -> typing.Union[dict[str, typing.Any], list[dict[str, typing.Any]]]
-:canonical: agentsociety.environment.economy.econ_client.EconomyClient.get_firm
+````{py:method} _get_firm(id: typing.Union[list[int], int]) -> typing.Union[dict[str, typing.Any], list[dict[str, typing.Any]]]
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient._get_firm
 :async:
 
-```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.get_firm
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient._get_firm
 ```
 
 ````
 
-````{py:method} get_government(id: typing.Union[list[int], int]) -> typing.Union[dict[str, typing.Any], list[dict[str, typing.Any]]]
-:canonical: agentsociety.environment.economy.econ_client.EconomyClient.get_government
+````{py:method} _get_government(id: typing.Union[list[int], int]) -> typing.Union[dict[str, typing.Any], list[dict[str, typing.Any]]]
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient._get_government
 :async:
 
-```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.get_government
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient._get_government
 ```
 
 ````
 
-````{py:method} get_nbs(id: typing.Union[list[int], int]) -> typing.Union[dict[str, typing.Any], list[dict[str, typing.Any]]]
-:canonical: agentsociety.environment.economy.econ_client.EconomyClient.get_nbs
+````{py:method} _get_nbs(id: typing.Union[list[int], int]) -> typing.Union[dict[str, typing.Any], list[dict[str, typing.Any]]]
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient._get_nbs
 :async:
 
-```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient.get_nbs
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient._get_nbs
 ```
 
 ````
@@ -271,7 +256,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ````
 
-````{py:method} _merge(original_value, key, value)
+````{py:method} _merge(original_dict: dict[str, typing.Any], key: typing.Any, value: typing.Any) -> bool
 :canonical: agentsociety.environment.economy.econ_client.EconomyClient._merge
 
 ```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient._merge

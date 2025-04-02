@@ -1,27 +1,39 @@
-import json
 import logging
+import random
+from typing import Dict, List, Optional, Tuple
 
-from agentsociety.environment import Simulator
-from agentsociety.llm import LLM
-from agentsociety.memory import Memory
-from agentsociety.workflow import Block, FormatPrompt
+import jsonc
 
+from ...agent import Block, FormatPrompt
+from ...environment import Environment
+from ...llm import LLM
+from ...logger import get_logger
+from ...memory import Memory
 from .utils import clean_json_response
 
-logger = logging.getLogger("agentsociety")
-
-GUIDANCE_SELECTION_PROMPT = """As an intelligent agent's decision system, please select the most suitable option from the following choices to satisfy the current need.
+GUIDANCE_SELECTION_PROMPT = """As an intelligent agent's decision system, please help me determine a suitable option to satisfy my current need.
 The Environment will influence the choice of steps.
 
 Current weather: {weather}
 Current temperature: {temperature}
+Other information: 
+-------------------------
+{other_info}
+-------------------------
 
 Current need: Need to satisfy {current_need}
-Available options: {options}
 Current location: {current_location}
 Current time: {current_time}
-Your emotion: {emotion_types}
-Your thought: {thought}
+My income/consumption level: {consumption_level}
+My occupation: {occupation}
+My age: {age}
+My emotion: {emotion_types}
+My thought: {thought}
+
+Guidance Options: 
+-------------------------
+{options}
+-------------------------
 
 Please evaluate and select the most appropriate option based on these three dimensions:
 1. Attitude: Personal preference and evaluation of the option
@@ -30,7 +42,7 @@ Please evaluate and select the most appropriate option based on these three dime
 
 Please response in json format (Do not return any other text), example:
 {{
-    "selected_option": "Select the most suitable option from available options",
+    "selected_option": "Select the most suitable option from Guidance Options and extent the option if necessary (or do things that can satisfy your needs or actions unless there is no specific options)",
     "evaluation": {{
         "attitude": "Attitude score for the option (0-1)",
         "subjective_norm": "Subjective norm score (0-1)", 
@@ -40,16 +52,24 @@ Please response in json format (Do not return any other text), example:
 }}
 """
 
-DETAILED_PLAN_PROMPT = """Generate specific execution steps based on the selected guidance plan. The Environment will influence the choice of steps.
+DETAILED_PLAN_PROMPT = """As an intelligent agent's plan system, please help me generate specific execution steps based on the selected guidance plan. 
+The Environment will influence the choice of steps.
 
 Current weather: {weather}
 Current temperature: {temperature}
+Other information: 
+-------------------------
+{other_info}
+-------------------------
 
 Selected plan: {selected_option}
 Current location: {current_location} 
 Current time: {current_time}
-Your emotion: {emotion_types}
-Your thought: {thought}
+My income/consumption level: {consumption_level}
+My occupation: {occupation}
+My age: {age}
+My emotion: {emotion_types}
+My thought: {thought}
 
 Notes:
 1. type can only be one of these four: mobility, social, economy, other
@@ -104,42 +124,6 @@ Please response in json format (Do not return any other text), example:
         ]
     }}
 }}
-
-{{
-    "plan": {{
-        "target": "Offline social",
-        "steps": [
-            {{
-                "intention": "Contact friends to arrange meeting place",
-                "type": "social"
-            }},
-            {{
-                "intention": "Go to meeting place",
-                "type": "mobility"
-            }},
-            {{
-                "intention": "Chat with friends",
-                "type": "social"
-            }}
-        ]
-    }}
-}}
-
-{{
-    "plan": {{
-        "target": "Work",
-        "steps": [
-            {{
-                "intention": "Go to workplace",
-                "type": "mobility"
-            }},
-            {{
-                "intention": "Work",
-                "type": "other"
-            }}
-        ]
-    }}
-}}
 """
 
 
@@ -158,43 +142,50 @@ class PlanBlock(Block):
     default_values = {"max_plan_steps": 6}
     fields_description = {"max_plan_steps": "The maximum number of steps in a plan"}
 
-    def __init__(self, llm: LLM, memory: Memory, simulator: Simulator):
+    def __init__(self, llm: LLM, environment: Environment, memory: Memory):
         """Initialize PlanBlock with required components.
 
         Args:
             llm: Language Model interface for decision making
+            environment: Environment for contextual data
             memory: Agent's memory storage for status tracking
-            simulator: Environment simulator for contextual data
         """
-        super().__init__("PlanBlock", llm=llm, memory=memory, simulator=simulator)
+        super().__init__("PlanBlock", llm=llm, environment=environment, memory=memory)
         self.guidance_prompt = FormatPrompt(template=GUIDANCE_SELECTION_PROMPT)
         self.detail_prompt = FormatPrompt(template=DETAILED_PLAN_PROMPT)
         self.trigger_time = 0
         self.token_consumption = 0
         self.guidance_options = {
-            "hungry": ["Eat at home", "Eat outside"],
-            "tired": ["Sleep"],
-            "safe": ["Go to work"],
-            "social": ["Contact with friends", "Shopping"],
-            "whatever": ["Contact with friends", "Hang out", "Entertainment"],
+            "hungry": ["Eat at home", "Eat outside", "Eat at current location"],
+            "tired": ["Sleep at home"],
+            "safe": ["Work", "Shopping"],
+            "social": ["Contact with friends"],
+            "whatever": ["leisure and entertainment", "other", "stay at home"],
         }
 
         # configurable fields
         self.max_plan_steps = 6
 
-    async def select_guidance(self, current_need: str) -> dict:
+    async def select_guidance(self, current_need: str) -> Optional[Tuple[dict, str]]:
         """Select optimal guidance option using Theory of Planned Behavior evaluation.
 
         Args:
             current_need: The agent's current need to fulfill
 
         Returns:
-            dict: Selected option with TPB evaluation scores and reasoning
+            Optional[tuple[dict, str]]: Selected option with TPB evaluation scores and reasoning. None if no guidance option is selected by bad response from LLM.
         """
+        cognition = None
         position_now = await self.memory.status.get("position")
         home_location = await self.memory.status.get("home")
         work_location = await self.memory.status.get("work")
-        current_location = "Out"
+        location_knowledge = await self.memory.status.get("location_knowledge")
+        known_locations = [item["id"] for item in location_knowledge.values()]
+        id_to_name = {
+            info["id"]: f"{name}({info['description']})"
+            for name, info in location_knowledge.items()
+        }
+        current_location = "Outside"
         if (
             "aoi_position" in position_now
             and position_now["aoi_position"] == home_location["aoi_position"]
@@ -205,26 +196,37 @@ class PlanBlock(Block):
             and position_now["aoi_position"] == work_location["aoi_position"]
         ):
             current_location = "At workplace"
-        current_time = await self.simulator.get_time(format_time=True)
+        elif (
+            "aoi_position" in position_now
+            and position_now["aoi_position"] in known_locations
+        ):
+            current_location = id_to_name[position_now["aoi_position"]]
+        day, current_time = self.environment.get_datetime(format_time=True)
         options = self.guidance_options.get(current_need, [])
+        if len(options) == 0:
+            options = "Do things that can satisfy your needs or actions."
         self.guidance_prompt.format(
-            weather=self.simulator.sense("weather"),
-            temperature=self.simulator.sense("temperature"),
+            weather=self.environment.sense("weather"),
+            temperature=self.environment.sense("temperature"),
+            other_info=self.environment.environment.get("other_information", "None"),
             current_need=current_need,
             options=options,
             current_location=current_location,
             current_time=current_time,
+            consumption_level=await self.memory.status.get("consumption"),
+            occupation=await self.memory.status.get("occupation"),
+            age=await self.memory.status.get("age"),
             emotion_types=await self.memory.status.get("emotion_types"),
             thought=await self.memory.status.get("thought"),
         )
 
         response = await self.llm.atext_request(
             self.guidance_prompt.to_dialog(), response_format={"type": "json_object"}
-        )  # type: ignore
+        )  # 
         retry = 3
         while retry > 0:
             try:
-                result = json.loads(clean_json_response(response))  # type: ignore
+                result = jsonc.loads(clean_json_response(response))  # 
                 if "selected_option" not in result or "evaluation" not in result:
                     raise ValueError("Invalid guidance selection format")
                 if (
@@ -236,20 +238,23 @@ class PlanBlock(Block):
                     raise ValueError(
                         "Evaluation must include attitude, subjective_norm, perceived_control, and reasoning"
                     )
-                return result
+                cognition = f"I choose to {result['selected_option']} because {result['evaluation']['reasoning']}"
+                return result, cognition
             except Exception as e:
-                logger.warning(f"Error parsing guidance selection response: {str(e)}")
+                get_logger().warning(
+                    f"Error parsing guidance selection response: {str(e)}"
+                )
                 retry -= 1
-        return None  # type:ignore
+        return None
 
-    async def generate_detailed_plan(self, selected_option: str) -> dict:
+    async def generate_detailed_plan(self, selected_option: str) -> Optional[dict]:
         """Generate executable steps for selected guidance option.
 
         Args:
             selected_option: The chosen guidance option from select_guidance()
 
         Returns:
-            dict: Structured plan with target and typed execution steps
+            dict: Structured plan with target and typed execution steps. None if no plan is generated by bad response from LLM.
         """
         position_now = await self.memory.status.get("position")
         home_location = await self.memory.status.get("home")
@@ -265,13 +270,17 @@ class PlanBlock(Block):
             and position_now["aoi_position"] == work_location["aoi_position"]
         ):
             current_location = "At workplace"
-        current_time = await self.simulator.get_time(format_time=True)
+        day, current_time = self.environment.get_datetime(format_time=True)
         self.detail_prompt.format(
-            weather=self.simulator.sense("weather"),
-            temperature=self.simulator.sense("temperature"),
+            weather=self.environment.sense("weather"),
+            temperature=self.environment.sense("temperature"),
+            other_info=self.environment.environment.get("other_information", "None"),
             selected_option=selected_option,
             current_location=current_location,
             current_time=current_time,
+            consumption_level=await self.memory.status.get("consumption"),
+            occupation=await self.memory.status.get("occupation"),
+            age=await self.memory.status.get("age"),
             emotion_types=await self.memory.status.get("emotion_types"),
             thought=await self.memory.status.get("thought"),
             max_plan_steps=self.max_plan_steps,
@@ -281,7 +290,7 @@ class PlanBlock(Block):
         retry = 3
         while retry > 0:
             try:
-                result = json.loads(clean_json_response(response))  # type: ignore
+                result = jsonc.loads(clean_json_response(response))  # 
                 if (
                     "plan" not in result
                     or "target" not in result["plan"]
@@ -291,19 +300,26 @@ class PlanBlock(Block):
                 for step in result["plan"]["steps"]:
                     if "intention" not in step or "type" not in step:
                         raise ValueError("Each step must have an intention and a type")
+                    if step["type"] not in ["mobility", "social", "economy", "other"]:
+                        raise ValueError(f"Invalid step type: {step['type']}")
                 return result
             except Exception as e:
-                logger.warning(f"Error parsing detailed plan: {str(e)}")
+                get_logger().warning(f"Error parsing detailed plan: {str(e)}")
+                get_logger().debug(
+                    f"Error parsing detailed plan: {str(e)} with response={response}"
+                )
                 retry -= 1
-        return None  # type:ignore
+        return None
 
     async def forward(self):
         """Main workflow: Guidance selection -> Plan generation -> Memory update"""
+        cognition = None
         # Step 1: Select guidance plan
         current_need = await self.memory.status.get("current_need")
-        guidance_result = await self.select_guidance(current_need)
-        if not guidance_result:
-            return
+        select_guidance = await self.select_guidance(current_need)
+        if not select_guidance:
+            return None
+        guidance_result, cognition = select_guidance
 
         # Step 2: Generate detailed plan
         detailed_plan = await self.generate_detailed_plan(
@@ -312,10 +328,7 @@ class PlanBlock(Block):
 
         if not detailed_plan:
             await self.memory.status.update("current_plan", None)
-            await self.memory.status.update(
-                "current_step", {"intention": "", "type": ""}
-            )
-            return
+            return None
 
         # Step 3: Update plan and current step
         steps = detailed_plan["plan"]["steps"]
@@ -325,6 +338,7 @@ class PlanBlock(Block):
         plan = {
             "target": detailed_plan["plan"]["target"],
             "steps": steps,
+            "index": 0,
             "completed": False,
             "failed": False,
             "stream_nodes": [],
@@ -337,9 +351,8 @@ class PlanBlock(Block):
 Overall Target: {plan['target']}
 Execution Steps: \n{formated_steps}
         """
-        plan["start_time"] = await self.simulator.get_time(format_time=True)
+        _, plan["start_time"] = self.environment.get_datetime(format_time=True)
         await self.memory.status.update("current_plan", plan)
-        await self.memory.status.update(
-            "current_step", steps[0] if steps else {"intention": "", "type": ""}
-        )
         await self.memory.status.update("execution_context", {"plan": formated_plan})
+        await self.memory.stream.add_cognition(description=cognition)
+        return cognition

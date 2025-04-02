@@ -24,9 +24,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Build frontend # TODO: Unverified
+        run: |
+          bash rebuild_frontend.sh
       - name: Build wheels for Linux
-        env:
-          CIBW_ENVIRONMENT: ${{ secrets.CIBW_ENVIRONMENT }}
         uses: pypa/cibuildwheel@v2.19.2
       - name: Upload Linux wheels as artifact
         uses: actions/upload-artifact@v4
@@ -40,9 +41,10 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Build frontend # TODO: Unverified
+        run: |
+          bash rebuild_frontend.sh
       - name: Build wheels for macOS
-        env:
-          CIBW_ENVIRONMENT: ${{ secrets.CIBW_ENVIRONMENT }}
         uses: pypa/cibuildwheel@v2.19.2
       - name: Upload macOS wheels as artifact
         uses: actions/upload-artifact@v4

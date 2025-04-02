@@ -13,7 +13,8 @@
 :titlesonly:
 :maxdepth: 1
 
-agentsociety.simulation.simulation
+agentsociety.simulation.type
+agentsociety.simulation.agentsociety
 agentsociety.simulation.agentgroup
 ```
 
@@ -36,7 +37,7 @@ agentsociety.simulation.agentgroup
 ````{py:data} __all__
 :canonical: agentsociety.simulation.__all__
 :value: >
-   ['AgentSimulation']
+   ['AgentSociety']
 
 ```{autodoc2-docstring} agentsociety.simulation.__all__
 ```

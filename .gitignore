@@ -1,5 +1,7 @@
+/avro
 .vscode/
 .env
+cache/
 .python-version
 .venv/
 wheelhouse/

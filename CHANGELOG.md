@@ -1,25 +1,8 @@
 # Changelog
 
-## [1.2.11] - 2025-03-26
+## [1.3.0] - 2025-04-02
 
-### Added
-- N/A
-
-### Changed
-- The WeChat group chat QR code has been replaced to the third group. Welcome to join and participate in the discussions.
-
-### Deprecated
-- N/A
-
-### Removed
-- N/A
-
-### Fixed
-- N/A
-
-### Security
-- N/A
-
+See [Version 1.3](https://agentsociety.readthedocs.io/en/latest/02-version-1.3/01.v1.3.0.html) for more details.
 
 ## [1.2.10] - 2025-03-18
 
@@ -40,7 +23,6 @@
 
 ### Security
 - N/A
-
 
 ## [1.2.9] - 2025-03-14
 
@@ -124,7 +106,6 @@
 ### Security
 - N/A
   
-
 ## [1.2.5] - 2025-03-07
 
 ### Added
@@ -144,6 +125,8 @@
 
 ### Security
 - N/A
+
+
 
 ## [1.2.4] - 2025-03-04
 
@@ -166,6 +149,7 @@
 
 ### Security
 - N/A
+
 
 ## [1.2.3] - 2025-03-03
 
@@ -259,7 +243,7 @@
 - N/A
 
 ### Changed
-- Update doc at `04-custom-agents`.
+- Update doc at `05-custom-agents`.
 - Add more comments in agentsociety.cityagent
 
 ### Deprecated
@@ -273,6 +257,7 @@
 
 ### Security
 - N/A
+
 
 
 ## [1.1.4] - 2025-02-27
@@ -363,7 +348,7 @@
 - N/A
 
 ### Changed
-- The simulator has been converted to a synchronous mode, controlled by `ExpConfig.SimulatorRequest.steps_per_simulation_step` and `ExpConfig.SimulatorRequest.steps_per_simulation_day` parameters that determine the number of seconds per step for advancing the urban environment time in each simulation step and day.
+- The simulator has been converted to a synchronous mode, controlled by `ExpConfig.SimulatorConfig.steps_per_simulation_step` and `ExpConfig.SimulatorConfig.steps_per_simulation_day` parameters that determine the number of seconds per step for advancing the urban environment time in each simulation step and day.
 
 ### Deprecated
 - N/A

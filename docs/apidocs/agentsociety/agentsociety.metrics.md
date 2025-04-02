@@ -35,7 +35,7 @@ agentsociety.metrics.mlflow_client
 ````{py:data} __all__
 :canonical: agentsociety.metrics.__all__
 :value: >
-   ['MlflowClient', 'init_mlflow_connection']
+   ['MlflowClient', 'MlflowConfig']
 
 ```{autodoc2-docstring} agentsociety.metrics.__all__
 ```

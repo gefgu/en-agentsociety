@@ -9,9 +9,7 @@ from .client import CityClient
 from .clock_service import ClockService
 from .lane_service import LaneService
 from .road_service import RoadService
-from .social_service import SocialService
 from .light_service import LightService
-from .sim_env import ControlSimEnv
 
 __all__ = [
     "CityClient",
@@ -20,7 +18,5 @@ __all__ = [
     "AoiService",
     "LaneService",
     "RoadService",
-    "SocialService",
     "LightService",
-    "ControlSimEnv",
 ]

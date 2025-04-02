@@ -1,7 +1,5 @@
-from mosstool.map._map_util.const import AOI_START_ID, POI_START_ID
-
 POI_CATG_DICT = {
-    "户外活动": [
+    "outdoor activity": [
         "bandstand",
         "beach_resort",
         "bird_hide",
@@ -19,7 +17,7 @@ POI_CATG_DICT = {
         "water_park",
         "wildlife_hide",
     ],
-    "室内娱乐场所": [
+    "indoor entertainment": [
         "adult_gaming_centre",
         "amusement_arcade",
         "bowling_alley",
@@ -62,7 +60,7 @@ POI_CATG_DICT = {
         "swingerclub",
         "theatre",
     ],
-    "体育设施": [
+    "sports facility": [
         "horse_riding",
         "ice_rink",
         "marina",
@@ -73,7 +71,7 @@ POI_CATG_DICT = {
         "track",
         "swimming_pool",
     ],
-    "水上活动": [
+    "water activity": [
         "beach_resort",
         "ice_rink",
         "marina",
@@ -82,14 +80,14 @@ POI_CATG_DICT = {
         "swimming_pool",
         "water_park",
     ],
-    "自然与野生动物观赏": [
+    "nature and wildlife observation": [
         "bird_hide",
         "nature_reserve",
         "wildlife_hide",
         "hunting_stand",
     ],
-    "儿童游乐区": ["playground", "summer_camp", "miniature_golf", "dog_park"],
-    "餐饮服务": [
+    "children playground": ["playground", "summer_camp", "miniature_golf", "dog_park"],
+    "restaurant": [
         "bar",
         "biergarten",
         "cafe",
@@ -99,7 +97,7 @@ POI_CATG_DICT = {
         "pub",
         "restaurant",
     ],
-    "教育机构": [
+    "education institution": [
         "college",
         "dancing_school",
         "driving_school",
@@ -116,7 +114,7 @@ POI_CATG_DICT = {
         "traffic_park",
         "university",
     ],
-    "交通设施": [
+    "transportation facility": [
         "bicycle_parking",
         "bicycle_repair_station",
         "bicycle_rental",
@@ -141,7 +139,7 @@ POI_CATG_DICT = {
         "taxi",
         "weighbridge",
     ],
-    "金融服务": [
+    "financial service": [
         "atm",
         "payment_terminal",
         "bank",
@@ -149,7 +147,7 @@ POI_CATG_DICT = {
         "money_transfer",
         "payment_centre",
     ],
-    "医疗保健": [
+    "medical care": [
         "baby_hatch",
         "clinic",
         "dentist",
@@ -160,7 +158,7 @@ POI_CATG_DICT = {
         "social_facility",
         "veterinary",
     ],
-    "文化艺术": [
+    "cultural and artistic": [
         "arts_centre",
         "brothel",
         "casino",
@@ -183,7 +181,7 @@ POI_CATG_DICT = {
         "swingerclub",
         "theatre",
     ],
-    "公共服务": [
+    "public service": [
         "bbq",
         "bench",
         "dog_toilet",
@@ -214,7 +212,7 @@ POI_CATG_DICT = {
         "ranger_station",
         "townhall",
     ],
-    "其他特殊用途": [
+    "other special purpose": [
         "animal_boarding",
         "animal_breeding",
         "animal_shelter",

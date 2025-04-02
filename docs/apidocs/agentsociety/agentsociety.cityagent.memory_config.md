@@ -15,10 +15,6 @@
 :class: autosummary longtable
 :align: left
 
-* - {py:obj}`memory_config_init <agentsociety.cityagent.memory_config.memory_config_init>`
-  - ```{autodoc2-docstring} agentsociety.cityagent.memory_config.memory_config_init
-    :summary:
-    ```
 * - {py:obj}`memory_config_societyagent <agentsociety.cityagent.memory_config.memory_config_societyagent>`
   - ```{autodoc2-docstring} agentsociety.cityagent.memory_config.memory_config_societyagent
     :summary:
@@ -79,8 +75,12 @@
   - ```{autodoc2-docstring} agentsociety.cityagent.memory_config.agent_skills
     :summary:
     ```
-* - {py:obj}`work_locations <agentsociety.cityagent.memory_config.work_locations>`
-  - ```{autodoc2-docstring} agentsociety.cityagent.memory_config.work_locations
+* - {py:obj}`__all__ <agentsociety.cityagent.memory_config.__all__>`
+  - ```{autodoc2-docstring} agentsociety.cityagent.memory_config.__all__
+    :summary:
+    ```
+* - {py:obj}`DEFAULT_DISTRIBUTIONS <agentsociety.cityagent.memory_config.DEFAULT_DISTRIBUTIONS>`
+  - ```{autodoc2-docstring} agentsociety.cityagent.memory_config.DEFAULT_DISTRIBUTIONS
     :summary:
     ```
 ````
@@ -167,53 +167,56 @@
 
 ````
 
-````{py:data} work_locations
-:canonical: agentsociety.cityagent.memory_config.work_locations
+````{py:data} __all__
+:canonical: agentsociety.cityagent.memory_config.__all__
+:value: >
+   ['memory_config_societyagent', 'memory_config_firm', 'memory_config_government', 'memory_config_bank...
+
+```{autodoc2-docstring} agentsociety.cityagent.memory_config.__all__
+```
+
+````
+
+````{py:data} DEFAULT_DISTRIBUTIONS
+:canonical: agentsociety.cityagent.memory_config.DEFAULT_DISTRIBUTIONS
+:type: dict[str, agentsociety.agent.distribution.Distribution]
 :value: >
    None
 
-```{autodoc2-docstring} agentsociety.cityagent.memory_config.work_locations
+```{autodoc2-docstring} agentsociety.cityagent.memory_config.DEFAULT_DISTRIBUTIONS
 ```
 
 ````
 
-````{py:function} memory_config_init(simulation)
-:canonical: agentsociety.cityagent.memory_config.memory_config_init
-:async:
-
-```{autodoc2-docstring} agentsociety.cityagent.memory_config.memory_config_init
-```
-````
-
-````{py:function} memory_config_societyagent()
+````{py:function} memory_config_societyagent(distributions: dict[str, agentsociety.agent.distribution.Distribution]) -> tuple[dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, typing.Any]]
 :canonical: agentsociety.cityagent.memory_config.memory_config_societyagent
 
 ```{autodoc2-docstring} agentsociety.cityagent.memory_config.memory_config_societyagent
 ```
 ````
 
-````{py:function} memory_config_firm()
+````{py:function} memory_config_firm(distributions: dict[str, agentsociety.agent.distribution.Distribution]) -> tuple[dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, typing.Union[agentsociety.agent.memory_config_generator.MemoryT, float]], dict[str, typing.Any]]
 :canonical: agentsociety.cityagent.memory_config.memory_config_firm
 
 ```{autodoc2-docstring} agentsociety.cityagent.memory_config.memory_config_firm
 ```
 ````
 
-````{py:function} memory_config_government()
+````{py:function} memory_config_government(distributions: dict[str, agentsociety.agent.distribution.Distribution]) -> tuple[dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, typing.Union[agentsociety.agent.memory_config_generator.MemoryT, float]], dict[str, typing.Any]]
 :canonical: agentsociety.cityagent.memory_config.memory_config_government
 
 ```{autodoc2-docstring} agentsociety.cityagent.memory_config.memory_config_government
 ```
 ````
 
-````{py:function} memory_config_bank()
+````{py:function} memory_config_bank(distributions: dict[str, agentsociety.agent.distribution.Distribution]) -> tuple[dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, typing.Union[agentsociety.agent.memory_config_generator.MemoryT, float]], dict[str, typing.Any]]
 :canonical: agentsociety.cityagent.memory_config.memory_config_bank
 
 ```{autodoc2-docstring} agentsociety.cityagent.memory_config.memory_config_bank
 ```
 ````
 
-````{py:function} memory_config_nbs()
+````{py:function} memory_config_nbs(distributions: dict[str, agentsociety.agent.distribution.Distribution]) -> tuple[dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, typing.Any]]
 :canonical: agentsociety.cityagent.memory_config.memory_config_nbs
 
 ```{autodoc2-docstring} agentsociety.cityagent.memory_config.memory_config_nbs

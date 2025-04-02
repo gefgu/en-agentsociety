@@ -1,11 +1,21 @@
+import copy
 import random
+from abc import abstractmethod
 from collections import deque
+from typing import Any, Callable, List, Optional, Union
 
+import jsonc
 import numpy as np
-from mosstool.map._map_util.const import AOI_START_ID
 
+from ..agent.distribution import (
+    ChoiceDistribution,
+    ConstantDistribution,
+    Distribution,
+    UniformIntDistribution,
+    sample_field_value,
+)
+from ..agent.memory_config_generator import MemoryT
 from ..environment.economy import EconomyEntityType
-from .firmagent import FirmAgent
 
 pareto_param = 8
 payment_max_skill_multiplier_base = 950
@@ -16,31 +26,121 @@ clipped_skills = np.minimum(pmsm, (pmsm - 1) * pareto_samples + 1)
 sorted_clipped_skills = np.sort(clipped_skills, axis=1)
 agent_skills = list(sorted_clipped_skills.mean(axis=0))
 
-work_locations = [AOI_START_ID + random.randint(1000, 10000) for _ in range(1000)]
+__all__ = [
+    "memory_config_societyagent",
+    "memory_config_firm",
+    "memory_config_government",
+    "memory_config_bank",
+    "memory_config_nbs",
+    "DEFAULT_DISTRIBUTIONS",
+]
 
 
-async def memory_config_init(simulation):
-    global work_locations
-    number_of_firm = simulation.agent_count[FirmAgent]
-    work_locations = [
-        AOI_START_ID + random.randint(1000, 10000) for _ in range(number_of_firm)
-    ]
+# Default distributions for different profile fields
+DEFAULT_DISTRIBUTIONS: dict[str, Distribution] = {
+    "name": ChoiceDistribution(
+        choices=[
+            "Alice",
+            "Bob",
+            "Charlie",
+            "David",
+            "Eve",
+            "Frank",
+            "Grace",
+            "Helen",
+            "Ivy",
+            "Jack",
+            "Kelly",
+            "Lily",
+            "Mike",
+            "Nancy",
+            "Oscar",
+            "Peter",
+            "Queen",
+            "Rose",
+            "Sam",
+            "Tom",
+            "Ulysses",
+            "Vicky",
+            "Will",
+            "Xavier",
+            "Yvonne",
+            "Zack",
+        ]
+    ),
+    "gender": ChoiceDistribution(choices=["male", "female"]),
+    "age": UniformIntDistribution(min_value=18, max_value=65),
+    "education": ChoiceDistribution(
+        choices=["Doctor", "Master", "Bachelor", "College", "High School"]
+    ),
+    "skill": ChoiceDistribution(
+        choices=[
+            "Good at problem-solving",
+            "Good at communication",
+            "Good at creativity",
+            "Good at teamwork",
+            "Other",
+        ]
+    ),
+    "occupation": ChoiceDistribution(
+        choices=[
+            "Student",
+            "Teacher",
+            "Doctor",
+            "Engineer",
+            "Manager",
+            "Businessman",
+            "Artist",
+            "Athlete",
+            "Other",
+        ]
+    ),
+    "family_consumption": ChoiceDistribution(choices=["low", "medium", "high"]),
+    "consumption": ChoiceDistribution(
+        choices=["low", "slightly low", "medium", "slightly high", "high"]
+    ),
+    "personality": ChoiceDistribution(
+        choices=["outgoint", "introvert", "ambivert", "extrovert"]
+    ),
+    "income": UniformIntDistribution(min_value=1000, max_value=20000),
+    "currency": UniformIntDistribution(min_value=1000, max_value=100000),
+    "residence": ChoiceDistribution(choices=["city", "suburb", "rural"]),
+    "city": ConstantDistribution(value="New York"),
+    "race": ChoiceDistribution(
+        choices=[
+            "Chinese",
+            "American",
+            "British",
+            "French",
+            "German",
+            "Japanese",
+            "Korean",
+            "Russian",
+            "Other",
+        ]
+    ),
+    "religion": ChoiceDistribution(
+        choices=["none", "Christian", "Muslim", "Buddhist", "Hindu", "Other"]
+    ),
+    "marital_status": ChoiceDistribution(
+        choices=["not married", "married", "divorced", "widowed"]
+    ),
+}
 
 
-def memory_config_societyagent():
-    global work_locations
+def memory_config_societyagent(
+    distributions: dict[str, Distribution],
+) -> tuple[dict[str, MemoryT], dict[str, MemoryT], dict[str, Any]]:
     EXTRA_ATTRIBUTES = {
         "type": (str, "citizen"),
-        "city": (str, "New York", True),
         # Needs Model
-        "hunger_satisfaction": (float, random.random(), False),  # hunger satisfaction
-        "energy_satisfaction": (float, random.random(), False),  # energy satisfaction
-        "safety_satisfaction": (float, random.random(), False),  # safety satisfaction
-        "social_satisfaction": (float, random.random(), False),  # social satisfaction
+        "hunger_satisfaction": (float, 0.9, False),  # hunger satisfaction
+        "energy_satisfaction": (float, 0.9, False),  # energy satisfaction
+        "safety_satisfaction": (float, 0.4, False),  # safety satisfaction
+        "social_satisfaction": (float, 0.6, False),  # social satisfaction
         "current_need": (str, "none", False),
         # Plan Behavior Model
-        "current_plan": (list, [], False),
-        "current_step": (dict, {"intention": "", "type": ""}, False),
+        "current_plan": (dict, {}, False),
         "execution_context": (dict, {}, False),
         "plan_history": (list, [], False),
         # cognition
@@ -72,16 +172,20 @@ def memory_config_societyagent():
         "work_propensity": (float, 0.0, False),
         "consumption_propensity": (float, 0.0, False),
         "to_consumption_currency": (float, 0.0, False),
-        "firm_id": (int, 0, False),
-        "government_id": (int, 0, False),
-        "bank_id": (int, 0, False),
-        "nbs_id": (int, 0, False),
+        "firm_id": (int, sample_field_value(distributions, "firm_id"), False),
+        "government_id": (
+            int,
+            sample_field_value(distributions, "government_id"),
+            False,
+        ),
+        "bank_id": (int, sample_field_value(distributions, "bank_id"), False),
+        "nbs_id": (int, sample_field_value(distributions, "nbs_id"), False),
         "dialog_queue": (deque(maxlen=3), [], False),
-        "firm_forward": (int, 0, False),
-        "bank_forward": (int, 0, False),
-        "nbs_forward": (int, 0, False),
-        "government_forward": (int, 0, False),
-        "forward": (int, 0, False),
+        "firm_forward": (int, 0, False),  # TODO: what is this ??
+        "bank_forward": (int, 0, False),  # TODO: what is this ??
+        "nbs_forward": (int, 0, False),  # TODO: what is this ??
+        "government_forward": (int, 0, False),  # TODO: what is this ??
+        "forward": (int, 0, False),  # TODO: what is this ??
         "depression": (float, 0.0, False),
         "ubi_opinion": (list, [], False),
         "working_experience": (list, [], False),
@@ -95,140 +199,56 @@ def memory_config_societyagent():
         "interactions": (dict, {}, False),  # all interaction records
         # mobility
         "number_poi_visited": (int, 1, False),
+        "location_knowledge": (dict, {}, False),  # location knowledge
     }
 
     PROFILE = {
-        "name": (
+        "name": (str, sample_field_value(distributions, "name"), True),
+        "gender": (str, sample_field_value(distributions, "gender"), True),
+        "age": (int, sample_field_value(distributions, "age"), True),
+        "education": (str, sample_field_value(distributions, "education"), True),
+        "skill": (str, sample_field_value(distributions, "skill"), True),
+        "occupation": (str, sample_field_value(distributions, "occupation"), True),
+        "family_consumption": (
             str,
-            random.choice(
-                [
-                    "Alice",
-                    "Bob",
-                    "Charlie",
-                    "David",
-                    "Eve",
-                    "Frank",
-                    "Grace",
-                    "Helen",
-                    "Ivy",
-                    "Jack",
-                    "Kelly",
-                    "Lily",
-                    "Mike",
-                    "Nancy",
-                    "Oscar",
-                    "Peter",
-                    "Queen",
-                    "Rose",
-                    "Sam",
-                    "Tom",
-                    "Ulysses",
-                    "Vicky",
-                    "Will",
-                    "Xavier",
-                    "Yvonne",
-                    "Zack",
-                ]
-            ),
+            sample_field_value(distributions, "family_consumption"),
             True,
         ),
-        "gender": (str, random.choice(["male", "female"]), True),
-        "age": (int, random.randint(18, 65), True),
-        "education": (
-            str,
-            random.choice(["Doctor", "Master", "Bachelor", "College", "High School"]),
-            True,
-        ),
-        "skill": (
-            str,
-            random.choice(
-                [
-                    "Good at problem-solving",
-                    "Good at communication",
-                    "Good at creativity",
-                    "Good at teamwork",
-                    "Other",
-                ]
-            ),
-            True,
-        ),
-        "occupation": (
-            str,
-            random.choice(
-                [
-                    "Student",
-                    "Teacher",
-                    "Doctor",
-                    "Engineer",
-                    "Manager",
-                    "Businessman",
-                    "Artist",
-                    "Athlete",
-                    "Other",
-                ]
-            ),
-            True,
-        ),
-        "family_consumption": (str, random.choice(["low", "medium", "high"]), True),
-        "consumption": (
-            str,
-            random.choice(["low", "slightly low", "medium", "slightly high", "high"]),
-            True,
-        ),
-        "personality": (
-            str,
-            random.choice(["outgoint", "introvert", "ambivert", "extrovert"]),
-            True,
-        ),
-        "income": (float, random.randint(1000, 20000), True),
-        "currency": (float, random.randint(1000, 100000), True),
-        "residence": (str, random.choice(["city", "suburb", "rural"]), True),
-        "race": (
-            str,
-            random.choice(
-                [
-                    "Chinese",
-                    "American",
-                    "British",
-                    "French",
-                    "German",
-                    "Japanese",
-                    "Korean",
-                    "Russian",
-                    "Other",
-                ]
-            ),
-            True,
-        ),
-        "religion": (
-            str,
-            random.choice(
-                ["none", "Christian", "Muslim", "Buddhist", "Hindu", "Other"]
-            ),
-            True,
-        ),
+        "consumption": (str, sample_field_value(distributions, "consumption"), True),
+        "personality": (str, sample_field_value(distributions, "personality"), True),
+        "income": (float, sample_field_value(distributions, "income"), True),
+        "currency": (float, sample_field_value(distributions, "currency"), True),
+        "residence": (str, sample_field_value(distributions, "residence"), True),
+        "city": (str, sample_field_value(distributions, "city"), True),
+        "race": (str, sample_field_value(distributions, "race"), True),
+        "religion": (str, sample_field_value(distributions, "religion"), True),
         "marital_status": (
             str,
-            random.choice(["not married", "married", "divorced", "widowed"]),
+            sample_field_value(distributions, "marital_status"),
             True,
         ),
     }
 
     BASE = {
         "home": {
-            "aoi_position": {"aoi_id": AOI_START_ID + random.randint(1000, 10000)}
+            "aoi_position": {"aoi_id": sample_field_value(distributions, "home_aoi_id")}
         },
-        "work": {"aoi_position": {"aoi_id": random.choice(work_locations)}},
+        "work": {
+            "aoi_position": {"aoi_id": sample_field_value(distributions, "work_aoi_id")}
+        },
     }
 
     return EXTRA_ATTRIBUTES, PROFILE, BASE
 
 
-def memory_config_firm():
-    global work_locations
+def memory_config_firm(
+    distributions: dict[str, Distribution],
+) -> tuple[dict[str, MemoryT], dict[str, Union[MemoryT, float]], dict[str, Any]]:
     EXTRA_ATTRIBUTES = {
         "type": (int, EconomyEntityType.Firm),
-        "location": {"aoi_position": {"aoi_id": random.choice(work_locations)}},
+        "location": {
+            "aoi_position": {"aoi_id": sample_field_value(distributions, "aoi_id")}
+        },
         "price": (float, float(np.mean(agent_skills))),
         "inventory": (int, 0),
         "employees": (list, []),
@@ -257,7 +277,9 @@ def memory_config_firm():
     return EXTRA_ATTRIBUTES, {"currency": 1e12}, {}
 
 
-def memory_config_government():
+def memory_config_government(
+    distributions: dict[str, Distribution],
+) -> tuple[dict[str, MemoryT], dict[str, Union[MemoryT, float]], dict[str, Any]]:
     EXTRA_ATTRIBUTES = {
         "type": (int, EconomyEntityType.Government),
         # 'bracket_cutoffs': (list, list(np.array([0, 97, 394.75, 842, 1607.25, 2041, 5103])*100/12)),
@@ -287,7 +309,9 @@ def memory_config_government():
     return EXTRA_ATTRIBUTES, {"currency": 1e12}, {}
 
 
-def memory_config_bank():
+def memory_config_bank(
+    distributions: dict[str, Distribution],
+) -> tuple[dict[str, MemoryT], dict[str, Union[MemoryT, float]], dict[str, Any]]:
     EXTRA_ATTRIBUTES = {
         "type": (int, EconomyEntityType.Bank),
         "interest_rate": (float, 0.03),
@@ -315,7 +339,9 @@ def memory_config_bank():
     return EXTRA_ATTRIBUTES, {"currency": 1e12}, {}
 
 
-def memory_config_nbs():
+def memory_config_nbs(
+    distributions: dict[str, Distribution],
+) -> tuple[dict[str, MemoryT], dict[str, MemoryT], dict[str, Any]]:
     EXTRA_ATTRIBUTES = {
         "type": (int, EconomyEntityType.NBS),
         # economy simulator

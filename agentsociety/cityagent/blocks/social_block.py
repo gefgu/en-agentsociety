@@ -1,18 +1,17 @@
 # Due to the current limitations of the simulator's support, only NoneBlock, MessageBlock, and FindPersonBlock are available in the Dispatcher.
 
-import json
 import logging
 from typing import Any, Optional
 
-from agentsociety.environment import Simulator
-from agentsociety.llm import LLM
-from agentsociety.memory import Memory
-from agentsociety.workflow import Block, FormatPrompt
+import jsonc
 
+from ...agent import Block, FormatPrompt
+from ...environment import Environment
+from ...llm import LLM
+from ...logger import get_logger
+from ...memory import Memory
 from .dispatcher import BlockDispatcher
 from .utils import TIME_ESTIMATE_PROMPT, clean_json_response
-
-logger = logging.getLogger("agentsociety")
 
 
 class MessagePromptManager:
@@ -25,7 +24,7 @@ class MessagePromptManager:
 
     async def get_prompt(
         self, memory, step: dict[str, Any], target: str, template: str
-    ) -> str:
+    ):
         """Generates a formatted prompt for message creation.
 
         Args:
@@ -70,7 +69,7 @@ class MessagePromptManager:
             discussion_constraint=discussion_constraint,
         )
 
-        return format_prompt.to_dialog()  # type:ignore
+        return format_prompt.to_dialog()
 
 
 class SocialNoneBlock(Block):
@@ -79,11 +78,12 @@ class SocialNoneBlock(Block):
     """
 
     def __init__(self, llm: LLM, memory: Memory):
-        super().__init__("NoneBlock", llm=llm, memory=memory)
-        self.description = "Handle all other cases"
+        super().__init__(
+            "NoneBlock", llm=llm, memory=memory, description="Handle all other cases"
+        )
         self.guidance_prompt = FormatPrompt(template=TIME_ESTIMATE_PROMPT)
 
-    async def forward(self, step, context):  # type:ignore
+    async def forward(self, step, context):
         """Executes default behavior when no specific block matches the intention.
 
         Args:
@@ -101,9 +101,9 @@ class SocialNoneBlock(Block):
         result = await self.llm.atext_request(
             self.guidance_prompt.to_dialog(), response_format={"type": "json_object"}
         )
-        result = clean_json_response(result)  # type:ignore
+        result = clean_json_response(result)
         try:
-            result = json.loads(result)
+            result = jsonc.loads(result)
             node_id = await self.memory.stream.add_social(
                 description=f"I {step['intention']}"
             )
@@ -114,7 +114,7 @@ class SocialNoneBlock(Block):
                 "node_id": node_id,
             }
         except Exception as e:
-            logger.warning(
+            get_logger().warning(
                 f"Error occurred while parsing the evaluation response: {e}, original result: {result}"
             )
             node_id = await self.memory.stream.add_social(
@@ -133,9 +133,14 @@ class FindPersonBlock(Block):
     Block for selecting an appropriate agent to socialize with based on relationship strength and context.
     """
 
-    def __init__(self, llm: LLM, memory: Memory, simulator: Simulator):
-        super().__init__("FindPersonBlock", llm=llm, memory=memory, simulator=simulator)
-        self.description = "Find a suitable person to socialize with"
+    def __init__(self, llm: LLM, environment: Environment, memory: Memory):
+        super().__init__(
+            "FindPersonBlock",
+            llm=llm,
+            environment=environment,
+            memory=memory,
+            description="Find a suitable person to socialize with",
+        )
 
         self.prompt = """
         Based on the following information, help me select the most suitable friend to interact with:
@@ -170,7 +175,7 @@ class FindPersonBlock(Block):
         ['offline', 2] - means meet the third friend offline
         """
 
-    async def forward(  # type:ignore
+    async def forward(
         self, step: dict[str, Any], context: Optional[dict] = None
     ) -> dict[str, Any]:
         """Identifies a target agent and interaction mode (online/offline).
@@ -235,20 +240,17 @@ class FindPersonBlock(Block):
 
             try:
                 # Parse the response
-                mode, friend_index = eval(response)  # type:ignore
+                mode, friend_index = eval(response)
 
                 # Validate the response format
                 if not isinstance(mode, str) or mode not in ["online", "offline"]:
                     raise ValueError("Invalid mode")
-                if (
-                    not isinstance(friend_index, int)
-                    or friend_index not in index_to_id
-                ):
+                if not isinstance(friend_index, int) or friend_index not in index_to_id:
                     raise ValueError("Invalid friend index")
 
                 # Convert index to ID
                 target = index_to_id[friend_index]
-                context["target"] = target  # type:ignore
+                context["target"] = target
             except Exception as e:
                 # If parsing fails, select the friend with the strongest relationship as the default option
                 target = (
@@ -285,11 +287,16 @@ class FindPersonBlock(Block):
 class MessageBlock(Block):
     """Generate and send messages"""
 
-    def __init__(self, agent, llm: LLM, memory: Memory, simulator: Simulator):
-        super().__init__("MessageBlock", llm=llm, memory=memory, simulator=simulator)
+    def __init__(self, agent, llm: LLM, environment: Environment, memory: Memory):
+        super().__init__(
+            "MessageBlock",
+            llm=llm,
+            environment=environment,
+            memory=memory,
+            description="Send a message to someone",
+        )
         self.agent = agent
-        self.description = "Send a message to someone"
-        self.find_person_block = FindPersonBlock(llm, memory, simulator)
+        self.find_person_block = FindPersonBlock(llm, environment, memory)
 
         # configurable fields
         self.default_message_template = """
@@ -322,15 +329,15 @@ class MessageBlock(Block):
             JSON string with message and metadata.
         """
         try:
-            return json.dumps(
+            return jsonc.dumps(
                 {"content": message, "propagation_count": propagation_count},
                 ensure_ascii=False,
             )
         except Exception as e:
-            logger.warning(f"Error serializing message: {e}")
+            get_logger().warning(f"Error serializing message: {e}")
             return message
 
-    async def forward(  # type:ignore
+    async def forward(
         self, step: dict[str, Any], context: Optional[dict] = None
     ) -> dict[str, Any]:
         """Generates a message, sends it to the target, and updates chat history.
@@ -395,7 +402,7 @@ class MessageBlock(Block):
 
         except Exception as e:
             node_id = await self.memory.stream.add_social(
-                description=f"I can't send a message to {target}"  # type:ignore
+                description=f"I can't send a message to {target}"
             )
             return {
                 "success": False,
@@ -414,10 +421,10 @@ class SocialBlock(Block):
     message_block: MessageBlock
     noneblock: SocialNoneBlock
 
-    def __init__(self, agent, llm: LLM, memory: Memory, simulator: Simulator):
-        super().__init__("SocialBlock", llm=llm, memory=memory, simulator=simulator)
-        self.find_person_block = FindPersonBlock(llm, memory, simulator)
-        self.message_block = MessageBlock(agent, llm, memory, simulator)
+    def __init__(self, agent, llm: LLM, environment: Environment, memory: Memory):
+        super().__init__("SocialBlock", llm=llm, environment=environment, memory=memory)
+        self.find_person_block = FindPersonBlock(llm, environment, memory)
+        self.message_block = MessageBlock(agent, llm, environment, memory)
         self.noneblock = SocialNoneBlock(llm, memory)
         self.dispatcher = BlockDispatcher(llm)
 
@@ -428,7 +435,7 @@ class SocialBlock(Block):
             [self.find_person_block, self.message_block, self.noneblock]
         )
 
-    async def forward(  # type:ignore
+    async def forward(
         self, step: dict[str, Any], context: Optional[dict] = None
     ) -> dict[str, Any]:
         """Main entry point for social interactions. Dispatches to sub-blocks based on context.
@@ -450,7 +457,7 @@ class SocialBlock(Block):
             selected_block = await self.dispatcher.dispatch(step)
 
             # Execute the selected sub-block and get the result
-            result = await selected_block.forward(step, context)  # type:ignore
+            result = await selected_block.forward(step, context)
 
             return result
 

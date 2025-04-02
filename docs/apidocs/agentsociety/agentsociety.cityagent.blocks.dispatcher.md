@@ -27,10 +27,6 @@
 :class: autosummary longtable
 :align: left
 
-* - {py:obj}`logger <agentsociety.cityagent.blocks.dispatcher.logger>`
-  - ```{autodoc2-docstring} agentsociety.cityagent.blocks.dispatcher.logger
-    :summary:
-    ```
 * - {py:obj}`DISPATCHER_PROMPT <agentsociety.cityagent.blocks.dispatcher.DISPATCHER_PROMPT>`
   - ```{autodoc2-docstring} agentsociety.cityagent.blocks.dispatcher.DISPATCHER_PROMPT
     :summary:
@@ -38,16 +34,6 @@
 ````
 
 ### API
-
-````{py:data} logger
-:canonical: agentsociety.cityagent.blocks.dispatcher.logger
-:value: >
-   'getLogger(...)'
-
-```{autodoc2-docstring} agentsociety.cityagent.blocks.dispatcher.logger
-```
-
-````
 
 ````{py:data} DISPATCHER_PROMPT
 :canonical: agentsociety.cityagent.blocks.dispatcher.DISPATCHER_PROMPT
@@ -70,7 +56,7 @@
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.dispatcher.BlockDispatcher.__init__
 ```
 
-````{py:method} register_blocks(blocks: list[agentsociety.workflow.Block]) -> None
+````{py:method} register_blocks(blocks: list[agentsociety.agent.Block]) -> None
 :canonical: agentsociety.cityagent.blocks.dispatcher.BlockDispatcher.register_blocks
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.dispatcher.BlockDispatcher.register_blocks
@@ -78,7 +64,7 @@
 
 ````
 
-````{py:method} _get_function_schema() -> dict
+````{py:method} _get_function_schema() -> openai.types.chat.ChatCompletionToolParam
 :canonical: agentsociety.cityagent.blocks.dispatcher.BlockDispatcher._get_function_schema
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.dispatcher.BlockDispatcher._get_function_schema
@@ -86,7 +72,7 @@
 
 ````
 
-````{py:method} dispatch(step: dict) -> agentsociety.workflow.Block
+````{py:method} dispatch(step: dict) -> agentsociety.agent.Block
 :canonical: agentsociety.cityagent.blocks.dispatcher.BlockDispatcher.dispatch
 :async:
 

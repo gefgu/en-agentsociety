@@ -1,11 +1,23 @@
 import asyncio
+from typing import Any, cast
 
-from agentsociety.llm import LLM
-from agentsociety.message import MessageBlockBase, MessageBlockListenerBase
+from openai.types.chat import ChatCompletionMessageParam
+from ray.util.queue import Empty, Queue
+
+from ..llm import LLM
+from ..logger import get_logger
+from ..message import MessageBlockBase, MessageBlockListenerBase
+from ..message.message_interceptor import BlackSet
+
+__all__ = [
+    "EdgeMessageBlock",
+    "PointMessageBlock",
+    "DoNothingListener",
+]
 
 
 async def check_message(
-    from_id: str, to_id: str, llm_client: LLM, content: str
+    from_id: int, to_id: int, llm_client: LLM, content: str
 ) -> bool:
     print(f"\n Checking Message: {from_id} -> {to_id}: {content}")
     is_valid = True
@@ -17,11 +29,13 @@ async def check_message(
         
         If the message is emotionally provocative, please return False; if the message is normal, please return True.
         """
+    dialog = [
+        {"role": "user", "content": prompt},
+    ]
+    dialog = cast(list[ChatCompletionMessageParam], dialog)
     for _ in range(10):
         try:
-            response: str = await llm_client.atext_request(
-                prompt, timeout=300
-            )  # type:ignore
+            response: str = await llm_client.atext_request(dialog, timeout=300)
             if "false" in response.lower():
                 is_valid = False
                 break
@@ -37,30 +51,31 @@ async def check_message(
 
 
 class EdgeMessageBlock(MessageBlockBase):
-    def __init__(self, name: str = "", max_violation_time: int = 3) -> None:
+    def __init__(self, name: str, max_violation_time: int):
         super().__init__(name)
         self.max_violation_time = max_violation_time
 
-    async def forward(  # type:ignore
+    async def forward(
         self,
+        llm: LLM,
         from_id: int,
         to_id: int,
         msg: str,
         violation_counts: dict[int, int],
-        black_list: list[tuple[int, int]],
-    ):
+        black_set: BlackSet,
+    ) -> tuple[bool, str]:
         if (
-            (from_id, to_id) in set(black_list)
-            or (None, to_id) in set(black_list)
-            or (from_id, None) in set(black_list)
+            (from_id, to_id) in black_set
+            or (None, to_id) in black_set
+            or (from_id, None) in black_set
         ):
             # Optionally return the information to be enqueued as a tuple (False, err). If only a bool value is returned, the default error message will be enqueued.
-            return False
+            return False, "The message is blocked by the black set."
         else:
             is_valid = await check_message(
                 from_id=from_id,
                 to_id=to_id,
-                llm_client=self.llm,
+                llm_client=llm,
                 content=msg,
             )
             if (
@@ -68,36 +83,40 @@ class EdgeMessageBlock(MessageBlockBase):
                 and violation_counts[from_id] >= self.max_violation_time - 1
             ):
                 # Can be directly added. The internal asynchronous lock of the framework ensures no conflict.
-                black_list.append((from_id, to_id))
-            return is_valid
+                black_set.add((from_id, to_id))
+            if is_valid:
+                return True, ""
+            else:
+                return False, "The message is blocked by the checking prompt."
 
 
 class PointMessageBlock(MessageBlockBase):
-    def __init__(self, name: str = "", max_violation_time: int = 3) -> None:
+    def __init__(self, name: str, max_violation_time: int):
         super().__init__(name)
         self.max_violation_time = max_violation_time
 
-    async def forward(  # type:ignore
+    async def forward(
         self,
+        llm: LLM,
         from_id: int,
         to_id: int,
         msg: str,
         violation_counts: dict[int, int],
-        black_list: list[tuple[int, int]],
-    ):
+        black_set: BlackSet,
+    ) -> tuple[bool, str]:
         if (
-            (from_id, to_id) in set(black_list)
-            or (None, to_id) in set(black_list)
-            or (from_id, None) in set(black_list)
+            (from_id, to_id) in black_set
+            or (None, to_id) in black_set
+            or (from_id, None) in black_set
         ):
             # Optionally return the information to be enqueued as a tuple (False, err). If only a bool value is returned, the default error message will be enqueued.
-            return False
+            return False, "The message is blocked by the black set."
         else:
             # Violation count is automatically maintained within the framework, so it does not need to be handled here.
             is_valid = await check_message(
                 from_id=from_id,
                 to_id=to_id,
-                llm_client=self.llm,
+                llm_client=llm,
                 content=msg,
             )
             if (
@@ -105,24 +124,15 @@ class PointMessageBlock(MessageBlockBase):
                 and violation_counts[from_id] >= self.max_violation_time - 1
             ):
                 # Can be directly added. The internal asynchronous lock of the framework ensures no conflict.
-                black_list.append((from_id, None))  # type:ignore
-            return is_valid
+                black_set.add((from_id, None))
+            if is_valid:
+                return True, ""
+            else:
+                return False, "The message is blocked by the checking prompt."
 
 
-class MessageBlockListener(MessageBlockListenerBase):
-    def __init__(
-        self, save_queue_values: bool = False, get_queue_period: float = 0.1
-    ) -> None:
-        super().__init__(save_queue_values, get_queue_period)
+class DoNothingListener(MessageBlockListenerBase):
+    def __init__(self, queue: Queue) -> None:
+        super().__init__(queue)
 
-    async def forward(
-        self,
-    ):
-        while True:
-            if self.has_queue:
-                value = await self.queue.get_async()  # type: ignore
-                if self._save_queue_values:
-                    self._values_from_queue.append(value)
-                print(f"get `{value}` from queue")
-                # do something with the value
-            await asyncio.sleep(self._get_queue_period)
+    async def forward(self, msg: Any): ...

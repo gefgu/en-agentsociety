@@ -1,6 +1,6 @@
 # Dependencies installed by Docker
 
-The folder contains the docker-compose.yml and related files for running the dependencies (PostgreSQL, MQTT Broker, mlflow) for the project quickly.
+The folder contains the docker-compose.yml and related files for running the dependencies (PostgreSQL, Redis, mlflow) for the project quickly.
 
 ## Prerequisites
 
@@ -42,15 +42,15 @@ And make sure the password part of `PG_DSN` in the `docker-compose.yml` (or `doc
 
 ```bash
 cd docker # make sure the folder contains the same files as the ones in the repo
-docker compose up -d # if you are not in China
-docker compose -f ./docker-compose-cn.yml up # if you are in China
+docker compose up -d --build # if you are not in China
+docker compose -f ./docker-compose-cn.yml up -d --build # if you are in China
 ```
 
 If you want to check if the dependencies are running correctly, you can run the following command instead of the above command:
 ```bash
 cd docker
-docker compose up # if you are not in China
-docker compose -f ./docker-compose-cn.yml up # if you are in China
+docker compose up --build # if you are not in China
+docker compose -f ./docker-compose-cn.yml up --build # if you are in China
 ```
 But you need to use `Ctrl+C` to stop the them and use `docker compose up -d` to start them again and put them in the background.
 
@@ -68,14 +68,10 @@ docker compose -f ./docker-compose-cn.yml down # if you are in China
   - The default username and password are `postgres` and `CHANGE_ME`, respectively.
   - The default database is `postgres`.
   - You can use some GUI tools to access the database, e.g., [DBeaver](https://dbeaver.io/).
-- MQTT Broker: tcp://localhost:1883
-- EMQX (MQTT Broker) Dashboard: http://localhost:18083
-  - The default dashboard username and password are `admin` and `public`, respectively.
-  - You can follow [EMQX Docs - Authentication](https://docs.emqx.com/en/emqx/latest/dashboard/authn.html) to set MQTT authentication.
+- Redis Server: localhost:6379
 
 ## Attention
 
 SECURITY WARNING:
-- CHANGE THE PASSWORD OF POSTGRESQL AND MLFLOW IN THE docker-compose.yml FILE and `basic_auth.ini`.
-- CHANGE THE PASSWORD OF MQTT BROKER BY ITS GUI.
+- CHANGE THE PASSWORD OF POSTGRESQL, REDIS AND MLFLOW IN THE docker-compose.yml FILE and `basic_auth.ini`.
 - SET FIREWALL RULES ACCORDINGLY.

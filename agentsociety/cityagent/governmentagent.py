@@ -4,16 +4,17 @@ from typing import Optional
 
 import numpy as np
 
-from agentsociety import InstitutionAgent, Simulator
-from agentsociety.environment import EconomyClient
-from agentsociety.llm.llm import LLM
-from agentsociety.memory import Memory
-from agentsociety.message import Messager
+from ..agent import GovernmentAgentBase, AgentToolbox
+from ..environment import EconomyClient
+from ..llm import LLM
+from ..memory import Memory
+from ..message import Messager
+from ..environment import Environment
 
-logger = logging.getLogger("agentsociety")
+__all__ = ["GovernmentAgent"]
 
 
-class GovernmentAgent(InstitutionAgent):
+class GovernmentAgent(GovernmentAgentBase):
     """A government institution agent that handles periodic economic operations such as tax collection."""
 
     configurable_fields = ["time_diff"]
@@ -26,34 +27,27 @@ class GovernmentAgent(InstitutionAgent):
 
     def __init__(
         self,
+        id: int,
         name: str,
-        llm_client: Optional[LLM] = None,
-        simulator: Optional[Simulator] = None,
-        memory: Optional[Memory] = None,
-        economy_client: Optional[EconomyClient] = None,
-        messager: Optional[Messager] = None,  # type:ignore
-        avro_file: Optional[dict] = None,
+        toolbox: AgentToolbox,
+        memory: Memory,
     ) -> None:
         """
         Initialize the GovernmentAgent.
 
         Args:
-            name: Unique identifier for the agent.
-            llm_client: Language model client for decision-making (optional).
-            simulator: Simulation environment controller (optional).
-            memory: Storage for agent state and citizen data (optional).
-            economy_client: Client for economic operations like tax calculation (optional).
-            messager: Communication handler for inter-agent messages (optional).
-            avro_file: Schema definition for data serialization (optional).
+            - `name` (`str`): The name or identifier of the agent.
+            - `toolbox` (`AgentToolbox`): The toolbox of the agent.
+            - `memory` (`Memory`): The memory of the agent.
+
+        - **Description**:
+            - Initializes the GovernmentAgent with the provided parameters and sets up necessary internal states.
         """
         super().__init__(
+            id=id,
             name=name,
-            llm_client=llm_client,
-            simulator=simulator,
+            toolbox=toolbox,
             memory=memory,
-            economy_client=economy_client,
-            messager=messager,
-            avro_file=avro_file,
         )
         self.initailzed = False
         self.last_time_trigger = None
@@ -67,16 +61,16 @@ class GovernmentAgent(InstitutionAgent):
         Returns:
             True if the time difference since last trigger exceeds `time_diff`, False otherwise.
         """
-        now_time = await self.simulator.get_time()
+        now_tick = self.environment.get_tick()
         if self.last_time_trigger is None:
-            self.last_time_trigger = now_time
+            self.last_time_trigger = now_tick
             return False
-        if now_time - self.last_time_trigger >= self.time_diff:  # type:ignore
-            self.last_time_trigger = now_time
+        if now_tick - self.last_time_trigger >= self.time_diff:
+            self.last_time_trigger = now_tick
             return True
         return False
 
-    async def gather_messages(self, agent_ids, content):  # type:ignore
+    async def gather_messages(self, agent_ids, content):
         """
         Collect messages from specified agents filtered by content type.
 
@@ -98,8 +92,10 @@ class GovernmentAgent(InstitutionAgent):
             if not np.all(np.array(agents_forward) > self.forward_times):
                 return
             incomes = await self.gather_messages(citizen_ids, "income_currency")
-            _, post_tax_incomes = await self.economy_client.calculate_taxes_due(
-                self._agent_id, citizen_ids, incomes, enable_redistribution=False
+            _, post_tax_incomes = (
+                await self.environment.economy_client.calculate_taxes_due(
+                    self.id, citizen_ids, incomes, enable_redistribution=False
+                )
             )
             for citizen_id, income, post_tax_income in zip(
                 citizen_ids, incomes, post_tax_incomes

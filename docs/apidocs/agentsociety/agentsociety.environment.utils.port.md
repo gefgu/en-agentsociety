@@ -15,8 +15,8 @@
 :class: autosummary longtable
 :align: left
 
-* - {py:obj}`find_free_port <agentsociety.environment.utils.port.find_free_port>`
-  - ```{autodoc2-docstring} agentsociety.environment.utils.port.find_free_port
+* - {py:obj}`find_free_ports <agentsociety.environment.utils.port.find_free_ports>`
+  - ```{autodoc2-docstring} agentsociety.environment.utils.port.find_free_ports
     :summary:
     ```
 ````
@@ -38,16 +38,16 @@
 ````{py:data} __all__
 :canonical: agentsociety.environment.utils.port.__all__
 :value: >
-   ['find_free_port']
+   ['find_free_ports']
 
 ```{autodoc2-docstring} agentsociety.environment.utils.port.__all__
 ```
 
 ````
 
-````{py:function} find_free_port(num_ports: int = 1) -> typing.Union[int, list[int]]
-:canonical: agentsociety.environment.utils.port.find_free_port
+````{py:function} find_free_ports(num_ports: int = 1) -> typing.List[int]
+:canonical: agentsociety.environment.utils.port.find_free_ports
 
-```{autodoc2-docstring} agentsociety.environment.utils.port.find_free_port
+```{autodoc2-docstring} agentsociety.environment.utils.port.find_free_ports
 ```
 ````

@@ -38,7 +38,7 @@ class PauseService:
             self._aio_stub.Pause(req),
         )
         return res
-    
+
     async def resume(
         self,
     ) -> Awaitable[Union[dict[str, Any], pause_service.ResumeResponse]]:

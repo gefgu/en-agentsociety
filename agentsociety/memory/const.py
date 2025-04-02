@@ -14,6 +14,7 @@ PROFILE_ATTRIBUTES = {
     "currency": float(),
     "residence": str(),
     "race": str(),
+    "city": str(),
     "religion": str(),
     "marital_status": str(),
 }

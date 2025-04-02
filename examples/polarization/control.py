@@ -6,88 +6,130 @@ import random
 
 import ray
 
-from agentsociety import AgentSimulation
-from agentsociety.cityagent.societyagent import SocietyAgent
-from agentsociety.configs import ExpConfig, SimConfig, WorkflowStep
-from agentsociety.utils import LLMRequestType, WorkflowType
+from agentsociety.cityagent import SocietyAgent, default
+from agentsociety.configs import (
+    AgentsConfig,
+    Config,
+    EnvConfig,
+    ExpConfig,
+    LLMConfig,
+    MapConfig,
+)
+from agentsociety.configs.agent import AgentClassType, AgentConfig
+from agentsociety.configs.exp import WorkflowStepConfig, WorkflowType
+from agentsociety.environment import EnvironmentConfig
+from agentsociety.llm import LLMProviderType
+from agentsociety.message import RedisConfig
+from agentsociety.metrics import MlflowConfig
+from agentsociety.simulation import AgentSociety
+from agentsociety.storage import AvroConfig, PostgreSQLConfig
 
-logging.getLogger("agentsociety").setLevel(logging.INFO)
+ray.init(logging_level=logging.INFO)
 
-ray.init(logging_level=logging.WARNING, log_to_driver=True)
 
-async def update_attitude(simulation: AgentSimulation):
-    citizen_uuids = await simulation.filter(types=[SocietyAgent])
-    for agent in citizen_uuids:
+async def update_attitude(simulation: AgentSociety):
+    citizen_ids = await simulation.filter(types=(SocietyAgent,))
+    for agent_id in citizen_ids:
         if random.random() < 0.5:
             await simulation.update(
-                agent, "attitude", {"Whether to support stronger gun control?": 3}
+                [agent_id], "attitude", {"Whether to support stronger gun control?": 3}
             )
         else:
             await simulation.update(
-                agent, "attitude", {"Whether to support stronger gun control?": 7}
+                [agent_id], "attitude", {"Whether to support stronger gun control?": 7}
             )
-    attitudes = await simulation.gather("attitude", citizen_uuids)
+    attitudes = await simulation.gather("attitude", citizen_ids)
     with open(f"exp1/attitudes_initial.json", "w", encoding="utf-8") as f:
         json.dump(attitudes, f, ensure_ascii=False, indent=2)
 
 
-async def gather_attitude(simulation: AgentSimulation):
+async def gather_attitude(simulation: AgentSociety):
     print("gather attitude")
-    citizen_uuids = await simulation.filter(types=[SocietyAgent])
-    attitudes = await simulation.gather("attitude", citizen_uuids)
+    citizen_ids = await simulation.filter(types=(SocietyAgent,))
+    attitudes = await simulation.gather("attitude", citizen_ids)
 
     with open(f"exp1/attitudes_final.json", "w", encoding="utf-8") as f:
         json.dump(attitudes, f, ensure_ascii=False, indent=2)
 
-    chat_histories = await simulation.gather("chat_histories", citizen_uuids)
+    chat_histories = await simulation.gather("chat_histories", citizen_ids)
     with open(f"exp1/chat_histories.json", "w", encoding="utf-8") as f:
         json.dump(chat_histories, f, ensure_ascii=False, indent=2)
 
 
-
-sim_config = (
-    SimConfig()
-    .SetLLMRequest(
-        request_type=LLMRequestType.ZhipuAI, api_key="YOUR-API-KEY", model="GLM-4-Flash"
-    )
-    .SetSimulatorRequest()
-    .SetMQTT(server="mqtt.example.com", username="user", port=1883, password="pass")
-    # change to your file path
-    .SetMapRequest(file_path="map.pb")
-)
-exp_config = (
-    ExpConfig(exp_name="cognition_exp1", llm_semaphore=200, logging_level=logging.INFO)
-    .SetAgentConfig(number_of_citizen=100, group_size=50)
-    .SetWorkFlow(
-        [
-            WorkflowStep(
-                type=WorkflowType.INTERVENE,
+config = Config(
+    llm=[
+        LLMConfig(
+            provider=LLMProviderType.Qwen,
+            base_url=None,
+            api_key="<YOUR-API-KEY>",
+            model="<YOUR-MODEL>",
+            semaphore=200,
+        )
+    ],
+    env=EnvConfig(
+        redis=RedisConfig(
+            server="<SERVER-ADDRESS>",
+            port=6379,
+            password="<PASSWORD>",
+        ),  # type: ignore
+        pgsql=PostgreSQLConfig(
+            enabled=True,
+            dsn="<PGSQL-DSN>",
+            num_workers="auto",
+        ),
+        avro=AvroConfig(
+            path="<SAVE-PATH>",
+            enabled=True,
+        ),
+        mlflow=MlflowConfig(
+            enabled=True,
+            mlflow_uri="<MLFLOW-URI>",
+            username="<USERNAME>",
+            password="<PASSWORD>",
+        ),
+    ),
+    map=MapConfig(
+        file_path="<MAP-FILE-PATH>",
+        cache_path="<CACHE-FILE-PATH>",
+    ),
+    agents=AgentsConfig(
+        citizens=[
+            AgentConfig(
+                agent_class=AgentClassType.CITIZEN,
+                number=100,
+            )
+        ]
+    ),  # type: ignore
+    exp=ExpConfig(
+        name="polarization_control",
+        workflow=[
+            WorkflowStepConfig(
+                type=WorkflowType.FUNCTION,
                 func=update_attitude,
-                description="update attitude",
             ),
-            WorkflowStep(type=WorkflowType.RUN, days=3),
-            WorkflowStep(
+            WorkflowStepConfig(
+                type=WorkflowType.RUN,
+                days=3,
+            ),
+            WorkflowStepConfig(
                 type=WorkflowType.FUNCTION,
                 func=gather_attitude,
-                description="gather attitude",
             ),
-        ]
-    )
+        ],
+        environment=EnvironmentConfig(
+            start_tick=6 * 60 * 60,
+            total_tick=18 * 60 * 60,
+        ),
+    ),
 )
+config = default(config)
 
 
 async def main():
-    llm_log_lists, mqtt_log_lists, simulator_log_lists, agent_time_log_lists = (
-        await AgentSimulation.run_from_config(exp_config, sim_config)
-    )
-    with open(f"exp1/llm_log_lists.json", "w", encoding="utf-8") as f:
-        json.dump(llm_log_lists, f, ensure_ascii=False, indent=2)
-    with open(f"exp1/mqtt_log_lists.json", "w", encoding="utf-8") as f:
-        json.dump(mqtt_log_lists, f, ensure_ascii=False, indent=2)
-    with open(f"exp1/simulator_log_lists.json", "w", encoding="utf-8") as f:
-        json.dump(simulator_log_lists, f, ensure_ascii=False, indent=2)
-    with open(f"exp1/agent_time_log_lists.json", "w", encoding="utf-8") as f:
-        json.dump(agent_time_log_lists, f, ensure_ascii=False, indent=2)
+    agentsociety = AgentSociety(config)
+    await agentsociety.init()
+    await agentsociety.run()
+    await agentsociety.close()
     ray.shutdown()
 
 

@@ -27,28 +27,28 @@
 :class: autosummary longtable
 :align: left
 
-* - {py:obj}`logger <agentsociety.cityagent.governmentagent.logger>`
-  - ```{autodoc2-docstring} agentsociety.cityagent.governmentagent.logger
+* - {py:obj}`__all__ <agentsociety.cityagent.governmentagent.__all__>`
+  - ```{autodoc2-docstring} agentsociety.cityagent.governmentagent.__all__
     :summary:
     ```
 ````
 
 ### API
 
-````{py:data} logger
-:canonical: agentsociety.cityagent.governmentagent.logger
+````{py:data} __all__
+:canonical: agentsociety.cityagent.governmentagent.__all__
 :value: >
-   'getLogger(...)'
+   ['GovernmentAgent']
 
-```{autodoc2-docstring} agentsociety.cityagent.governmentagent.logger
+```{autodoc2-docstring} agentsociety.cityagent.governmentagent.__all__
 ```
 
 ````
 
-`````{py:class} GovernmentAgent(name: str, llm_client: typing.Optional[agentsociety.llm.llm.LLM] = None, simulator: typing.Optional[agentsociety.Simulator] = None, memory: typing.Optional[agentsociety.memory.Memory] = None, economy_client: typing.Optional[agentsociety.environment.EconomyClient] = None, messager: typing.Optional[agentsociety.message.Messager] = None, avro_file: typing.Optional[dict] = None)
+`````{py:class} GovernmentAgent(id: int, name: str, toolbox: agentsociety.agent.AgentToolbox, memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.governmentagent.GovernmentAgent
 
-Bases: {py:obj}`agentsociety.InstitutionAgent`
+Bases: {py:obj}`agentsociety.agent.GovernmentAgentBase`
 
 ```{autodoc2-docstring} agentsociety.cityagent.governmentagent.GovernmentAgent
 ```

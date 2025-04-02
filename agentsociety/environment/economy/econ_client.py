@@ -12,9 +12,8 @@ import pycityproto.city.economy.v2.org_service_pb2 as org_service
 import pycityproto.city.economy.v2.org_service_pb2_grpc as org_grpc
 from google.protobuf.json_format import MessageToDict, ParseDict
 
+from ...logger import get_logger
 from ...utils.decorators import lock_decorator, log_execution_time
-
-logger = logging.getLogger("agentsociety")
 
 __all__ = [
     "EconomyClient",
@@ -98,7 +97,7 @@ class EconomyClient:
         self.secure = secure
         aio_channel = _create_aio_channel(server_address, secure)
         self._aio_stub = org_grpc.OrgServiceStub(aio_channel)
-        self._agent_ids = set()
+        self._citizen_ids = set()
         self._firm_ids = set()
         self._bank_ids = set()
         self._nbs_ids = set()
@@ -133,10 +132,11 @@ class EconomyClient:
         aio_channel = _create_aio_channel(self.server_address, self.secure)
         self._aio_stub = org_grpc.OrgServiceStub(aio_channel)
 
+    # TODO: remove the design
     def _get_request_type(self, id: Union[int, list[int]]) -> EconomyEntityType:
         if not isinstance(id, list):
             id = [id]
-        if all(i in self._agent_ids for i in id):
+        if all(i in self._citizen_ids for i in id):
             return EconomyEntityType.Agent
         elif all(i in self._bank_ids for i in id):
             return EconomyEntityType.Bank
@@ -154,16 +154,16 @@ class EconomyClient:
         Get the ids of agents and orgs
         """
         return (
-            self._agent_ids,
+            self._citizen_ids,
             self._bank_ids,
             self._nbs_ids,
             self._government_ids,
             self._firm_ids,
         )
 
-    async def set_ids(
+    def set_ids(
         self,
-        agent_ids: set[int],
+        citizen_ids: set[int],
         firm_ids: set[int],
         bank_ids: set[int],
         nbs_ids: set[int],
@@ -172,11 +172,11 @@ class EconomyClient:
         """
         Set the ids of agents and orgs
         """
-        self._agent_ids = agent_ids
+        self._citizen_ids = citizen_ids
+        self._firm_ids = firm_ids
         self._bank_ids = bank_ids
         self._nbs_ids = nbs_ids
         self._government_ids = government_ids
-        self._firm_ids = firm_ids
 
     @log_execution_time
     async def _get_agent(
@@ -191,7 +191,7 @@ class EconomyClient:
         - **Returns**:
             - `economyv2.Agent`: The agent object.
         """
-        logger.debug(f"Getting agent {id}")
+        get_logger().debug(f"Getting agent {id}")
         if not isinstance(id, Sequence):
             id = [id]
         agents: org_service.GetAgentResponse = await self._aio_stub.GetAgent(
@@ -218,7 +218,7 @@ class EconomyClient:
         - **Returns**:
             - `economyv2.Bank`: The bank object.
         """
-        logger.debug(f"Getting bank {id}")
+        get_logger().debug(f"Getting bank {id}")
         if isinstance(id, list):
             banks = []
             for bank_id in id:
@@ -253,7 +253,7 @@ class EconomyClient:
         - **Returns**:
             - `economyv2.Firm`: The firm object.
         """
-        logger.debug(f"Getting firm {id}")
+        get_logger().debug(f"Getting firm {id}")
         if not isinstance(id, list):
             _id = [id]
         else:
@@ -280,7 +280,7 @@ class EconomyClient:
         - **Returns**:
             - `economyv2.Government`: The government object.
         """
-        logger.debug(f"Getting government {id}")
+        get_logger().debug(f"Getting government {id}")
         if isinstance(id, list):
             governments: list[org_service.GetGovernmentResponse] = [
                 await self._aio_stub.GetGovernment(
@@ -317,7 +317,7 @@ class EconomyClient:
         - **Returns**:
             - `economyv2.Nbs`: The nbs object.
         """
-        logger.debug(f"Getting NBS {id}")
+        get_logger().debug(f"Getting NBS {id}")
         if isinstance(id, list):
             nbss: list[org_service.GetNBSResponse] = [
                 await self._aio_stub.GetNBS(org_service.GetNBSRequest(nbs_id=nbs_id))
@@ -374,9 +374,9 @@ class EconomyClient:
                     results.append([res[k] for res in response])
             return results
         else:
-            logger.debug(f"response: {response}")
+            get_logger().debug(f"response: {response}")
             res = cast(dict[str, Any], response)
-            logger.debug(f"res: {res}")
+            get_logger().debug(f"res: {res}")
             if isinstance(key, list):
                 return [res[k] for k in key]
             else:
@@ -393,7 +393,7 @@ class EconomyClient:
             _new_type = type_
             orig_value = type_()
         if _orig_type != _new_type:
-            logger.debug(
+            get_logger().debug(
                 f"Inconsistent type of original value {_orig_type.__name__} and to-update value {_new_type.__name__}"
             )
             return False
@@ -408,7 +408,7 @@ class EconomyClient:
                 orig_value.extend(list(value))
                 original_dict[key] = orig_value
             else:
-                logger.warning(
+                get_logger().warning(
                     f"Type of {type(orig_value)} does not support mode `merge`, using `replace` instead!"
                 )
                 return False
@@ -520,7 +520,7 @@ class EconomyClient:
         if isinstance(configs, dict):
             configs = [configs]
         for config in configs:
-            self._agent_ids.add(config["id"])
+            assert config["id"] in self._citizen_ids
             assert config.get("type", "Agent") == "Agent"
         tasks = [
             self._aio_stub.AddAgent(
@@ -567,7 +567,7 @@ class EconomyClient:
         for config in configs:
             org_type: str = config.get("type", None)
             if org_type == EconomyEntityType.Bank:
-                self._bank_ids.add(config["id"])
+                assert config["id"] in self._bank_ids
                 tasks.append(
                     self._aio_stub.AddBank(
                         org_service.AddBankRequest(
@@ -581,7 +581,7 @@ class EconomyClient:
                     )
                 )
             elif org_type == EconomyEntityType.Firm:
-                self._firm_ids.add(config["id"])
+                assert config["id"] in self._firm_ids
                 tasks.append(
                     self._aio_stub.AddFirm(
                         org_service.AddFirmRequest(
@@ -600,7 +600,7 @@ class EconomyClient:
                     )
                 )
             elif org_type == EconomyEntityType.Government:
-                self._government_ids.add(config["id"])
+                assert config["id"] in self._government_ids
                 tasks.append(
                     self._aio_stub.AddGovernment(
                         org_service.AddGovernmentRequest(
@@ -615,7 +615,7 @@ class EconomyClient:
                     )
                 )
             elif org_type == EconomyEntityType.NBS:
-                self._nbs_ids.add(config["id"])
+                assert config["id"] in self._nbs_ids
                 tasks.append(
                     self._aio_stub.AddNBS(
                         org_service.AddNBSRequest(
@@ -901,8 +901,7 @@ class EconomyClient:
         response: org_service.ListBanksResponse = await self._aio_stub.ListBanks(
             request
         )
-        res: list[economyv2.Bank] = response.banks  # type:ignore
-        return [i.id for i in res]
+        return [i.id for i in response.banks]
 
     @log_execution_time
     @lock_decorator
@@ -915,12 +914,9 @@ class EconomyClient:
         - **Returns**:
             - `List[int]`: A list of NBS IDs.
         """
-        request = org_service.ListFirmsRequest()
-        response: org_service.ListFirmsResponse = await self._aio_stub.ListFirms(
-            request
-        )
-        res: list[economyv2.Firm] = response.firms  # type:ignore
-        return [i.id for i in res]
+        request = org_service.ListNBSRequest()
+        response: org_service.ListNBSResponse = await self._aio_stub.ListNBS(request)
+        return [i.id for i in response.nbs_list]
 
     @log_execution_time
     @lock_decorator
@@ -934,11 +930,10 @@ class EconomyClient:
             - `List[int]`: A list of government IDs.
         """
         request = org_service.ListGovernmentsRequest()
-        response: org_service.ListGovernmentsResponse = await self._aio_stub.ListFirms(
-            request
+        response: org_service.ListGovernmentsResponse = (
+            await self._aio_stub.ListGovernments(request)
         )
-        res: list[economyv2.Government] = response.governments  # type:ignore
-        return [i.id for i in res]
+        return [i.id for i in response.governments]
 
     @log_execution_time
     @lock_decorator
@@ -955,8 +950,7 @@ class EconomyClient:
         response: org_service.ListFirmsResponse = await self._aio_stub.ListFirms(
             request
         )
-        res: list[economyv2.Firm] = response.firms  # type:ignore
-        return [i.id for i in res]
+        return [i.id for i in response.firms]
 
     @log_execution_time
     @lock_decorator
@@ -1143,8 +1137,8 @@ class EconomyClient:
                             delta_demand=delta_demand,
                             delta_sales=delta_sales,
                             delta_currency=delta_currency,
-                            add_employees=add_employee_ids,  # type:ignore
-                            remove_employees=remove_employee_ids,  # type:ignore
+                            add_employees=add_employee_ids,
+                            remove_employees=remove_employee_ids,
                         )
                     ]
                 )
@@ -1180,11 +1174,11 @@ class EconomyClient:
                 remove_employee_ids_s = remove_employee_ids
             if (
                 not len(firm_id)
-                == len(delta_prices)  # type:ignore
-                == len(delta_inventories)  # type:ignore
-                == len(delta_demands)  # type:ignore
-                == len(delta_sales_s)  # type:ignore
-                == len(delta_currencies)  # type:ignore
+                == len(delta_prices)
+                == len(delta_inventories)
+                == len(delta_demands)
+                == len(delta_sales_s)
+                == len(delta_currencies)
                 == len(add_employee_ids_s)
                 == len(remove_employee_ids_s)
             ):
@@ -1196,13 +1190,13 @@ class EconomyClient:
                     updates=[
                         org_service.FirmDeltaUpdate(
                             firm_id=firm_id[i],
-                            delta_price=delta_prices[i],  # type:ignore
-                            delta_inventory=delta_inventories[i],  # type:ignore
-                            delta_demand=delta_demands[i],  # type:ignore
-                            delta_sales=delta_sales_s[i],  # type:ignore
-                            delta_currency=delta_currencies[i],  # type:ignore
-                            add_employees=add_employee_ids_s[i],  # type:ignore
-                            remove_employees=remove_employee_ids_s[i],  # type:ignore
+                            delta_price=delta_prices[i],
+                            delta_inventory=delta_inventories[i],
+                            delta_demand=delta_demands[i],
+                            delta_sales=delta_sales_s[i],
+                            delta_currency=delta_currencies[i],
+                            add_employees=add_employee_ids_s[i],
+                            remove_employees=remove_employee_ids_s[i],
                         )
                         for i in range(len(firm_id))
                     ]
@@ -1268,10 +1262,10 @@ class EconomyClient:
                 delta_incomes = delta_income
             if (
                 not len(agent_id)
-                == len(delta_currencies)  # type:ignore
-                == len(delta_skills)  # type:ignore
-                == len(delta_consumptions)  # type:ignore
-                == len(delta_incomes)  # type:ignore
+                == len(delta_currencies)
+                == len(delta_skills)
+                == len(delta_consumptions)
+                == len(delta_incomes)
             ):
                 raise ValueError(
                     f"Invalid input, the length of agent_id, delta_currency, delta_skill, delta_consumption, delta_income must be the same!"
@@ -1281,11 +1275,11 @@ class EconomyClient:
                     updates=[
                         org_service.AgentDeltaUpdate(
                             agent_id=agent_id[i],
-                            new_firm_id=new_firm_ids[i],  # type:ignore
-                            delta_currency=delta_currencies[i],  # type:ignore
-                            delta_skill=delta_skills[i],  # type:ignore
-                            delta_consumption=delta_consumptions[i],  # type:ignore
-                            delta_income=delta_incomes[i],  # type:ignore
+                            new_firm_id=new_firm_ids[i],
+                            delta_currency=delta_currencies[i],
+                            delta_skill=delta_skills[i],
+                            delta_consumption=delta_consumptions[i],
+                            delta_income=delta_incomes[i],
                         )
                         for i in range(len(agent_id))
                     ]

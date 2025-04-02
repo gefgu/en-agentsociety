@@ -22,11 +22,8 @@ agentsociety.utils.parsers
 :titlesonly:
 :maxdepth: 1
 
-agentsociety.utils.config_const
-agentsociety.utils.pg_query
-agentsociety.utils.survey_util
-agentsociety.utils.avro_schema
 agentsociety.utils.decorators
+agentsociety.utils.survey_util
 ```
 
 ## Package Contents
@@ -41,6 +38,10 @@ agentsociety.utils.decorators
   - ```{autodoc2-docstring} agentsociety.utils.__all__
     :summary:
     ```
+* - {py:obj}`NONE_SENDER_ID <agentsociety.utils.NONE_SENDER_ID>`
+  - ```{autodoc2-docstring} agentsociety.utils.NONE_SENDER_ID
+    :summary:
+    ```
 ````
 
 ### API
@@ -48,9 +49,19 @@ agentsociety.utils.decorators
 ````{py:data} __all__
 :canonical: agentsociety.utils.__all__
 :value: >
-   ['PROFILE_SCHEMA', 'DIALOG_SCHEMA', 'STATUS_SCHEMA', 'SURVEY_SCHEMA', 'INSTITUTION_STATUS_SCHEMA', '...
+   ['process_survey_for_llm', 'NONE_SENDER_ID']
 
 ```{autodoc2-docstring} agentsociety.utils.__all__
+```
+
+````
+
+````{py:data} NONE_SENDER_ID
+:canonical: agentsociety.utils.NONE_SENDER_ID
+:value: >
+   'none'
+
+```{autodoc2-docstring} agentsociety.utils.NONE_SENDER_ID
 ```
 
 ````

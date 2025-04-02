@@ -2,8 +2,8 @@
 Simulation Module
 """
 
-from .simulation import AgentSimulation
+from .agentsociety import AgentSociety
 
 __all__ = [
-    "AgentSimulation",
+    "AgentSociety",
 ]

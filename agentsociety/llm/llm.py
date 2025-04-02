@@ -1,23 +1,76 @@
 import asyncio
-import json
+from enum import Enum
 import logging
 import os
+import random
 import time
-from typing import Any, Optional, Union
+from typing import Any, List, Optional, Tuple, Union, overload
 
-from openai import APIConnectionError, AsyncOpenAI, OpenAI, OpenAIError
-from zhipuai import ZhipuAI
+import jsonc
+from openai import NOT_GIVEN, APIConnectionError, AsyncOpenAI, NotGiven, OpenAIError
+from openai.types.chat import (
+    ChatCompletionToolParam,
+    ChatCompletionToolChoiceOptionParam,
+    completion_create_params,
+    ChatCompletionMessageParam,
+)
+from pydantic import BaseModel, Field, field_serializer
 
-from ..configs import LLMRequestConfig
-from ..utils import LLMRequestType
+from ..logger import get_logger
 from .utils import *
 
-logging.getLogger("zhipuai").setLevel(logging.WARNING)
 os.environ["GRPC_VERBOSITY"] = "ERROR"
 
 __all__ = [
     "LLM",
+    "LLMConfig",
 ]
+
+
+class LLMProviderType(str, Enum):
+    """
+    Defines the types of LLM providers.
+    - **Description**:
+        - Enumerates different types of LLM providers.
+
+    - **Types**:
+        - `OPENAI`: OpenAI and compatible providers (based on base_url).
+        - `DEEPSEEK`: DeepSeek.
+        - `QWEN`: Qwen.
+        - `ZHIPU`: Zhipu.
+        - `SILICONFLOW`: SiliconFlow.
+        - `VLLM`: VLLM.
+    """
+
+    OpenAI = "openai"
+    DeepSeek = "deepseek"
+    Qwen = "qwen"
+    ZhipuAI = "zhipuai"
+    SiliconFlow = "siliconflow"
+    VLLM = "vllm"
+
+
+class LLMConfig(BaseModel):
+    """LLM configuration class."""
+
+    provider: LLMProviderType = Field(...)
+    """The type of the LLM provider"""
+
+    base_url: Optional[str] = Field(None)
+    """The base URL for the LLM provider"""
+
+    api_key: str = Field(...)
+    """API key for accessing the LLM provider"""
+
+    model: str = Field(...)
+    """The model to use"""
+
+    semaphore: int = Field(200, ge=1)
+    """Semaphore value for LLM operations to avoid rate limit"""
+
+    @field_serializer("provider")
+    def serialize_provider(self, provider: LLMProviderType, info):
+        return provider.value
 
 
 class LLM:
@@ -29,82 +82,76 @@ class LLM:
         - It initializes clients based on the specified request type and handles token usage and consumption reporting.
     """
 
-    def __init__(self, config: LLMRequestConfig) -> None:
+    def __init__(self, configs: List[LLMConfig]):
         """
         Initializes the LLM instance.
 
         - **Parameters**:
-            - `config`: An instance of `LLMRequestConfig` containing configuration settings for the LLM.
+            - `configs`: An instance of `LLMConfig` containing configuration settings for the LLM.
         """
-        self.config = config
-        if config.request_type not in {t.value for t in LLMRequestType}:
-            raise ValueError("Invalid request type for text request")
+        if len(configs) == 0:
+            raise ValueError(
+                "No LLM config is provided, please check your configuration"
+            )
+
+        self.configs = configs
         self.prompt_tokens_used = 0
         self.completion_tokens_used = 0
         self.request_number = 0
-        self.semaphore = asyncio.Semaphore(200)
         self._current_client_index = 0
         self._log_list = []
-
-        api_keys = self.config.api_key
-        if not isinstance(api_keys, list):
-            api_keys = [api_keys]
-
-        self._aclients = []
+        # statistics about errors
+        self._total_calls = 0
+        self._total_errors = 0
+        self._error_types = {
+            "connection_error": 0,
+            "openai_error": 0,
+            "other_error": 0,
+        }
+        self._aclients: List[Tuple[AsyncOpenAI, asyncio.Semaphore]] = []
         self._client_usage = []
 
-        for api_key in api_keys:
-            if self.config.request_type == LLMRequestType.OpenAI:
-                client = AsyncOpenAI(api_key=api_key, timeout=300)
-            elif self.config.request_type == LLMRequestType.DeepSeek:
-                client = AsyncOpenAI(
-                    api_key=api_key,
-                    base_url="https://api.deepseek.com/v1",
-                    timeout=300,
-                )
-            elif self.config.request_type == LLMRequestType.Qwen:
-                client = AsyncOpenAI(
-                    api_key=api_key,
-                    base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-                    timeout=300,
-                )
-            elif self.config.request_type == LLMRequestType.SiliconFlow:
-                client = AsyncOpenAI(
-                    api_key=api_key,
-                    base_url="https://api.siliconflow.cn/v1",
-                    timeout=300,
-                )
-            elif self.config.request_type == LLMRequestType.ZhipuAI:
-                client = ZhipuAI(api_key=api_key, timeout=300)
+        for config in self.configs:
+            api_key = config.api_key
+            base_url = config.base_url
+            if base_url is not None:
+                base_url = base_url.rstrip("/")
+
+            if config.provider == LLMProviderType.OpenAI:
+                ...
+            elif config.provider == LLMProviderType.DeepSeek:
+                base_url = "https://api.deepseek.com/v1"
+            elif config.provider == LLMProviderType.Qwen:
+                base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+            elif config.provider == LLMProviderType.SiliconFlow:
+                base_url = "https://api.siliconflow.cn/v1"
+            elif config.provider == LLMProviderType.VLLM:
+                ...
+            elif config.provider == LLMProviderType.ZhipuAI:
+                base_url = "https://open.bigmodel.cn/api/paas/v4/"
             else:
-                raise ValueError(
-                    f"Unsupported `request_type` {self.config.request_type}!"
-                )
-            self._aclients.append(client)
+                raise ValueError(f"Unsupported `provider` {config.provider}!")
+
+            client = AsyncOpenAI(api_key=api_key, timeout=300, base_url=base_url)
+            self._aclients.append((client, asyncio.Semaphore(config.semaphore)))
             self._client_usage.append(
-                {"prompt_tokens": 0, "completion_tokens": 0, "request_number": 0}
+                {
+                    "prompt_tokens": 0,
+                    "completion_tokens": 0,
+                    "request_number": 0,
+                }
             )
+
+    async def close(self):
+        """Close the LLM instance."""
+        for client, _ in self._aclients:
+            await client.close()
 
     def get_log_list(self):
         return self._log_list
 
     def clear_log_list(self):
         self._log_list = []
-
-    def set_semaphore(self, number_of_coroutine: int):
-        """
-        Sets the semaphore for controlling concurrent coroutines.
-
-        - **Parameters**:
-            - `number_of_coroutine`: The maximum number of concurrent coroutines allowed.
-        """
-        self.semaphore = asyncio.Semaphore(number_of_coroutine)
-
-    def clear_semaphore(self):
-        """
-        Clears the semaphore setting.
-        """
-        self.semaphore = None
 
     def clear_used(self):
         """
@@ -184,25 +231,68 @@ class LLM:
         - **Returns**:
             - The next client instance to be used for making requests.
         """
+        if self._current_client_index >= min(len(self._aclients), len(self.configs)):
+            raise ValueError(
+                f"Invalid client index: {self._current_client_index} vs {len(self._aclients)} & {len(self.configs)}"
+            )
+        config = self.configs[self._current_client_index]
         client = self._aclients[self._current_client_index]
         self._current_client_index = (self._current_client_index + 1) % len(
             self._aclients
         )
-        return client
+        return config, client
 
+    @overload
     async def atext_request(
         self,
-        dialog: Any,
-        response_format: Optional[dict[str, Any]] = None,
+        dialog: list[ChatCompletionMessageParam],
+        response_format: Union[
+            completion_create_params.ResponseFormat, NotGiven
+        ] = NOT_GIVEN,
         temperature: float = 1,
         max_tokens: Optional[int] = None,
         top_p: Optional[float] = None,
         frequency_penalty: Optional[float] = None,
         presence_penalty: Optional[float] = None,
         timeout: int = 300,
-        retries=10,
-        tools: Optional[list[dict[str, Any]]] = None,
-        tool_choice: Optional[dict[str, Any]] = None,
+        retries: int = 10,
+        tools: NotGiven = NOT_GIVEN,
+        tool_choice: NotGiven = NOT_GIVEN,
+    ) -> str: ...
+
+    @overload
+    async def atext_request(
+        self,
+        dialog: list[ChatCompletionMessageParam],
+        response_format: Union[
+            completion_create_params.ResponseFormat, NotGiven
+        ] = NOT_GIVEN,
+        temperature: float = 1,
+        max_tokens: Optional[int] = None,
+        top_p: Optional[float] = None,
+        frequency_penalty: Optional[float] = None,
+        presence_penalty: Optional[float] = None,
+        timeout: int = 300,
+        retries: int = 10,
+        tools: List[ChatCompletionToolParam] = [],
+        tool_choice: ChatCompletionToolChoiceOptionParam = "auto",
+    ) -> Any: ...
+
+    async def atext_request(
+        self,
+        dialog: list[ChatCompletionMessageParam],
+        response_format: Union[
+            completion_create_params.ResponseFormat, NotGiven
+        ] = NOT_GIVEN,
+        temperature: float = 1,
+        max_tokens: Optional[int] = None,
+        top_p: Optional[float] = None,
+        frequency_penalty: Optional[float] = None,
+        presence_penalty: Optional[float] = None,
+        timeout: int = 300,
+        retries: int = 10,
+        tools: Union[List[ChatCompletionToolParam], NotGiven] = NOT_GIVEN,
+        tool_choice: Union[ChatCompletionToolChoiceOptionParam, NotGiven] = NOT_GIVEN,
     ):
         """
         Sends an asynchronous text request to the configured LLM API.
@@ -213,16 +303,16 @@ class LLM:
 
         - **Parameters**:
             - `dialog`: Messages to send as part of the chat completion request.
-            - `response_format`: JSON schema for the response. Default is None.
+            - `response_format`: JSON schema for the response. Default is NOT_GIVEN.
             - `temperature`: Controls randomness in the model's output. Default is 1.
             - `max_tokens`: Maximum number of tokens to generate in the response. Default is None.
             - `top_p`: Limits the next token selection to a subset of tokens with a cumulative probability above this value. Default is None.
             - `frequency_penalty`: Penalizes new tokens based on their existing frequency in the text so far. Default is None.
             - `presence_penalty`: Penalizes new tokens based on whether they appear in the text so far. Default is None.
             - `timeout`: Request timeout in seconds. Default is 300 seconds.
-            - `retries`: Number of retry attempts in case of failure. Default is 3.
-            - `tools`: List of dictionaries describing the tools that can be called by the model. Default is None.
-            - `tool_choice`: Dictionary specifying how the model should choose from the provided tools. Default is None.
+            - `retries`: Number of retry attempts in case of failure. Default is 10.
+            - `tools`: List of dictionaries describing the tools that can be called by the model. Default is NOT_GIVEN.
+            - `tool_choice`: Dictionary specifying how the model should choose from the provided tools. Default is NOT_GIVEN.
 
         - **Returns**:
             - A string containing the message content or a dictionary with tool call arguments if tools are used.
@@ -230,137 +320,122 @@ class LLM:
         """
         start_time = time.time()
         log = {"request_time": start_time}
-        assert (
-            self.semaphore is not None
-        ), "Please set semaphore with `set_semaphore` first!"
-        async with self.semaphore:
-            if (
-                self.config.request_type == "openai"
-                or self.config.request_type == "deepseek"
-                or self.config.request_type == "qwen"
-                or self.config.request_type == "siliconflow"
-            ):
-                response = None
-                for attempt in range(retries):
-                    try:
-                        client = self._get_next_client()
-                        response = await client.chat.completions.create(
-                            model=self.config.model,
-                            messages=dialog,
-                            response_format=response_format,
-                            temperature=temperature,
-                            max_tokens=max_tokens,
-                            top_p=top_p,
-                            frequency_penalty=frequency_penalty,  # type: ignore
-                            presence_penalty=presence_penalty,  # type: ignore
-                            stream=False,
-                            timeout=timeout,
-                            tools=tools,
-                            tool_choice=tool_choice,
-                        )  # type: ignore
-                        self._client_usage[self._current_client_index]["prompt_tokens"] += response.usage.prompt_tokens  # type: ignore
-                        self._client_usage[self._current_client_index]["completion_tokens"] += response.usage.completion_tokens  # type: ignore
+        for attempt in range(retries):
+            self._total_calls += 1
+            config, (client, semaphore) = self._get_next_client()
+            response = None
+            async with semaphore:
+                try:
+                    response = await client.chat.completions.create(
+                        model=config.model,
+                        messages=dialog,
+                        response_format=response_format,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        top_p=top_p,
+                        frequency_penalty=frequency_penalty,
+                        presence_penalty=presence_penalty,
+                        stream=False,
+                        timeout=timeout,
+                        tools=tools,
+                        tool_choice=tool_choice,
+                    )
+                    if response.usage is not None:
+                        self._client_usage[self._current_client_index][
+                            "prompt_tokens"
+                        ] += response.usage.prompt_tokens
+                        self._client_usage[self._current_client_index][
+                            "completion_tokens"
+                        ] += response.usage.completion_tokens
                         self._client_usage[self._current_client_index][
                             "request_number"
                         ] += 1
-                        end_time = time.time()
-                        log["consumption"] = end_time - start_time
                         log["input_tokens"] = response.usage.prompt_tokens
                         log["output_tokens"] = response.usage.completion_tokens
-                        self._log_list.append(log)
-                        if tools and response.choices[0].message.tool_calls:
-                            return json.loads(
-                                response.choices[0]
-                                .message.tool_calls[0]
-                                .function.arguments
-                            )
-                        else:
-                            return response.choices[0].message.content
-                    except APIConnectionError as e:
-                        print(
-                            f"API connection error: `{e}` original response: `{response}`"
+                    end_time = time.time()
+                    log["consumption"] = end_time - start_time
+                    self._log_list.append(log)
+                    if tools and response.choices[0].message.tool_calls:
+                        return jsonc.loads(
+                            response.choices[0].message.tool_calls[0].function.arguments
                         )
-                        if attempt < retries - 1:
-                            await asyncio.sleep(2**attempt)
-                        else:
-                            raise e
-                    except OpenAIError as e:
-                        if hasattr(e, "http_status"):
-                            print(f"HTTP status code: {e.http_status}")  # type: ignore
-                        else:
-                            print(f"OpenAIError: `{e}` original response: `{response}`")
-                        if attempt < retries - 1:
-                            await asyncio.sleep(2**attempt)
-                        else:
-                            raise e
-                    except Exception as e:
-                        print(
-                            f"LLM Error (OpenAI): `{e}` original response: `{response}`"
-                        )
-                        if attempt < retries - 1:
-                            await asyncio.sleep(2**attempt)
-                        else:
-                            raise e
-            elif self.config.request_type == "zhipuai":
-                response = None
-                for attempt in range(retries):
-                    try:
-                        client = self._get_next_client()
-                        response = client.chat.asyncCompletions.create(  # type: ignore
-                            model=self.config.model,
-                            messages=dialog,
-                            temperature=temperature,
-                            top_p=top_p,
-                            timeout=timeout,
-                            tools=tools,
-                            tool_choice=tool_choice,
-                        )
-                        task_id = response.id
-                        task_status = ""
-                        get_cnt = 0
-                        cnt_threshold = int(timeout / 0.5)
-                        while (
-                            task_status != "SUCCESS"
-                            and task_status != "FAILED"
-                            and get_cnt <= cnt_threshold
-                        ):
-                            result_response = client.chat.asyncCompletions.retrieve_completion_result(id=task_id)  # type: ignore
-                            task_status = result_response.task_status
-                            await asyncio.sleep(0.5)
-                            get_cnt += 1
-                        if task_status != "SUCCESS":
-                            raise Exception(f"Task failed with status: {task_status}")
+                    else:
+                        content = response.choices[0].message.content
+                        if content is None:
+                            raise ValueError("No content in response")
+                        return content
+                except APIConnectionError as e:
+                    get_logger().warning(
+                        f"API connection error: `{e}` for request {dialog} {tools} {tool_choice}. original response: `{response}`. Retry {attempt+1} of {retries}"
+                    )
+                    self._total_errors += 1
+                    self._error_types["connection_error"] += 1
+                    if attempt < retries - 1:
+                        await asyncio.sleep(random.random() * 2**attempt)
+                    else:
+                        raise e
+                except OpenAIError as e:
+                    error_message = str(e)
+                    get_logger().warning(
+                        f"OpenAIError: {error_message} for request {dialog} {tools} {tool_choice}. original response: `{response}`. Retry {attempt+1} of {retries}"
+                    )
+                    self._total_errors += 1
+                    self._error_types["openai_error"] += 1
+                    if attempt < retries - 1:
+                        await asyncio.sleep(random.random() * 2**attempt)
+                    else:
+                        raise e
+                except Exception as e:
+                    get_logger().warning(
+                        f"LLM Error: `{e}` for request {dialog} {tools} {tool_choice}. original response: `{response}`. Retry {attempt+1} of {retries}"
+                    )
+                    self._total_errors += 1
+                    self._error_types["other_error"] += 1
+                    if attempt < retries - 1:
+                        await asyncio.sleep(random.random() * 2**attempt)
+                    else:
+                        raise e
+        raise RuntimeError("Failed to get response from LLM")
 
-                        self._client_usage[self._current_client_index]["prompt_tokens"] += result_response.usage.prompt_tokens  # type: ignore
-                        self._client_usage[self._current_client_index]["completion_tokens"] += result_response.usage.completion_tokens  # type: ignore
-                        self._client_usage[self._current_client_index][
-                            "request_number"
-                        ] += 1
-                        end_time = time.time()
-                        log["used_time"] = end_time - start_time
-                        log["token_consumption"] = result_response.usage.prompt_tokens + result_response.usage.completion_tokens  # type: ignore
-                        self._log_list.append(log)
-                        if tools and result_response.choices[0].message.tool_calls:  # type: ignore
-                            return json.loads(
-                                result_response.choices[0]  # type: ignore
-                                .message.tool_calls[0]
-                                .function.arguments
-                            )
-                        else:
-                            return result_response.choices[0].message.content  # type: ignore
-                    except APIConnectionError as e:
-                        print(
-                            f"API connection error: `{e}` original response: `{response}`"
-                        )
-                        if attempt < retries - 1:
-                            await asyncio.sleep(2**attempt)
-                        else:
-                            raise e
-                    except Exception as e:
-                        print(f"LLM Error: `{e}` original response: `{response}`")
-                        if attempt < retries - 1:
-                            await asyncio.sleep(2**attempt)
-                        else:
-                            raise e
-            else:
-                raise ValueError("ERROR: Wrong Config")
+    def get_error_statistics(self):
+        """
+        Returns statistics about LLM API calls and errors.
+
+        - **Description**:
+            - This method provides statistics on the total number of API calls,
+              the total number of errors, and counts for specific error types.
+
+        - **Returns**:
+            - A dictionary containing the call and error statistics.
+        """
+        stats = {
+            "total": self._total_calls,
+            "error": self._total_errors,
+        }
+        # add statistics about different error types
+        for error_type, count in self._error_types.items():
+            stats[f"{error_type}"] = count
+
+        return stats
+
+
+if __name__ == "__main__":
+
+    import asyncio
+
+    async def main():
+        configs = [
+            LLMConfig(
+                provider=LLMProviderType.DeepSeek,
+                api_key=os.getenv("DEEPSEEK_API_KEY", ""),
+                model="deepseek-chat",
+                base_url=None,
+                semaphore=1,
+            )
+        ]
+        llm = LLM(configs)
+
+        resp = await llm.atext_request([{"role": "user", "content": "Hello, world!"}])
+        print(resp)
+
+    asyncio.run(main())

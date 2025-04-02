@@ -17,7 +17,7 @@ Examples:
 - "Read a book": {{"time": 90}}
 - "Exercise": {{"time": 45}}
 
-Please return the result in JSON format (Do not return any other text), example:
+Please return the result in JSON format (Do not return any other text), the time unit is [minute], example:
 {{
     "time": 10
 }}

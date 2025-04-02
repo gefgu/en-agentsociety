@@ -6,46 +6,27 @@ from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext
 
 PACKAGE_NAME = "agentsociety"
-
+SIM_VERSION = "v1.4.3"
 BIN_SOURCES = {
     "agentsociety-sim": {
-        "linux_x86_64": "https://agentsociety.obs.cn-north-4.myhuaweicloud.com/agentsociety-sim/v1.2.10/agentsociety-sim-noproj-linux-amd64",
-        "darwin_arm64": "https://agentsociety.obs.cn-north-4.myhuaweicloud.com/agentsociety-sim/v1.2.10/agentsociety-sim-noproj-darwin-arm64",
-    },
-    "agentsociety-ui": {
-        "linux_x86_64": "https://git.fiblab.net/api/v4/projects/188/packages/generic/socialcity-web/v0.3.4/socialcity-web-linux-amd64",
-        "darwin_arm64": "https://git.fiblab.net/api/v4/projects/188/packages/generic/socialcity-web/v0.3.4/socialcity-web-darwin-arm64",
+        "linux_x86_64": f"https://agentsociety.obs.cn-north-4.myhuaweicloud.com/agentsociety-sim/{SIM_VERSION}/agentsociety-sim-noproj-linux-amd64",
+        "darwin_arm64": f"https://agentsociety.obs.cn-north-4.myhuaweicloud.com/agentsociety-sim/{SIM_VERSION}/agentsociety-sim-noproj-darwin-arm64",
     },
 }
 
 
 class BinExtension(Extension):
-    def __init__(self, name):
+    def __init__(self, name: str, type: str):
+        # if type == "download" -> download the binary from url
         super().__init__(name, sources=[])
         self.name = name
+        self.type = type
 
 
-class DownloadBin(build_ext):
+class BuildExtension(build_ext):
     def run(self):
         system = platform.system()
         machine = platform.machine()
-        auth = os.environ.get("GITLAB_AUTH")
-        if not auth:
-            print(
-                "No authentication provided for downloading binaries, please set GITLAB_AUTH=username:token"
-            )
-            raise Exception(
-                "No authentication provided for downloading binaries, please set GITLAB_AUTH=username:token"
-            )
-        else:
-            auth = tuple(auth.split(":"))
-            if len(auth) != 2:
-                print(
-                    "Invalid authentication provided for downloading binaries, please set GITLAB_AUTH=username:token"
-                )
-                raise Exception(
-                    "Invalid authentication provided for downloading binaries, please set GITLAB_AUTH=username:token"
-                )
         if system == "Linux":
             plat_dir = "linux"
             if machine == "x86_64":
@@ -62,22 +43,19 @@ class DownloadBin(build_ext):
         # build the extension
         extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(PACKAGE_NAME)))
         for ext in self.extensions:
-            self.download_bin(
-                ext.name, plat_dir, arch, os.path.join(extdir, PACKAGE_NAME), auth
-            )
+            if ext.type == "download":
+                self._download_bin(
+                    ext.name, plat_dir, arch, os.path.join(extdir, PACKAGE_NAME)
+                )
 
-    def download_bin(self, binary_name, plat_dir, arch, bin_dir, auth):
+    def _download_bin(self, binary_name, plat_dir, arch, bin_dir):
         import os
 
         import requests
 
         url = BIN_SOURCES[binary_name].get(f"{plat_dir}_{arch}")
         if url:
-            if "agentsociety-sim" in url:
-                _auth = None
-            else:
-                _auth = auth
-            response = requests.get(url, auth=_auth)
+            response = requests.get(url)
             if response.status_code == 200:
                 binary_path = os.path.join(bin_dir, binary_name)
                 binary_path = os.path.abspath(binary_path)
@@ -96,16 +74,15 @@ class DownloadBin(build_ext):
 
 setup(
     ext_modules=[
-        BinExtension("agentsociety-sim"),
-        BinExtension("agentsociety-ui"),
+        BinExtension("agentsociety-sim", "download"),
     ],
-    cmdclass=dict(build_ext=DownloadBin),
+    cmdclass=dict(build_ext=BuildExtension),
 )
 
 # # How to run it to build the distribution package
 # pip install build
-# GITLAB_USER=username GITLAB_PASS=token python -m build
+# python -m build
 #
 # use cibuildwheel to build wheels for multiple platforms
 # pip install cibuildwheel
-# CIBW_ENVIRONMENT=GITLAB_AUTH=username:token cibuildwheel
+# cibuildwheel

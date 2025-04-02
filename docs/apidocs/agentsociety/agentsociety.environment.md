@@ -13,10 +13,10 @@
 :titlesonly:
 :maxdepth: 3
 
+agentsociety.environment.syncer
 agentsociety.environment.sim
 agentsociety.environment.utils
 agentsociety.environment.economy
-agentsociety.environment.sidecar
 ```
 
 ## Submodules
@@ -25,7 +25,8 @@ agentsociety.environment.sidecar
 :titlesonly:
 :maxdepth: 1
 
-agentsociety.environment.simulator
+agentsociety.environment.environment
+agentsociety.environment.mapdata
 ```
 
 ## Package Contents
@@ -47,7 +48,7 @@ agentsociety.environment.simulator
 ````{py:data} __all__
 :canonical: agentsociety.environment.__all__
 :value: >
-   ['Simulator', 'PersonService', 'AoiService', 'EconomyClient']
+   ['Environment', 'EnvironmentStarter', 'SimulatorConfig', 'EnvironmentConfig', 'MapData', 'MapConfig'...
 
 ```{autodoc2-docstring} agentsociety.environment.__all__
 ```

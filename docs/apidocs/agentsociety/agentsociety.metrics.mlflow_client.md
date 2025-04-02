@@ -15,20 +15,12 @@
 :class: autosummary longtable
 :align: left
 
-* - {py:obj}`MlflowClient <agentsociety.metrics.mlflow_client.MlflowClient>`
-  - ```{autodoc2-docstring} agentsociety.metrics.mlflow_client.MlflowClient
+* - {py:obj}`MlflowConfig <agentsociety.metrics.mlflow_client.MlflowConfig>`
+  - ```{autodoc2-docstring} agentsociety.metrics.mlflow_client.MlflowConfig
     :summary:
     ```
-````
-
-### Functions
-
-````{list-table}
-:class: autosummary longtable
-:align: left
-
-* - {py:obj}`init_mlflow_connection <agentsociety.metrics.mlflow_client.init_mlflow_connection>`
-  - ```{autodoc2-docstring} agentsociety.metrics.mlflow_client.init_mlflow_connection
+* - {py:obj}`MlflowClient <agentsociety.metrics.mlflow_client.MlflowClient>`
+  - ```{autodoc2-docstring} agentsociety.metrics.mlflow_client.MlflowClient
     :summary:
     ```
 ````
@@ -43,10 +35,6 @@
   - ```{autodoc2-docstring} agentsociety.metrics.mlflow_client.__all__
     :summary:
     ```
-* - {py:obj}`logger <agentsociety.metrics.mlflow_client.logger>`
-  - ```{autodoc2-docstring} agentsociety.metrics.mlflow_client.logger
-    :summary:
-    ```
 ````
 
 ### API
@@ -54,31 +42,74 @@
 ````{py:data} __all__
 :canonical: agentsociety.metrics.mlflow_client.__all__
 :value: >
-   ['init_mlflow_connection', 'MlflowClient']
+   ['MlflowClient', 'MlflowConfig']
 
 ```{autodoc2-docstring} agentsociety.metrics.mlflow_client.__all__
 ```
 
 ````
 
-````{py:data} logger
-:canonical: agentsociety.metrics.mlflow_client.logger
+`````{py:class} MlflowConfig(/, **data: typing.Any)
+:canonical: agentsociety.metrics.mlflow_client.MlflowConfig
+
+Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.metrics.mlflow_client.MlflowConfig
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.metrics.mlflow_client.MlflowConfig.__init__
+```
+
+````{py:attribute} enabled
+:canonical: agentsociety.metrics.mlflow_client.MlflowConfig.enabled
+:type: bool
 :value: >
-   'getLogger(...)'
+   'Field(...)'
 
-```{autodoc2-docstring} agentsociety.metrics.mlflow_client.logger
+```{autodoc2-docstring} agentsociety.metrics.mlflow_client.MlflowConfig.enabled
 ```
 
 ````
 
-````{py:function} init_mlflow_connection(config: agentsociety.configs.MlflowConfig, experiment_uuid: str, mlflow_run_name: typing.Optional[str] = None, experiment_name: typing.Optional[str] = None, experiment_description: typing.Optional[str] = None, experiment_tags: typing.Optional[dict[str, typing.Any]] = None) -> tuple[str, tuple[str, mlflow.MlflowClient, mlflow.entities.Run, str]]
-:canonical: agentsociety.metrics.mlflow_client.init_mlflow_connection
+````{py:attribute} username
+:canonical: agentsociety.metrics.mlflow_client.MlflowConfig.username
+:type: typing.Optional[str]
+:value: >
+   'Field(...)'
 
-```{autodoc2-docstring} agentsociety.metrics.mlflow_client.init_mlflow_connection
+```{autodoc2-docstring} agentsociety.metrics.mlflow_client.MlflowConfig.username
 ```
+
 ````
 
-`````{py:class} MlflowClient(config: agentsociety.configs.MlflowConfig, experiment_uuid: str, mlflow_run_name: typing.Optional[str] = None, experiment_name: typing.Optional[str] = None, experiment_description: typing.Optional[str] = None, experiment_tags: typing.Optional[dict[str, typing.Any]] = None, run_id: typing.Optional[str] = None)
+````{py:attribute} password
+:canonical: agentsociety.metrics.mlflow_client.MlflowConfig.password
+:type: typing.Optional[str]
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.metrics.mlflow_client.MlflowConfig.password
+```
+
+````
+
+````{py:attribute} mlflow_uri
+:canonical: agentsociety.metrics.mlflow_client.MlflowConfig.mlflow_uri
+:type: str
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.metrics.mlflow_client.MlflowConfig.mlflow_uri
+```
+
+````
+
+`````
+
+`````{py:class} MlflowClient(config: agentsociety.metrics.mlflow_client.MlflowConfig, exp_name: str, exp_id: str, exp_description: typing.Optional[str] = None, exp_tags: dict[str, typing.Any] = {}, current_run_id: typing.Optional[str] = None)
 :canonical: agentsociety.metrics.mlflow_client.MlflowClient
 
 ```{autodoc2-docstring} agentsociety.metrics.mlflow_client.MlflowClient
@@ -90,9 +121,24 @@
 ```{autodoc2-docstring} agentsociety.metrics.mlflow_client.MlflowClient.__init__
 ```
 
+````{py:property} enabled
+:canonical: agentsociety.metrics.mlflow_client.MlflowClient.enabled
+
+```{autodoc2-docstring} agentsociety.metrics.mlflow_client.MlflowClient.enabled
+```
+
+````
+
+````{py:method} close()
+:canonical: agentsociety.metrics.mlflow_client.MlflowClient.close
+
+```{autodoc2-docstring} agentsociety.metrics.mlflow_client.MlflowClient.close
+```
+
+````
+
 ````{py:property} client
 :canonical: agentsociety.metrics.mlflow_client.MlflowClient.client
-:type: mlflow.MlflowClient
 
 ```{autodoc2-docstring} agentsociety.metrics.mlflow_client.MlflowClient.client
 ```

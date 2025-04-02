@@ -39,20 +39,20 @@
 :class: autosummary longtable
 :align: left
 
-* - {py:obj}`logger <agentsociety.cityagent.bankagent.logger>`
-  - ```{autodoc2-docstring} agentsociety.cityagent.bankagent.logger
+* - {py:obj}`__all__ <agentsociety.cityagent.bankagent.__all__>`
+  - ```{autodoc2-docstring} agentsociety.cityagent.bankagent.__all__
     :summary:
     ```
 ````
 
 ### API
 
-````{py:data} logger
-:canonical: agentsociety.cityagent.bankagent.logger
+````{py:data} __all__
+:canonical: agentsociety.cityagent.bankagent.__all__
 :value: >
-   'getLogger(...)'
+   ['BankAgent']
 
-```{autodoc2-docstring} agentsociety.cityagent.bankagent.logger
+```{autodoc2-docstring} agentsociety.cityagent.bankagent.__all__
 ```
 
 ````
@@ -64,10 +64,10 @@
 ```
 ````
 
-`````{py:class} BankAgent(name: str, llm_client: typing.Optional[agentsociety.llm.llm.LLM] = None, simulator: typing.Optional[agentsociety.Simulator] = None, memory: typing.Optional[agentsociety.memory.Memory] = None, economy_client: typing.Optional[agentsociety.environment.EconomyClient] = None, messager: typing.Optional[agentsociety.message.Messager] = None, avro_file: typing.Optional[dict] = None)
+`````{py:class} BankAgent(id: int, name: str, toolbox: agentsociety.agent.AgentToolbox, memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.bankagent.BankAgent
 
-Bases: {py:obj}`agentsociety.InstitutionAgent`
+Bases: {py:obj}`agentsociety.agent.BankAgentBase`
 
 ```{autodoc2-docstring} agentsociety.cityagent.bankagent.BankAgent
 ```

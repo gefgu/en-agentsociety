@@ -1,16 +1,14 @@
 import asyncio
-import json
+import jsonc
 import logging
-from typing import Optional, cast
 
-from agentsociety import CitizenAgent, Simulator
-from agentsociety.environment import EconomyClient
-from agentsociety.llm import LLM
+from agentsociety.agent import CitizenAgentBase
+from agentsociety.agent.agent_base import AgentToolbox
 from agentsociety.memory import Memory
-from agentsociety.message import Messager
-from agentsociety.workflow.prompt import FormatPrompt
+from agentsociety.agent.prompt import FormatPrompt
+from agentsociety.tools.tool import UpdateWithSimulator
 
-logger = logging.getLogger("agentsociety")
+logger = logging.getLogger(__name__)
 
 AGREE_PROMPT = """
 You are an agent who always agrees with the topic: Whether to support stronger gun control? (You think it is a good idea)
@@ -43,33 +41,28 @@ What you would say (One or two sentences):
 """
 
 
-class AgreeAgent(CitizenAgent):
+class AgreeAgent(CitizenAgentBase):
+    update_with_sim = UpdateWithSimulator()
     def __init__(
         self,
+        id: int,
         name: str,
-        llm_client: Optional[LLM] = None,
-        simulator: Optional[Simulator] = None,
-        memory: Optional[Memory] = None,
-        economy_client: Optional[EconomyClient] = None,
-        messager: Optional[Messager] = None,  # type:ignore
-        avro_file: Optional[dict] = None,
+        toolbox: AgentToolbox,
+        memory: Memory,
     ) -> None:
         super().__init__(
+            id=id,
             name=name,
-            llm_client=llm_client,
-            simulator=simulator,
+            toolbox=toolbox,
             memory=memory,
-            economy_client=economy_client,
-            messager=messager,
-            avro_file=avro_file,
         )
         self.response_prompt = FormatPrompt(AGREE_RESPONSE_PROMPT)
         self.last_time_trigger = None
         self.time_diff = 8 * 60 * 60
 
     async def trigger(self):
-        now_time = await self.simulator.get_time()
-        now_time = cast(int, now_time)
+        day, time = self.environment.get_datetime()
+        now_time = day * 24 * 60 * 60 + time
         if self.last_time_trigger is None:
             self.last_time_trigger = now_time
             return False
@@ -78,7 +71,12 @@ class AgreeAgent(CitizenAgent):
             return True
         return False
 
+    async def react_to_intervention(self, intervention_message: str):
+        pass
+
     async def forward(self):
+        # sync agent status with simulator
+        await self.update_with_sim()
         if await self.trigger():
             print("AgreeAgent forward")
             friends = await self.memory.status.get("friends")
@@ -88,7 +86,7 @@ class AgreeAgent(CitizenAgent):
             )
             send_tasks = []
             for friend in friends:
-                serialized_message = json.dumps(
+                serialized_message = jsonc.dumps(
                     {
                         "content": message,
                         "propagation_count": 1,
@@ -101,7 +99,7 @@ class AgreeAgent(CitizenAgent):
             await asyncio.gather(*send_tasks)
             print("AgreeAgent forward end")
 
-    async def process_agent_chat_response(self, payload: dict) -> str:  # type:ignore
+    async def process_agent_chat_response(self, payload: dict) -> str:  
         try:
             # Extract basic info
             sender_id = payload.get("from")
@@ -110,10 +108,10 @@ class AgreeAgent(CitizenAgent):
             raw_content = payload.get("content", "")
             # Parse message content
             try:
-                message_data = json.loads(raw_content)
+                message_data = jsonc.loads(raw_content)
                 content = message_data["content"]
                 propagation_count = message_data.get("propagation_count", 1)
-            except (json.JSONDecodeError, TypeError, KeyError):
+            except (jsonc.JSONDecodeError, TypeError, KeyError):
                 content = raw_content
                 propagation_count = 1
             if not content:
@@ -124,7 +122,7 @@ class AgreeAgent(CitizenAgent):
             response = await self.llm.atext_request(self.response_prompt.to_dialog())
             if response:
                 # Send response
-                serialized_response = json.dumps(
+                serialized_response = jsonc.dumps(
                     {
                         "content": response,
                         "propagation_count": propagation_count + 1,
@@ -132,40 +130,35 @@ class AgreeAgent(CitizenAgent):
                     ensure_ascii=False,
                 )
                 await self.send_message_to_agent(sender_id, serialized_response)
-            return response  # type:ignore
+            return response  
 
         except Exception as e:
             logger.warning(f"Error in process_agent_chat_response: {str(e)}")
             return ""
 
 
-class DisagreeAgent(CitizenAgent):
+class DisagreeAgent(CitizenAgentBase):
+    update_with_sim = UpdateWithSimulator()
     def __init__(
         self,
+        id: int,
         name: str,
-        llm_client: Optional[LLM] = None,
-        simulator: Optional[Simulator] = None,
-        memory: Optional[Memory] = None,
-        economy_client: Optional[EconomyClient] = None,
-        messager: Optional[Messager] = None,  # type:ignore
-        avro_file: Optional[dict] = None,
+        toolbox: AgentToolbox,
+        memory: Memory,
     ) -> None:
         super().__init__(
+            id=id,
             name=name,
-            llm_client=llm_client,
-            simulator=simulator,
+            toolbox=toolbox,
             memory=memory,
-            economy_client=economy_client,
-            messager=messager,
-            avro_file=avro_file,
         )
         self.response_prompt = FormatPrompt(DISAGREE_RESPONSE_PROMPT)
         self.last_time_trigger = None
         self.time_diff = 8 * 60 * 60
 
     async def trigger(self):
-        now_time = await self.simulator.get_time()
-        now_time = cast(int, now_time)
+        day, time = self.environment.get_datetime()
+        now_time = day * 24 * 60 * 60 + time
         if self.last_time_trigger is None:
             self.last_time_trigger = now_time
             return False
@@ -173,8 +166,13 @@ class DisagreeAgent(CitizenAgent):
             self.last_time_trigger = now_time
             return True
         return False
+    
+    async def react_to_intervention(self, intervention_message: str):
+        pass
 
     async def forward(self):
+        # sync agent status with simulator
+        await self.update_with_sim()
         if await self.trigger():
             print("DisagreeAgent forward")
             friends = await self.memory.status.get("friends")
@@ -184,7 +182,7 @@ class DisagreeAgent(CitizenAgent):
             )
             send_tasks = []
             for friend in friends:
-                serialized_message = json.dumps(
+                serialized_message = jsonc.dumps(
                     {
                         "content": message,
                         "propagation_count": 1,
@@ -197,7 +195,7 @@ class DisagreeAgent(CitizenAgent):
             await asyncio.gather(*send_tasks)
             print("DisagreeAgent forward end")
 
-    async def process_agent_chat_response(self, payload: dict) -> str:  # type:ignore
+    async def process_agent_chat_response(self, payload: dict) -> str:  
         try:
             # Extract basic info
             sender_id = payload.get("from")
@@ -206,10 +204,10 @@ class DisagreeAgent(CitizenAgent):
             raw_content = payload.get("content", "")
             # Parse message content
             try:
-                message_data = json.loads(raw_content)
+                message_data = jsonc.loads(raw_content)
                 content = message_data["content"]
                 propagation_count = message_data.get("propagation_count", 1)
-            except (json.JSONDecodeError, TypeError, KeyError):
+            except (jsonc.JSONDecodeError, TypeError, KeyError):
                 content = raw_content
                 propagation_count = 1
             if not content:
@@ -220,7 +218,7 @@ class DisagreeAgent(CitizenAgent):
             response = await self.llm.atext_request(self.response_prompt.to_dialog())
             if response:
                 # Send response
-                serialized_response = json.dumps(
+                serialized_response = jsonc.dumps(
                     {
                         "content": response,
                         "propagation_count": propagation_count + 1,
@@ -228,7 +226,7 @@ class DisagreeAgent(CitizenAgent):
                     ensure_ascii=False,
                 )
                 await self.send_message_to_agent(sender_id, serialized_response)
-            return response  # type:ignore
+            return response  
 
         except Exception as e:
             logger.warning(f"Error in process_agent_chat_response: {str(e)}")

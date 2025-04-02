@@ -23,6 +23,14 @@
   - ```{autodoc2-docstring} agentsociety.environment.utils.protobuf.async_parse
     :summary:
     ```
+* - {py:obj}`pb2dict <agentsociety.environment.utils.protobuf.pb2dict>`
+  - ```{autodoc2-docstring} agentsociety.environment.utils.protobuf.pb2dict
+    :summary:
+    ```
+* - {py:obj}`dict2pb <agentsociety.environment.utils.protobuf.dict2pb>`
+  - ```{autodoc2-docstring} agentsociety.environment.utils.protobuf.dict2pb
+    :summary:
+    ```
 ````
 
 ### Data
@@ -46,7 +54,7 @@
 ````{py:data} __all__
 :canonical: agentsociety.environment.utils.protobuf.__all__
 :value: >
-   ['parse', 'async_parse']
+   ['parse', 'async_parse', 'pb2dict', 'dict2pb']
 
 ```{autodoc2-docstring} agentsociety.environment.utils.protobuf.__all__
 ```
@@ -75,5 +83,19 @@
 :async:
 
 ```{autodoc2-docstring} agentsociety.environment.utils.protobuf.async_parse
+```
+````
+
+````{py:function} pb2dict(pb: google.protobuf.message.Message)
+:canonical: agentsociety.environment.utils.protobuf.pb2dict
+
+```{autodoc2-docstring} agentsociety.environment.utils.protobuf.pb2dict
+```
+````
+
+````{py:function} dict2pb(d: dict, pb: agentsociety.environment.utils.protobuf.T) -> agentsociety.environment.utils.protobuf.T
+:canonical: agentsociety.environment.utils.protobuf.dict2pb
+
+```{autodoc2-docstring} agentsociety.environment.utils.protobuf.dict2pb
 ```
 ````

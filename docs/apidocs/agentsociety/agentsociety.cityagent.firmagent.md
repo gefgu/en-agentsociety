@@ -27,28 +27,28 @@
 :class: autosummary longtable
 :align: left
 
-* - {py:obj}`logger <agentsociety.cityagent.firmagent.logger>`
-  - ```{autodoc2-docstring} agentsociety.cityagent.firmagent.logger
+* - {py:obj}`__all__ <agentsociety.cityagent.firmagent.__all__>`
+  - ```{autodoc2-docstring} agentsociety.cityagent.firmagent.__all__
     :summary:
     ```
 ````
 
 ### API
 
-````{py:data} logger
-:canonical: agentsociety.cityagent.firmagent.logger
+````{py:data} __all__
+:canonical: agentsociety.cityagent.firmagent.__all__
 :value: >
-   'getLogger(...)'
+   ['FirmAgent']
 
-```{autodoc2-docstring} agentsociety.cityagent.firmagent.logger
+```{autodoc2-docstring} agentsociety.cityagent.firmagent.__all__
 ```
 
 ````
 
-`````{py:class} FirmAgent(name: str, llm_client: typing.Optional[agentsociety.llm.LLM] = None, simulator: typing.Optional[agentsociety.Simulator] = None, memory: typing.Optional[agentsociety.memory.Memory] = None, economy_client: typing.Optional[agentsociety.environment.EconomyClient] = None, messager: typing.Optional[agentsociety.message.Messager] = None, avro_file: typing.Optional[dict] = None)
+`````{py:class} FirmAgent(id: int, name: str, toolbox: agentsociety.agent.AgentToolbox, memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.firmagent.FirmAgent
 
-Bases: {py:obj}`agentsociety.InstitutionAgent`
+Bases: {py:obj}`agentsociety.agent.FirmAgentBase`
 
 ```{autodoc2-docstring} agentsociety.cityagent.firmagent.FirmAgent
 ```

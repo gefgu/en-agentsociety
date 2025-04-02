@@ -4,13 +4,14 @@ from collections.abc import Sequence
 from typing import Any, Literal, Optional, Union
 
 import faiss
-import numpy as np
 from langchain_community.docstore.in_memory import InMemoryDocstore
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 
 from ..utils.decorators import lock_decorator
+
+__all__ = ["FaissQuery"]
 
 
 class FaissQuery:
@@ -154,7 +155,7 @@ class FaissQuery:
             Literal["none"], Literal["similarity_score"], Literal["L2-distance"]
         ] = "none",
         filter: Optional[dict] = None,
-    ) -> Union[list[tuple[str, dict]], list[tuple[str, float, dict]]]:
+    ) -> list[tuple[str, Optional[float], dict]]:
         """
         Perform a similarity search for documents related to the given query.
 
@@ -174,7 +175,7 @@ class FaissQuery:
             - `filter` (Optional[dict], optional): The filter dict for metadata.
 
         - **Returns**:
-            - `Union[list[tuple[str, dict]], list[tuple[str, float, dict]]]`: Depending on the `return_score_type` parameter,
+            - `list[tuple[str, Optional[float], dict]]`: Depending on the `return_score_type` parameter,
               returns either a list of tuples containing the content and its associated metadata, or also including a floating-point score.
         """
         _filter = {
@@ -199,7 +200,7 @@ class FaissQuery:
                     filter=_filter,
                     fetch_k=fetch_k,
                 )
-                return [(r.page_content, r.metadata) for r in _result]
+                return [(r.page_content, None, r.metadata) for r in _result]
             elif return_score_type == "similarity_score":
                 _result = (
                     await self.vectors_store.asimilarity_search_with_relevance_scores(
@@ -222,7 +223,7 @@ class FaissQuery:
         fetch_k: int = 20,
         return_score_type: Union[Literal["none"], Literal["L2-distance"]] = "none",
         filter: Optional[dict] = None,
-    ) -> Union[list[tuple[str, dict]], list[tuple[str, float, dict]]]:
+    ) -> list[tuple[str, Optional[float], dict]]:
         """
         Perform a similarity search for documents related to the given vector.
 
@@ -244,7 +245,7 @@ class FaissQuery:
             - `filter` (Optional[dict], optional): The filter dict for metadata.
 
         - **Returns**:
-            - `Union[list[tuple[str, dict]], list[tuple[str, float, dict]]]`: Depending on the `return_score_type` parameter,
+            - `list[tuple[str, Optional[float], dict]]`: Depending on the `return_score_type` parameter,
               returns either a list of tuples containing the content and its associated metadata, or also including a floating-point score.
         """
         _filter = {
@@ -267,7 +268,7 @@ class FaissQuery:
                 filter=_filter,
                 fetch_k=fetch_k,
             )
-            return [(r.page_content, r.metadata) for r in _result]
+            return [(r.page_content, None, r.metadata) for r in _result]
         else:
             raise ValueError(f"Invalid `return_score_type` {return_score_type}!")
 
@@ -331,7 +332,7 @@ class FaissQuery:
         lambda_mult: float = 0.5,
         return_score_type: Union[Literal["none"], Literal["similarity_score"]] = "none",
         filter: Optional[dict] = None,
-    ) -> Union[list[tuple[str, dict]], list[tuple[str, float, dict]]]:
+    ) -> list[tuple[str, Optional[float], dict]]:
         """
         Select contents using maximal marginal relevance asynchronously based on embedding.
 
@@ -352,7 +353,7 @@ class FaissQuery:
             - `filter` (Optional[dict], optional): The filter dict for metadata.
 
         - **Returns**:
-            - `Union[list[tuple[str, dict]], list[tuple[str, float, dict]]]`: Depending on the `return_score_type` parameter,
+            - `list[tuple[str, Optional[float], dict]]`: Depending on the `return_score_type` parameter,
               returns either a list of tuples containing the content and its associated metadata, or also including a floating-point score.
         """
 
@@ -369,7 +370,7 @@ class FaissQuery:
                 fetch_k=fetch_k,
                 lambda_mult=lambda_mult,
             )
-            return [(r.page_content, r.metadata) for r in _result]
+            return [(r.page_content, None, r.metadata) for r in _result]
         elif return_score_type == "similarity_score":
             _result = await self.vectors_store.amax_marginal_relevance_search_with_score_by_vector(
                 embedding=embedding,

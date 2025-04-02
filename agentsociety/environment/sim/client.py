@@ -1,8 +1,5 @@
 import warnings
 
-import grpc
-
-from ..sidecar import OnlyClientSidecar
 from ..utils.grpc import create_aio_channel
 from .aoi_service import AoiService
 from .clock_service import ClockService
@@ -11,7 +8,6 @@ from .light_service import LightService
 from .pause_service import PauseService
 from .person_service import PersonService
 from .road_service import RoadService
-from .social_service import SocialService
 
 __all__ = ["CityClient"]
 
@@ -40,7 +36,6 @@ class CityClient:
         self._person_service = PersonService(aio_channel)
         self._aoi_service = AoiService(aio_channel)
         self._road_service = RoadService(aio_channel)
-        self._social_service = SocialService(aio_channel)
         self._light_service = LightService(aio_channel)
         self._pause_service = PauseService(aio_channel)
 
@@ -91,14 +86,6 @@ class CityClient:
         Simulator road service submodule
         """
         return self._road_service
-
-    @property
-    def social_service(self):
-        """
-        模拟器social服务子模块
-        Simulator social service submodule
-        """
-        return self._social_service
 
     @property
     def light_service(self):

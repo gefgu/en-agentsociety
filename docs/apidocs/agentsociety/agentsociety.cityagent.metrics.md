@@ -27,7 +27,7 @@
 
 ### API
 
-````{py:function} mobility_metric(simulation)
+````{py:function} mobility_metric(simulation: agentsociety.simulation.agentsociety.AgentSociety)
 :canonical: agentsociety.cityagent.metrics.mobility_metric
 :async:
 
@@ -35,7 +35,7 @@
 ```
 ````
 
-````{py:function} economy_metric(simulation)
+````{py:function} economy_metric(simulation: agentsociety.simulation.agentsociety.AgentSociety)
 :canonical: agentsociety.cityagent.metrics.economy_metric
 :async:
 

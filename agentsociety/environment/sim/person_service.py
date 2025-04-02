@@ -1,18 +1,61 @@
 import warnings
 from collections.abc import Awaitable, Coroutine
-from typing import Any, Union, cast
+from typing import Any, Literal, Union, cast, overload
 
 import grpc
 from google.protobuf.json_format import ParseDict
-from mosstool.trip.generator import default_person_template_generator
-from mosstool.util.format_converter import pb2dict
 from pycityproto.city.person.v2 import person_pb2 as person_pb2
 from pycityproto.city.person.v2 import person_service_pb2 as person_service
 from pycityproto.city.person.v2 import person_service_pb2_grpc as person_grpc
+from pycityproto.city.person.v2.person_pb2 import (
+    BikeAttribute,
+    EmissionAttribute,
+    PedestrianAttribute,
+    Person,
+    PersonAttribute,
+    PersonType,
+    VehicleAttribute,
+    VehicleEngineEfficiency,
+    VehicleEngineType,
+)
 
-from ..utils.protobuf import async_parse
+from ..utils.protobuf import async_parse, pb2dict
 
 __all__ = ["PersonService"]
+
+
+def default_person_template_generator() -> Person:
+    return Person(
+        attribute=PersonAttribute(),
+        type=PersonType.PERSON_TYPE_NORMAL,
+        vehicle_attribute=VehicleAttribute(
+            length=5,
+            width=2,
+            max_speed=150 / 3.6,
+            max_acceleration=3,
+            max_braking_acceleration=-10,
+            usual_acceleration=2,
+            usual_braking_acceleration=-4.5,
+            headway=1.5,
+            lane_max_speed_recognition_deviation=1.0,
+            lane_change_length=10,
+            min_gap=1,
+            emission_attribute=EmissionAttribute(
+                weight=2100,
+                type=VehicleEngineType.VEHICLE_ENGINE_TYPE_FUEL,
+                coefficient_drag=0.251,
+                lambda_s=0.29,
+                frontal_area=2.52,
+                fuel_efficiency=VehicleEngineEfficiency(
+                    energy_conversion_efficiency=0.27 * 0.049,
+                    c_ef=66.98,
+                ),
+            ),
+            model="normal",
+        ),
+        pedestrian_attribute=PedestrianAttribute(speed=1.34, model="normal"),
+        bike_attribute=BikeAttribute(speed=5, model="normal"),
+    )
 
 
 class PersonService:
@@ -24,8 +67,16 @@ class PersonService:
     def __init__(self, aio_channel: grpc.aio.Channel):
         self._aio_stub = person_grpc.PersonServiceStub(aio_channel)
 
+    @overload
     @staticmethod
-    def default_person() -> person_pb2.Person:
+    def default_person(return_dict: Literal[False]) -> person_pb2.Person: ...
+
+    @overload
+    @staticmethod
+    def default_person(return_dict: Literal[True]) -> dict: ...
+
+    @staticmethod
+    def default_person(return_dict: bool = False) -> Union[person_pb2.Person, dict]:
         """
         获取person基本模板
         Get person basic template
@@ -33,24 +84,29 @@ class PersonService:
         需要补充的字段有person.home,person.schedules,person.labels
         The fields that need to be supplemented are person.home, person.schedules, person.labels
         """
+
         person = default_person_template_generator()
+        if return_dict:
+            return pb2dict(person)
         return person
 
-    @staticmethod
-    def default_dict_person() -> dict:
-        """
-        获取person基本模板，字典格式
-        Get person basic template in dict format.
+    @overload
+    def GetPerson(
+        self,
+        req: Union[person_service.GetPersonRequest, dict[str, Any]],
+        dict_return: Literal[False],
+    ) -> Coroutine[Any, Any, person_service.GetPersonResponse]: ...
 
-        需要补充的字段有person.home,person.schedules,person.labels
-        The fields that need to be supplemented are person.home, person.schedules, person.labels
-        """
-        person = default_person_template_generator()
-        return pb2dict(person)
+    @overload
+    def GetPerson(
+        self,
+        req: Union[person_service.GetPersonRequest, dict[str, Any]],
+        dict_return: Literal[True] = True,
+    ) -> Coroutine[Any, Any, dict[str, Any]]: ...
 
     def GetPerson(
         self,
-        req: Union[person_service.GetPersonRequest, dict],
+        req: Union[person_service.GetPersonRequest, dict[str, Any]],
         dict_return: bool = True,
     ) -> Coroutine[Any, Any, Union[dict[str, Any], person_service.GetPersonResponse]]:
         """
@@ -70,9 +126,23 @@ class PersonService:
         )
         return async_parse(res, dict_return)
 
+    @overload
     def AddPerson(
         self,
-        req: Union[person_service.AddPersonRequest, dict],
+        req: Union[person_service.AddPersonRequest, dict[str, Any]],
+        dict_return: Literal[False],
+    ) -> Coroutine[Any, Any, person_service.AddPersonResponse]: ...
+
+    @overload
+    def AddPerson(
+        self,
+        req: Union[person_service.AddPersonRequest, dict[str, Any]],
+        dict_return: Literal[True] = True,
+    ) -> Coroutine[Any, Any, dict[str, Any]]: ...
+
+    def AddPerson(
+        self,
+        req: Union[person_service.AddPersonRequest, dict[str, Any]],
         dict_return: bool = True,
     ) -> Coroutine[Any, Any, Union[dict[str, Any], person_service.AddPersonResponse]]:
         """
@@ -94,7 +164,7 @@ class PersonService:
 
     def SetSchedule(
         self,
-        req: Union[person_service.SetScheduleRequest, dict],
+        req: Union[person_service.SetScheduleRequest, dict[str, Any]],
         dict_return: bool = True,
     ) -> Coroutine[Any, Any, Union[dict[str, Any], person_service.SetScheduleResponse]]:
         """
@@ -117,7 +187,7 @@ class PersonService:
 
     def GetPersons(
         self,
-        req: Union[person_service.GetPersonsRequest, dict],
+        req: Union[person_service.GetPersonsRequest, dict[str, Any]],
         dict_return: bool = True,
     ) -> Coroutine[Any, Any, Union[dict[str, Any], person_service.GetPersonsResponse]]:
         """
@@ -140,7 +210,7 @@ class PersonService:
 
     def GetPersonByLongLatBBox(
         self,
-        req: Union[person_service.GetPersonByLongLatBBoxRequest, dict],
+        req: Union[person_service.GetPersonByLongLatBBoxRequest, dict[str, Any]],
         dict_return: bool = True,
     ) -> Coroutine[
         Any, Any, Union[dict[str, Any], person_service.GetPersonByLongLatBBoxResponse]
@@ -165,7 +235,7 @@ class PersonService:
 
     def GetAllVehicles(
         self,
-        req: Union[person_service.GetAllVehiclesRequest, dict],
+        req: Union[person_service.GetAllVehiclesRequest, dict[str, Any]],
         dict_return: bool = True,
     ) -> Coroutine[
         Any, Any, Union[dict[str, Any], person_service.GetAllVehiclesResponse]
@@ -190,7 +260,7 @@ class PersonService:
 
     def ResetPersonPosition(
         self,
-        req: Union[person_service.ResetPersonPositionRequest, dict],
+        req: Union[person_service.ResetPersonPositionRequest, dict[str, Any]],
         dict_return: bool = True,
     ) -> Coroutine[
         Any, Any, Union[dict[str, Any], person_service.ResetPersonPositionResponse]
@@ -210,86 +280,5 @@ class PersonService:
         res = cast(
             Awaitable[person_service.ResetPersonPositionResponse],
             self._aio_stub.ResetPersonPosition(req),
-        )
-        return async_parse(res, dict_return)
-
-    # RL接口
-
-    def SetControlledVehicleIDs(
-        self,
-        req: Union[person_service.SetControlledVehicleIDsRequest, dict],
-        dict_return: bool = True,
-    ) -> Coroutine[
-        Any, Any, Union[dict[str, Any], person_service.SetControlledVehicleIDsResponse]
-    ]:
-        """
-        设置由外部控制行为的vehicle
-        Set controlled vehicle ID
-
-        - **Args**:
-        - req (dict): https://cityproto.sim.fiblab.net/#city.person.v2.SetControlledVehicleIDsRequest
-
-        - **Returns**:
-        - https://cityproto.sim.fiblab.net/#city.person.v2.SetControlledVehicleIDsResponse
-        """
-        if type(req) != person_service.SetControlledVehicleIDsRequest:
-            req = ParseDict(req, person_service.SetControlledVehicleIDsRequest())
-        res = cast(
-            Awaitable[person_service.SetControlledVehicleIDsResponse],
-            self._aio_stub.SetControlledVehicleIDs(req),
-        )
-        return async_parse(res, dict_return)
-
-    def FetchControlledVehicleEnvs(
-        self,
-        req: Union[person_service.FetchControlledVehicleEnvsRequest, dict],
-        dict_return: bool = True,
-    ) -> Coroutine[
-        Any,
-        Any,
-        Union[dict[str, Any], person_service.FetchControlledVehicleEnvsResponse],
-    ]:
-        """
-        获取由外部控制行为的vehicle的环境信息
-        Fetch controlled vehicle environment information
-
-        - **Args**:
-        - req (dict): https://cityproto.sim.fiblab.net/#city.person.v2.FetchControlledVehicleEnvsRequest
-
-        - **Returns**:
-        - https://cityproto.sim.fiblab.net/#city.person.v2.FetchControlledVehicleEnvsResponse
-        """
-        if type(req) != person_service.FetchControlledVehicleEnvsRequest:
-            req = ParseDict(req, person_service.FetchControlledVehicleEnvsRequest())
-        res = cast(
-            Awaitable[person_service.FetchControlledVehicleEnvsResponse],
-            self._aio_stub.FetchControlledVehicleEnvs(req),
-        )
-        return async_parse(res, dict_return)
-
-    def SetControlledVehicleActions(
-        self,
-        req: Union[person_service.SetControlledVehicleActionsRequest, dict],
-        dict_return: bool = True,
-    ) -> Coroutine[
-        Any,
-        Any,
-        Union[dict[str, Any], person_service.SetControlledVehicleActionsResponse],
-    ]:
-        """
-        设置由外部控制行为的vehicle的行为
-        Set controlled vehicle actions
-
-        - **Args**:
-        - req (dict): https://cityproto.sim.fiblab.net/#city.person.v2.SetControlledVehicleActionsRequest
-
-        - **Returns**:
-        - https://cityproto.sim.fiblab.net/#city.person.v2.SetControlledVehicleActionsResponse
-        """
-        if type(req) != person_service.SetControlledVehicleActionsRequest:
-            req = ParseDict(req, person_service.SetControlledVehicleActionsRequest())
-        res = cast(
-            Awaitable[person_service.SetControlledVehicleActionsResponse],
-            self._aio_stub.SetControlledVehicleActions(req),
         )
         return async_parse(res, dict_return)

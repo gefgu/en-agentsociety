@@ -35,7 +35,7 @@ agentsociety.tools.tool
 ````{py:data} __all__
 :canonical: agentsociety.tools.__all__
 :value: >
-   ['Tool', 'ExportMlflowMetrics', 'GetMap', 'UpdateWithSimulator', 'ResetAgentPosition']
+   ['Tool', 'ExportMlflowMetrics', 'UpdateWithSimulator', 'ResetAgentPosition']
 
 ```{autodoc2-docstring} agentsociety.tools.__all__
 ```

@@ -115,14 +115,6 @@
 
 ````
 
-````{py:property} social_service
-:canonical: agentsociety.environment.sim.client.CityClient.social_service
-
-```{autodoc2-docstring} agentsociety.environment.sim.client.CityClient.social_service
-```
-
-````
-
 ````{py:property} light_service
 :canonical: agentsociety.environment.sim.client.CityClient.light_service
 

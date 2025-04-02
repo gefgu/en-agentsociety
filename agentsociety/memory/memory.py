@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from collections import defaultdict
-from collections.abc import Callable, Coroutine, Sequence
+from collections.abc import Callable, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum
@@ -10,14 +10,14 @@ from typing import Any, Dict, Literal, Optional, Union
 from langchain_core.embeddings import Embeddings
 from pyparsing import deque
 
+from ..environment import Environment
+from ..logger import get_logger
 from ..utils.decorators import lock_decorator
 from .const import *
 from .faiss_query import FaissQuery
 from .profile import ProfileMemory
 from .self_define import DynamicMemory
 from .state import StateMemory
-
-logger = logging.getLogger("agentsociety")
 
 
 class MemoryTag(str, Enum):
@@ -69,20 +69,31 @@ class StreamMemory:
         - `_simulator`: The simulator object.
     """
 
-    def __init__(self, max_len: int = 1000):
+    def __init__(
+        self,
+        agent_id: int,
+        environment: Environment,
+        faiss_query: FaissQuery,
+        embedding_model: Embeddings,
+        max_len: int = 1000,
+    ):
         """
         Initialize an instance of StreamMemory.
 
         - **Args**:
+            - `agent_id` (int): The ID of the agent.
+            - `environment` (Environment): The environment object.
+            - `faiss_query` (FaissQuery): The Faiss query object.
+            - `embedding_model` (Embeddings): The embedding model object.
             - `max_len` (int): Maximum length of the deque. Default is 1000.
         """
         self._memories: deque = deque(maxlen=max_len)  # Limit the maximum storage
         self._memory_id_counter: int = 0  # Used for generating unique IDs
-        self._faiss_query = None
-        self._embedding_model = None
-        self._agent_id = -1
+        self._agent_id = agent_id
         self._status_memory = None
-        self._simulator = None
+        self._environment = environment
+        self._faiss_query = faiss_query
+        self._embedding_model = embedding_model
 
     @property
     def faiss_query(
@@ -110,15 +121,6 @@ class StreamMemory:
         assert self._status_memory is not None
         return self._status_memory
 
-    def set_simulator(self, simulator):
-        """
-        Set the simulator object.
-
-        - **Args**:
-            - `simulator` (Simulator): Simulator object.
-        """
-        self._simulator = simulator
-
     def set_status_memory(self, status_memory):
         """
         Set the status memory object.
@@ -127,26 +129,6 @@ class StreamMemory:
             - `status_memory` (StatusMemory): Status memory object.
         """
         self._status_memory = status_memory
-
-    def set_search_components(self, faiss_query, embedding_model):
-        """
-        Set the components required for search functionality.
-
-        - **Args**:
-            - `faiss_query` (Any): Faiss query object.
-            - `embedding_model` (Any): Embedding model object.
-        """
-        self._faiss_query = faiss_query
-        self._embedding_model = embedding_model
-
-    def set_agent_id(self, agent_id: int):
-        """
-        Set the agent ID.
-
-        - **Args**:
-            - `agent_id` (int): Agent ID.
-        """
-        self._agent_id = agent_id
 
     async def _add_memory(self, tag: MemoryTag, description: str) -> int:
         """
@@ -159,12 +141,7 @@ class StreamMemory:
         - **Returns**:
             - `int`: The unique ID of the newly added memory node.
         """
-        if self._simulator is not None:
-            day = int(await self._simulator.get_simulator_day())
-            t = int(await self._simulator.get_time())
-        else:
-            day = 1
-            t = 1
+        day, t = self._environment.get_datetime()
         position = await self.status_memory.get("position")
         if "aoi_position" in position:
             location = position["aoi_position"]["aoi_id"]
@@ -362,9 +339,6 @@ class StreamMemory:
         - **Returns**:
             - `str`: Formatted string of the search results.
         """
-        if not self._embedding_model or not self._faiss_query:
-            return "Search components not initialized"
-
         filter_dict: dict[str, Any] = {"type": "stream"}
 
         if tag:
@@ -390,12 +364,12 @@ class StreamMemory:
         # Sort results by time (first by day, then by time)
         sorted_results = sorted(
             top_results,
-            key=lambda x: (x[2].get("day", 0), x[2].get("time", 0)),  # type:ignore
+            key=lambda x: (x[2].get("day", 0), x[2].get("time", 0)),  
             reverse=True,
         )
 
         formatted_results = []
-        for content, score, metadata in sorted_results:  # type:ignore
+        for content, score, metadata in sorted_results:  
             memory_tag = metadata.get("tag", "unknown")
             memory_day = metadata.get("day", "unknown")
             memory_time_seconds = metadata.get("time", "unknown")
@@ -443,11 +417,7 @@ class StreamMemory:
         - **Returns**:
             str: Formatted text of today's memories
         """
-        if self._simulator is None:
-            return "Simulator not initialized"
-
-        current_day = int(await self._simulator.get_simulator_day())
-
+        current_day, _ = self._environment.get_datetime()
         # Use the search method, setting day_range to today
         return await self.search(
             query=query, tag=tag, top_k=top_k, day_range=(current_day, current_day)
@@ -507,12 +477,23 @@ class StatusMemory:
     """Combine existing three types of memories into a single interface."""
 
     def __init__(
-        self, profile: ProfileMemory, state: StateMemory, dynamic: DynamicMemory
+        self,
+        agent_id: int,
+        environment: Environment,
+        faiss_query: FaissQuery,
+        embedding_model: Embeddings,
+        profile: ProfileMemory,
+        state: StateMemory,
+        dynamic: DynamicMemory,
     ):
         """
         Initialize the StatusMemory with three types of memory.
 
         - **Args**:
+            - `agent_id` (int): The ID of the agent.
+            - `environment` (Environment): The environment object.
+            - `faiss_query` (FaissQuery): The Faiss query object.
+            - `embedding_model` (Embeddings): The embedding model object.
             - `profile`: Profile memory instance.
             - `state`: State memory instance.
             - `dynamic`: Dynamic memory instance.
@@ -520,10 +501,10 @@ class StatusMemory:
         self.profile = profile
         self.state = state
         self.dynamic = dynamic
-        self._faiss_query = None
-        self._embedding_model = None
-        self._simulator = None
-        self._agent_id = -1
+        self._faiss_query = faiss_query
+        self._embedding_model = embedding_model
+        self._environment = environment
+        self._agent_id = agent_id
         self._semantic_templates = {}  # User-configurable templates
         self._embedding_fields = {}  # Fields that require embedding
         self._embedding_field_to_doc_id = defaultdict(str)  # Newly added
@@ -538,17 +519,8 @@ class StatusMemory:
         assert self._faiss_query is not None
         return self._faiss_query
 
-    def set_simulator(self, simulator):
-        """Set the simulator for this status memory."""
-        self._simulator = simulator
-
     async def initialize_embeddings(self) -> None:
         """Initialize embeddings for all fields that require them."""
-        if not self._embedding_model or not self._faiss_query:
-            logger.warning(
-                "Search components not initialized, skipping embeddings initialization"
-            )
-            return
 
         # Retrieve all status information
         profile, state, dynamic = await self.export()
@@ -605,20 +577,6 @@ class StatusMemory:
         except:
             return "dynamic"
 
-    def set_search_components(self, faiss_query, embedding_model):
-        """Set the search components for this status memory."""
-        self._faiss_query = faiss_query
-        self._embedding_model = embedding_model
-
-    def set_agent_id(self, agent_id: int):
-        """
-        Set the agent ID.
-
-        - **Args**:
-            - `agent_id` (int): Agent ID.
-        """
-        self._agent_id = agent_id
-
     def set_semantic_templates(self, templates: Dict[str, str]):
         """
         Set the semantic templates for generating embedding text.
@@ -661,14 +619,11 @@ class StatusMemory:
         - **Returns**:
             - `str`: Formatted string of the search results.
         """
-        if not self._embedding_model:
-            return "Embedding model not initialized"
-
         filter_dict = {"type": "profile_state"}
         if filter is not None:
             filter_dict.update(filter)
-        top_results: list[tuple[str, float, dict]] = (
-            await self.faiss_query.similarity_search(  # type:ignore
+        top_results: list[tuple[str, Optional[float], dict]] = (
+            await self.faiss_query.similarity_search(  
                 query=query,
                 agent_id=self._agent_id,
                 k=top_k,
@@ -769,7 +724,7 @@ class StatusMemory:
         """
         if protect_llm_read_only_fields:
             if any(key in _attrs for _attrs in [STATE_ATTRIBUTES]):
-                logger.warning(f"Trying to write protected key `{key}`!")
+                get_logger().warning(f"Trying to write protected key `{key}`!")
                 return
 
         for mem in [self.state, self.profile, self.dynamic]:
@@ -812,7 +767,7 @@ class StatusMemory:
                     elif isinstance(original_value, deque):
                         original_value.extend(deque(value))
                     else:
-                        logger.debug(
+                        get_logger().debug(
                             f"Type of {type(original_value)} does not support mode `merge`, using `replace` instead!"
                         )
                         await mem.update(key, value, store_snapshot)
@@ -919,12 +874,14 @@ class Memory:
 
     def __init__(
         self,
+        agent_id: int,
+        environment: Environment,
+        faiss_query: FaissQuery,
+        embedding_model: Embeddings,
         config: Optional[dict[Any, Any]] = None,
         profile: Optional[dict[Any, Any]] = None,
         base: Optional[dict[Any, Any]] = None,
         activate_timestamp: bool = False,
-        embedding_model: Optional[Embeddings] = None,
-        faiss_query: Optional[FaissQuery] = None,
     ) -> None:
         """
         Initializes the Memory with optional configuration.
@@ -934,6 +891,10 @@ class Memory:
             and configuring them based on provided parameters. Also initializes watchers and locks for thread-safe operations.
 
         - **Args**:
+            - `agent_id` (int): The ID of the agent.
+            - `environment` (Environment): The environment object.
+            - `faiss_query` (FaissQuery): The Faiss query object.
+            - `embedding_model` (Embeddings): The embedding model object.
             - `config` (Optional[dict[Any, Any]], optional):
                 Configuration dictionary for dynamic memory, where keys are field names and values can be tuples or callables.
                 Defaults to None.
@@ -943,18 +904,14 @@ class Memory:
                 Defaults to None.
             - `activate_timestamp` (bool): Flag to enable timestamp storage in MemoryUnit.
                 Defaults to False.
-            - `embedding_model` (Optional[Embeddings]): Embedding model used for memory search.
-                Defaults to None.
-            - `faiss_query` (Optional[FaissQuery]): Faiss query object for the agent.
-                Defaults to None.
 
         - **Returns**:
             - `None`
         """
         self.watchers: dict[str, list[Callable]] = {}
         self._lock = asyncio.Lock()
-        self._agent_id: int = -1
-        self._simulator = None
+        self._agent_id = agent_id
+        self._environment = environment
         self._embedding_model = embedding_model
         self._faiss_query = faiss_query
         self._semantic_templates: dict[str, str] = {}
@@ -993,9 +950,11 @@ class Memory:
                                 _type.extend(_value)
                                 _value = deepcopy(_type)
                             else:
-                                logger.warning(f"type `{_type}` is not supported!")
+                                get_logger().warning(
+                                    f"type `{_type}` is not supported!"
+                                )
                     except TypeError as e:
-                        logger.warning(f"Type conversion failed for key {k}: {e}")
+                        get_logger().warning(f"Type conversion failed for key {k}: {e}")
                 except TypeError as e:
                     if isinstance(v, type):
                         _value = v()
@@ -1008,7 +967,7 @@ class Memory:
                     or k in STATE_ATTRIBUTES
                     or k == TIME_STAMP_KEY
                 ):
-                    logger.warning(f"key `{k}` already declared in memory!")
+                    get_logger().warning(f"key `{k}` already declared in memory!")
                     continue
 
                 _dynamic_config[k] = deepcopy(_value)
@@ -1021,7 +980,7 @@ class Memory:
         if profile is not None:
             for k, v in profile.items():
                 if k not in PROFILE_ATTRIBUTES:
-                    logger.warning(f"key `{k}` is not a correct `profile` field!")
+                    get_logger().warning(f"key `{k}` is not a correct `profile` field!")
                     continue
                 try:
                     # Handle configuration tuple formats
@@ -1046,9 +1005,13 @@ class Memory:
                                     _type.extend(_value)
                                     _value = deepcopy(_type)
                                 else:
-                                    logger.warning(f"type `{_type}` is not supported!")
+                                    get_logger().warning(
+                                        f"type `{_type}` is not supported!"
+                                    )
                         except TypeError as e:
-                            logger.warning(f"Type conversion failed for key {k}: {e}")
+                            get_logger().warning(
+                                f"Type conversion failed for key {k}: {e}"
+                            )
                     else:
                         # Maintain compatibility with simple key-value pairs
                         _value = v
@@ -1067,7 +1030,7 @@ class Memory:
         if base is not None:
             for k, v in base.items():
                 if k not in STATE_ATTRIBUTES:
-                    logger.warning(f"key `{k}` is not a correct `base` field!")
+                    get_logger().warning(f"key `{k}` is not a correct `base` field!")
                     continue
                 _state_config[k] = v
 
@@ -1077,72 +1040,24 @@ class Memory:
 
         # Combine StatusMemory and pass embedding_fields information
         self._status = StatusMemory(
-            profile=self._profile, state=self._state, dynamic=self._dynamic
+            agent_id=self._agent_id,
+            environment=self._environment,
+            faiss_query=self._faiss_query,
+            embedding_model=self._embedding_model,
+            profile=self._profile,
+            state=self._state,
+            dynamic=self._dynamic,
         )
         self._status.set_embedding_fields(self._embedding_fields)
-        self._status.set_search_components(self._faiss_query, self._embedding_model)
 
         # Add StreamMemory
-        self._stream = StreamMemory()
+        self._stream = StreamMemory(
+            agent_id=self._agent_id,
+            environment=self._environment,
+            faiss_query=self._faiss_query,
+            embedding_model=self._embedding_model,
+        )
         self._stream.set_status_memory(self._status)
-        self._stream.set_search_components(self._faiss_query, self._embedding_model)
-
-    def set_search_components(
-        self,
-        faiss_query: FaissQuery,
-        embedding_model: Embeddings,
-    ):
-        """
-        Set the search components for stream and status memory.
-
-        - **Description**:
-            - Updates the embedding model and faiss query for both stream and status memory, allowing for new searches to use updated models.
-
-        - **Args**:
-            - `faiss_query` (`FaissQuery`): The new faiss query component.
-            - `embedding_model` (`Embeddings`): The new embedding model component.
-
-        - **Returns**:
-            - `None`
-        """
-        self._embedding_model = embedding_model
-        self._faiss_query = faiss_query
-        self._stream.set_search_components(faiss_query, embedding_model)
-        self._status.set_search_components(faiss_query, embedding_model)
-
-    def set_agent_id(self, agent_id: int):
-        """
-        Set the agent ID for the memory management system.
-
-        - **Description**:
-            - Sets the identifier for the agent and propagates this ID to stream and status memory components.
-
-        - **Args**:
-            - `agent_id` (int): Identifier of the agent.
-
-        - **Returns**:
-            - `None`
-        """
-        self._agent_id = agent_id
-        self._stream.set_agent_id(agent_id)
-        self._status.set_agent_id(agent_id)
-
-    def set_simulator(self, simulator):
-        """
-        Assign a simulator to the memory management system.
-
-        - **Description**:
-            - Sets the simulator for the memory system and passes it on to the stream and status memory components.
-
-        - **Args**:
-            - `simulator`: The simulator object to be used by the memory system.
-
-        - **Returns**:
-            - `None`
-        """
-        self._simulator = simulator
-        self._stream.set_simulator(simulator)
-        self._status.set_simulator(simulator)
 
     @property
     def status(self) -> StatusMemory:
@@ -1153,47 +1068,29 @@ class Memory:
         return self._stream
 
     @property
-    def embedding_model(
-        self,
-    ):
+    def embedding_model(self):
         """
         Access the embedding model used in the memory system.
 
         - **Description**:
-            - Property that provides access to the embedding model. Raises an error if accessed before assignment.
-
-        - **Raises**:
-            - `RuntimeError`: If the embedding model has not been set yet.
+            - Property that provides access to the embedding model.
 
         - **Returns**:
             - `Embeddings`: The embedding model instance.
         """
-        if self._embedding_model is None:
-            raise RuntimeError(
-                f"embedding_model before assignment, please `set_embedding_model` first!"
-            )
         return self._embedding_model
 
     @property
-    def agent_id(
-        self,
-    ):
+    def agent_id(self):
         """
         Access the agent ID.
 
         - **Description**:
-            - Property that provides access to the agent ID. Raises an error if accessed before assignment.
-
-        - **Raises**:
-            - `RuntimeError`: If the agent ID has not been set yet.
+            - Property that provides access to the agent ID.
 
         - **Returns**:
             - `int`: The agent's identifier.
         """
-        if self._agent_id < 0:
-            raise RuntimeError(
-                f"agent_id before assignment, please `set_agent_id` first!"
-            )
         return self._agent_id
 
     @property
@@ -1210,10 +1107,6 @@ class Memory:
         - **Returns**:
             - `FaissQuery`: The FaissQuery instance.
         """
-        if self._faiss_query is None:
-            raise RuntimeError(
-                f"FaissQuery access before assignment, please `set_faiss_query` first!"
-            )
         return self._faiss_query
 
     async def initialize_embeddings(self):

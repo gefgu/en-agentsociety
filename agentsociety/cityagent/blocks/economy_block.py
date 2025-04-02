@@ -1,21 +1,18 @@
 import asyncio
-import json
 import logging
 import numbers
 import random
 
+import jsonc
 import numpy as np
-import pycityproto.city.economy.v2.economy_pb2 as economyv2
 
-from agentsociety.environment import EconomyClient, Simulator
-from agentsociety.llm import LLM
-from agentsociety.memory import Memory
-from agentsociety.workflow import Block, FormatPrompt
-
+from ...agent import Block, FormatPrompt
+from ...environment import EconomyClient, Environment
+from ...llm import LLM
+from ...logger import get_logger
+from ...memory import Memory
 from .dispatcher import BlockDispatcher
 from .utils import *
-
-logger = logging.getLogger("agentsociety")
 
 
 def softmax(x, gamma=1.0):
@@ -42,19 +39,24 @@ class WorkBlock(Block):
         guidance_prompt: Template for time estimation queries
     """
 
-    def __init__(self, llm: LLM, memory: Memory, simulator: Simulator):
+    def __init__(self, llm: LLM, environment: Environment, memory: Memory):
         """Initialize with dependencies.
 
         Args:
             llm: Language model for time estimation
+            environment: Time tracking environment
             memory: Agent's memory system
-            simulator: Time tracking simulator
         """
-        super().__init__("WorkBlock", llm=llm, memory=memory, simulator=simulator)
-        self.description = "Do work related tasks"
+        super().__init__(
+            "WorkBlock",
+            llm=llm,
+            environment=environment,
+            memory=memory,
+            description="Do work related tasks",
+        )
         self.guidance_prompt = FormatPrompt(template=TIME_ESTIMATE_PROMPT)
 
-    async def forward(self, step, context):  # type:ignore
+    async def forward(self, step, context):
         """Process work task and track time expenditure.
 
         Workflow:
@@ -74,11 +76,11 @@ class WorkBlock(Block):
         result = await self.llm.atext_request(
             self.guidance_prompt.to_dialog(), response_format={"type": "json_object"}
         )
-        result = clean_json_response(result)  # type:ignore
+        result = clean_json_response(result)
         try:
-            result = json.loads(result)
+            result = jsonc.loads(result)
             time = result["time"]
-            start_time = await self.simulator.get_time(format_time=True)
+            day, start_time = self.environment.get_datetime(format_time=True)
             await self.memory.status.update(
                 "working_experience",
                 [
@@ -99,9 +101,11 @@ class WorkBlock(Block):
                 "node_id": node_id,
             }
         except Exception as e:
-            logger.warning(f"解析时间评估响应时发生错误: {str(e)}, 原始结果: {result}")
-            time = random.randint(1, 5) * 60
-            start_time = await self.simulator.get_time(format_time=True)
+            get_logger().warning(
+                f"解析时间评估响应时发生错误: {str(e)}, 原始结果: {result}"
+            )
+            time = random.randint(1, 3) * 60
+            day, start_time = self.environment.get_datetime(format_time=True)
             await self.memory.status.update(
                 "working_experience",
                 [
@@ -134,9 +138,8 @@ class ConsumptionBlock(Block):
     def __init__(
         self,
         llm: LLM,
+        environment: Environment,
         memory: Memory,
-        simulator: Simulator,
-        economy_client: EconomyClient,
     ):
         """Initialize consumption processor.
 
@@ -144,13 +147,15 @@ class ConsumptionBlock(Block):
             economy_client: Client for economic system interactions
         """
         super().__init__(
-            "ConsumptionBlock", llm=llm, memory=memory, simulator=simulator
+            "ConsumptionBlock",
+            llm=llm,
+            environment=environment,
+            memory=memory,
+            description="Used to determine the consumption amount, and items",
         )
-        self.economy_client = economy_client
         self.forward_times = 0
-        self.description = "Used to determine the consumption amount, and items"
 
-    async def forward(self, step, context):  # type:ignore
+    async def forward(self, step, context):
         """Execute consumption decision-making.
 
         Workflow:
@@ -164,10 +169,12 @@ class ConsumptionBlock(Block):
         """
         self.forward_times += 1
         agent_id = await self.memory.status.get("id")  # agent_id
-        firms_id = await self.economy_client.get_firm_ids()
+        firms_id = await self.environment.economy_client.get_firm_ids()
         intention = step["intention"]
         month_consumption = await self.memory.status.get("to_consumption_currency")
-        consumption_currency = await self.economy_client.get(agent_id, "consumption")
+        consumption_currency = await self.environment.economy_client.get(
+            agent_id, "consumption"
+        )
         if consumption_currency >= month_consumption:
             node_id = await self.memory.stream.add_economy(
                 description=f"I have passed the monthly consumption limit, so I will not consume."
@@ -181,12 +188,12 @@ class ConsumptionBlock(Block):
         consumption = min(
             month_consumption / 1, month_consumption - consumption_currency
         )
-        prices = await self.economy_client.get(firms_id, "price")
+        prices = await self.environment.economy_client.get(firms_id, "price")
         consumption_each_firm = consumption * softmax(prices, gamma=-0.01)
         demand_each_firm = []
         for i in range(len(firms_id)):
             demand_each_firm.append(int(consumption_each_firm[i] // prices[i]))
-        real_consumption = await self.economy_client.calculate_consumption(
+        real_consumption = await self.environment.economy_client.calculate_consumption(
             firms_id, agent_id, demand_each_firm
         )
         node_id = await self.memory.stream.add_economy(
@@ -207,10 +214,11 @@ class EconomyNoneBlock(Block):
     """
 
     def __init__(self, llm: LLM, memory: Memory):
-        super().__init__("NoneBlock", llm=llm, memory=memory)
-        self.description = "Do anything else"
+        super().__init__(
+            "NoneBlock", llm=llm, memory=memory, description="Do anything else"
+        )
 
-    async def forward(self, step, context):  # type:ignore
+    async def forward(self, step, context):
         """Log generic activities in economy stream."""
         node_id = await self.memory.stream.add_economy(
             description=f"I {step['intention']}"
@@ -240,16 +248,14 @@ class EconomyBlock(Block):
     def __init__(
         self,
         llm: LLM,
+        environment: Environment,
         memory: Memory,
-        simulator: Simulator,
-        economy_client: EconomyClient,
     ):
-        super().__init__("EconomyBlock", llm=llm, memory=memory, simulator=simulator)
-        self.economy_client = economy_client
-        self.work_block = WorkBlock(llm, memory, simulator)
-        self.consumption_block = ConsumptionBlock(
-            llm, memory, simulator, economy_client
+        super().__init__(
+            "EconomyBlock", llm=llm, environment=environment, memory=memory
         )
+        self.work_block = WorkBlock(llm, environment, memory)
+        self.consumption_block = ConsumptionBlock(llm, environment, memory)
         self.none_block = EconomyNoneBlock(llm, memory)
         self.trigger_time = 0
         self.token_consumption = 0
@@ -258,7 +264,7 @@ class EconomyBlock(Block):
             [self.work_block, self.consumption_block, self.none_block]
         )
 
-    async def forward(self, step, context):  # type:ignore
+    async def forward(self, step, context):
         """Coordinate economic activity execution.
 
         Workflow:
@@ -267,7 +273,7 @@ class EconomyBlock(Block):
         """
         self.trigger_time += 1
         selected_block = await self.dispatcher.dispatch(step)
-        result = await selected_block.forward(step, context)  # type: ignore
+        result = await selected_block.forward(step, context)
         return result
 
 
@@ -302,12 +308,12 @@ class MonthPlanBlock(Block):
     def __init__(
         self,
         llm: LLM,
+        environment: Environment,
         memory: Memory,
-        simulator: Simulator,
-        economy_client: EconomyClient,
     ):
-        super().__init__("MonthPlanBlock", llm=llm, memory=memory, simulator=simulator)
-        self.economy_client = economy_client
+        super().__init__(
+            "MonthPlanBlock", llm=llm, environment=environment, memory=memory
+        )
         self.llm_error = 0
         self.last_time_trigger = None
         self.forward_times = 0
@@ -320,12 +326,12 @@ class MonthPlanBlock(Block):
 
     async def month_trigger(self):
         """Check if monthly planning cycle should activate."""
-        now_time = await self.simulator.get_time()
+        now_tick = self.environment.get_tick()
         if (
             self.last_time_trigger is None
-            or now_time - self.last_time_trigger >= self.time_diff  # type:ignore
+            or now_tick - self.last_time_trigger >= self.time_diff
         ):
-            self.last_time_trigger = now_time
+            self.last_time_trigger = now_tick
             return True
         return False
 
@@ -341,22 +347,24 @@ class MonthPlanBlock(Block):
         """
         if await self.month_trigger():
             agent_id = await self.memory.status.get("id")
-            firms_id = await self.economy_client.get_firm_ids()
+            firms_id = await self.environment.economy_client.get_firm_ids()
             firm_id = await self.memory.status.get("firm_id")
-            bank_id = await self.economy_client.get_bank_ids()
+            bank_id = await self.environment.economy_client.get_bank_ids()
             bank_id = bank_id[0]
             name = await self.memory.status.get("name")
             age = await self.memory.status.get("age")
             city = await self.memory.status.get("city")
             job = await self.memory.status.get("occupation")
-            skill, consumption, wealth = await self.economy_client.get(
+            skill, consumption, wealth = await self.environment.economy_client.get(
                 agent_id, ["skill", "consumption", "currency"]
             )
-            logger.debug(f"type of skill: {type(skill)}, value: {skill}")
+            get_logger().debug(f"type of skill: {type(skill)}, value: {skill}")
             tax_paid = await self.memory.status.get("tax_paid")
-            prices = await self.economy_client.get(firms_id, "price")
+            prices = await self.environment.economy_client.get(firms_id, "price")
             price = np.mean(prices)
-            interest_rate = await self.economy_client.get(bank_id, "interest_rate")
+            interest_rate = await self.environment.economy_client.get(
+                bank_id, "interest_rate"
+            )
 
             problem_prompt = f"""
                     You're {name}, a {age}-year-old individual living in {city}. As with all Americans, a portion of your monthly income is taxed by the federal government. This taxation system is tiered, income is taxed cumulatively within defined brackets, combined with a redistributive policy: after collection, the government evenly redistributes the tax revenue back to all citizens, irrespective of their earnings.
@@ -422,7 +430,7 @@ class MonthPlanBlock(Block):
             except:
                 self.llm_error += 1
 
-            work_skill = await self.economy_client.get(agent_id, "skill")
+            work_skill = await self.environment.economy_client.get(agent_id, "skill")
             work_propensity = await self.memory.status.get("work_propensity")
             consumption_propensity = await self.memory.status.get(
                 "consumption_propensity"
@@ -431,10 +439,10 @@ class MonthPlanBlock(Block):
             # income = await self.economy_client.get(agent_id, 'income')
             income = work_hours * work_skill
 
-            wealth = await self.economy_client.get(agent_id, "currency")
+            wealth = await self.environment.economy_client.get(agent_id, "currency")
             wealth += work_hours * work_skill
-            await self.economy_client.update(agent_id, "currency", wealth)
-            await self.economy_client.delta_update_firms(
+            await self.environment.economy_client.update(agent_id, "currency", wealth)
+            await self.environment.economy_client.delta_update_firms(
                 firm_id, delta_inventory=int(work_hours * self.productivity_per_labor)
             )
 
@@ -446,9 +454,9 @@ class MonthPlanBlock(Block):
                 "to_consumption_currency", consumption_propensity * wealth
             )
 
-            await self.economy_client.update(agent_id, "consumption", 0)
-            await self.economy_client.update(agent_id, "income", income)
-            await self.economy_client.update(agent_id, "currency", wealth)
+            await self.environment.economy_client.update(agent_id, "consumption", 0)
+            await self.environment.economy_client.update(agent_id, "income", income)
+            await self.environment.economy_client.update(agent_id, "currency", wealth)
 
             if self.forward_times % 3 == 0:
                 obs_prompt = f"""

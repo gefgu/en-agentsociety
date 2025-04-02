@@ -37,29 +37,7 @@
     ```
 ````
 
-### Data
-
-````{list-table}
-:class: autosummary longtable
-:align: left
-
-* - {py:obj}`logger <agentsociety.cityagent.blocks.social_block.logger>`
-  - ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.logger
-    :summary:
-    ```
-````
-
 ### API
-
-````{py:data} logger
-:canonical: agentsociety.cityagent.blocks.social_block.logger
-:value: >
-   'getLogger(...)'
-
-```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.logger
-```
-
-````
 
 `````{py:class} MessagePromptManager()
 :canonical: agentsociety.cityagent.blocks.social_block.MessagePromptManager
@@ -73,7 +51,7 @@
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.MessagePromptManager.__init__
 ```
 
-````{py:method} get_prompt(memory, step: dict[str, typing.Any], target: str, template: str) -> str
+````{py:method} get_prompt(memory, step: dict[str, typing.Any], target: str, template: str)
 :canonical: agentsociety.cityagent.blocks.social_block.MessagePromptManager.get_prompt
 :async:
 
@@ -87,7 +65,7 @@
 `````{py:class} SocialNoneBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.social_block.SocialNoneBlock
 
-Bases: {py:obj}`agentsociety.workflow.Block`
+Bases: {py:obj}`agentsociety.agent.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialNoneBlock
 ```
@@ -109,10 +87,10 @@ Bases: {py:obj}`agentsociety.workflow.Block`
 
 `````
 
-`````{py:class} FindPersonBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.Simulator)
+`````{py:class} FindPersonBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.social_block.FindPersonBlock
 
-Bases: {py:obj}`agentsociety.workflow.Block`
+Bases: {py:obj}`agentsociety.agent.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.FindPersonBlock
 ```
@@ -134,10 +112,10 @@ Bases: {py:obj}`agentsociety.workflow.Block`
 
 `````
 
-`````{py:class} MessageBlock(agent, llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.Simulator)
+`````{py:class} MessageBlock(agent, llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.social_block.MessageBlock
 
-Bases: {py:obj}`agentsociety.workflow.Block`
+Bases: {py:obj}`agentsociety.agent.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.MessageBlock
 ```
@@ -167,10 +145,10 @@ Bases: {py:obj}`agentsociety.workflow.Block`
 
 `````
 
-`````{py:class} SocialBlock(agent, llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, simulator: agentsociety.environment.Simulator)
+`````{py:class} SocialBlock(agent, llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.social_block.SocialBlock
 
-Bases: {py:obj}`agentsociety.workflow.Block`
+Bases: {py:obj}`agentsociety.agent.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialBlock
 ```

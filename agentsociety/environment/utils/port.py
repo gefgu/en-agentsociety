@@ -1,11 +1,11 @@
 import socket
 from contextlib import closing
-from typing import Union
+from typing import List
 
-__all__ = ["find_free_port"]
+__all__ = ["find_free_ports"]
 
 
-def find_free_port(num_ports: int = 1) -> Union[int, list[int]]:
+def find_free_ports(num_ports: int = 1) -> List[int]:
     ports: list[int] = []
     sockets = []
 
@@ -17,7 +17,4 @@ def find_free_port(num_ports: int = 1) -> Union[int, list[int]]:
         sockets.append(s)
     for s in sockets:
         s.close()
-    if num_ports == 1:
-        return ports[0]
-    else:
-        return ports
+    return ports
