@@ -13,7 +13,7 @@ Before starting your first simulation, please ensure your environment meets the 
 - macOS ARM
 - Windows Subsystem for Linux (WSL) 2 x86
 
-Python 3.11 and higher is required.
+Python 3.11 and Python 3.12 are required.
 
 ## LLM API
 
