@@ -51,7 +51,7 @@ We welcome collaborative opportunities to advance social science research throug
 
 ## WeChat Group
 
-<img src="_static/wechat.jpg" alt="WeChat" style="width: 30vw;" />
+<img src="_static/wechat.png" alt="WeChat" style="width: 30vw;" />
 
 ## Table of Contents
 
