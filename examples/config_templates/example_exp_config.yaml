@@ -1,6 +1,0 @@
-agent_config:
-  number_of_citizen: 100  # Number of citizens
-
-workflow: [
-  {"type": "run", "days": 1} # run the simulation for one day
-]
