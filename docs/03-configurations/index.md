@@ -28,6 +28,14 @@ llm:
 If your LLM does not support high-performance inference, you can set the `semaphore` to a smaller value.
 ```
 
+The `LLMConfig` class contains the following fields:
+
+- `api_key` (str, required): The API key for the LLM
+- `base_url` (str, optional): The base URL for the LLM, used for VLLM
+- `model` (str, required): The model name for the LLM
+- `provider` (str,  required): The provider for the LLM. Currently, we support `openai`, `deepseek`, `qwen`, `zhipuai`, `siliconflow` and `vllm`.
+- `semaphore` (int, optional): The semaphore for the LLM requests, control the max number of concurrent requests
+
 ### Map Configuration
 The `map` field (required) defines the map configuration using the `MapConfig` class. Map specifies the simulation area.
 
@@ -39,30 +47,26 @@ map:
   cache_path: <CACHE-FILE-PATH> # Cache path for accelerating map file loading
 ```
 
-### Environment Configuration 
+The `MapConfig` class contains the following fields:
+
+- `file_path` (str, required): The path to the map file
+- `cache_path` (str, optional): The cache path for accelerating map file loading
+
+### Other Configurations
+
+There are some other configuration fields, which we will introduce in the following sections.
+
+- **Environment Configuration**:
 The `env` field (required) specifies the environment configuration through the `EnvConfig` class. Check [Environment Configuration](./02-environment-config.md) for more details.
 
-### Agent Configuration
+- **Agent Configuration**:
 The `agents` field (required) manages configurations for different types of agents through the `AgentsConfig` class. Check [Agent Configuration](./03-agent-config.md) for more details.
 
-### Experiment Configuration
+- **Experiment Configuration**:
 The `exp` field (required) contains the experiment configuration using the `ExpConfig` class. Check [Experiment Configuration](./02-experiment-config.md) for more details.
 
-### Advanced Configuration
+- **Advanced Configuration**:
 The `advanced` field (optional) allows for advanced simulation settings through the `AdvancedConfig` class. This can be left empty if not needed. Check [Advanced Configuration](./04-advanced-config.md) for more details.
-
-## Auto-scaling Feature
-
-The configuration includes an automatic worker scaling feature:
-
-1. Calculates optimal group sizes based on:
-   - Available system memory (reserves 8GB for simulator, 1GB for message interceptor, 1GB for PostgreSQL)
-   - CPU count
-   - Minimum group size of 100 agents
-   
-2. Adjusts PostgreSQL workers (if enabled) to:
-   - Scale between 1-4 workers
-   - Optimize based on the number of agent groups
 
 ## Example Configuration
 
