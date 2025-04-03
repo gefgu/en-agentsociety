@@ -13,8 +13,8 @@
 :titlesonly:
 :maxdepth: 3
 
-agentsociety.environment.syncer
 agentsociety.environment.sim
+agentsociety.environment.syncer
 agentsociety.environment.utils
 agentsociety.environment.economy
 ```

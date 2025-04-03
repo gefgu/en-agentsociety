@@ -3,6 +3,7 @@ llm:
   base_url: <BASE-URL> # LLM base URL, used for VLLM
   model: <YOUR-MODEL> # LLM model
   provider: <PROVIDER> # LLM provider
+  semaphore: 200 # Semaphore for LLM requests, control the max number of concurrent requests
 env:
   avro:
     enabled: false # Whether to enable Avro

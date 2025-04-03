@@ -13,8 +13,8 @@
 :titlesonly:
 :maxdepth: 1
 
-agentsociety.survey.manager
 agentsociety.survey.models
+agentsociety.survey.manager
 ```
 
 ## Package Contents
