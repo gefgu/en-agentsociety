@@ -10,7 +10,7 @@ Just write your codes in the `agentsociety` directory.
 
 The WebUI is built using React+AntDesign and FastAPI.
 The frontend code is located in the `frontend` directory and the backend code is located in the `agentsociety.webapi` directory.
-The entry point (command line) of the WebUI is `agentsociety.cli.webui:cli`.
+The entry point (command line) of the WebUI is `agentsociety ui`.
 
 When developing the WebUI, you can run the frontend and backend separately.
 
@@ -26,25 +26,37 @@ Now the frontend is running on `http://localhost:5173`.
 
 **Start the backend**:
 
-1. Create `.env` to make you can run the backend without any parameters.
+1. Create `config.yaml` to make you can run the backend without any parameters.
 
-The format of `.env` is
+The format of `config.yaml` is
 
-```bash
-PG_DSN=postgresql+asyncpg://user:password@host:port/database
-ADDR="127.0.0.1:8080"
-MLFLOW_URL="http://mlflowhost:59000"
-DEBUG="true"
+```yaml
+addr: 127.0.0.1:8080
+read_only: false
+debug: true
+logging_level: INFO
+env:
+  mlflow:
+    enabled: true
+    mlflow_uri: http://localhost:59000
+    password: CHANGE_ME
+    username: admin
+  pgsql:
+    dsn: postgresql://postgres:CHANGE_ME@localhost:5432/postgres
+  redis:
+    password: CHANGE_ME
+    port: 6379
+    server: localhost
 ```
 
 2. Run the backend:
 
 ```bash
 # After activating the virtual environment
-python3 -m agentsociety.cli.webui
+agentsociety ui -c config.yaml
 ```
 
-After development, YOU SHOULD RUN `rebuild_frontend.sh` TO BUILD THE FRONTEND CODE INTO THE PYTHON PACKAGE.
+After development, YOU SHOULD RUN `scripts/rebuild_frontend.sh` TO BUILD THE FRONTEND CODE INTO THE PYTHON PACKAGE.
 
 ## Pack
 
