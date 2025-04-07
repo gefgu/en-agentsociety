@@ -31,11 +31,13 @@ PGSQL_DICT: dict[str, list[Any]] = {
         id UUID,
         name TEXT,
         num_day INT4,
-        status INT4, 
+        status INT4,
         cur_day INT4,
         cur_t FLOAT,
         config TEXT,
         error TEXT,
+        input_tokens INT4,
+        output_tokens INT4,
         created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (tenant_id, id)
@@ -117,6 +119,38 @@ PGSQL_DICT: dict[str, list[Any]] = {
 }
 
 
+def _migrate_experiment_table(dsn: str):
+    """为experiment表添加新的token列"""
+    table_name = f"{TABLE_PREFIX}experiment"
+    with psycopg.connect(dsn) as conn:
+        with conn.cursor() as cur:
+            # check if columns exist
+            cur.execute(
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name = %s AND column_name IN ('input_tokens', 'output_tokens')
+            """,
+                (table_name,),
+            )
+            existing_columns = [row[0] for row in cur.fetchall()]
+
+            # add missing columns
+            if "input_tokens" not in existing_columns:
+                cur.execute(
+                    f"ALTER TABLE {table_name} ADD COLUMN input_tokens INT4 DEFAULT 0"
+                )
+                get_logger().info(f"Added input_tokens column to {table_name}")
+
+            if "output_tokens" not in existing_columns:
+                cur.execute(
+                    f"ALTER TABLE {table_name} ADD COLUMN output_tokens INT4 DEFAULT 0"
+                )
+                get_logger().info(f"Added output_tokens column to {table_name}")
+
+            conn.commit()
+
+
 def _create_pg_tables(exp_id: str, dsn: str):
     for table_type, exec_strs in PGSQL_DICT.items():
         if not table_type == "experiment":
@@ -147,6 +181,8 @@ def _create_pg_tables(exp_id: str, dsn: str):
                     cur.execute(exec_str)
                     get_logger().debug(f"table:{table_name} sql: {exec_str}")
                 conn.commit()
+    # execute migration
+    _migrate_experiment_table(dsn)
 
 
 class PostgreSQLConfig(BaseModel):
@@ -309,8 +345,8 @@ class PgWriter:
             async with aconn.cursor(row_factory=dict_row) as cur:
                 # 使用固定的SQL语句，避免动态构建列名
                 upsert_sql = psycopg.sql.SQL(
-                    "INSERT INTO {} (tenant_id, id, name, num_day, status, cur_day, cur_t, config, error, created_at, updated_at) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
+                    "INSERT INTO {} (tenant_id, id, name, num_day, status, cur_day, cur_t, config, error, input_tokens, output_tokens, created_at, updated_at) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
                     "ON CONFLICT (tenant_id, id) DO UPDATE SET "
                     "name = EXCLUDED.name, "
                     "num_day = EXCLUDED.num_day, "
@@ -319,6 +355,8 @@ class PgWriter:
                     "cur_t = EXCLUDED.cur_t, "
                     "config = EXCLUDED.config, "
                     "error = EXCLUDED.error, "
+                    "input_tokens = EXCLUDED.input_tokens, "
+                    "output_tokens = EXCLUDED.output_tokens, "
                     "updated_at = EXCLUDED.updated_at"
                 ).format(psycopg.sql.Identifier(table_name))
 
@@ -333,6 +371,8 @@ class PgWriter:
                     exp_info.cur_t,
                     exp_info.config,
                     exp_info.error,
+                    exp_info.input_tokens,
+                    exp_info.output_tokens,
                     exp_info.created_at,
                     exp_info.updated_at,
                 ]

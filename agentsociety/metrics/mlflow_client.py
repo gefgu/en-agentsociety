@@ -48,8 +48,6 @@ class MlflowClient:
         config: MlflowConfig,
         exp_name: str,
         exp_id: str,
-        exp_description: Optional[str] = None,
-        exp_tags: dict[str, Any] = {},
         current_run_id: Optional[str] = None,
     ) -> None:
         """
@@ -59,8 +57,6 @@ class MlflowClient:
             - **config** (MlflowConfig): Configuration containing MLflow credentials and URI.
             - **exp_name** (str, optional): Name of the experiment. Defaults to a generated name.
             - **exp_id** (str): A unique identifier for the experiment.
-            - **exp_description** (str, optional): Description for the experiment. Defaults to None.
-            - **exp_tags** (dict, optional): Tags to associate with the experiment. Defaults to None.
             - **current_run_id** (str, optional): Existing MLflow run ID to attach to. Defaults to None.
         """
 
@@ -81,16 +77,10 @@ class MlflowClient:
         if current_run_id is None:
             run_name = f"run_{exp_id}"
 
-            # Initialize tags
-            tags = exp_tags
-            if exp_description is not None:
-                tags["mlflow.note.content"] = exp_description
-
             # Create or get experiment
             try:
                 mlflow_experiment_id = self._client.create_experiment(
                     name=exp_name,
-                    tags=tags,
                 )
             except mlflow.MlflowException as e:
                 experiment = self._client.get_experiment_by_name(exp_name)
@@ -163,6 +153,7 @@ class MlflowClient:
             step (int, optional): The step at which the metric was recorded. Defaults to None.
             timestamp (int, optional): The timestamp when the metric was recorded. Defaults to None.
         """
+        get_logger().info(f"Logging metric {key} with value {value} at step {step}")
         if timestamp is not None:
             timestamp = int(timestamp)
         self.client.log_metric(

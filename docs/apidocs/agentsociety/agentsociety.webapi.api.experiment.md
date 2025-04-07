@@ -31,6 +31,10 @@
   - ```{autodoc2-docstring} agentsociety.webapi.api.experiment.delete_experiment_by_id
     :summary:
     ```
+* - {py:obj}`export_experiment_data <agentsociety.webapi.api.experiment.export_experiment_data>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.experiment.export_experiment_data
+    :summary:
+    ```
 ````
 
 ### Data
@@ -100,5 +104,13 @@
 :async:
 
 ```{autodoc2-docstring} agentsociety.webapi.api.experiment.delete_experiment_by_id
+```
+````
+
+````{py:function} export_experiment_data(request: fastapi.Request, exp_id: uuid.UUID) -> fastapi.responses.StreamingResponse
+:canonical: agentsociety.webapi.api.experiment.export_experiment_data
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment.export_experiment_data
 ```
 ````

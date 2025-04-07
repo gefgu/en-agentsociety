@@ -3,6 +3,7 @@ from typing import Any, Callable, Optional, Union, cast
 
 import jsonc
 
+from ..s3 import S3Client, S3Config
 from .distribution import Distribution, DistributionConfig
 
 __all__ = [
@@ -32,6 +33,7 @@ class MemoryConfigGenerator:
         ],
         file: Optional[str] = None,
         distributions: dict[str, Union[Distribution, DistributionConfig]] = {},
+        s3config: S3Config = S3Config.model_validate({}),
     ):
         """
         Initialize the memory config generator.
@@ -40,10 +42,11 @@ class MemoryConfigGenerator:
             - `config_func` (Callable): The function to generate the memory configuration.
             - `file` (Optional[str]): The path to the file containing the memory configuration.
             - `distributions` (dict[str, Distribution]): The distributions to use for the memory configuration. Default is empty dict.
+            - `s3config` (S3Config): The S3 configuration.
         """
         self._memory_config_func = config_func
         if file is not None:
-            self._memory_data = _memory_config_load_file(file)
+            self._memory_data = _memory_config_load_file(file, s3config)
         else:
             self._memory_data = None
         distributions = copy.deepcopy(distributions)
@@ -76,7 +79,7 @@ class MemoryConfigGenerator:
 
 
 # TODO: TEST THIS in V1.3
-def _memory_config_load_file(file_path):
+def _memory_config_load_file(file_path: str, s3config: S3Config):
     """
     Loads the memory configuration from the given file.
     - **Description**:
@@ -95,9 +98,16 @@ def _memory_config_load_file(file_path):
         - `ValueError`: If the file type is not supported.
     """
     # Check file extension
-    if file_path.endswith(".json"):
+    if s3config.enabled:
+        s3client = S3Client(s3config)
+        data_bytes = s3client.download(file_path)
+        data_str = data_bytes.decode("utf-8")
+    else:
         with open(file_path, "r") as f:
-            memory_data = jsonc.load(f)
+            data_str = f.read()
+
+    if file_path.endswith(".json"):
+        memory_data = jsonc.loads(data_str)
         if not isinstance(memory_data, list):
             raise ValueError(
                 f"Invalid memory data. Expected a list, got: {memory_data}"
@@ -105,10 +115,9 @@ def _memory_config_load_file(file_path):
         return memory_data
     elif file_path.endswith(".jsonl"):
         memory_data = []
-        with open(file_path, "r") as f:
-            for line in f:
-                if line.strip():  # Skip empty lines
-                    memory_data.append(jsonc.loads(line))
+        for line in data_str.splitlines():
+            if line.strip():  # Skip empty lines
+                memory_data.append(jsonc.loads(line))
         return memory_data
     else:
         raise ValueError(

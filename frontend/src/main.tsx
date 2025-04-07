@@ -61,8 +61,8 @@ const router = createBrowserRouter([
 
 const theme: ThemeConfig = {
     token: {
-        colorPrimary: "#0000FF",
-        colorInfo: "#0000FF",
+        colorPrimary: "#0000CC",
+        colorInfo: "#0000CC",
         borderRadius: 16,
         colorBgContainer: "#FFFFFF",
         colorBgLayout: "#FFFFFF",

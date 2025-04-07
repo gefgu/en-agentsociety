@@ -492,7 +492,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} EnvironmentStarter(map_config: agentsociety.environment.mapdata.MapConfig, simulator_config: agentsociety.environment.environment.SimulatorConfig, environment_config: agentsociety.environment.environment.EnvironmentConfig)
+`````{py:class} EnvironmentStarter(map_config: agentsociety.environment.mapdata.MapConfig, simulator_config: agentsociety.environment.environment.SimulatorConfig, environment_config: agentsociety.environment.environment.EnvironmentConfig, s3config: agentsociety.s3.S3Config)
 :canonical: agentsociety.environment.environment.EnvironmentStarter
 
 Bases: {py:obj}`agentsociety.environment.environment.Environment`

@@ -198,16 +198,6 @@ Bases: {py:obj}`agentsociety.agent.CitizenAgentBase`
 ```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.__init__
 ```
 
-````{py:attribute} update_with_sim
-:canonical: agentsociety.cityagent.societyagent.SocietyAgent.update_with_sim
-:value: >
-   'UpdateWithSimulator(...)'
-
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.update_with_sim
-```
-
-````
-
 ````{py:attribute} mind_block
 :canonical: agentsociety.cityagent.societyagent.SocietyAgent.mind_block
 :type: agentsociety.cityagent.societyagent.MindBlock

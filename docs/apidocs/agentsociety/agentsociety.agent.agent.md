@@ -106,6 +106,15 @@ Bases: {py:obj}`agentsociety.agent.agent_base.Agent`
 
 ````
 
+````{py:method} update_motion()
+:canonical: agentsociety.agent.agent.CitizenAgentBase.update_motion
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent.CitizenAgentBase.update_motion
+```
+
+````
+
 ````{py:method} handle_gather_message(payload: dict)
 :canonical: agentsociety.agent.agent.CitizenAgentBase.handle_gather_message
 :async:

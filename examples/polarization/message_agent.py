@@ -6,7 +6,6 @@ from agentsociety.agent import CitizenAgentBase
 from agentsociety.agent.agent_base import AgentToolbox
 from agentsociety.memory import Memory
 from agentsociety.agent.prompt import FormatPrompt
-from agentsociety.tools.tool import UpdateWithSimulator
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +41,6 @@ What you would say (One or two sentences):
 
 
 class AgreeAgent(CitizenAgentBase):
-    update_with_sim = UpdateWithSimulator()
     def __init__(
         self,
         id: int,
@@ -76,7 +74,7 @@ class AgreeAgent(CitizenAgentBase):
 
     async def forward(self):
         # sync agent status with simulator
-        await self.update_with_sim()
+        await self.update_motion()
         if await self.trigger():
             print("AgreeAgent forward")
             friends = await self.memory.status.get("friends")
@@ -138,7 +136,6 @@ class AgreeAgent(CitizenAgentBase):
 
 
 class DisagreeAgent(CitizenAgentBase):
-    update_with_sim = UpdateWithSimulator()
     def __init__(
         self,
         id: int,
@@ -172,7 +169,7 @@ class DisagreeAgent(CitizenAgentBase):
 
     async def forward(self):
         # sync agent status with simulator
-        await self.update_with_sim()
+        await self.update_motion()
         if await self.trigger():
             print("DisagreeAgent forward")
             friends = await self.memory.status.get("friends")

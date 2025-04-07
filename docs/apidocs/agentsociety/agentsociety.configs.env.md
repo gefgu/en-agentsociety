@@ -103,4 +103,15 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
+````{py:attribute} s3
+:canonical: agentsociety.configs.env.EnvConfig.s3
+:type: agentsociety.s3.S3Config
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.configs.env.EnvConfig.s3
+```
+
+````
+
 `````

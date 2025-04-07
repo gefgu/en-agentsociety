@@ -157,6 +157,28 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
+````{py:attribute} input_tokens
+:canonical: agentsociety.storage.type.StorageExpInfo.input_tokens
+:type: int
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.storage.type.StorageExpInfo.input_tokens
+```
+
+````
+
+````{py:attribute} output_tokens
+:canonical: agentsociety.storage.type.StorageExpInfo.output_tokens
+:type: int
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.storage.type.StorageExpInfo.output_tokens
+```
+
+````
+
 ````{py:attribute} created_at
 :canonical: agentsociety.storage.type.StorageExpInfo.created_at
 :type: datetime.datetime

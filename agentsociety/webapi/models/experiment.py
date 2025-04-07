@@ -35,6 +35,8 @@ class Experiment(Base):
     cur_t: Mapped[float] = mapped_column()
     config: Mapped[str] = mapped_column()
     error: Mapped[str] = mapped_column()
+    input_tokens: Mapped[int] = mapped_column(default=0)
+    output_tokens: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(
         default=datetime.now, onupdate=datetime.now
@@ -64,6 +66,22 @@ class Experiment(Base):
     def global_prompt_tablename(self):
         """Get global prompt table name"""
         return f"{TABLE_PREFIX}{str(self.id).replace('-', '_')}_global_prompt"
+    
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "name": self.name,
+            "num_day": self.num_day,
+            "status": self.status,
+            "cur_day": self.cur_day,
+            "cur_t": self.cur_t,
+            "config": self.config,
+            "error": self.error,
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
 
 
 # API Request & Response Models
@@ -100,6 +118,10 @@ class ApiExperiment(BaseModel):
     """Experiment configuration"""
     error: str
     """Error message"""
+    input_tokens: int
+    """Input tokens"""
+    output_tokens: int
+    """Output tokens"""
     created_at: AwareDatetime
     """Created time"""
     updated_at: AwareDatetime

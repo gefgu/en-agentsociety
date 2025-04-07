@@ -15,6 +15,7 @@ env:
   pgsql:
   avro:
   mlflow:
+  s3:
 ```
 
 ### Redis Configuration
@@ -112,6 +113,36 @@ The `MlflowConfig` class contains the following fields:
 - `password` (str, optional): Password for MLflow server authentication  
 - `mlflow_uri` (str, required): URI for connecting to the MLflow tracking server
 
+### S3 Configuration
+
+```{admonition} Note
+:class: note
+When enabling S3 storage, the local file system will be replaced by S3, including `map.file_path`, `map.cache_path`, and `agents.*.memory_from_file`.
+```
+
+An example of the `s3` section is as follows:
+
+```yaml
+s3:
+  enabled: true
+  endpoint: <S3-ENDPOINT>
+  access_key: <S3-ACCESS-KEY>
+  secret_key: <S3-SECRET-KEY>
+  bucket: <S3-BUCKET>
+  region: <S3-REGION>
+  prefix: <S3-PREFIX>
+```
+
+The `s3` section manages the S3 storage settings, containing the following fields:
+
+- `enabled` (bool): Whether S3 storage is enabled, defaults to False
+- `endpoint` (str): S3 endpoint
+- `access_key` (str): S3 access key
+- `secret_key` (str): S3 secret key
+- `bucket` (str): S3 bucket
+- `region` (str): S3 region
+- `prefix` (str): prefix in path (optional). Default is `""`.
+
 ## Environment Configuration in `config.yaml`
 
 An example of the `env` section in `config.yaml` is as follows:
@@ -133,4 +164,12 @@ env:
     mlflow_uri: http://localhost:59000 # MLflow server URI``
     username: <CHANGE_ME> # MLflow server username
     password: <CHANGE_ME> # MLflow server password
+  s3:
+    enabled: false # Whether to enable S3 storage instead of local file system
+    endpoint: <S3-ENDPOINT> # S3 endpoint
+    access_key: <S3-ACCESS-KEY> # S3 access key
+    secret_key: <S3-SECRET-KEY> # S3 secret key
+    bucket: <S3-BUCKET> # S3 bucket
+    region: <S3-REGION> # S3 region
+    prefix: <S3-PREFIX> # prefix in path (optional)
 ```

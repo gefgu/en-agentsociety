@@ -22,15 +22,15 @@ agentsociety.cityagent.blocks
 :titlesonly:
 :maxdepth: 1
 
-agentsociety.cityagent.message_intercept
+agentsociety.cityagent.metrics
+agentsociety.cityagent.firmagent
+agentsociety.cityagent.nbsagent
+agentsociety.cityagent.bankagent
+agentsociety.cityagent.initial
 agentsociety.cityagent.societyagent
 agentsociety.cityagent.memory_config
-agentsociety.cityagent.initial
+agentsociety.cityagent.message_intercept
 agentsociety.cityagent.governmentagent
-agentsociety.cityagent.bankagent
-agentsociety.cityagent.firmagent
-agentsociety.cityagent.metrics
-agentsociety.cityagent.nbsagent
 ```
 
 ## Package Contents

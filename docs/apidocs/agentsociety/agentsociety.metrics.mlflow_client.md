@@ -109,7 +109,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} MlflowClient(config: agentsociety.metrics.mlflow_client.MlflowConfig, exp_name: str, exp_id: str, exp_description: typing.Optional[str] = None, exp_tags: dict[str, typing.Any] = {}, current_run_id: typing.Optional[str] = None)
+`````{py:class} MlflowClient(config: agentsociety.metrics.mlflow_client.MlflowConfig, exp_name: str, exp_id: str, current_run_id: typing.Optional[str] = None)
 :canonical: agentsociety.metrics.mlflow_client.MlflowClient
 
 ```{autodoc2-docstring} agentsociety.metrics.mlflow_client.MlflowClient

@@ -17,12 +17,12 @@ export default function RootLayout({
     const contentRef = useRef<HTMLDivElement>(null);
 
     const headerStyle = {
-        background: '#0000FF',
+        background: '#000088',
         color: 'white',
     }
 
     const menuStyle = {
-        background: '#0000FF',
+        background: '#000088',
         color: 'white',
     }
 
@@ -43,7 +43,7 @@ export default function RootLayout({
 
     const contentStyle: React.CSSProperties = homePage ? {
         width: "100vw",
-        background: '#0000FF',
+        background: '#000088',
         top: 0,
         left: 0,
         alignContent: "center",

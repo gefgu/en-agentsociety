@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.3.3] - 2025-04-07
+
+### Added
+- Add `input_tokens` and `output_tokens` to experiment info.
+- Add S3 storage support.
+- Web API to export experiment data including agent profiles, agent statuses, agent dialogs, agent surveys, and global prompts.
+
+### Changed
+- Hide sensitive experiment information in AVRO and PostgreSQL storage.
+- UI details.
+
+### Deprecated
+- `Tool` abstract class.
+
+### Fixed
+- Bug in avro saver.
+
+## [1.3.2] - 2025-04-02
+
+### Removed
+- Remove useless files due to merge error
+
+## [1.3.1] - 2025-04-02
+
+### Changed
+- Update Python version requirements and cibuildwheel skip list.
+
 ## [1.3.0] - 2025-04-02
 
 See [Version 1.3](https://agentsociety.readthedocs.io/en/latest/02-version-1.3/01.v1.3.0.html) for more details.

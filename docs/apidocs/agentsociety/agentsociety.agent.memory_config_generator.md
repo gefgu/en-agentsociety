@@ -75,7 +75,7 @@
 
 ````
 
-`````{py:class} MemoryConfigGenerator(config_func: typing.Callable[[dict[str, agentsociety.agent.distribution.Distribution]], tuple[dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, typing.Union[agentsociety.agent.memory_config_generator.MemoryT, float]], dict[str, typing.Any]]], file: typing.Optional[str] = None, distributions: dict[str, typing.Union[agentsociety.agent.distribution.Distribution, agentsociety.agent.distribution.DistributionConfig]] = {})
+`````{py:class} MemoryConfigGenerator(config_func: typing.Callable[[dict[str, agentsociety.agent.distribution.Distribution]], tuple[dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, typing.Union[agentsociety.agent.memory_config_generator.MemoryT, float]], dict[str, typing.Any]]], file: typing.Optional[str] = None, distributions: dict[str, typing.Union[agentsociety.agent.distribution.Distribution, agentsociety.agent.distribution.DistributionConfig]] = {}, s3config: agentsociety.s3.S3Config = S3Config.model_validate({}))
 :canonical: agentsociety.agent.memory_config_generator.MemoryConfigGenerator
 
 ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryConfigGenerator
@@ -97,7 +97,7 @@
 
 `````
 
-````{py:function} _memory_config_load_file(file_path)
+````{py:function} _memory_config_load_file(file_path: str, s3config: agentsociety.s3.S3Config)
 :canonical: agentsociety.agent.memory_config_generator._memory_config_load_file
 
 ```{autodoc2-docstring} agentsociety.agent.memory_config_generator._memory_config_load_file

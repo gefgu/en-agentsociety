@@ -1,8 +1,5 @@
-import asyncio
-import logging
 import random
 import time
-from typing import Any, Optional
 
 import jsonc
 
@@ -10,7 +7,6 @@ from ..agent import Agent, CitizenAgentBase, AgentToolbox, Block
 from ..environment import Environment
 from ..llm import LLM
 from ..memory import Memory
-from ..tools import UpdateWithSimulator
 
 from ..logger import get_logger
 from .blocks import (
@@ -206,7 +202,6 @@ class MindBlock(Block):
 class SocietyAgent(CitizenAgentBase):
     """Agent implementation with configurable cognitive/behavioral modules and social interaction capabilities."""
 
-    update_with_sim = UpdateWithSimulator()
     mind_block: MindBlock
     plan_and_action_block: PlanAndActionBlock
 
@@ -272,7 +267,7 @@ class SocietyAgent(CitizenAgentBase):
         start_time = time.time()
         self.step_count += 1
         # sync agent status with simulator
-        await self.update_with_sim()
+        await self.update_motion()
 
         # check last step
         ifpass = await self.check_and_update_step()

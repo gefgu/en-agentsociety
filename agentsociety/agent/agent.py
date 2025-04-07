@@ -6,6 +6,7 @@ import random
 from pycityproto.city.person.v2 import person_pb2 as person_pb2
 
 from ..environment.sim.person_service import PersonService
+from ..logger import get_logger
 from ..memory import Memory
 from .agent_base import Agent, AgentToolbox, AgentType
 
@@ -119,6 +120,22 @@ class CitizenAgentBase(Agent):
                 "income": income,
             }
         )
+
+    async def update_motion(self):
+        """
+        Update the motion of the agent. Usually used in the starting of the `forward` method.
+        """
+        resp = await self.environment.get_person(self.id)
+        resp_dict = resp["person"]
+        for k, v in resp_dict.get("motion", {}).items():
+            try:
+                await self.status.get(k)
+                await self.status.update(
+                    k, v, mode="replace", protect_llm_read_only_fields=False
+                )
+            except KeyError as e:
+                get_logger().debug(f"KeyError: {e} when updating motion of agent {self.id}")
+                continue
 
     async def handle_gather_message(self, payload: dict):
         """

@@ -54,7 +54,7 @@ class AgentConfig(BaseModel):
     """Memory configuration function"""
 
     memory_from_file: Optional[str] = None
-    """Memory configuration file"""
+    """Memory configuration file. If s3 is enabled, the file will be downloaded from S3"""
 
     memory_distributions: Optional[
         dict[str, Union[Distribution, DistributionConfig]]

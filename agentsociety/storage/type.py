@@ -20,6 +20,8 @@ class StorageExpInfo(BaseModel):
     cur_t: float
     config: str
     error: str
+    input_tokens: int
+    output_tokens: int
     created_at: datetime
     updated_at: datetime
 

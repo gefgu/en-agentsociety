@@ -230,6 +230,28 @@ Bases: {py:obj}`agentsociety.webapi.models._base.Base`
 
 ````
 
+````{py:attribute} input_tokens
+:canonical: agentsociety.webapi.models.experiment.Experiment.input_tokens
+:type: sqlalchemy.orm.Mapped[int]
+:value: >
+   'mapped_column(...)'
+
+```{autodoc2-docstring} agentsociety.webapi.models.experiment.Experiment.input_tokens
+```
+
+````
+
+````{py:attribute} output_tokens
+:canonical: agentsociety.webapi.models.experiment.Experiment.output_tokens
+:type: sqlalchemy.orm.Mapped[int]
+:value: >
+   'mapped_column(...)'
+
+```{autodoc2-docstring} agentsociety.webapi.models.experiment.Experiment.output_tokens
+```
+
+````
+
 ````{py:attribute} created_at
 :canonical: agentsociety.webapi.models.experiment.Experiment.created_at
 :type: sqlalchemy.orm.Mapped[datetime.datetime]
@@ -288,6 +310,14 @@ Bases: {py:obj}`agentsociety.webapi.models._base.Base`
 :canonical: agentsociety.webapi.models.experiment.Experiment.global_prompt_tablename
 
 ```{autodoc2-docstring} agentsociety.webapi.models.experiment.Experiment.global_prompt_tablename
+```
+
+````
+
+````{py:method} to_dict()
+:canonical: agentsociety.webapi.models.experiment.Experiment.to_dict
+
+```{autodoc2-docstring} agentsociety.webapi.models.experiment.Experiment.to_dict
 ```
 
 ````
@@ -392,6 +422,28 @@ Bases: {py:obj}`pydantic.BaseModel`
    None
 
 ```{autodoc2-docstring} agentsociety.webapi.models.experiment.ApiExperiment.error
+```
+
+````
+
+````{py:attribute} input_tokens
+:canonical: agentsociety.webapi.models.experiment.ApiExperiment.input_tokens
+:type: int
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.models.experiment.ApiExperiment.input_tokens
+```
+
+````
+
+````{py:attribute} output_tokens
+:canonical: agentsociety.webapi.models.experiment.ApiExperiment.output_tokens
+:type: int
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.models.experiment.ApiExperiment.output_tokens
 ```
 
 ````

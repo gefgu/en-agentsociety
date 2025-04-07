@@ -13,9 +13,9 @@
 :titlesonly:
 :maxdepth: 1
 
+agentsociety.simulation.type
 agentsociety.simulation.agentsociety
 agentsociety.simulation.agentgroup
-agentsociety.simulation.type
 ```
 
 ## Package Contents

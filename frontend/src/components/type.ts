@@ -7,6 +7,8 @@ export interface Experiment {
     curT: number;
     config: string;
     error: string;
+    inputTokens: number;
+    outputTokens: number;
     createdAt: string;
     updatedAt: string;
 }

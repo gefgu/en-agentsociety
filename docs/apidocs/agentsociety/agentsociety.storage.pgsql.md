@@ -31,6 +31,10 @@
 :class: autosummary longtable
 :align: left
 
+* - {py:obj}`_migrate_experiment_table <agentsociety.storage.pgsql._migrate_experiment_table>`
+  - ```{autodoc2-docstring} agentsociety.storage.pgsql._migrate_experiment_table
+    :summary:
+    ```
 * - {py:obj}`_create_pg_tables <agentsociety.storage.pgsql._create_pg_tables>`
   - ```{autodoc2-docstring} agentsociety.storage.pgsql._create_pg_tables
     :summary:
@@ -88,6 +92,13 @@
 ```{autodoc2-docstring} agentsociety.storage.pgsql.PGSQL_DICT
 ```
 
+````
+
+````{py:function} _migrate_experiment_table(dsn: str)
+:canonical: agentsociety.storage.pgsql._migrate_experiment_table
+
+```{autodoc2-docstring} agentsociety.storage.pgsql._migrate_experiment_table
+```
 ````
 
 ````{py:function} _create_pg_tables(exp_id: str, dsn: str)
