@@ -149,6 +149,16 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ````
 
+````{py:attribute} NEXT_ROUND
+:canonical: agentsociety.configs.exp.WorkflowType.NEXT_ROUND
+:value: >
+   'next_round'
+
+```{autodoc2-docstring} agentsociety.configs.exp.WorkflowType.NEXT_ROUND
+```
+
+````
+
 ````{py:attribute} INTERVENE
 :canonical: agentsociety.configs.exp.WorkflowType.INTERVENE
 :value: >
@@ -219,7 +229,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````{py:attribute} days
 :canonical: agentsociety.configs.exp.WorkflowStepConfig.days
-:type: int
+:type: float
 :value: >
    1
 

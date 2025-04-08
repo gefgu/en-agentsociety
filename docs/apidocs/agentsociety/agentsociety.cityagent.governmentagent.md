@@ -89,6 +89,15 @@ Bases: {py:obj}`agentsociety.agent.GovernmentAgentBase`
 
 ````
 
+````{py:method} reset()
+:canonical: agentsociety.cityagent.governmentagent.GovernmentAgent.reset
+:async:
+
+```{autodoc2-docstring} agentsociety.cityagent.governmentagent.GovernmentAgent.reset
+```
+
+````
+
 ````{py:method} month_trigger()
 :canonical: agentsociety.cityagent.governmentagent.GovernmentAgent.month_trigger
 :async:

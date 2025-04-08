@@ -1,8 +1,14 @@
-import time
 import functools
 import inspect
+import time
+
+from ..logger import get_logger
 
 CALLING_STRING = 'function: `{func_name}` in "{file_path}", line {line_number}, arguments: `{arguments}` start time: `{start_time}` end time: `{end_time}` output: `{output}`'
+
+LOCK_CALLING_START_STRING = 'Start Lock - function: `{func_name}` in "{file_path}", line {line_number}, arguments: `{arguments}` start time: `{start_time}`'
+
+LOCK_CALLING_END_STRING = 'Release Lock - function: `{func_name}` in "{file_path}", line {line_number}, arguments: `{arguments}` end time: `{end_time}` output: `{output}`'
 
 __all__ = [
     "record_call_aio",
@@ -93,7 +99,38 @@ def lock_decorator(func):
         lock = self._lock
         await lock.acquire()
         try:
-            return await func(self, *args, **kwargs)
+            cur_frame = inspect.currentframe()
+            assert cur_frame is not None
+            frame = cur_frame.f_back
+            assert frame is not None
+            line_number = frame.f_lineno
+            file_path = frame.f_code.co_filename
+            args_repr = [repr(a) for a in args]
+            kwargs_repr = [f"{k}={v!r}" for k, v in kwargs.items()]
+            signature = ", ".join(args_repr + kwargs_repr)
+            start_time = time.time()
+            get_logger().debug(
+                LOCK_CALLING_START_STRING.format(
+                    func_name=func,
+                    line_number=line_number,
+                    file_path=file_path,
+                    arguments=signature,
+                    start_time=start_time,
+                )
+            )
+            result = await func(self, *args, **kwargs)
+            end_time = time.time()
+            get_logger().debug(
+                LOCK_CALLING_END_STRING.format(
+                    func_name=func,
+                    line_number=line_number,
+                    file_path=file_path,
+                    arguments=signature,
+                    end_time=end_time,
+                    output=result,
+                )
+            )
+            return result
         finally:
             lock.release()
 

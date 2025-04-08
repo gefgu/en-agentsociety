@@ -249,6 +249,15 @@
 
 ````
 
+````{py:method} next_round()
+:canonical: agentsociety.simulation.agentsociety.AgentSociety.next_round
+:async:
+
+```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety.next_round
+```
+
+````
+
 ````{py:method} step(num_environment_ticks: int = 1) -> agentsociety.simulation.type.Logs
 :canonical: agentsociety.simulation.agentsociety.AgentSociety.step
 :async:

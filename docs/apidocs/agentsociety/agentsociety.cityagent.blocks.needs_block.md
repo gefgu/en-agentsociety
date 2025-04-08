@@ -84,6 +84,15 @@ Bases: {py:obj}`agentsociety.agent.Block`
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.needs_block.NeedsBlock.__init__
 ```
 
+````{py:method} reset()
+:canonical: agentsociety.cityagent.blocks.needs_block.NeedsBlock.reset
+:async:
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.needs_block.NeedsBlock.reset
+```
+
+````
+
 ````{py:method} initialize()
 :canonical: agentsociety.cityagent.blocks.needs_block.NeedsBlock.initialize
 :async:

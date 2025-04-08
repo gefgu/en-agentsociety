@@ -13,13 +13,13 @@
 :titlesonly:
 :maxdepth: 1
 
-agentsociety.agent.distribution
-agentsociety.agent.memory_config_generator
-agentsociety.agent.block
-agentsociety.agent.trigger
-agentsociety.agent.agent
 agentsociety.agent.prompt
+agentsociety.agent.distribution
+agentsociety.agent.block
 agentsociety.agent.agent_base
+agentsociety.agent.memory_config_generator
+agentsociety.agent.agent
+agentsociety.agent.trigger
 ```
 
 ## Package Contents

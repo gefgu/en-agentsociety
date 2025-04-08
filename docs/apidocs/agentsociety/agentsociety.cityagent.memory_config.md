@@ -216,7 +216,7 @@
 ```
 ````
 
-````{py:function} memory_config_nbs(distributions: dict[str, agentsociety.agent.distribution.Distribution]) -> tuple[dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, typing.Any]]
+````{py:function} memory_config_nbs(distributions: dict[str, agentsociety.agent.distribution.Distribution]) -> tuple[dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, typing.Union[agentsociety.agent.memory_config_generator.MemoryT, float]], dict[str, typing.Any]]
 :canonical: agentsociety.cityagent.memory_config.memory_config_nbs
 
 ```{autodoc2-docstring} agentsociety.cityagent.memory_config.memory_config_nbs

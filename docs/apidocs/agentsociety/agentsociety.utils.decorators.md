@@ -43,6 +43,14 @@
   - ```{autodoc2-docstring} agentsociety.utils.decorators.CALLING_STRING
     :summary:
     ```
+* - {py:obj}`LOCK_CALLING_START_STRING <agentsociety.utils.decorators.LOCK_CALLING_START_STRING>`
+  - ```{autodoc2-docstring} agentsociety.utils.decorators.LOCK_CALLING_START_STRING
+    :summary:
+    ```
+* - {py:obj}`LOCK_CALLING_END_STRING <agentsociety.utils.decorators.LOCK_CALLING_END_STRING>`
+  - ```{autodoc2-docstring} agentsociety.utils.decorators.LOCK_CALLING_END_STRING
+    :summary:
+    ```
 * - {py:obj}`__all__ <agentsociety.utils.decorators.__all__>`
   - ```{autodoc2-docstring} agentsociety.utils.decorators.__all__
     :summary:
@@ -57,6 +65,26 @@
    'function: `{func_name}` in "{file_path}", line {line_number}, arguments: `{arguments}` start time: `...'
 
 ```{autodoc2-docstring} agentsociety.utils.decorators.CALLING_STRING
+```
+
+````
+
+````{py:data} LOCK_CALLING_START_STRING
+:canonical: agentsociety.utils.decorators.LOCK_CALLING_START_STRING
+:value: >
+   'Start Lock - function: `{func_name}` in "{file_path}", line {line_number}, arguments: `{arguments}` ...'
+
+```{autodoc2-docstring} agentsociety.utils.decorators.LOCK_CALLING_START_STRING
+```
+
+````
+
+````{py:data} LOCK_CALLING_END_STRING
+:canonical: agentsociety.utils.decorators.LOCK_CALLING_END_STRING
+:value: >
+   'Release Lock - function: `{func_name}` in "{file_path}", line {line_number}, arguments: `{arguments}...'
+
+```{autodoc2-docstring} agentsociety.utils.decorators.LOCK_CALLING_END_STRING
 ```
 
 ````

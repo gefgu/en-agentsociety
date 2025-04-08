@@ -22,8 +22,8 @@ agentsociety.utils.parsers
 :titlesonly:
 :maxdepth: 1
 
-agentsociety.utils.decorators
 agentsociety.utils.survey_util
+agentsociety.utils.decorators
 ```
 
 ## Package Contents

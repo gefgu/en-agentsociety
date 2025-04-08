@@ -108,6 +108,15 @@ Bases: {py:obj}`agentsociety.agent.BankAgentBase`
 
 ````
 
+````{py:method} reset()
+:canonical: agentsociety.cityagent.bankagent.BankAgent.reset
+:async:
+
+```{autodoc2-docstring} agentsociety.cityagent.bankagent.BankAgent.reset
+```
+
+````
+
 ````{py:method} month_trigger()
 :canonical: agentsociety.cityagent.bankagent.BankAgent.month_trigger
 :async:

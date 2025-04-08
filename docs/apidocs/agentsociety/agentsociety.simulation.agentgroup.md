@@ -139,6 +139,15 @@
 
 ````
 
+````{py:method} reset()
+:canonical: agentsociety.simulation.agentgroup.AgentGroup.reset
+:async:
+
+```{autodoc2-docstring} agentsociety.simulation.agentgroup.AgentGroup.reset
+```
+
+````
+
 ````{py:method} step(tick: int)
 :canonical: agentsociety.simulation.agentgroup.AgentGroup.step
 :async:

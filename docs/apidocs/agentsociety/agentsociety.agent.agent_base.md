@@ -378,6 +378,16 @@ Bases: {py:obj}`abc.ABC`
 
 ````
 
+````{py:method} reset()
+:canonical: agentsociety.agent.agent_base.Agent.reset
+:abstractmethod:
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.reset
+```
+
+````
+
 ````{py:method} react_to_intervention(intervention_message: str)
 :canonical: agentsociety.agent.agent_base.Agent.react_to_intervention
 :abstractmethod:

@@ -122,6 +122,15 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 ````
 
+````{py:method} reset()
+:canonical: agentsociety.cityagent.societyagent.PlanAndActionBlock.reset
+:async:
+
+```{autodoc2-docstring} agentsociety.cityagent.societyagent.PlanAndActionBlock.reset
+```
+
+````
+
 ````{py:method} plan_generation()
 :canonical: agentsociety.cityagent.societyagent.PlanAndActionBlock.plan_generation
 :async:
@@ -250,6 +259,15 @@ Bases: {py:obj}`agentsociety.agent.CitizenAgentBase`
 
 ````
 
+````{py:method} reset()
+:canonical: agentsociety.cityagent.societyagent.SocietyAgent.reset
+:async:
+
+```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.reset
+```
+
+````
+
 ````{py:method} forward()
 :canonical: agentsociety.cityagent.societyagent.SocietyAgent.forward
 :async:
@@ -282,6 +300,15 @@ Bases: {py:obj}`agentsociety.agent.CitizenAgentBase`
 :async:
 
 ```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.react_to_intervention
+```
+
+````
+
+````{py:method} reset_position()
+:canonical: agentsociety.cityagent.societyagent.SocietyAgent.reset_position
+:async:
+
+```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.reset_position
 ```
 
 ````

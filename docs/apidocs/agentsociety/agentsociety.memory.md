@@ -13,14 +13,14 @@
 :titlesonly:
 :maxdepth: 1
 
+agentsociety.memory.self_define
 agentsociety.memory.state
 agentsociety.memory.profile
-agentsociety.memory.memory
 agentsociety.memory.utils
-agentsociety.memory.const
-agentsociety.memory.memory_base
+agentsociety.memory.memory
 agentsociety.memory.faiss_query
-agentsociety.memory.self_define
+agentsociety.memory.memory_base
+agentsociety.memory.const
 ```
 
 ## Package Contents

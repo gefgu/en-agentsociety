@@ -178,17 +178,6 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:attribute} total_tick
-:canonical: agentsociety.environment.environment.EnvironmentConfig.total_tick
-:type: int
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.environment.environment.EnvironmentConfig.total_tick
-```
-
-````
-
 ````{py:attribute} weather
 :canonical: agentsociety.environment.environment.EnvironmentConfig.weather
 :type: str
@@ -281,6 +270,16 @@ Bases: {py:obj}`pydantic.BaseModel`
    'Lock(...)'
 
 ```{autodoc2-docstring} agentsociety.environment.environment.Environment._lock
+```
+
+````
+
+````{py:attribute} _tick
+:canonical: agentsociety.environment.environment.Environment._tick
+:value: >
+   0
+
+```{autodoc2-docstring} agentsociety.environment.environment.Environment._tick
 ```
 
 ````
