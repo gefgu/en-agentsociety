@@ -54,6 +54,10 @@ class GovernmentAgent(GovernmentAgentBase):
         self.time_diff = 30 * 24 * 60 * 60
         self.forward_times = 0
 
+    async def reset(self):
+        """Reset the GovernmentAgent."""
+        pass
+
     async def month_trigger(self):
         """
         Check if the monthly tax cycle should be triggered based on elapsed time.

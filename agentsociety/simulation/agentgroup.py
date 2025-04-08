@@ -300,6 +300,16 @@ class AgentGroup:
             self._llm = None
 
     # ====================
+    # Reset Methods
+    # ====================
+    async def reset(self):
+        """Reset all agents in the group."""
+        reset_tasks = []
+        for agent in self._agents:
+            reset_tasks.append(agent.reset())
+        await asyncio.gather(*reset_tasks)
+
+    # ====================
     # Core Functionality Methods
     # ====================
     async def step(self, tick: int):

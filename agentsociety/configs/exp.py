@@ -36,6 +36,7 @@ class WorkflowType(str, Enum):
         - `ENVIRONMENT_INTERVENE`: Changes the environment variables (global prompt).
         - `UPDATE_STATE_INTERVENE`: Directly updates the state information of the specified agent.
         - `MESSAGE_INTERVENE`: Influences the agent's behavior and state by sending a message.
+        - `NEXT_ROUND`: Proceed to the next round of the simulation —— reset agents but keep the memory.
         - `INTERVENE`: Represents other intervention methods driven by code.
         - `FUNCTION`: Represents function-based intervention methods.
     """
@@ -47,6 +48,7 @@ class WorkflowType(str, Enum):
     ENVIRONMENT_INTERVENE = "environment"
     UPDATE_STATE_INTERVENE = "update_state"
     MESSAGE_INTERVENE = "message"
+    NEXT_ROUND = "next_round"
     INTERVENE = "other"
     FUNCTION = "function"
 
@@ -62,7 +64,7 @@ class WorkflowStepConfig(BaseModel):
     func: Optional[Callable] = None
     """Optional function to be executed during this step - used for [FUNCTION, INTERVENE] type"""
 
-    days: int = 1
+    days: float = 1
     """Duration (in days) for which this step lasts - used for [RUN] type"""
 
     steps: int = 1
@@ -139,6 +141,9 @@ class WorkflowStepConfig(BaseModel):
                 raise ValueError(
                     "intervene_message and target_agent are required for MESSAGE_INTERVENE step"
                 )
+        elif self.type == WorkflowType.NEXT_ROUND:
+            if self.target_agent is not None:
+                raise ValueError("target_agent is not allowed for NEXT_ROUND step")
         elif self.type == WorkflowType.INTERVENE:
             if self.func is None:
                 raise ValueError(

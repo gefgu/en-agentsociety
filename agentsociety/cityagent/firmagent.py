@@ -63,6 +63,10 @@ class FirmAgent(FirmAgentBase):
         self.max_price_inflation = 0.05
         self.max_wage_inflation = 0.05
 
+    async def reset(self):
+        """Reset the FirmAgent."""
+        pass
+
     async def month_trigger(self):
         """Check if monthly adjustment should be triggered.
 

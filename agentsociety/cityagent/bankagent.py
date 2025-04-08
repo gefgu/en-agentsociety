@@ -97,6 +97,10 @@ class BankAgent(BankAgentBase):
         self.time_diff = 30 * 24 * 60 * 60
         self.forward_times = 0
 
+    async def reset(self):
+        """Reset the BankAgent."""
+        pass
+
     async def month_trigger(self):
         """
         Check if monthly policy update should be triggered.

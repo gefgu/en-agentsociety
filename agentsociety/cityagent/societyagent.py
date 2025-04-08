@@ -77,6 +77,10 @@ class PlanAndActionBlock(Block):
         )
         self.other_block = OtherBlock(llm=llm, memory=memory)
 
+    async def reset(self):
+        """Reset the plan and action block."""
+        await self.needs_block.reset()
+
     async def plan_generation(self):
         """Generate a new plan if no current plan exists in memory."""
         cognition = None
@@ -260,6 +264,21 @@ class SocietyAgent(CitizenAgentBase):
         )
         self.step_count = -1
         self.cognition_update = -1
+
+    async def reset(self):
+        """Reset the agent."""
+        # reset position to home
+        await self.reset_position()
+
+        # reset needs
+        await self.memory.status.update("current_need", "none")
+
+        # reset plans and actions
+        await self.memory.status.update("current_plan", {})
+        await self.memory.status.update("execution_context", {})
+
+        # reset initial flag
+        await self.plan_and_action_block.reset()
 
     # Main workflow
     async def forward(self):
@@ -541,3 +560,9 @@ class SocietyAgent(CitizenAgentBase):
         await self.plan_and_action_block.needs_block.reflect_to_intervention(
             intervention_message
         )
+
+    async def reset_position(self):
+        """Reset the position of the agent."""
+        home = await self.status.get("home")
+        home = home["aoi_position"]["aoi_id"]
+        await self.environment.reset_person_position(person_id=self.id, aoi_id=home)

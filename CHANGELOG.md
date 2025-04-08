@@ -6,10 +6,14 @@
 - Add `input_tokens` and `output_tokens` to experiment info.
 - Add S3 storage support.
 - Web API to export experiment data including agent profiles, agent statuses, agent dialogs, agent surveys, and global prompts.
+- Add `NEXT_ROUND` step type, support multiple rounds of simulation.
+- Add abstract method `reset` for `Agent` and implement it for all city agents.
 
 ### Changed
 - Hide sensitive experiment information in AVRO and PostgreSQL storage.
 - UI details.
+- Removed `total_tick` in `EnvironmentConfig` - always 24 hours.
+- Support float days in `RUN` step, for example, `RUN: 1.5 days`.
 
 ### Deprecated
 - `Tool` abstract class.

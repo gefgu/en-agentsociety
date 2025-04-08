@@ -31,7 +31,6 @@ exp:
   name: test # Experiment name
   environment:
     start_tick: 28800 # Start time in seconds
-    total_tick: 7200 # Total time in seconds
   workflow:
   - day: 1 # The day of the workflow step
     type: run # The type of the workflow step

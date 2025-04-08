@@ -52,7 +52,7 @@ class SimulatorConfig(BaseModel):
     max_process: int = Field(cpu_count())
     """Maximum number of processes for the simulator"""
 
-    logging_level: str = Field("info")
+    logging_level: str = Field("warn")
     """Logging level for the simulator"""
 
 
@@ -64,11 +64,8 @@ class EnvironmentConfig(BaseModel):
 
     model_config = ConfigDict(use_enum_values=True, use_attribute_docstrings=True)
 
-    start_tick: int = Field(6 * 60 * 60)
+    start_tick: int = Field(default=8 * 60 * 60)
     """Starting tick of one day, in seconds"""
-
-    total_tick: int = Field(18 * 60 * 60)
-    """Total number of ticks in one day"""
 
     weather: str = Field(default="The weather is sunny")
     """Current weather condition in the environment"""
@@ -141,6 +138,7 @@ class Environment:
         """lock for simulator"""
 
         self._tick = 0
+        """number of simulated ticks"""
 
         self._init_citizen_ids = citizen_ids
         self._init_firm_ids = firm_ids
@@ -326,10 +324,9 @@ class Environment:
         """
 
         tick = self._tick
-        day = tick // (self._environment_config.total_tick)
+        day = (tick + self._environment_config.start_tick) // (24 * 60 * 60)
         time = (
-            tick % (self._environment_config.total_tick)
-            + self._environment_config.start_tick
+            (tick + self._environment_config.start_tick) % (24 * 60 * 60)
         )
         if format_time:
             hours = time // 3600

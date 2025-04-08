@@ -65,6 +65,10 @@ class NBSAgent(NBSAgentBase):
         self.productivity_per_labor = 1
         self.price = 1
 
+    async def reset(self):
+        """Reset the NBSAgent."""
+        pass
+
     async def month_trigger(self):
         """Check if a monthly cycle should be triggered based on simulation time.
 

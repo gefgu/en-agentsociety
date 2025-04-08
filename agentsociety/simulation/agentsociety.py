@@ -802,6 +802,18 @@ class AgentSociety:
             worker: ray.ObjectRef = self._pgsql_writers[0]
             await worker.write_global_prompt.remote(prompt_info)  # type:ignore
 
+    async def next_round(self):
+        """
+        Proceed to the next round of the simulation.
+        """
+        get_logger().info("Start entering the next round of the simulation")
+        tasks = []
+        for group in self._groups.values():
+            tasks.append(group.reset.remote())  # type:ignore
+        await asyncio.gather(*tasks)
+        await self.environment.step(1)
+        get_logger().info("Finished entering the next round of the simulation")
+
     async def step(self, num_environment_ticks: int = 1) -> Logs:
         """
         Execute one step of the simulation where each agent performs its forward action.
@@ -834,6 +846,7 @@ class AgentSociety:
             for group in self._groups.values():
                 tasks.append(group.step.remote(tick))  # type:ignore
             logs: list[Logs] = await asyncio.gather(*tasks)
+            get_logger().debug(f"({day}-{t}) Finished agent forward steps")
             # ======================
             # log the simulation results
             # ======================
@@ -868,6 +881,7 @@ class AgentSociety:
                 day=day,
                 t=t,
             )
+            get_logger().debug(f"({day}-{t}) Finished saving simulation results")
             # ======================
             # extract metrics
             # ======================
@@ -883,13 +897,13 @@ class AgentSociety:
 
                 if to_execute_metric:
                     await self.extract_metric(to_execute_metric)
-
+                get_logger().debug(f"({day}-{t}) Finished extracting metrics")
             # ======================
             # go to next step
             # ======================
             self._total_steps += 1
             await self.environment.step(num_environment_ticks)
-
+            get_logger().debug(f"({day}-{t}) Finished simulator sync")
             return all_logs
         except Exception as e:
             import traceback
@@ -953,9 +967,16 @@ class AgentSociety:
                         log = await self.step(step.ticks_per_step)
                         logs.append(log)
                 elif step.type == WorkflowType.RUN:
-                    for _ in range(step.days):
+                    days = int(step.days)
+                    remain = step.days - days
+                    for _ in range(days):
                         log = await self.run_one_day(step.ticks_per_step)
                         logs.append(log)
+                    if remain > 0.001:
+                        ticks_remain = int(remain * 24 * 60 * 60 / step.ticks_per_step)
+                        for _ in range(ticks_remain):
+                            log = await self.step(step.ticks_per_step)
+                            logs.append(log)
                 elif step.type == WorkflowType.INTERVIEW:
                     target_agents = step.target_agent
                     interview_message = step.interview_message
@@ -981,6 +1002,8 @@ class AgentSociety:
                     await self.send_intervention_message(
                         step.intervene_message, step.target_agent
                     )
+                elif step.type == WorkflowType.NEXT_ROUND:
+                    await self.next_round()
                 elif step.type == WorkflowType.INTERVENE:
                     get_logger().warning(
                         "MESSAGE_INTERVENE is not fully implemented yet, it can only influence the congnition of target agents"

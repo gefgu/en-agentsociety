@@ -156,7 +156,6 @@ config = Config(
         ],
         environment=EnvironmentConfig(
             start_tick=6 * 60 * 60,
-            total_tick=18 * 60 * 60,
         ),
     ),
 )

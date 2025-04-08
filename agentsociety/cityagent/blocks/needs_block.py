@@ -161,6 +161,12 @@ class NeedsBlock(Block):
         self._need_to_do = None
         self._need_to_do_checked = False
 
+    async def reset(self):
+        """Reset the needs block."""
+        self._need_to_do = None
+        self._need_to_do_checked = False
+        self.initialized = False
+
     async def initialize(self):
         """
         Initialize agent's satisfaction levels using profile data.

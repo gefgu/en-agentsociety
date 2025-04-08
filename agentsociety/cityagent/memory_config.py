@@ -181,11 +181,11 @@ def memory_config_societyagent(
         "bank_id": (int, sample_field_value(distributions, "bank_id"), False),
         "nbs_id": (int, sample_field_value(distributions, "nbs_id"), False),
         "dialog_queue": (deque(maxlen=3), [], False),
-        "firm_forward": (int, 0, False),  # TODO: what is this ??
-        "bank_forward": (int, 0, False),  # TODO: what is this ??
-        "nbs_forward": (int, 0, False),  # TODO: what is this ??
-        "government_forward": (int, 0, False),  # TODO: what is this ??
-        "forward": (int, 0, False),  # TODO: what is this ??
+        "firm_forward": (int, 0, False),
+        "bank_forward": (int, 0, False),
+        "nbs_forward": (int, 0, False),
+        "government_forward": (int, 0, False),
+        "forward": (int, 0, False),
         "depression": (float, 0.0, False),
         "ubi_opinion": (list, [], False),
         "working_experience": (list, [], False),
@@ -341,7 +341,7 @@ def memory_config_bank(
 
 def memory_config_nbs(
     distributions: dict[str, Distribution],
-) -> tuple[dict[str, MemoryT], dict[str, MemoryT], dict[str, Any]]:
+) -> tuple[dict[str, MemoryT], dict[str, Union[MemoryT, float]], dict[str, Any]]:
     EXTRA_ATTRIBUTES = {
         "type": (int, EconomyEntityType.NBS),
         # economy simulator
@@ -356,7 +356,6 @@ def memory_config_nbs(
         "consumption_currency": (dict, {}),
         "income_currency": (dict, {}),
         "locus_control": (dict, {}),
-        "currency": (float, 1e12),
         # other
         "firm_id": (int, 0),
         "bracket_cutoffs": (
@@ -370,4 +369,4 @@ def memory_config_nbs(
         "employees": (list, []),
         "forward_times": (int, 0),
     }
-    return EXTRA_ATTRIBUTES, {}, {}
+    return EXTRA_ATTRIBUTES, {"currency": 1e12}, {}

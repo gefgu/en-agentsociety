@@ -350,6 +350,11 @@ class Agent(ABC):
         return self.memory.stream
 
     @abstractmethod
+    async def reset(self):
+        """Reset the agent."""
+        raise NotImplementedError("This method should be implemented by subclasses")
+
+    @abstractmethod
     async def react_to_intervention(self, intervention_message: str):
         """
         React to an intervention.
