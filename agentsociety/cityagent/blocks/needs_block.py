@@ -499,7 +499,7 @@ class NeedsBlock(Block):
                         "social_satisfaction",
                     ]:
                         await self.memory.status.update(need_type, new_value)
-                        return
+                return
             except jsonc.JSONDecodeError:
                 get_logger().warning(
                     f"Evaluation response is not a valid JSON format: {response}"
