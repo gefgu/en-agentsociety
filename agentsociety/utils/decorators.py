@@ -1,6 +1,7 @@
 import functools
 import inspect
 import time
+import traceback
 
 from ..logger import get_logger
 
@@ -9,6 +10,8 @@ CALLING_STRING = 'function: `{func_name}` in "{file_path}", line {line_number}, 
 LOCK_CALLING_START_STRING = 'Start Lock - function: `{func_name}` in "{file_path}", line {line_number}, arguments: `{arguments}` start time: `{start_time}`'
 
 LOCK_CALLING_END_STRING = 'Release Lock - function: `{func_name}` in "{file_path}", line {line_number}, arguments: `{arguments}` end time: `{end_time}` output: `{output}`'
+
+LOCK_CALLING_EXCEPTION_STRING = 'Release Lock With Exception - function: `{func_name}` in "{file_path}", line {line_number}, arguments: `{arguments}` start time: `{start_time}` Exception: `{exception}`'
 
 __all__ = [
     "record_call_aio",
@@ -98,6 +101,10 @@ def lock_decorator(func):
     async def wrapper(self, *args, **kwargs):
         lock = self._lock
         await lock.acquire()
+        line_number = None
+        file_path = None
+        signature = None
+        start_time = None
         try:
             cur_frame = inspect.currentframe()
             assert cur_frame is not None
@@ -131,6 +138,19 @@ def lock_decorator(func):
                 )
             )
             return result
+        except Exception as e:
+            # traceback
+            exception_str = traceback.format_exc()
+            get_logger().debug(
+                LOCK_CALLING_EXCEPTION_STRING.format(
+                    func_name=func,
+                    line_number=line_number,
+                    file_path=file_path,
+                    arguments=signature,
+                    start_time=start_time,
+                    exception=exception_str,
+                )
+            )
         finally:
             lock.release()
 

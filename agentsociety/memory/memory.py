@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from collections import defaultdict
 from collections.abc import Callable, Sequence
 from copy import deepcopy
@@ -364,12 +363,12 @@ class StreamMemory:
         # Sort results by time (first by day, then by time)
         sorted_results = sorted(
             top_results,
-            key=lambda x: (x[2].get("day", 0), x[2].get("time", 0)),  
+            key=lambda x: (x[2].get("day", 0), x[2].get("time", 0)),
             reverse=True,
         )
 
         formatted_results = []
-        for content, score, metadata in sorted_results:  
+        for content, score, metadata in sorted_results:
             memory_tag = metadata.get("tag", "unknown")
             memory_day = metadata.get("day", "unknown")
             memory_time_seconds = metadata.get("time", "unknown")
@@ -623,7 +622,7 @@ class StatusMemory:
         if filter is not None:
             filter_dict.update(filter)
         top_results: list[tuple[str, Optional[float], dict]] = (
-            await self.faiss_query.similarity_search(  
+            await self.faiss_query.similarity_search(
                 query=query,
                 agent_id=self._agent_id,
                 k=top_k,
