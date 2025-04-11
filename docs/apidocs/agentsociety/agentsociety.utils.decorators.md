@@ -51,6 +51,10 @@
   - ```{autodoc2-docstring} agentsociety.utils.decorators.LOCK_CALLING_END_STRING
     :summary:
     ```
+* - {py:obj}`LOCK_CALLING_EXCEPTION_STRING <agentsociety.utils.decorators.LOCK_CALLING_EXCEPTION_STRING>`
+  - ```{autodoc2-docstring} agentsociety.utils.decorators.LOCK_CALLING_EXCEPTION_STRING
+    :summary:
+    ```
 * - {py:obj}`__all__ <agentsociety.utils.decorators.__all__>`
   - ```{autodoc2-docstring} agentsociety.utils.decorators.__all__
     :summary:
@@ -85,6 +89,16 @@
    'Release Lock - function: `{func_name}` in "{file_path}", line {line_number}, arguments: `{arguments}...'
 
 ```{autodoc2-docstring} agentsociety.utils.decorators.LOCK_CALLING_END_STRING
+```
+
+````
+
+````{py:data} LOCK_CALLING_EXCEPTION_STRING
+:canonical: agentsociety.utils.decorators.LOCK_CALLING_EXCEPTION_STRING
+:value: >
+   'Release Lock With Exception - function: `{func_name}` in "{file_path}", line {line_number}, argument...'
+
+```{autodoc2-docstring} agentsociety.utils.decorators.LOCK_CALLING_EXCEPTION_STRING
 ```
 
 ````

@@ -1,19 +1,18 @@
 import asyncio
-from enum import Enum
 import logging
 import os
 import random
 import time
+from enum import Enum
 from typing import Any, List, Optional, Tuple, Union, overload
 
 import jsonc
-from openai import NOT_GIVEN, APIConnectionError, AsyncOpenAI, NotGiven, OpenAIError
-from openai.types.chat import (
-    ChatCompletionToolParam,
-    ChatCompletionToolChoiceOptionParam,
-    completion_create_params,
-    ChatCompletionMessageParam,
-)
+from openai import (NOT_GIVEN, APIConnectionError, AsyncOpenAI, NotGiven,
+                    OpenAIError)
+from openai.types.chat import (ChatCompletionMessageParam,
+                               ChatCompletionToolChoiceOptionParam,
+                               ChatCompletionToolParam,
+                               completion_create_params)
 from pydantic import BaseModel, Field, field_serializer
 
 from ..logger import get_logger
@@ -106,6 +105,7 @@ class LLM:
         self._error_types = {
             "connection_error": 0,
             "openai_error": 0,
+            "timeout_error": 0,
             "other_error": 0,
         }
         self._aclients: List[Tuple[AsyncOpenAI, asyncio.Semaphore]] = []
@@ -326,19 +326,22 @@ class LLM:
             response = None
             async with semaphore:
                 try:
-                    response = await client.chat.completions.create(
-                        model=config.model,
-                        messages=dialog,
-                        response_format=response_format,
-                        temperature=temperature,
-                        max_tokens=max_tokens,
-                        top_p=top_p,
-                        frequency_penalty=frequency_penalty,
-                        presence_penalty=presence_penalty,
-                        stream=False,
+                    response = await asyncio.wait_for(
+                        fut=client.chat.completions.create(
+                            model=config.model,
+                            messages=dialog,
+                            response_format=response_format,
+                            temperature=temperature,
+                            max_tokens=max_tokens,
+                            top_p=top_p,
+                            frequency_penalty=frequency_penalty,
+                            presence_penalty=presence_penalty,
+                            stream=False,
+                            timeout=timeout,
+                            tools=tools,
+                            tool_choice=tool_choice,
+                        ),
                         timeout=timeout,
-                        tools=tools,
-                        tool_choice=tool_choice,
                     )
                     if response.usage is not None:
                         self._client_usage[self._current_client_index][
@@ -381,6 +384,16 @@ class LLM:
                     )
                     self._total_errors += 1
                     self._error_types["openai_error"] += 1
+                    if attempt < retries - 1:
+                        await asyncio.sleep(random.random() * 2**attempt)
+                    else:
+                        raise e
+                except asyncio.TimeoutError as e:
+                    get_logger().warning(
+                        f"TimeoutError: `{e}` for request {dialog} {tools} {tool_choice}. original response: `{response}`. Retry {attempt+1} of {retries}"
+                    )
+                    self._total_errors += 1
+                    self._error_types["timeout_error"] += 1
                     if attempt < retries - 1:
                         await asyncio.sleep(random.random() * 2**attempt)
                     else:
