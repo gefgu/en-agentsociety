@@ -9,6 +9,7 @@ from ..llm import LLM
 from ..memory import Memory
 from ..message import Messager
 from ..environment import Environment
+from ..logger import get_logger
 
 __all__ = ["FirmAgent"]
 
@@ -105,7 +106,7 @@ class FirmAgent(FirmAgentBase):
         """
         if await self.month_trigger():
             firm_id = self.id
-            print("firm forward")
+            get_logger().debug(f"Agent {self.id}: Start main workflow - firm forward")
             employees, total_demand, goods_consumption, inventory, skills, price = (
                 await self.environment.economy_client.get(
                     firm_id,
@@ -141,4 +142,4 @@ class FirmAgent(FirmAgentBase):
             )
             await self.environment.economy_client.update(firm_id, "demand", 0)
             await self.environment.economy_client.update(firm_id, "sales", 0)
-            print("firm forward end")
+            get_logger().debug(f"Agent {self.id}: Finished main workflow - firm forward")

@@ -10,6 +10,7 @@ from ..llm import LLM
 from ..memory import Memory
 from ..message import Messager
 from ..environment import Environment
+from ..logger import get_logger
 
 __all__ = ["NBSAgent"]
 
@@ -109,7 +110,7 @@ class NBSAgent(NBSAgentBase):
         """
         if await self.month_trigger():
             # TODO: fix bug here, what is the t_now ??
-            print("nbs forward")
+            get_logger().debug(f"Agent {self.id}: Start main workflow - nbs forward")
             t_now = str(self.environment.get_tick())
             nbs_id = self.id
             await self.environment.economy_client.calculate_real_gdp(nbs_id)
@@ -161,6 +162,6 @@ class NBSAgent(NBSAgentBase):
             await self.environment.economy_client.update(
                 nbs_id, "income_currency", {t_now: income_currency}, mode="merge"
             )
-            print("nbs forward end")
+            get_logger().debug(f"Agent {self.id}: Finished main workflow - nbs forward")
             self.forward_times += 1
             await self.memory.status.update("forward_times", self.forward_times)

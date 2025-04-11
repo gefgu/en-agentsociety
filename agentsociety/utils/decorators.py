@@ -151,6 +151,7 @@ def lock_decorator(func):
                     exception=exception_str,
                 )
             )
+            raise e
         finally:
             lock.release()
 

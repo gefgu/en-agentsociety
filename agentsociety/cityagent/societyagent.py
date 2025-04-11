@@ -287,18 +287,23 @@ class SocietyAgent(CitizenAgentBase):
         self.step_count += 1
         # sync agent status with simulator
         await self.update_motion()
+        get_logger().debug(f"Agent {self.id}: Finished main workflow - update motion")
 
         # check last step
         ifpass = await self.check_and_update_step()
         if not ifpass:
             return
+        get_logger().debug(f"Agent {self.id}: Finished main workflow - check and update step")
 
         # plan and action
         await self.plan_and_action_block.forward()
+        get_logger().debug(f"Agent {self.id}: Finished main workflow - plan and action")
 
         # cognition
         if self.enable_cognition:
             await self.mind_block.forward()
+        get_logger().debug(f"Agent {self.id}: Finished main workflow - cognition")
+        
         return time.time() - start_time
 
     async def check_and_update_step(self):
