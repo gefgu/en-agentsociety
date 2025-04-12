@@ -122,9 +122,11 @@ config = default(config)
 
 async def main():
     agentsociety = AgentSociety(config)
-    await agentsociety.init()
-    await agentsociety.run()
-    await agentsociety.close()
+    try:
+        await agentsociety.init()
+        await agentsociety.run()
+    finally:
+        await agentsociety.close()
     ray.shutdown()
 
 

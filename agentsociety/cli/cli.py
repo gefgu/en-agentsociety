@@ -279,9 +279,11 @@ def run(config: str, config_base64: str):
     society = AgentSociety(c)
 
     async def _run():
-        await society.init()
-        await society.run()
-        await society.close()
+        try:
+            await society.init()
+            await society.run()
+        finally:
+            await society.close()
 
     import asyncio
     asyncio.run(_run())

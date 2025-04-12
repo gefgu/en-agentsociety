@@ -407,7 +407,7 @@ class Agent(ABC):
         dialog.append({"role": "user", "content": survey_prompt})
 
         # Use LLM to generate a response
-        response = await self.llm.atext_request(dialog)  
+        response = await self.llm.atext_request(dialog)
 
         return response
 

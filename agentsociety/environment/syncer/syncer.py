@@ -40,7 +40,15 @@ class Syncer(sync_grpc.SyncServiceServicer):
     async def close(self) -> None:
         if self.server:
             await self.server.stop(1)
+            await self.server.wait_for_termination()
             self.server = None
+
+    def __del__(self):
+        if self.server:
+            # The final mechanism for shutting down the server to avoid a situation where it is impossible to exit
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(self.close())
+            loop.close()
 
     async def SetURL(
         self, request: sync_service.SetURLRequest, context: AioServicerContext

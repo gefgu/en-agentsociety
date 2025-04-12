@@ -100,7 +100,6 @@ config = Config(
         ],
         environment=EnvironmentConfig(
             start_tick=6 * 60 * 60,
-            total_tick=18 * 60 * 60,
         ),
         metric_extractors=[
             MetricExtractorConfig(
@@ -117,9 +116,11 @@ config = default(config)
 
 async def main():
     agentsociety = AgentSociety(config)
-    await agentsociety.init()
-    await agentsociety.run()
-    await agentsociety.close()
+    try:
+        await agentsociety.init()
+        await agentsociety.run()
+    finally:
+        await agentsociety.close()
     ray.shutdown()
 
 
