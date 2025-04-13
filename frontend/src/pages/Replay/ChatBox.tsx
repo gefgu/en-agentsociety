@@ -7,6 +7,7 @@ import React, { useContext, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { StoreContext } from './store';
 import { Model, Survey as SurveyUI } from 'survey-react-ui';
+import { fetchCustom } from '../../components/fetch';
 
 const roles: GetProp<typeof Bubble.List, 'roles'> = {
     self: {
@@ -58,7 +59,7 @@ export const ChatBox = observer(() => {
     const handleSelectSubmit = async () => {
         console.log('Selected UUID:', selectedSurveyID);
         // 进行其他操作
-        const res = await fetch(`/api/experiments/${store.expID}/agents/${agent?.id}/survey`, {
+        const res = await fetchCustom(`/api/experiments/${store.expID}/agents/${agent?.id}/survey`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ survey_id: selectedSurveyID }),
@@ -128,7 +129,7 @@ export const ChatBox = observer(() => {
                     if (agent === undefined) {
                         return;
                     }
-                    const res = await fetch(`/api/experiments/${store.expID}/agents/${agent.id}/dialog`, {
+                    const res = await fetchCustom(`/api/experiments/${store.expID}/agents/${agent.id}/dialog`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ content: content }),

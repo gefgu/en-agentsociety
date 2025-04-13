@@ -7,6 +7,7 @@ import { useForm } from 'antd/lib/form/Form';
 import { ExportOutlined } from '@ant-design/icons';
 import { Editor } from '../../../components/Editor';
 import { Survey } from '../../../components/type';
+import { fetchCustom } from '../../../components/fetch';
 
 interface EditingSurvey {
     id: string;
@@ -47,7 +48,7 @@ const SurveyTable = () => {
 
     const fetchSurveys = async () => {
         try {
-            const res = await fetch('/api/surveys');
+            const res = await fetchCustom('/api/surveys');
             if (!res.ok) {
                 // Read the error message as text
                 const errMessage = await res.text();
@@ -62,7 +63,7 @@ const SurveyTable = () => {
 
     const handleDelete = async (id) => {
         try {
-            const res = await fetch(`/api/surveys/${id}`, { method: 'DELETE' });
+            const res = await fetchCustom(`/api/surveys/${id}`, { method: 'DELETE' });
             if (!res.ok) {
                 // Read the error message as text
                 const errMessage = await res.text();
@@ -94,7 +95,7 @@ const SurveyTable = () => {
         console.log(editingSurvey);
         if (editingSurvey.id !== '') {
             try {
-                const res = await fetch(`/api/surveys/${editingSurvey.id}`, {
+                const res = await fetchCustom(`/api/surveys/${editingSurvey.id}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -117,7 +118,7 @@ const SurveyTable = () => {
             }
         } else {
             try {
-                const res = await fetch('/api/surveys', {
+                const res = await fetchCustom('/api/surveys', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

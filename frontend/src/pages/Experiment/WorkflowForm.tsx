@@ -7,32 +7,32 @@ import { WorkflowType, MetricType } from '../../utils/enums';
 const { TabPane } = Tabs;
 
 interface WorkflowFormProps {
-  value: Partial<ExpConfig>;
-  onChange: (value: Partial<ExpConfig>) => void;
+    value: { workflow: WorkflowStepConfig[] };
+    onChange: (value: { workflow: WorkflowStepConfig[] }) => void;
 }
 
 const WorkflowForm: React.FC<WorkflowFormProps> = ({ value, onChange }) => {
-  const [form] = Form.useForm();
+    const [form] = Form.useForm();
 
-  // Update parent component state when form values change
-  const handleValuesChange = (changedValues: any, allValues: any) => {
-    onChange(allValues);
-  };
+    // Update parent component state when form values change
+    const handleValuesChange = (changedValues: any, allValues: any) => {
+        onChange(allValues);
+    };
 
-  // Set initial values
-  React.useEffect(() => {
-    form.setFieldsValue(value);
-  }, [form, value]);
+    // Set initial values
+    React.useEffect(() => {
+        form.setFieldsValue(value);
+    }, [form, value]);
 
-  return (
-    <Form
-      form={form}
-      layout="vertical"
-      onValuesChange={handleValuesChange}
-      initialValues={value}
-    >
-      <Tabs defaultActiveKey="1">
-        {/* <TabPane tab="Basic Settings" key="1">
+    return (
+        <Form
+            form={form}
+            layout="vertical"
+            onValuesChange={handleValuesChange}
+            initialValues={value}
+        >
+            <Tabs defaultActiveKey="1">
+                {/* <TabPane tab="Basic Settings" key="1">
           <Card bordered={false}>
             <Form.Item
               name="name"
@@ -44,7 +44,7 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({ value, onChange }) => {
           </Card>
         </TabPane> */}
 
-        {/* <TabPane tab="Environment Settings" key="2">
+                {/* <TabPane tab="Environment Settings" key="2">
           <Card bordered={false}>
             <Form.Item
               name={['environment', 'weather']}
@@ -97,57 +97,56 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({ value, onChange }) => {
           </Card>
         </TabPane> */}
 
-        <TabPane tab="Workflow Steps" key="3">
-          <Card bordered={false}>
-            <Form.List
-              name="workflow"
-              // initialValue={[{
-              //   type: WorkflowType.RUN,
-              //   days: 1,
-              //   description: "Run simulation for 1 day"
-              // }]}
-            >
-              {(fields, { add, remove }) => (
-                <>
-                  {fields.map(({ key, name, ...restField }) => (
-                    <Card
-                      key={key}
-                      title={`Step ${name + 1}`}
-                      style={{ marginBottom: 16 }}
-                      extra={
-                        <Button
-                          type="text"
-                          danger
-                          icon={<MinusCircleOutlined />}
-                          onClick={() => remove(name)}
-                        />
-                      }
-                    >
-                      <Form.Item
-                        {...restField}
-                        name={[name, 'type']}
-                        label="Step Type"
-                        rules={[{ required: true, message: 'Please select step type' }]}
-                      >
-                        <Select
-                          placeholder="Select step type"
-                          options={[
-                            { value: WorkflowType.STEP, label: 'Step' },
-                            { value: WorkflowType.RUN, label: 'Run' }
-                          ]}
-                        />
-                      </Form.Item>
+                <TabPane tab="Workflow Steps" key="3">
+                    <Card bordered={false}>
+                        <Form.List
+                            name="workflow"
+                            initialValue={[{
+                                type: WorkflowType.RUN,
+                                days: 1,
+                                description: "Run simulation for 1 day"
+                            }]}
+                        >
+                            {(fields, { add, remove }) => (
+                                <>
+                                    {fields.map(({ key, name, ...restField }) => (
+                                        <Card
+                                            key={key}
+                                            title={`Step ${name + 1}`}
+                                            style={{ marginBottom: 16 }}
+                                            extra={
+                                                <Button
+                                                    type="text"
+                                                    danger
+                                                    icon={<MinusCircleOutlined />}
+                                                    onClick={() => remove(name)}
+                                                />
+                                            }
+                                        >
+                                            <Form.Item
+                                                {...restField}
+                                                name={[name, 'type']}
+                                                label="Step Type"
+                                                rules={[{ required: true, message: 'Please select step type' }]}
+                                            >
+                                                <Select
+                                                    placeholder="Select step type"
+                                                    options={[
+                                                        { value: WorkflowType.RUN, label: 'Run' }
+                                                    ]}
+                                                />
+                                            </Form.Item>
 
-                      <Form.Item
-                        {...restField}
-                        name={[name, 'times']}
-                        label="Times"
-                        rules={[{ required: true, message: 'Please enter number of times' }]}
-                      >
-                        <InputNumber min={1} style={{ width: '100%' }} />
-                      </Form.Item>
+                                            <Form.Item
+                                                {...restField}
+                                                name={[name, 'days']}
+                                                label="Days"
+                                                rules={[{ required: true, message: 'Please enter number of days' }]}
+                                            >
+                                                <InputNumber min={0} style={{ width: '100%' }} />
+                                            </Form.Item>
 
-                      {/* <Form.Item
+                                            {/* <Form.Item
                         {...restField}
                         name={[name, 'func']}
                         label="Function Name"
@@ -156,7 +155,7 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({ value, onChange }) => {
                         <Input placeholder="Enter function name" />
                       </Form.Item> */}
 
-                      {/* <Form.Item
+                                            {/* <Form.Item
                         {...restField}
                         name={[name, 'interview_message']}
                         label="Interview Message"
@@ -199,20 +198,20 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({ value, onChange }) => {
                       >
                         <Input placeholder="Enter step description" />
                       </Form.Item> */}
+                                        </Card>
+                                    ))}
+                                    <Form.Item>
+                                        <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                                            Add Workflow Step
+                                        </Button>
+                                    </Form.Item>
+                                </>
+                            )}
+                        </Form.List>
                     </Card>
-                  ))}
-                  <Form.Item>
-                    <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                      Add Workflow Step
-                    </Button>
-                  </Form.Item>
-                </>
-              )}
-            </Form.List>
-          </Card>
-        </TabPane>
+                </TabPane>
 
-        {/* <TabPane tab="Message Interception" key="4">
+                {/* <TabPane tab="Message Interception" key="4">
           <Card bordered={false}>
             <Form.Item
               name={['message_intercept', 'mode']}
@@ -348,9 +347,9 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({ value, onChange }) => {
             </Form.List>
           </Card>
         </TabPane> */}
-      </Tabs>
-    </Form>
-  );
+            </Tabs>
+        </Form>
+    );
 };
 
 export default WorkflowForm; 

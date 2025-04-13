@@ -102,6 +102,8 @@ class Experiment(Base):
 class ApiExperiment(BaseModel):
     """Experiment model for API"""
 
+    tenant_id: str
+    """Tenant ID"""
     id: uuid.UUID
     """Experiment ID"""
     name: str

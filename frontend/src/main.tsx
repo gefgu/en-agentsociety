@@ -13,7 +13,6 @@ import WorkflowList from './pages/Experiment/WorkflowList'
 import MapList from './pages/Experiment/MapList'
 import CreateExperiment from './pages/Experiment/CreateExperiment'
 import Home from './pages/Home'
-import storageService from './services/storageService'
 import enUS from 'antd/locale/en_US'
 
 const router = createBrowserRouter([
@@ -81,11 +80,6 @@ const theme: ThemeConfig = {
         }
     }
 };
-
-// 初始化示例数据
-storageService.initializeExampleData().catch(error => {
-    console.error('Failed to initialize example data:', error);
-});
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <ConfigProvider theme={theme} locale={enUS}>

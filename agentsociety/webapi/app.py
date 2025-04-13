@@ -4,9 +4,11 @@ from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, Optional
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request, Response, status
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -74,6 +76,9 @@ def create_app(
     app = FastAPI(
         title="AgentSociety WebUI API",
         lifespan=lifespan,
+        openapi_url="/api/openapi.json",
+        docs_url="/api/docs",
+        redoc_url="/api/redoc",
     )
 
     # https://stackoverflow.com/questions/75958222/can-i-return-400-error-instead-of-422-error
@@ -83,7 +88,16 @@ def create_app(
     ):
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content={"detail": exc.errors()},
+            content={"detail": jsonable_encoder(exc.errors())},
+        )
+
+    @app.exception_handler(ValidationError)
+    async def validation_pydantic_exception_handler(
+        request: Request, exc: ValidationError
+    ):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": jsonable_encoder(exc.errors())},
         )
 
     app.include_router(api_router)
@@ -106,6 +120,9 @@ def create_app(
         if not request.url.path.startswith("/api"):
             return FileResponse(frontend_path / "index.html")
         # change the exception to JSONResponse
-        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": jsonable_encoder(exc.detail)},
+        )
 
     return app
