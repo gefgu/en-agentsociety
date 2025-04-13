@@ -7,7 +7,7 @@ RUN npm config set registry https://registry.npmmirror.com
 COPY ./frontend/package.json ./frontend/package-lock.json ./
 RUN npm ci
 COPY ./frontend/ .
-RUN npm run build
+RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build
 
 # Stage 2: Copy the compiled frontend code to the python image
 FROM python:3.12-slim

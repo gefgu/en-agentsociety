@@ -41,7 +41,7 @@ const HomePage = () => {
                         <Col style={{
                             color: 'white'
                         }}>
-                            Release v1.3.0. Click here to view the release notes.
+                            Release v1.3. Click here to view the release notes.
                         </Col>
                     </Space>
                 </div>

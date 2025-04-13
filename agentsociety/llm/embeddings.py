@@ -42,7 +42,8 @@ class SentenceEmbedding(Embeddings):
             - `proxies`: Proxy settings for HTTP/HTTPS. Default is None.
         """
         import torch
-        from transformers import AutoModel, AutoTokenizer
+        from transformers.models.auto.modeling_auto import AutoModel
+        from transformers.models.auto.tokenization_auto import AutoTokenizer
 
         os.makedirs(cache_dir, exist_ok=True)
         self.tokenizer = AutoTokenizer.from_pretrained(

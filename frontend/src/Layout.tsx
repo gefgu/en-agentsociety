@@ -54,10 +54,12 @@ export default function RootLayout({
     return (
         <Layout>
             <Header ref={headerRef} style={headerStyle}>
-                <Flex gap='small' align='center'>
+                <Flex gap='small' align='center' style={{ width: '100%' }}>
                     <Link to="/" style={{ color: 'white', fontSize: '1.1rem' }}>AgentSociety</Link>
                     <Divider type="vertical" />
-                    <RootMenu selectedKey={homePage ? "" : selectedKey} style={menuStyle} />
+                    <div style={{ flex: 1 }}>
+                        <RootMenu selectedKey={homePage ? "" : selectedKey} style={menuStyle} />
+                    </div>
                 </Flex>
             </Header>
             <Content ref={contentRef} style={contentStyle}>

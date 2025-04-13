@@ -29,7 +29,7 @@ router = APIRouter(tags=["agent"])
 async def _find_started_experiment_by_id(
     request: Request, db: AsyncSession, exp_id: uuid.UUID
 ) -> Experiment:
-    tenant_id = request.app.state.get_tenant_id(request)
+    tenant_id = await request.app.state.get_tenant_id(request)
     stmt = select(Experiment).where(
         Experiment.tenant_id == tenant_id, Experiment.id == exp_id
     )
@@ -214,7 +214,7 @@ async def get_global_prompt_by_day_t(
     exp_id: uuid.UUID,
     day: Optional[int] = Query(None, description="the day for getting agent status"),
     t: Optional[float] = Query(None, description="the time for getting agent status"),
-) -> ApiResponseWrapper[ApiGlobalPrompt]:
+) -> ApiResponseWrapper[Optional[ApiGlobalPrompt]]:
     """Get global prompt by experiment ID, day and time"""
 
     async with request.app.state.get_db() as db:
@@ -231,9 +231,7 @@ async def get_global_prompt_by_day_t(
         stmt = select(table).where(table.c.day == day).where(table.c.t == t)
         row = (await db.execute(stmt)).first()
         if row is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Global prompt not found"
-            )
+            return ApiResponseWrapper(data=None)
         prompt = ApiGlobalPrompt(**{columns[i]: row[i] for i in range(len(columns))})
 
         return ApiResponseWrapper(data=prompt)

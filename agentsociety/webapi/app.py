@@ -1,7 +1,7 @@
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Awaitable, Callable, Dict, Optional
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
@@ -12,20 +12,26 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from .api import api_router
 from .models._base import Base
+from ..configs import EnvConfig
 
-__all__ = ["create_app"]
+__all__ = ["create_app", "empty_get_tenant_id"]
 
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_script_dir)
+
+
+async def empty_get_tenant_id(_: Request) -> str:
+    return ""
 
 
 def create_app(
     pg_dsn: str,
     mlflow_url: str,
     read_only: bool,
-    env: Dict[str, Any],
-    get_tenant_id: Callable[[Request], str] = lambda _: "",
+    env: EnvConfig,
+    get_tenant_id: Callable[[Request], Awaitable[str]] = empty_get_tenant_id,
     more_router: Optional[APIRouter] = None,
+    more_state: Dict[str, Any] = {},
     session_secret_key: str = "agentsociety-session",
 ):
 
@@ -55,6 +61,10 @@ def create_app(
 
         # Hook to get tenant_id
         app.state.get_tenant_id = get_tenant_id
+
+        # save more_state to app state
+        for k, v in more_state.items():
+            setattr(app.state, k, v)
 
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
@@ -95,6 +105,7 @@ def create_app(
     async def not_found_handler(request: Request, exc: HTTPException):
         if not request.url.path.startswith("/api"):
             return FileResponse(frontend_path / "index.html")
-        return exc
+        # change the exception to JSONResponse
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
     return app

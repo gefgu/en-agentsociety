@@ -197,7 +197,9 @@ export class ReplayStore {
             let prompt = undefined
             if (res.ok) {
                 const data = await res.json()
-                prompt = data.data.prompt
+                if (data.data !== undefined && data.data !== null) {
+                    prompt = data.data.prompt
+                }
             }
             runInAction(() => {
                 this.globalPrompt = prompt

@@ -49,8 +49,8 @@ const RootMenu = ({ selectedKey, style }: {
     ];
 
     const menuItems: MenuProps['items'] = [
-        { 
-            key: "/console", 
+        {
+            key: "/console",
             label: (
                 <Dropdown menu={{ items: experimentItems }} placement="bottomLeft" arrow>
                     <div>
@@ -67,13 +67,23 @@ const RootMenu = ({ selectedKey, style }: {
     menuItems.push({ key: "/Documentation", label: <Link to="https://agentsociety.readthedocs.io/en/latest/" rel="noopener noreferrer" target="_blank"><Space>Documentation</Space></Link> });
     menuItems.push({ key: "/Github", label: <Link to="https://github.com/tsinghua-fib-lab/agentsociety/" rel="noopener noreferrer" target="_blank"><Space>GitHub<GithubOutlined /></Space></Link> });
 
-    return <Menu
-        theme="dark"
-        mode="horizontal"
-        items={menuItems}
-        selectedKeys={[selectedKey]}
-        style={style}
-    />;
+    const menuStyle: React.CSSProperties = {
+        ...style,
+        display: 'flex',
+        width: '100%',
+    };
+
+    return (
+        <div style={{ display: 'flex', width: '100%' }}>
+            <Menu
+                theme="dark"
+                mode="horizontal"
+                items={menuItems}
+                selectedKeys={[selectedKey]}
+                style={menuStyle}
+            />
+        </div>
+    );
 };
 
 export default RootMenu;

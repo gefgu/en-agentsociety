@@ -22,7 +22,7 @@ async def list_survey(request: Request) -> ApiResponseWrapper[List[ApiSurvey]]:
 
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
-        tenant_id = request.app.state.get_tenant_id(request)
+        tenant_id = await request.app.state.get_tenant_id(request)
         stmt = select(Survey).where(Survey.tenant_id == tenant_id)
         results = await db.execute(stmt)
         db_surveys = [row[0] for row in results.all() if len(row) > 0]
@@ -36,7 +36,7 @@ async def get_survey(request: Request, id: uuid.UUID) -> ApiResponseWrapper[ApiS
 
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
-        tenant_id = request.app.state.get_tenant_id(request)
+        tenant_id = await request.app.state.get_tenant_id(request)
         stmt = select(Survey).where(Survey.tenant_id == tenant_id, Survey.id == id)
         result = await db.execute(stmt)
         row = result.first()
@@ -68,10 +68,10 @@ async def create_survey(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Server is in read-only mode"
         )
+    tenant_id = await request.app.state.get_tenant_id(request)
 
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
-        tenant_id = request.app.state.get_tenant_id(request)
         stmt = insert(Survey).values(
             tenant_id=tenant_id, name=survey.name, data=survey.data
         )
@@ -98,10 +98,10 @@ async def update_survey(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Server is in read-only mode"
         )
+    tenant_id = await request.app.state.get_tenant_id(request)
 
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
-        tenant_id = request.app.state.get_tenant_id(request)
         stmt = (
             update(Survey)
             .where(Survey.tenant_id == tenant_id, Survey.id == id)
@@ -118,10 +118,10 @@ async def delete_survey(request: Request, id: uuid.UUID):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Server is in read-only mode"
         )
+    tenant_id = await request.app.state.get_tenant_id(request)
 
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
-        tenant_id = request.app.state.get_tenant_id(request)
         stmt = delete(Survey).where(Survey.tenant_id == tenant_id, Survey.id == id)
         await db.execute(stmt)
         await db.commit()

@@ -1,29 +1,25 @@
+import csv
+import io
 import logging
 import uuid
-from typing import List, cast
-import csv
-import yaml
-import io
 import zipfile
-from fastapi import APIRouter, Form, HTTPException, status, Request
+from typing import List, cast
+
+import yaml
+from fastapi import APIRouter, Form, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import text, select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import ApiResponseWrapper
-from ..models.experiment import (
-    ApiExperiment,
-    ApiTime,
-    Experiment,
-    ExperimentStatus,
-)
 from ..models.agent import (
+    agent_dialog,
     agent_profile,
     agent_status,
     agent_survey,
-    agent_dialog,
     global_prompt,
 )
+from ..models.experiment import ApiExperiment, ApiTime, Experiment, ExperimentStatus
 
 __all__ = ["router"]
 
@@ -37,8 +33,12 @@ async def list_experiments(
     """List all experiments"""
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
-        tenant_id = request.app.state.get_tenant_id(request)
-        stmt = select(Experiment).where(Experiment.tenant_id == tenant_id).order_by(Experiment.created_at.desc())
+        tenant_id = await request.app.state.get_tenant_id(request)
+        stmt = (
+            select(Experiment)
+            .where(Experiment.tenant_id == tenant_id)
+            .order_by(Experiment.created_at.desc())
+        )
         results = await db.execute(stmt)
         db_experiments = [row[0] for row in results.all() if len(row) > 0]
         experiments = cast(List[ApiExperiment], db_experiments)
@@ -54,7 +54,7 @@ async def get_experiment_by_id(
 
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
-        tenant_id = request.app.state.get_tenant_id(request)
+        tenant_id = await request.app.state.get_tenant_id(request)
         stmt = select(Experiment).where(
             Experiment.tenant_id == tenant_id, Experiment.id == exp_id
         )
@@ -77,7 +77,7 @@ async def get_experiment_status_timeline_by_id(
 
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
-        tenant_id = request.app.state.get_tenant_id(request)
+        tenant_id = await request.app.state.get_tenant_id(request)
         stmt = select(Experiment).where(
             Experiment.tenant_id == tenant_id, Experiment.id == exp_id
         )
@@ -126,13 +126,13 @@ async def delete_experiment_by_id(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Server is in read-only mode"
         )
+    tenant_id = await request.app.state.get_tenant_id(request)
 
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
         try:
             # Start transaction
             async with db.begin():
-                tenant_id = request.app.state.get_tenant_id(request)
                 stmt = select(Experiment).where(
                     Experiment.tenant_id == tenant_id, Experiment.id == exp_id
                 )
@@ -188,7 +188,7 @@ async def export_experiment_data(
 
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
-        tenant_id = request.app.state.get_tenant_id(request)
+        tenant_id = await request.app.state.get_tenant_id(request)
 
         # Get experiment info
         stmt = select(Experiment).where(
