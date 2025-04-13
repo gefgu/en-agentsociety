@@ -120,7 +120,12 @@ async def update_llm_config(
                 config=config_data.config,
             )
         )
-        await db.execute(stmt)
+        res = await db.execute(stmt)
+        if res.rowcount == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="LLM configuration not found",
+            )
         await db.commit()
 
 
@@ -142,7 +147,12 @@ async def delete_llm_config(
         stmt = delete(LLMConfig).where(
             LLMConfig.tenant_id == tenant_id, LLMConfig.id == config_id
         )
-        await db.execute(stmt)
+        res = await db.execute(stmt)
+        if res.rowcount == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="LLM configuration not found",
+            )
         await db.commit()
 
 
@@ -244,7 +254,12 @@ async def update_map_config(
                 config=config_data.config,
             )
         )
-        await db.execute(stmt)
+        res = await db.execute(stmt)
+        if res.rowcount == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Map configuration not found",
+            )
         await db.commit()
 
 
@@ -266,7 +281,12 @@ async def delete_map_config(
         stmt = delete(MapConfig).where(
             MapConfig.tenant_id == tenant_id, MapConfig.id == config_id
         )
-        await db.execute(stmt)
+        res = await db.execute(stmt)
+        if res.rowcount == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Map configuration not found",
+            )
         await db.commit()
 
 
@@ -368,7 +388,12 @@ async def update_agent_config(
                 config=config_data.config,
             )
         )
-        await db.execute(stmt)
+        res = await db.execute(stmt)
+        if res.rowcount == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Agent configuration not found",
+            )
         await db.commit()
 
 
@@ -390,7 +415,12 @@ async def delete_agent_config(
         stmt = delete(AgentConfig).where(
             AgentConfig.tenant_id == tenant_id, AgentConfig.id == config_id
         )
-        await db.execute(stmt)
+        res = await db.execute(stmt)
+        if res.rowcount == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Agent configuration not found",
+            )
         await db.commit()
 
 
@@ -494,7 +524,12 @@ async def update_workflow_config(
                 config=config_data.config,
             )
         )
-        await db.execute(stmt)
+        res = await db.execute(stmt)
+        if res.rowcount == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Workflow configuration not found",
+            )
         await db.commit()
 
 
@@ -517,5 +552,10 @@ async def delete_workflow_config(
             WorkflowConfig.tenant_id == tenant_id,
             WorkflowConfig.id == config_id,
         )
-        await db.execute(stmt)
+        res = await db.execute(stmt)
+        if res.rowcount == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Workflow configuration not found",
+            )
         await db.commit()
