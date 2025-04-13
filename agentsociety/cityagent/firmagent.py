@@ -142,4 +142,6 @@ class FirmAgent(FirmAgentBase):
             )
             await self.environment.economy_client.update(firm_id, "demand", 0)
             await self.environment.economy_client.update(firm_id, "sales", 0)
-            get_logger().debug(f"Agent {self.id}: Finished main workflow - firm forward")
+            get_logger().debug(
+                f"Agent {self.id}: Finished main workflow - firm forward"
+            )

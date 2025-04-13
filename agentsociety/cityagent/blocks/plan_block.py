@@ -222,11 +222,11 @@ class PlanBlock(Block):
 
         response = await self.llm.atext_request(
             self.guidance_prompt.to_dialog(), response_format={"type": "json_object"}
-        )  # 
+        )  #
         retry = 3
         while retry > 0:
             try:
-                result = jsonc.loads(clean_json_response(response))  # 
+                result = jsonc.loads(clean_json_response(response))  #
                 if "selected_option" not in result or "evaluation" not in result:
                     raise ValueError("Invalid guidance selection format")
                 if (
@@ -290,7 +290,7 @@ class PlanBlock(Block):
         retry = 3
         while retry > 0:
             try:
-                result = jsonc.loads(clean_json_response(response))  # 
+                result = jsonc.loads(clean_json_response(response))  #
                 if (
                     "plan" not in result
                     or "target" not in result["plan"]

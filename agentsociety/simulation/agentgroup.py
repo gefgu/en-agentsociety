@@ -52,7 +52,7 @@ class AgentGroup:
                 ],
                 MemoryConfigGenerator,
                 int,
-                dict[str, Any]
+                dict[str, Any],
             ]
         ],
         environment_init: dict,
@@ -200,7 +200,13 @@ class AgentGroup:
             self._mlflow_client,
         )
         for agent_init in self._agent_inits:
-            id, agent_class, memory_config_generator, index_for_generator, param_config = agent_init
+            (
+                id,
+                agent_class,
+                memory_config_generator,
+                index_for_generator,
+                param_config,
+            ) = agent_init
             memory_dict = memory_config_generator.generate(index_for_generator)
             extra_attributes = memory_dict.get("extra_attributes", {})
             profile = memory_dict.get("profile", {})
@@ -411,7 +417,9 @@ class AgentGroup:
                 get_logger().error(f"Error dispatching message: {e}")
                 import traceback
 
-                get_logger().error(f"Error dispatching message: {traceback.format_exc()}")
+                get_logger().error(
+                    f"Error dispatching message: {traceback.format_exc()}"
+                )
             await asyncio.sleep(3)
 
     # ====================

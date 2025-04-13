@@ -11,6 +11,7 @@ from ..memory import Memory
 from ..message import Messager
 from ..environment import Environment
 from ..logger import get_logger
+
 __all__ = ["GovernmentAgent"]
 
 
@@ -91,7 +92,9 @@ class GovernmentAgent(GovernmentAgentBase):
     async def forward(self):
         """Execute the government's periodic tax collection and notification cycle."""
         if await self.month_trigger():
-            get_logger().debug(f"Agent {self.id}: Start main workflow - government forward")
+            get_logger().debug(
+                f"Agent {self.id}: Start main workflow - government forward"
+            )
             citizen_ids = await self.memory.status.get("citizen_ids")
             agents_forward = await self.gather_messages(citizen_ids, "forward")
             if not np.all(np.array(agents_forward) > self.forward_times):
@@ -114,4 +117,6 @@ class GovernmentAgent(GovernmentAgentBase):
                 await self.send_message_to_agent(
                     citizen_id, f"government_forward@{self.forward_times}", "economy"
                 )
-            get_logger().debug(f"Agent {self.id}: Finished main workflow - government forward")
+            get_logger().debug(
+                f"Agent {self.id}: Finished main workflow - government forward"
+            )

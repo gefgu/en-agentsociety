@@ -10,6 +10,7 @@ __all__ = [
     "StorageStatus",
 ]
 
+
 class StorageExpInfo(BaseModel):
     tenant_id: str
     id: str
@@ -24,6 +25,7 @@ class StorageExpInfo(BaseModel):
     output_tokens: int
     created_at: datetime
     updated_at: datetime
+
 
 class StorageSurvey(BaseModel):
     id: int

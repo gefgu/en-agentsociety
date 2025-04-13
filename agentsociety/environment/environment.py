@@ -325,9 +325,7 @@ class Environment:
 
         tick = self._tick
         day = (tick + self._environment_config.start_tick) // (24 * 60 * 60)
-        time = (
-            (tick + self._environment_config.start_tick) % (24 * 60 * 60)
-        )
+        time = (tick + self._environment_config.start_tick) % (24 * 60 * 60)
         if format_time:
             hours = time // 3600
             minutes = (time % 3600) // 60
@@ -616,9 +614,7 @@ class EnvironmentStarter(Environment):
             with open(file_path, "wb") as f:
                 f.write(map_bytes)
 
-        config_base64 = encode_to_base64(
-            _generate_yaml_config(file_path)
-        )
+        config_base64 = encode_to_base64(_generate_yaml_config(file_path))
         os.environ["GOMAXPROCS"] = str(self._sim_config.max_process)
         self._server_addr = (
             self._sim_config.primary_node_ip.rstrip("/") + f":{sim_port}"

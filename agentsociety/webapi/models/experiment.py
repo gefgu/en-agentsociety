@@ -66,7 +66,7 @@ class Experiment(Base):
     def global_prompt_tablename(self):
         """Get global prompt table name"""
         return f"{TABLE_PREFIX}{str(self.id).replace('-', '_')}_global_prompt"
-    
+
     def to_dict(self):
         return {
             "id": str(self.id),

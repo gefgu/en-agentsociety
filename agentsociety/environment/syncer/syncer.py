@@ -12,6 +12,7 @@ from ...logger import get_logger
 
 __all__ = ["Syncer"]
 
+
 class Syncer(sync_grpc.SyncServiceServicer):
     def __init__(self, addr: str):
         """

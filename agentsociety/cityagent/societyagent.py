@@ -293,7 +293,9 @@ class SocietyAgent(CitizenAgentBase):
         ifpass = await self.check_and_update_step()
         if not ifpass:
             return
-        get_logger().debug(f"Agent {self.id}: Finished main workflow - check and update step")
+        get_logger().debug(
+            f"Agent {self.id}: Finished main workflow - check and update step"
+        )
 
         # plan and action
         await self.plan_and_action_block.forward()
@@ -303,7 +305,7 @@ class SocietyAgent(CitizenAgentBase):
         if self.enable_cognition:
             await self.mind_block.forward()
         get_logger().debug(f"Agent {self.id}: Finished main workflow - cognition")
-        
+
         return time.time() - start_time
 
     async def check_and_update_step(self):

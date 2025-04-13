@@ -198,7 +198,7 @@ class NeedsBlock(Block):
             response = await self.llm.atext_request(
                 self.initial_prompt.to_dialog(), response_format={"type": "json_object"}
             )
-            response = clean_json_response(response)  
+            response = clean_json_response(response)
             retry = 3
             while retry > 0:
                 try:
@@ -259,7 +259,7 @@ class NeedsBlock(Block):
             self.reflect_prompt.to_dialog(), response_format={"type": "json_object"}
         )
         try:
-            reflection = jsonc.loads(clean_json_response(response))  # 
+            reflection = jsonc.loads(clean_json_response(response))  #
             if "do_something" in reflection:
                 self._need_to_do = reflection["description"]
             else:
@@ -489,7 +489,7 @@ class NeedsBlock(Block):
                 response_format={"type": "json_object"},
             )
             try:
-                new_satisfaction = jsonc.loads(clean_json_response(response))  # 
+                new_satisfaction = jsonc.loads(clean_json_response(response))  #
                 # Update values of all needs
                 for need_type, new_value in new_satisfaction.items():
                     if need_type in [

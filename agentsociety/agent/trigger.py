@@ -186,7 +186,7 @@ class TimeTrigger(EventTrigger):
         super().initialize()  # First check for required components
         assert self.block is not None
         self.memory = self.block.memory
-        self.environment:Environment = self.block.environment
+        self.environment: Environment = self.block.environment
         # Start time monitoring task
         self._monitoring_task = asyncio.create_task(self._monitor_time())
         self._initialized = True

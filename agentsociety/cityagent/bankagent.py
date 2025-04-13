@@ -5,6 +5,7 @@ import numpy as np
 from ..agent import BankAgentBase, AgentToolbox
 from ..memory import Memory
 from ..logger import get_logger
+
 __all__ = ["BankAgent"]
 
 
@@ -173,4 +174,6 @@ class BankAgent(BankAgentBase):
             await self.environment.economy_client.update(
                 bank_id, "interest_rate", interest_rate
             )
-            get_logger().debug(f"Agent {self.id}: Finished main workflow - bank forward")
+            get_logger().debug(
+                f"Agent {self.id}: Finished main workflow - bank forward"
+            )

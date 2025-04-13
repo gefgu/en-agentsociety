@@ -181,7 +181,7 @@ class PlaceSelectionBlock(Block):
         self.radiusPrompt = FormatPrompt(RADIUS_PROMPT)
         self.search_limit = 50  # Default config value
 
-    async def forward(self, step, context):  
+    async def forward(self, step, context):
         """Execute the destination selection workflow"""
         # Stage 1: Select primary POI category
         poi_cate = self.environment.get_poi_cate()
@@ -197,11 +197,7 @@ class PlaceSelectionBlock(Block):
                 self.typeSelectionPrompt.to_dialog(),
                 response_format={"type": "json_object"},
             )
-            levelOneType = jsonc.loads(
-                clean_json_response(levelOneType)
-            )[  
-                "place_type"
-            ]
+            levelOneType = jsonc.loads(clean_json_response(levelOneType))["place_type"]
             sub_category = poi_cate[levelOneType]
         except Exception as e:
             get_logger().warning(f"Level 1 selection failed: {e}")
@@ -222,11 +218,7 @@ class PlaceSelectionBlock(Block):
                 self.secondTypeSelectionPrompt.to_dialog(),
                 response_format={"type": "json_object"},
             )
-            levelTwoType = jsonc.loads(
-                clean_json_response(levelTwoType)
-            )[  
-                "place_type"
-            ]
+            levelTwoType = jsonc.loads(clean_json_response(levelTwoType))["place_type"]
         except Exception as e:
             get_logger().warning(f"Level 2 selection failed: {e}")
             levelTwoType = random.choice(sub_category)
@@ -245,7 +237,7 @@ class PlaceSelectionBlock(Block):
             radius = await self.llm.atext_request(
                 self.radiusPrompt.to_dialog(), response_format={"type": "json_object"}
             )
-            radius = int(jsonc.loads(radius)["radius"])  
+            radius = int(jsonc.loads(radius)["radius"])
         except Exception as e:
             get_logger().warning(f"Radius selection failed: {e}")
             radius = 10000  # Default 10km
@@ -295,7 +287,7 @@ class MoveBlock(Block):
         )
         self.placeAnalysisPrompt = FormatPrompt(PLACE_ANALYSIS_PROMPT)
 
-    async def forward(self, step, context):  
+    async def forward(self, step, context):
         agent_id = await self.memory.status.get("id")
         place_knowledge = await self.memory.status.get("location_knowledge")
         known_places = list(place_knowledge.keys())
@@ -311,7 +303,7 @@ class MoveBlock(Block):
             response_format={"type": "json_object"},
         )  #
         try:
-            response = clean_json_response(response)  
+            response = clean_json_response(response)
             response = jsonc.loads(response)["place_type"]
         except Exception as e:
             get_logger().warning(
@@ -435,7 +427,7 @@ class MoveBlock(Block):
                         r_poi = random.choice(r_aoi["poi_ids"])
                         break
                 poi = self.environment.map.get_poi(r_poi)
-                next_place = (poi["name"], poi["aoi_id"])  
+                next_place = (poi["name"], poi["aoi_id"])
                 await self.environment.set_aoi_schedules(
                     person_id=agent_id,
                     target_positions=next_place[1],
@@ -507,7 +499,7 @@ class MobilityBlock(Block):
             [self.place_selection_block, self.move_block, self.mobility_none_block]
         )
 
-    async def forward(self, step, context):  
+    async def forward(self, step, context):
         """Main entry point - delegates to sub-blocks"""
         self.trigger_time += 1
         # Select the appropriate sub-block using dispatcher

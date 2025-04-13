@@ -99,7 +99,7 @@ class WorkflowStepConfig(BaseModel):
         if func is None:
             return None
         # Handle partial function
-        if hasattr(func, 'func'):
+        if hasattr(func, "func"):
             return func.func.__name__
         return func.__name__
 
@@ -216,7 +216,7 @@ class MetricExtractorConfig(BaseModel):
         if func is None:
             return None
         # Handle partial function
-        if hasattr(func, 'func'):
+        if hasattr(func, "func"):
             return func.func.__name__
         return func.__name__
 

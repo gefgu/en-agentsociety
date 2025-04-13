@@ -90,7 +90,9 @@ class Agent(ABC):
         self._last_asyncio_pg_task = None  # Hide SQL writes behind computational tasks
 
     async def init(self):
-        await self._memory.status.update("id", self._id, protect_llm_read_only_fields=False)
+        await self._memory.status.update(
+            "id", self._id, protect_llm_read_only_fields=False
+        )
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -145,8 +147,8 @@ class Agent(ABC):
                 result["blocks"].append(
                     {
                         "name": attr_name,
-                        "config": block_config[0],  
-                        "description": block_config[1],  
+                        "config": block_config[0],
+                        "description": block_config[1],
                         "children": cls._export_subblocks(attr_type),
                     }
                 )
@@ -162,8 +164,8 @@ class Agent(ABC):
                 children.append(
                     {
                         "name": attr_name,
-                        "config": block_config[0],  
-                        "description": block_config[1],  
+                        "config": block_config[0],
+                        "description": block_config[1],
                         "children": cls._export_subblocks(attr_type),
                     }
                 )
@@ -259,7 +261,7 @@ class Agent(ABC):
 
         for block_data in config.get("blocks", []):
             block_name = block_data["name"]
-            existing_block = getattr(self, block_name, None)  
+            existing_block = getattr(self, block_name, None)
 
             if existing_block:
                 existing_block.load_from_config(block_data)
@@ -492,9 +494,9 @@ class Agent(ABC):
         dialog.append({"role": "user", "content": question})
 
         # Use LLM to generate a response
-        response = await self.llm.atext_request(dialog)  
+        response = await self.llm.atext_request(dialog)
 
-        return response  
+        return response
 
     async def _process_interview(self, payload: dict):
         """

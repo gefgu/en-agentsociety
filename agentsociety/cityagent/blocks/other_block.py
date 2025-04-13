@@ -28,7 +28,7 @@ class SleepBlock(Block):
         )
         self.guidance_prompt = FormatPrompt(template=TIME_ESTIMATE_PROMPT)
 
-    async def forward(self, step, context):  
+    async def forward(self, step, context):
         """Execute sleep action and estimate time consumption using LLM.
 
         Args:
@@ -46,7 +46,7 @@ class SleepBlock(Block):
         result = await self.llm.atext_request(
             self.guidance_prompt.to_dialog(), response_format={"type": "json_object"}
         )
-        result = clean_json_response(result)  
+        result = clean_json_response(result)
         node_id = await self.memory.stream.add_other(description=f"I slept")
         try:
             result = jsonc.loads(result)
@@ -85,7 +85,7 @@ class OtherNoneBlock(Block):
         )
         self.guidance_prompt = FormatPrompt(template=TIME_ESTIMATE_PROMPT)
 
-    async def forward(self, step, context):  
+    async def forward(self, step, context):
         self.guidance_prompt.format(
             plan=context["plan"],
             intention=step["intention"],
@@ -94,7 +94,7 @@ class OtherNoneBlock(Block):
         result = await self.llm.atext_request(
             self.guidance_prompt.to_dialog(), response_format={"type": "json_object"}
         )
-        result = clean_json_response(result)  
+        result = clean_json_response(result)
         node_id = await self.memory.stream.add_other(
             description=f"I {step['intention']}"
         )

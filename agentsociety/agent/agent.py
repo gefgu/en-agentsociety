@@ -134,7 +134,9 @@ class CitizenAgentBase(Agent):
                     k, v, mode="replace", protect_llm_read_only_fields=False
                 )
             except KeyError as e:
-                get_logger().debug(f"KeyError: {e} when updating motion of agent {self.id}")
+                get_logger().debug(
+                    f"KeyError: {e} when updating motion of agent {self.id}"
+                )
                 continue
 
     async def handle_gather_message(self, payload: dict):

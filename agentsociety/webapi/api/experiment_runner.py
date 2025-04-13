@@ -27,8 +27,7 @@ class ExperimentResponse(BaseModel):
 
 @router.post("/run-experiments", status_code=status.HTTP_200_OK)
 async def run_experiment(
-    request: Request,
-    config: Dict[str, Any]
+    request: Request, config: Dict[str, Any]
 ) -> ApiResponseWrapper[ExperimentResponse]:
     """Start a new experiment"""
     try:

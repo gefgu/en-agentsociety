@@ -7,12 +7,13 @@ from enum import Enum
 from typing import Any, List, Optional, Tuple, Union, overload
 
 import jsonc
-from openai import (NOT_GIVEN, APIConnectionError, AsyncOpenAI, NotGiven,
-                    OpenAIError)
-from openai.types.chat import (ChatCompletionMessageParam,
-                               ChatCompletionToolChoiceOptionParam,
-                               ChatCompletionToolParam,
-                               completion_create_params)
+from openai import NOT_GIVEN, APIConnectionError, AsyncOpenAI, NotGiven, OpenAIError
+from openai.types.chat import (
+    ChatCompletionMessageParam,
+    ChatCompletionToolChoiceOptionParam,
+    ChatCompletionToolParam,
+    completion_create_params,
+)
 from pydantic import BaseModel, Field, field_serializer
 
 from ..logger import get_logger
