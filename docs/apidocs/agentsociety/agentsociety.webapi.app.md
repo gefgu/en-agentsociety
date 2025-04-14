@@ -15,6 +15,10 @@
 :class: autosummary longtable
 :align: left
 
+* - {py:obj}`empty_get_tenant_id <agentsociety.webapi.app.empty_get_tenant_id>`
+  - ```{autodoc2-docstring} agentsociety.webapi.app.empty_get_tenant_id
+    :summary:
+    ```
 * - {py:obj}`create_app <agentsociety.webapi.app.create_app>`
   - ```{autodoc2-docstring} agentsociety.webapi.app.create_app
     :summary:
@@ -46,7 +50,7 @@
 ````{py:data} __all__
 :canonical: agentsociety.webapi.app.__all__
 :value: >
-   ['create_app']
+   ['create_app', 'empty_get_tenant_id']
 
 ```{autodoc2-docstring} agentsociety.webapi.app.__all__
 ```
@@ -73,7 +77,15 @@
 
 ````
 
-````{py:function} create_app(pg_dsn: str, mlflow_url: str, read_only: bool, env: typing.Dict[str, typing.Any], get_tenant_id: typing.Callable[[fastapi.Request], str] = lambda _: '', more_router: typing.Optional[fastapi.APIRouter] = None, session_secret_key: str = 'agentsociety-session')
+````{py:function} empty_get_tenant_id(_: fastapi.Request) -> str
+:canonical: agentsociety.webapi.app.empty_get_tenant_id
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.app.empty_get_tenant_id
+```
+````
+
+````{py:function} create_app(pg_dsn: str, mlflow_url: str, read_only: bool, env: agentsociety.configs.EnvConfig, get_tenant_id: typing.Callable[[fastapi.Request], typing.Awaitable[str]] = empty_get_tenant_id, more_router: typing.Optional[fastapi.APIRouter] = None, more_state: typing.Dict[str, typing.Any] = {}, session_secret_key: str = 'agentsociety-session')
 :canonical: agentsociety.webapi.app.create_app
 
 ```{autodoc2-docstring} agentsociety.webapi.app.create_app

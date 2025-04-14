@@ -338,6 +338,17 @@ Bases: {py:obj}`pydantic.BaseModel`
 ```{autodoc2-docstring} agentsociety.webapi.models.experiment.ApiExperiment.__init__
 ```
 
+````{py:attribute} tenant_id
+:canonical: agentsociety.webapi.models.experiment.ApiExperiment.tenant_id
+:type: str
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.models.experiment.ApiExperiment.tenant_id
+```
+
+````
+
 ````{py:attribute} id
 :canonical: agentsociety.webapi.models.experiment.ApiExperiment.id
 :type: uuid.UUID

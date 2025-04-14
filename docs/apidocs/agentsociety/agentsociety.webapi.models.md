@@ -13,6 +13,7 @@
 :titlesonly:
 :maxdepth: 1
 
+agentsociety.webapi.models.config
 agentsociety.webapi.models._base
 agentsociety.webapi.models.experiment
 agentsociety.webapi.models.survey

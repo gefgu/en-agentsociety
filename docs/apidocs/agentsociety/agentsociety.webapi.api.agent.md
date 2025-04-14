@@ -143,7 +143,7 @@
 ```
 ````
 
-````{py:function} get_global_prompt_by_day_t(request: fastapi.Request, exp_id: uuid.UUID, day: typing.Optional[int] = Query(None, description='the day for getting agent status'), t: typing.Optional[float] = Query(None, description='the time for getting agent status')) -> agentsociety.webapi.models.ApiResponseWrapper[agentsociety.webapi.models.agent.ApiGlobalPrompt]
+````{py:function} get_global_prompt_by_day_t(request: fastapi.Request, exp_id: uuid.UUID, day: typing.Optional[int] = Query(None, description='the day for getting agent status'), t: typing.Optional[float] = Query(None, description='the time for getting agent status')) -> agentsociety.webapi.models.ApiResponseWrapper[typing.Optional[agentsociety.webapi.models.agent.ApiGlobalPrompt]]
 :canonical: agentsociety.webapi.api.agent.get_global_prompt_by_day_t
 :async:
 

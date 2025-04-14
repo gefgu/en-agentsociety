@@ -66,6 +66,14 @@ Bases: {py:obj}`pycityproto.city.sync.v2.sync_service_pb2_grpc.SyncServiceServic
 
 ````
 
+````{py:method} __del__()
+:canonical: agentsociety.environment.syncer.syncer.Syncer.__del__
+
+```{autodoc2-docstring} agentsociety.environment.syncer.syncer.Syncer.__del__
+```
+
+````
+
 ````{py:method} SetURL(request: pycityproto.city.sync.v2.sync_service_pb2.SetURLRequest, context: grpc.aio.ServicerContext) -> pycityproto.city.sync.v2.sync_service_pb2.SetURLResponse
 :canonical: agentsociety.environment.syncer.syncer.Syncer.SetURL
 :async:

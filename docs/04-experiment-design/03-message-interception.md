@@ -29,6 +29,9 @@ class DoNothingListener(MessageBlockListenerBase):
     async def forward(self, msg: Any):
         # Do nothing
         pass
+    async def reset(self):
+        # Do nothing
+        pass
 
 ```
 

@@ -13,6 +13,7 @@
 :titlesonly:
 :maxdepth: 1
 
+agentsociety.webapi.api.config
 agentsociety.webapi.api.experiment
 agentsociety.webapi.api.survey
 agentsociety.webapi.api.mlflow

@@ -16,16 +16,11 @@ import ray
 
 from agentsociety.agent import CitizenAgentBase
 from agentsociety.agent.agent_base import AgentToolbox
-from agentsociety.cityagent import default
 from agentsociety.memory import Memory
 from agentsociety.simulation import AgentSociety
-from agentsociety.tools import ExportMlflowMetrics
-from agentsociety.tools.tool import UpdateWithSimulator
 
 
 class CustomAgent(CitizenAgentBase):
-    export_metric = ExportMlflowMetrics()
-    update_with_sim = UpdateWithSimulator()
 
     def __init__(
         self,
@@ -42,8 +37,28 @@ class CustomAgent(CitizenAgentBase):
         )
 
     async def forward(self):
+        await self.update_motion()
         tick = self.environment.get_tick()
         print(f"CustomAgent forward at {tick}")
+
+    async def reset(self):
+        # You should implement your own reset logic here.
+        # For example, you can reset the position of the agent, as we return home at the end of each day.
+        # like we did in the `societyagent` file.
+        # """Reset the agent."""
+        # # reset position to home
+        # await self.reset_position()
+
+        # # reset needs
+        # await self.memory.status.update("current_need", "none")
+
+        # # reset plans and actions
+        # await self.memory.status.update("current_plan", {})
+        # await self.memory.status.update("execution_context", {})
+
+        # # reset initial flag
+        # await self.plan_and_action_block.reset()
+        pass
 
 
 config = Config(
@@ -93,7 +108,6 @@ A `Block` is a foundational component that encapsulates modular functionality, s
 ### Key Features
 
 - **Configurable Parameters**: Define adjustable fields through `configurable_fields`, `default_values`, and `fields_description`
-- **Tool Integration**: Built-in access to LLM, Memory, and Environment services
 - **Configuration Management**: Methods to export/import block configurations
 - **Hierarchical Design**: Support for nested blocks to build complex behaviors
 - **Event-Driven Control**: Optional trigger-based execution flow
@@ -135,8 +149,6 @@ from agentsociety.agent.block import Block
 from agentsociety.configs import Config
 from agentsociety.memory import Memory
 from agentsociety.simulation import AgentSociety
-from agentsociety.tools import ExportMlflowMetrics
-from agentsociety.tools.tool import UpdateWithSimulator
 
 
 class SecondCustomBlock(Block):
@@ -150,6 +162,11 @@ class SecondCustomBlock(Block):
 
     async def forward(self):
         return f"SecondCustomBlock forward!"
+
+    async def reset(self):
+        # Reset the block, if there is any state in the block.
+        # Based on your own logic.
+        pass
 
 
 class FirstCustomBlock(Block):
@@ -169,10 +186,13 @@ class FirstCustomBlock(Block):
         print(first_log)
         print(second_log)
 
+    async def reset(self):        
+        # Reset the block, if there is any state in the block.
+        # Based on your own logic.
+        pass
+
 
 class CustomAgent(CitizenAgentBase):
-    export_metric = ExportMlflowMetrics()
-    update_with_sim = UpdateWithSimulator()
     first_block: FirstCustomBlock
     second_block: SecondCustomBlock
 
@@ -195,6 +215,10 @@ class CustomAgent(CitizenAgentBase):
     async def forward(self):
         await self.first_block.forward()
         await self.second_block.forward()
+
+    async def reset(self):
+        # You should implement your own reset logic here.
+        pass
 
 config = Config(
     ...
@@ -226,35 +250,8 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 3. Using Tools in Your `Agent`
 
-Tools provide reusable functionality that can be automatically bound to `Agent` or `Block`.
-
-```python
-from agentsociety.tools import Tool
-
-
-class CustomTool(Tool):
-    async def __call__(
-        self,
-    ):
-        # Tool bound to agent
-        agent = self.agent
-        await agent.status.update("key", "value")
-        # # Tool bound to block
-        # block = self.block
-        # await block.memory.status.update("key", "value")
-
-
-class CustomAgent(Agent):
-    my_tool = CustomTool()  # Tool automatically binds to agent instance
-
-    async def forward(self):
-        await self.my_tool()  # Use the tool
-
-```
-
-## 4. Using Self-defined Agents in Your Experiment
+## 3. Using Self-defined Agents in Your Experiment
 
 Set your agent classes and their count with `AgentsConfig` in `Config`.
 

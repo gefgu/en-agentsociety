@@ -59,13 +59,9 @@ from agentsociety.message import MessageBlockListenerBase, RedisConfig
 from agentsociety.metrics import MlflowConfig
 from agentsociety.simulation import AgentSociety
 from agentsociety.storage import AvroConfig, PostgreSQLConfig
-from agentsociety.tools import ExportMlflowMetrics
-from agentsociety.tools.tool import UpdateWithSimulator
 
 
 class StreamTestAgent(CitizenAgentBase):
-    export_metric = ExportMlflowMetrics()
-    update_with_sim = UpdateWithSimulator()
 
     def __init__(
         self,
@@ -95,6 +91,10 @@ class StreamTestAgent(CitizenAgentBase):
         await stream.search(query="restaurant")
         # relevant search (within the same day, the time of the Urban Space)
         await stream.search_today(query="restaurant")
+
+    async def reset(self):
+        # Do nothing
+        pass
 
 
 config = Config(
@@ -220,8 +220,6 @@ from agentsociety.message import MessageBlockListenerBase, RedisConfig
 from agentsociety.metrics import MlflowConfig
 from agentsociety.simulation import AgentSociety
 from agentsociety.storage import AvroConfig, PostgreSQLConfig
-from agentsociety.tools import ExportMlflowMetrics
-from agentsociety.tools.tool import UpdateWithSimulator
 
 
 def withCityMemoryConfig(
@@ -242,8 +240,6 @@ def withCityMemoryConfig(
 
 
 class StatusTestAgent(CitizenAgentBase):
-    export_metric = ExportMlflowMetrics()
-    update_with_sim = UpdateWithSimulator()
 
     def __init__(
         self,
@@ -266,6 +262,10 @@ class StatusTestAgent(CitizenAgentBase):
         await status.update("city&time", f"Beijing&{tick}")
         # retrieve value
         print(await status.get("city&time", default_value="None"))
+
+    async def reset(self):
+        # Do nothing
+        pass
 
 
 config = Config(
