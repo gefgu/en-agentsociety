@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.3.4] - 2025-04-14
+
+### Added
+- Add docs for `reset` method in `Agent` and `Block`.
+
+### Changed
+- N/A
+
+### Deprecated
+- N/A
+
+### Fixed
+- N/A
+
 ## [1.3.3] - 2025-04-07
 
 ### Added
