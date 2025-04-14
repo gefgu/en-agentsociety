@@ -29,6 +29,18 @@
     ```
 ````
 
+### Functions
+
+````{list-table}
+:class: autosummary longtable
+:align: left
+
+* - {py:obj}`extract_json <agentsociety.agent.agent_base.extract_json>`
+  - ```{autodoc2-docstring} agentsociety.agent.agent_base.extract_json
+    :summary:
+    ```
+````
+
 ### Data
 
 ````{list-table}
@@ -174,6 +186,13 @@ Bases: {py:obj}`enum.Enum`
 ````
 
 `````
+
+````{py:function} extract_json(output_str)
+:canonical: agentsociety.agent.agent_base.extract_json
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.extract_json
+```
+````
 
 `````{py:class} Agent(id: int, name: str, type: agentsociety.agent.agent_base.AgentType, toolbox: agentsociety.agent.agent_base.AgentToolbox, memory: agentsociety.memory.Memory)
 :canonical: agentsociety.agent.agent_base.Agent

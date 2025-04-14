@@ -23,6 +23,7 @@ agentsociety.utils.parsers
 :maxdepth: 1
 
 agentsociety.utils.survey_util
+agentsociety.utils.llm
 agentsociety.utils.decorators
 ```
 

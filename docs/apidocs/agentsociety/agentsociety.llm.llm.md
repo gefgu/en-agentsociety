@@ -29,6 +29,22 @@
     ```
 ````
 
+### Functions
+
+````{list-table}
+:class: autosummary longtable
+:align: left
+
+* - {py:obj}`record_active_request <agentsociety.llm.llm.record_active_request>`
+  - ```{autodoc2-docstring} agentsociety.llm.llm.record_active_request
+    :summary:
+    ```
+* - {py:obj}`monitor_requests <agentsociety.llm.llm.monitor_requests>`
+  - ```{autodoc2-docstring} agentsociety.llm.llm.monitor_requests
+    :summary:
+    ```
+````
+
 ### Data
 
 ````{list-table}
@@ -46,7 +62,7 @@
 ````{py:data} __all__
 :canonical: agentsociety.llm.llm.__all__
 :value: >
-   ['LLM', 'LLMConfig']
+   ['LLM', 'LLMConfig', 'monitor_requests']
 
 ```{autodoc2-docstring} agentsociety.llm.llm.__all__
 ```
@@ -208,6 +224,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
+````{py:function} record_active_request(func: collections.abc.Callable)
+:canonical: agentsociety.llm.llm.record_active_request
+
+```{autodoc2-docstring} agentsociety.llm.llm.record_active_request
+```
+````
+
 `````{py:class} LLM(configs: typing.List[agentsociety.llm.llm.LLMConfig])
 :canonical: agentsociety.llm.llm.LLM
 
@@ -219,6 +242,14 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.llm.llm.LLM.__init__
 ```
+
+````{py:method} check_active_requests(timeout_threshold: float = 300)
+:canonical: agentsociety.llm.llm.LLM.check_active_requests
+
+```{autodoc2-docstring} agentsociety.llm.llm.LLM.check_active_requests
+```
+
+````
 
 ````{py:method} close()
 :canonical: agentsociety.llm.llm.LLM.close
@@ -295,3 +326,11 @@ Bases: {py:obj}`pydantic.BaseModel`
 ````
 
 `````
+
+````{py:function} monitor_requests(llm_instance: agentsociety.llm.llm.LLM, interval: float = 60, timeout_threshold: float = 300)
+:canonical: agentsociety.llm.llm.monitor_requests
+:async:
+
+```{autodoc2-docstring} agentsociety.llm.llm.monitor_requests
+```
+````

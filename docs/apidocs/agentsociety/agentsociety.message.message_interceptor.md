@@ -155,6 +155,24 @@ Bases: {py:obj}`abc.ABC`
 ```{autodoc2-docstring} agentsociety.message.message_interceptor.MessageInterceptor.__init__
 ```
 
+````{py:method} init()
+:canonical: agentsociety.message.message_interceptor.MessageInterceptor.init
+:async:
+
+```{autodoc2-docstring} agentsociety.message.message_interceptor.MessageInterceptor.init
+```
+
+````
+
+````{py:method} close()
+:canonical: agentsociety.message.message_interceptor.MessageInterceptor.close
+:async:
+
+```{autodoc2-docstring} agentsociety.message.message_interceptor.MessageInterceptor.close
+```
+
+````
+
 ````{py:property} llm
 :canonical: agentsociety.message.message_interceptor.MessageInterceptor.llm
 :type: agentsociety.llm.LLM

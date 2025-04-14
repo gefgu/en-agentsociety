@@ -175,6 +175,7 @@ class AgentSociety:
                 queue=queue,
                 black_set=set(),
             )
+            await self._message_interceptor.init.remote()  # type: ignore
             assert (
                 self._config.exp.message_intercept.listener is not None
             ), "listener is not set"
@@ -430,6 +431,12 @@ class AgentSociety:
             self._avro_saver.close()
             self._avro_saver = None
             get_logger().info(f"Avro saver closed")
+
+        if self._message_interceptor is not None:
+            get_logger().info(f"Closing message interceptor...")
+            await self._message_interceptor.close.remote()  # type: ignore
+            self._message_interceptor = None
+            get_logger().info(f"Message interceptor closed")
 
         if self._message_interceptor_listener is not None:
             get_logger().info(f"Closing message interceptor listener...")

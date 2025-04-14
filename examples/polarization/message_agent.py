@@ -97,7 +97,7 @@ class AgreeAgent(CitizenAgentBase):
             await asyncio.gather(*send_tasks)
             print("AgreeAgent forward end")
 
-    async def process_agent_chat_response(self, payload: dict) -> str:  
+    async def process_agent_chat_response(self, payload: dict) -> str:
         try:
             # Extract basic info
             sender_id = payload.get("from")
@@ -128,7 +128,7 @@ class AgreeAgent(CitizenAgentBase):
                     ensure_ascii=False,
                 )
                 await self.send_message_to_agent(sender_id, serialized_response)
-            return response  
+            return response
 
         except Exception as e:
             logger.warning(f"Error in process_agent_chat_response: {str(e)}")
@@ -163,7 +163,7 @@ class DisagreeAgent(CitizenAgentBase):
             self.last_time_trigger = now_time
             return True
         return False
-    
+
     async def react_to_intervention(self, intervention_message: str):
         pass
 
@@ -192,7 +192,7 @@ class DisagreeAgent(CitizenAgentBase):
             await asyncio.gather(*send_tasks)
             print("DisagreeAgent forward end")
 
-    async def process_agent_chat_response(self, payload: dict) -> str:  
+    async def process_agent_chat_response(self, payload: dict) -> str:
         try:
             # Extract basic info
             sender_id = payload.get("from")
@@ -223,7 +223,7 @@ class DisagreeAgent(CitizenAgentBase):
                     ensure_ascii=False,
                 )
                 await self.send_message_to_agent(sender_id, serialized_response)
-            return response  
+            return response
 
         except Exception as e:
             logger.warning(f"Error in process_agent_chat_response: {str(e)}")

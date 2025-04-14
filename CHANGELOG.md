@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.3.5] - 2025-04-14
+
+### Added
+- Add automatic monitoring of LLM requests, if a request is stuck for a long time, it will be logged.
+    - To use this feature, you need to set `logging_level` to `DEBUG` in `AdvancedConfig`.
+
+### Changed
+- N/A
+
+### Deprecated
+- N/A
+
+### Fixed
+- N/A
+
 ## [1.3.4] - 2025-04-14
 
 ### Added

@@ -9,7 +9,7 @@ from typing import Any, Optional, Union, TypeVar, Set
 import ray
 from ray.util.queue import Queue, Empty
 
-from ..llm import LLM, LLMConfig
+from ..llm import LLM, LLMConfig, monitor_requests
 from ..utils.decorators import lock_decorator
 from ..logger import get_logger
 
@@ -100,6 +100,12 @@ class MessageInterceptor:
         self._llm = LLM(llm_config)
         self._queue = queue
         self._lock = asyncio.Lock()
+
+    async def init(self):
+        asyncio.create_task(monitor_requests(self._llm))
+
+    async def close(self):
+        pass
 
     # Property accessors
     @property

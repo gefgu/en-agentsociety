@@ -37,7 +37,7 @@ agentsociety.llm.utils
 ````{py:data} __all__
 :canonical: agentsociety.llm.__all__
 :value: >
-   ['LLM', 'SentenceEmbedding', 'SimpleEmbedding', 'init_embedding', 'LLMConfig', 'LLMProviderType']
+   ['LLM', 'SentenceEmbedding', 'SimpleEmbedding', 'init_embedding', 'LLMConfig', 'LLMProviderType', 'm...
 
 ```{autodoc2-docstring} agentsociety.llm.__all__
 ```

@@ -17,7 +17,7 @@ from ..agent import (
 from ..agent.memory_config_generator import MemoryConfigGenerator
 from ..configs import Config
 from ..environment import Environment
-from ..llm import LLM, init_embedding
+from ..llm import LLM, init_embedding, monitor_requests
 from ..logger import get_logger, set_logger_level
 from ..memory import FaissQuery, Memory
 from ..message import Messager
@@ -146,6 +146,7 @@ class AgentGroup:
         # ====================
         get_logger().info(f"Initializing LLM client...")
         self._llm = LLM(self._config.llm)
+        asyncio.create_task(monitor_requests(self._llm))
         get_logger().info(f"LLM client initialized")
 
         # ====================

@@ -1,10 +1,13 @@
 import asyncio
+import inspect
 import logging
 import os
 import random
 import time
+from collections.abc import Callable
 from enum import Enum
 from typing import Any, List, Optional, Tuple, Union, overload
+from uuid import uuid4
 
 import jsonc
 from openai import NOT_GIVEN, APIConnectionError, AsyncOpenAI, NotGiven, OpenAIError
@@ -24,6 +27,7 @@ os.environ["GRPC_VERBOSITY"] = "ERROR"
 __all__ = [
     "LLM",
     "LLMConfig",
+    "monitor_requests",
 ]
 
 
@@ -73,6 +77,39 @@ class LLMConfig(BaseModel):
         return provider.value
 
 
+def record_active_request(func: Callable):
+    """
+    Decorator to record active requests.
+    """
+
+    async def wrapper(self, *args, **kwargs):
+        uuid = str(uuid4())
+        cur_frame = inspect.currentframe()
+        assert cur_frame is not None
+        frame = cur_frame.f_back
+        assert frame is not None
+        line_number = frame.f_lineno
+        file_path = frame.f_code.co_filename
+        args_repr = [repr(a) for a in args]
+        kwargs_repr = [f"{k}={v!r}" for k, v in kwargs.items()]
+        signature = ", ".join(args_repr + kwargs_repr)
+        async with self.active_requests_lock:
+            self._active_requests[uuid] = {
+                "start_time": time.time(),
+                "file_path": f'"{file_path}", line {line_number}',
+                "func": func.__name__,
+                "signature": signature,
+            }
+        try:
+            res = await func(self, *args, **kwargs)
+        finally:
+            async with self.active_requests_lock:
+                del self._active_requests[uuid]
+        return res
+
+    return wrapper
+
+
 class LLM:
     """
     Main class for the Large Language Model (LLM) object used by Agent(Soul).
@@ -111,6 +148,12 @@ class LLM:
         }
         self._aclients: List[Tuple[AsyncOpenAI, asyncio.Semaphore]] = []
         self._client_usage = []
+        # uuid -> {
+        #     "request": str,
+        #     "start_time": float,
+        # }
+        self._active_requests = {}  # if completed, remove from this dict
+        self.active_requests_lock = asyncio.Lock()
 
         for config in self.configs:
             api_key = config.api_key
@@ -142,6 +185,35 @@ class LLM:
                     "request_number": 0,
                 }
             )
+
+    def check_active_requests(self, timeout_threshold: float = 300):
+        """
+        Check all active requests and print those that have exceeded the timeout threshold.
+
+        - **Parameters**:
+            - `timeout_threshold`: Maximum allowed time (in seconds) for a request before it is considered "stuck".
+        """
+        current_time = time.time()
+        stuck_requests = []
+
+        for uuid, request_info in self._active_requests.items():
+            elapsed_time = current_time - request_info["start_time"]
+            if elapsed_time > timeout_threshold:
+                stuck_requests.append(
+                    {
+                        "uuid": uuid,
+                        "elapsed_time": elapsed_time,
+                        "func": request_info["func"],
+                        "file_path": request_info["file_path"],
+                        "signature": request_info["signature"],
+                    }
+                )
+        if stuck_requests:
+            for req in stuck_requests:
+                warning_msg = f"""WARNING: The following request may be stuck: Request UUID: {req['uuid']} Elapsed Time: {req['elapsed_time']:.2f} seconds Function: {req['func']} File Path: {req['file_path']} Signature: {req['signature']}"""
+                get_logger().debug(warning_msg)
+        else:
+            get_logger().debug("All LLM requests are running normally.")
 
     async def close(self):
         """Close the LLM instance."""
@@ -279,6 +351,7 @@ class LLM:
         tool_choice: ChatCompletionToolChoiceOptionParam = "auto",
     ) -> Any: ...
 
+    @record_active_request
     async def atext_request(
         self,
         dialog: list[ChatCompletionMessageParam],
@@ -431,6 +504,22 @@ class LLM:
             stats[f"{error_type}"] = count
 
         return stats
+
+
+async def monitor_requests(
+    llm_instance: LLM, interval: float = 60, timeout_threshold: float = 300
+):
+    """
+    Periodically monitor active requests to detect potential timeouts.
+
+    - **Parameters**:
+        - `llm_instance`: An instance of the LLM class.
+        - `interval`: Interval (in seconds) between checks.
+        - `timeout_threshold`: Maximum allowed time (in seconds) for a request.
+    """
+    while True:
+        await asyncio.sleep(interval)
+        llm_instance.check_active_requests(timeout_threshold=timeout_threshold)
 
 
 if __name__ == "__main__":
