@@ -6,13 +6,17 @@
 - Add docs for `reset` method in `Agent` and `Block`.
 
 ### Changed
-- N/A
+- Return 404 rather than 200 for empty delete/update.
+- Move webui config into database.
 
 ### Deprecated
 - N/A
 
 ### Fixed
-- N/A
+- Solve the problem of not being able to exit.
+- Fix raising error when from memory.
+- Enhance lock_decorator with exception logging for better error tracking.
+- Fix bug in `NeedsBlock`.
 
 ## [1.3.3] - 2025-04-07
 

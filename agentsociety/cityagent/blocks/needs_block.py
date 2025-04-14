@@ -241,7 +241,9 @@ class NeedsBlock(Block):
         if current_plan is None:
             return
         step_index = current_plan.get("index", 0)
-        current_action = current_plan.get("steps", [])[step_index]
+        current_action = current_plan.get("steps", [{"intention": "", "type": ""}])[
+            step_index
+        ]
         action_message = (
             f"{current_action['intention']} ({current_action['type']})"
             if current_action["intention"] != ""
