@@ -13,7 +13,8 @@
 - N/A
 
 ### Fixed
-- N/A
+- Fix bug in survey dispatching.
+- Fix bug in inconsistent schema when writing survey results to SQL.
 
 ## [1.3.4] - 2025-04-14
 
