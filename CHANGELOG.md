@@ -13,6 +13,7 @@
 
 ### Fixed
 - Refactor chat history gathering to handle grouped data structure across multiple files, ensuring consistent data format for agent interactions.
+- Fix the `from pyparsing import deque` error.
 
 
 ## [1.3.5] - 2025-04-14

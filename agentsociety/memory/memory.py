@@ -1,5 +1,5 @@
 import asyncio
-from collections import defaultdict
+from collections import defaultdict, deque
 from collections.abc import Callable, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
@@ -7,7 +7,6 @@ from enum import Enum
 from typing import Any, Dict, Literal, Optional, Union
 
 from langchain_core.embeddings import Embeddings
-from pyparsing import deque
 
 from ..environment import Environment
 from ..logger import get_logger
