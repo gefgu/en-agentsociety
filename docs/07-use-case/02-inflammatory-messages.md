@@ -115,7 +115,13 @@ Records both explicit interactions (chat histories) and implicit cognitive state
 async def gather_memory(simulation: AgentSociety):
     print("gather memory")
     citizen_ids = await simulation.filter(types=(SocietyAgent,))
-    chat_histories = await simulation.gather("chat_histories", citizen_ids)
+    group_chat_histories: list[dict[int, dict[str, str]]] = await simulation.gather(
+        "chat_histories", citizen_ids
+    )
+    chat_histories: dict[int, dict[str, str]] = {}
+    for group_history in group_chat_histories:
+        for agent_id in group_history.keys():
+            chat_histories[agent_id] = group_history[agent_id]
     memories = await simulation.gather("stream_memory", citizen_ids)
     with open(f"chat_histories.json", "w", encoding="utf-8") as f:
         json.dump(chat_histories, f, ensure_ascii=False, indent=2)

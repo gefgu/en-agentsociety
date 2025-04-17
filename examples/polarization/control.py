@@ -51,7 +51,13 @@ async def gather_attitude(simulation: AgentSociety):
     with open(f"exp1/attitudes_final.json", "w", encoding="utf-8") as f:
         json.dump(attitudes, f, ensure_ascii=False, indent=2)
 
-    chat_histories = await simulation.gather("chat_histories", citizen_ids)
+    group_chat_histories: list[dict[int, dict[str, str]]] = await simulation.gather(
+        "chat_histories", citizen_ids
+    )
+    chat_histories: dict[int, dict[str, str]] = {}
+    for group_history in group_chat_histories:
+        for agent_id in group_history.keys():
+            chat_histories[agent_id] = group_history[agent_id]
     with open(f"exp1/chat_histories.json", "w", encoding="utf-8") as f:
         json.dump(chat_histories, f, ensure_ascii=False, indent=2)
 

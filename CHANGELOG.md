@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.3.6] - 2025-04-17
+
+### Added
+- N/A
+
+### Changed
+- N/A
+
+### Deprecated
+- N/A
+
+### Fixed
+- Refactor chat history gathering to handle grouped data structure across multiple files, ensuring consistent data format for agent interactions.
+
+
 ## [1.3.5] - 2025-04-14
 
 ### Added

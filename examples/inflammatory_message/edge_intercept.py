@@ -7,20 +7,11 @@ import random
 import ray
 
 from agentsociety.cityagent import SocietyAgent, default
-from agentsociety.configs import (
-    AgentsConfig,
-    Config,
-    EnvConfig,
-    ExpConfig,
-    LLMConfig,
-    MapConfig,
-)
+from agentsociety.configs import (AgentsConfig, Config, EnvConfig, ExpConfig,
+                                  LLMConfig, MapConfig)
 from agentsociety.configs.agent import AgentClassType, AgentConfig
-from agentsociety.configs.exp import (
-    MessageInterceptConfig,
-    WorkflowStepConfig,
-    WorkflowType,
-)
+from agentsociety.configs.exp import (MessageInterceptConfig,
+                                      WorkflowStepConfig, WorkflowType)
 from agentsociety.environment import EnvironmentConfig
 from agentsociety.llm import LLMProviderType
 from agentsociety.message import RedisConfig
@@ -34,7 +25,13 @@ ray.init(logging_level=logging.INFO)
 async def gather_memory(simulation: AgentSociety):
     print("gather memory")
     citizen_uuids = await simulation.filter(types=(SocietyAgent,))
-    chat_histories = await simulation.gather("chat_histories", citizen_uuids)
+    group_chat_histories: list[dict[int, dict[str, str]]] = await simulation.gather(
+        "chat_histories", citizen_uuids
+    )
+    chat_histories: dict[int, dict[str, str]] = {}
+    for group_history in group_chat_histories:
+        for agent_id in group_history.keys():
+            chat_histories[agent_id] = group_history[agent_id]
     memories = await simulation.gather("stream_memory", citizen_uuids)
     with open(f"chat_histories.json", "w", encoding="utf-8") as f:
         json.dump(chat_histories, f, ensure_ascii=False, indent=2)
@@ -45,9 +42,15 @@ async def gather_memory(simulation: AgentSociety):
 async def update_chat_histories(simulation: AgentSociety):
     citizen_ids = await simulation.filter(types=(SocietyAgent,))
     selected_citizen_ids = random.sample(citizen_ids, k=3)
-    chat_histories = await simulation.gather("chat_histories", selected_citizen_ids)
+    group_chat_histories: list[dict[int, dict[str, str]]] = await simulation.gather(
+        "chat_histories", selected_citizen_ids
+    )
+    chat_histories: dict[int, dict[str, str]] = {}
+    for group_history in group_chat_histories:
+        for agent_id in group_history.keys():
+            chat_histories[agent_id] = group_history[agent_id]
     for agent in selected_citizen_ids:
-        chat_history = copy.deepcopy(chat_histories[0][agent])
+        chat_history = copy.deepcopy(chat_histories[agent])
         for chat in chat_history.keys():
             chat_history[
                 chat
