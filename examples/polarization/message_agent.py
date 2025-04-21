@@ -58,6 +58,13 @@ class AgreeAgent(CitizenAgentBase):
         self.last_time_trigger = None
         self.time_diff = 8 * 60 * 60
 
+    async def reset(self):
+        """Reset the AgreeAgent."""
+        pass
+
+    async def react_to_intervention(self, intervention_message: str):
+        pass
+
     async def trigger(self):
         day, time = self.environment.get_datetime()
         now_time = day * 24 * 60 * 60 + time
@@ -68,9 +75,6 @@ class AgreeAgent(CitizenAgentBase):
             self.last_time_trigger = now_time
             return True
         return False
-
-    async def react_to_intervention(self, intervention_message: str):
-        pass
 
     async def forward(self):
         # sync agent status with simulator
@@ -153,6 +157,13 @@ class DisagreeAgent(CitizenAgentBase):
         self.last_time_trigger = None
         self.time_diff = 8 * 60 * 60
 
+    async def reset(self):
+        """Reset the DisagreeAgent."""
+        pass
+
+    async def react_to_intervention(self, intervention_message: str):
+        pass
+
     async def trigger(self):
         day, time = self.environment.get_datetime()
         now_time = day * 24 * 60 * 60 + time
@@ -163,9 +174,7 @@ class DisagreeAgent(CitizenAgentBase):
             self.last_time_trigger = now_time
             return True
         return False
-
-    async def react_to_intervention(self, intervention_message: str):
-        pass
+    
 
     async def forward(self):
         # sync agent status with simulator
