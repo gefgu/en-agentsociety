@@ -7,13 +7,9 @@ from typing import Any, Callable, List, Optional, Union
 import jsonc
 import numpy as np
 
-from ..agent.distribution import (
-    ChoiceDistribution,
-    ConstantDistribution,
-    Distribution,
-    UniformIntDistribution,
-    sample_field_value,
-)
+from ..agent.distribution import (ChoiceDistribution, ConstantDistribution,
+                                  Distribution, UniformIntDistribution,
+                                  sample_field_value)
 from ..agent.memory_config_generator import MemoryT
 from ..environment.economy import EconomyEntityType
 

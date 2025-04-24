@@ -2,10 +2,10 @@
 
 import asyncio
 import os
+import tempfile
 from datetime import datetime
 from multiprocessing import cpu_count
 from subprocess import Popen
-import tempfile
 from typing import Any, Literal, Optional, Union, overload
 
 import yaml
@@ -18,7 +18,7 @@ from pyproj import Proj
 from shapely.geometry import Point
 
 from ..logger import get_logger
-from ..s3 import S3Config, S3Client
+from ..s3 import S3Client, S3Config
 from ..utils.decorators import log_execution_time
 from .economy.econ_client import EconomyClient
 from .mapdata import MapConfig, MapData
@@ -151,7 +151,7 @@ class Environment:
         self._city_client: Optional[CityClient] = None
         self._economy_client: Optional[EconomyClient] = None
 
-    def init(self):
+    def init(self) -> Any:
         assert self._server_addr is not None, "Server address not initialized"
         self._city_client = CityClient(self._server_addr)
         self._economy_client = EconomyClient(self._server_addr)
@@ -163,7 +163,7 @@ class Environment:
             government_ids=self._init_government_ids,
         )
 
-    def close(self):
+    def close(self) -> Any:
         """Close the Environment."""
         pass
 

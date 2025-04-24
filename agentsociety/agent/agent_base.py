@@ -841,7 +841,7 @@ class Agent(ABC):
 
     # Agent logic
     @abstractmethod
-    async def forward(self) -> None:
+    async def forward(self) -> Any:
         """
         Define the behavior logic of the agent.
 
@@ -854,7 +854,7 @@ class Agent(ABC):
         """
         raise NotImplementedError
 
-    async def run(self) -> None:
+    async def run(self) -> Any:
         """
         Unified entry point for executing the agent's logic.
 

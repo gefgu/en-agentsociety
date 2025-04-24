@@ -1,16 +1,10 @@
-import asyncio
-import logging
-from typing import Optional, cast
+from typing import Any
 
 import numpy as np
 
-from ..agent import NBSAgentBase, AgentToolbox
-from ..environment import EconomyClient
-from ..llm import LLM
-from ..memory import Memory
-from ..message import Messager
-from ..environment import Environment
+from ..agent import AgentToolbox, NBSAgentBase
 from ..logger import get_logger
+from ..memory import Memory
 
 __all__ = ["NBSAgent"]
 
@@ -85,17 +79,17 @@ class NBSAgent(NBSAgentBase):
             return True
         return False
 
-    async def gather_messages(self, agent_ids, content):
+    async def gather_messages(self, agent_ids: list[int], target: str) -> list[Any]:
         """Collect messages from specified agents and extract content.
 
         Args:
             agent_ids: List of agent identifiers to query
-            content: Message content field to retrieve
+            target: Message content field to retrieve
 
         Returns:
             List of message contents from target agents
         """
-        infos = await super().gather_messages(agent_ids, content)
+        infos = await super().gather_messages(agent_ids, target)
         return [info["content"] for info in infos]
 
     async def forward(self):

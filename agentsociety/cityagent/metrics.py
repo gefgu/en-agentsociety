@@ -1,5 +1,3 @@
-import pycityproto.city.economy.v2.economy_pb2 as economyv2
-
 from agentsociety.cityagent import SocietyAgent
 from agentsociety.simulation.agentsociety import AgentSociety
 

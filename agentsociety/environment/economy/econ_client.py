@@ -1110,98 +1110,64 @@ class EconomyClient:
         add_employee_ids: Optional[Union[list[int], list[list[int]]]] = None,
         remove_employee_ids: Optional[Union[list[int], list[list[int]]]] = None,
     ):
-        if not isinstance(firm_id, list):
-            if delta_price is not None:
-                assert isinstance(delta_price, float)
-            if delta_inventory is not None:
-                assert isinstance(delta_inventory, int)
-            if delta_demand is not None:
-                assert isinstance(delta_demand, float)
-            if delta_sales is not None:
-                assert isinstance(delta_sales, float)
-            if delta_currency is not None:
-                assert isinstance(delta_currency, float)
-            if add_employee_ids is not None:
-                assert isinstance(add_employee_ids, list)
-                assert all(isinstance(i, int) for i in add_employee_ids)
-            if remove_employee_ids is not None:
-                assert isinstance(remove_employee_ids, list)
-                assert all(isinstance(i, int) for i in remove_employee_ids)
-            await self._aio_stub.DeltaUpdateFirm(
-                org_service.DeltaUpdateFirmRequest(
-                    updates=[
-                        org_service.FirmDeltaUpdate(
-                            firm_id=firm_id,
-                            delta_price=delta_price,
-                            delta_inventory=delta_inventory,
-                            delta_demand=delta_demand,
-                            delta_sales=delta_sales,
-                            delta_currency=delta_currency,
-                            add_employees=add_employee_ids,
-                            remove_employees=remove_employee_ids,
-                        )
-                    ]
-                )
-            )
-        else:
-            if delta_price is None:
-                delta_prices = [None for _ in range(len(firm_id))]
-            else:
-                delta_prices = delta_price
-            if delta_inventory is None:
-                delta_inventories = [None for _ in range(len(firm_id))]
-            else:
-                delta_inventories = delta_inventory
-            if delta_demand is None:
-                delta_demands = [None for _ in range(len(firm_id))]
-            else:
-                delta_demands = delta_demand
-            if delta_sales is None:
-                delta_sales_s = [None for _ in range(len(firm_id))]
-            else:
-                delta_sales_s = delta_sales
-            if delta_currency is None:
-                delta_currencies = [None for _ in range(len(firm_id))]
-            else:
-                delta_currencies = delta_currency
-            if add_employee_ids is None:
-                add_employee_ids_s = [None for _ in range(len(firm_id))]
-            else:
-                add_employee_ids_s = add_employee_ids
-            if remove_employee_ids is None:
-                remove_employee_ids_s = [None for _ in range(len(firm_id))]
-            else:
-                remove_employee_ids_s = remove_employee_ids
-            if (
-                not len(firm_id)
-                == len(delta_prices)
-                == len(delta_inventories)
-                == len(delta_demands)
-                == len(delta_sales_s)
-                == len(delta_currencies)
-                == len(add_employee_ids_s)
-                == len(remove_employee_ids_s)
-            ):
+        """
+        Incrementally update one or more firms' properties.
+
+        Args:
+            firm_id: Single firm ID or list of firm IDs
+            delta_price: Change in price(s)
+            delta_inventory: Change in inventory level(s)
+            delta_demand: Change in demand level(s)
+            delta_sales: Change in sales amount(s)
+            delta_currency: Change in currency amount(s)
+            add_employee_ids: Employee IDs to add (single list or list of lists)
+            remove_employee_ids: Employee IDs to remove (single list or list of lists)
+        """
+        # Convert single firm_id to list for uniform processing
+        firm_ids = [firm_id] if isinstance(firm_id, int) else firm_id
+
+        # Prepare parameter lists with proper length
+        def prepare_param(param: Any, param_name: str) -> list[Any]:
+            if param is None:
+                return [None] * len(firm_ids)
+            if not isinstance(param, list):
+                return [param] * len(firm_ids)
+            if len(param) != len(firm_ids):
                 raise ValueError(
-                    f"Invalid input, the length of firm_id, delta_price, delta_inventory, delta_demand, delta_sales, delta_currency, add_employee_ids, remove_employee_ids must be the same!"
+                    f"Length of {param_name} ({len(param)}) must match length of firm_ids ({len(firm_ids)})"
                 )
-            await self._aio_stub.DeltaUpdateFirm(
-                org_service.DeltaUpdateFirmRequest(
-                    updates=[
-                        org_service.FirmDeltaUpdate(
-                            firm_id=firm_id[i],
-                            delta_price=delta_prices[i],
-                            delta_inventory=delta_inventories[i],
-                            delta_demand=delta_demands[i],
-                            delta_sales=delta_sales_s[i],
-                            delta_currency=delta_currencies[i],
-                            add_employees=add_employee_ids_s[i],
-                            remove_employees=remove_employee_ids_s[i],
-                        )
-                        for i in range(len(firm_id))
-                    ]
-                )
+            return param
+
+        # Prepare all parameters
+        delta_prices = prepare_param(delta_price, "delta_price")
+        delta_inventories = prepare_param(delta_inventory, "delta_inventory")
+        delta_demands = prepare_param(delta_demand, "delta_demand")
+        delta_sales_list = prepare_param(delta_sales, "delta_sales")
+        delta_currencies = prepare_param(delta_currency, "delta_currency")
+        add_employee_ids_list = prepare_param(add_employee_ids, "add_employee_ids")
+        remove_employee_ids_list = prepare_param(
+            remove_employee_ids, "remove_employee_ids"
+        )
+
+        # Create updates list
+        updates = []
+        for i in range(len(firm_ids)):
+            update = org_service.FirmDeltaUpdate(
+                firm_id=firm_ids[i],
+                delta_price=delta_prices[i],
+                delta_inventory=delta_inventories[i],
+                delta_demand=delta_demands[i],
+                delta_sales=delta_sales_list[i],
+                delta_currency=delta_currencies[i],
+                add_employees=add_employee_ids_list[i],
+                remove_employees=remove_employee_ids_list[i],
             )
+            updates.append(update)
+
+        # Send request
+        await self._aio_stub.DeltaUpdateFirm(
+            org_service.DeltaUpdateFirmRequest(updates=updates)
+        )
 
     @log_execution_time
     @lock_decorator
@@ -1214,74 +1180,54 @@ class EconomyClient:
         delta_consumption: Optional[Union[float, list[float]]] = None,
         delta_income: Optional[Union[float, list[float]]] = None,
     ):
-        if not isinstance(agent_id, list):
-            if new_firm_id is not None:
-                assert isinstance(new_firm_id, int)
-            if delta_currency is not None:
-                assert isinstance(delta_currency, float)
-            if delta_skill is not None:
-                assert isinstance(delta_skill, float)
-            if delta_consumption is not None:
-                assert isinstance(delta_consumption, float)
-            if delta_income is not None:
-                assert isinstance(delta_income, float)
-            await self._aio_stub.DeltaUpdateAgent(
-                org_service.DeltaUpdateAgentRequest(
-                    updates=[
-                        org_service.AgentDeltaUpdate(
-                            agent_id=agent_id,
-                            new_firm_id=new_firm_id,
-                            delta_currency=delta_currency,
-                            delta_skill=delta_skill,
-                            delta_consumption=delta_consumption,
-                            delta_income=delta_income,
-                        )
-                    ]
-                )
+        """Update agent attributes with delta values."""
+        # Convert single values to lists for uniform processing
+        agent_ids = [agent_id] if not isinstance(agent_id, list) else agent_id
+
+        # Handle each parameter consistently
+        new_firm_ids = self._prepare_parameter(new_firm_id, len(agent_ids))
+        delta_currencies = self._prepare_parameter(delta_currency, len(agent_ids))
+        delta_skills = self._prepare_parameter(delta_skill, len(agent_ids))
+        delta_consumptions = self._prepare_parameter(delta_consumption, len(agent_ids))
+        delta_incomes = self._prepare_parameter(delta_income, len(agent_ids))
+
+        # Validate all lists have the same length
+        param_lengths = [
+            len(agent_ids),
+            len(delta_currencies),
+            len(delta_skills),
+            len(delta_consumptions),
+            len(delta_incomes),
+        ]
+
+        if len(set(param_lengths)) > 1:
+            raise ValueError(
+                "Invalid input, the length of agent_id, delta_currency, delta_skill, "
+                "delta_consumption, delta_income must be the same!"
             )
-        else:
-            if new_firm_id is None:
-                new_firm_ids = [None for _ in range(len(agent_id))]
-            else:
-                new_firm_ids = new_firm_id
-            if delta_currency is None:
-                delta_currencies = [None for _ in range(len(agent_id))]
-            else:
-                delta_currencies = delta_currency
-            if delta_skill is None:
-                delta_skills = [None for _ in range(len(agent_id))]
-            else:
-                delta_skills = delta_skill
-            if delta_consumption is None:
-                delta_consumptions = [None for _ in range(len(agent_id))]
-            else:
-                delta_consumptions = delta_consumption
-            if delta_income is None:
-                delta_incomes = [None for _ in range(len(agent_id))]
-            else:
-                delta_incomes = delta_income
-            if (
-                not len(agent_id)
-                == len(delta_currencies)
-                == len(delta_skills)
-                == len(delta_consumptions)
-                == len(delta_incomes)
-            ):
-                raise ValueError(
-                    f"Invalid input, the length of agent_id, delta_currency, delta_skill, delta_consumption, delta_income must be the same!"
-                )
-            await self._aio_stub.DeltaUpdateAgent(
-                org_service.DeltaUpdateAgentRequest(
-                    updates=[
-                        org_service.AgentDeltaUpdate(
-                            agent_id=agent_id[i],
-                            new_firm_id=new_firm_ids[i],
-                            delta_currency=delta_currencies[i],
-                            delta_skill=delta_skills[i],
-                            delta_consumption=delta_consumptions[i],
-                            delta_income=delta_incomes[i],
-                        )
-                        for i in range(len(agent_id))
-                    ]
-                )
+
+        # Create updates list
+        updates = [
+            org_service.AgentDeltaUpdate(
+                agent_id=agent_ids[i],
+                new_firm_id=new_firm_ids[i],
+                delta_currency=delta_currencies[i],
+                delta_skill=delta_skills[i],
+                delta_consumption=delta_consumptions[i],
+                delta_income=delta_incomes[i],
             )
+            for i in range(len(agent_ids))
+        ]
+
+        # Send request
+        await self._aio_stub.DeltaUpdateAgent(
+            org_service.DeltaUpdateAgentRequest(updates=updates)
+        )
+
+    def _prepare_parameter(self, param: Any, length: int) -> list[Any]:
+        """Helper method to prepare parameters for batch processing."""
+        if param is None:
+            return [None] * length
+        elif not isinstance(param, list):
+            return [param] * length
+        return param

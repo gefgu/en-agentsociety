@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import random
-
+from typing import Any
 from pycityproto.city.person.v2 import person_pb2 as person_pb2
 
 from ..environment.sim.person_service import PersonService
@@ -335,7 +335,7 @@ class InstitutionAgentBase(Agent):
                 }
             )
 
-    async def gather_messages(self, agent_ids: list[int], target: str) -> list[dict]:
+    async def gather_messages(self, agent_ids: list[int], target: str) -> list[Any]:
         """
         Gather messages from multiple agents.
 
@@ -344,7 +344,7 @@ class InstitutionAgentBase(Agent):
             - `target` (`str`): The type of information to collect from each agent.
 
         - **Returns**:
-            - `list[dict]`: A list of dictionaries containing the collected responses.
+            - `list[Any]`: A list of collected responses.
 
         - **Description**:
             - For each agent ID provided, creates a `Future` object to wait for its response.
@@ -356,7 +356,7 @@ class InstitutionAgentBase(Agent):
         futures = {}
         for agent_id in agent_ids:
             futures[agent_id] = asyncio.Future()
-            self._gather_responses[agent_id] = futures[agent_id]  #
+            self._gather_responses[agent_id] = futures[agent_id]  
 
         # Send gather requests
         payload = {

@@ -2,9 +2,9 @@ from typing import cast
 
 import numpy as np
 
-from ..agent import BankAgentBase, AgentToolbox
-from ..memory import Memory
+from ..agent import AgentToolbox, BankAgentBase
 from ..logger import get_logger
+from ..memory import Memory
 
 __all__ = ["BankAgent"]
 
@@ -102,7 +102,7 @@ class BankAgent(BankAgentBase):
         """Reset the BankAgent."""
         pass
 
-    async def month_trigger(self):
+    async def month_trigger(self) -> bool:
         """
         Check if monthly policy update should be triggered.
 
@@ -121,14 +121,18 @@ class BankAgent(BankAgentBase):
             return True
         return False
 
-    async def gather_messages(self, agent_ids, content):
+    async def gather_messages(self, agent_ids: list[int], target: str) -> list[str]:
         """
         Collect messages from other agents.
 
-        Returns:
-            list: Message contents stripped of metadata
+        - **Args**:
+            - `agent_ids` (`list[int]`): A list of IDs for the target agents.
+            - `target` (`str`): The type of information to collect from each agent.
+
+        - **Returns**:
+            - `list[str]`: A list of collected responses.
         """
-        infos = await super().gather_messages(agent_ids, content)
+        infos = await super().gather_messages(agent_ids, target)
         return [info["content"] for info in infos]
 
     async def forward(self):

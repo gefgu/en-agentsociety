@@ -1,16 +1,15 @@
 import asyncio
 import logging
-from typing import Optional
+from typing import Any
 
 import numpy as np
 
-from ..agent import GovernmentAgentBase, AgentToolbox
-from ..environment import EconomyClient
+from ..agent import AgentToolbox, GovernmentAgentBase
+from ..environment import EconomyClient, Environment
 from ..llm import LLM
+from ..logger import get_logger
 from ..memory import Memory
 from ..message import Messager
-from ..environment import Environment
-from ..logger import get_logger
 
 __all__ = ["GovernmentAgent"]
 
@@ -75,18 +74,18 @@ class GovernmentAgent(GovernmentAgentBase):
             return True
         return False
 
-    async def gather_messages(self, agent_ids, content):
+    async def gather_messages(self, agent_ids: list[int], target: str) -> list[Any]:
         """
         Collect messages from specified agents filtered by content type.
 
         Args:
             agent_ids: List of agent IDs to gather messages from.
-            content: Message content type to filter (e.g., "forward", "income_currency").
+            target: Message content type to filter (e.g., "forward", "income_currency").
 
         Returns:
             List of message contents from the specified agents.
         """
-        infos = await super().gather_messages(agent_ids, content)
+        infos = await super().gather_messages(agent_ids, target)
         return [info["content"] for info in infos]
 
     async def forward(self):

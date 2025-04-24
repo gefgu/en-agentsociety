@@ -3,21 +3,13 @@ import time
 
 import jsonc
 
-from ..agent import Agent, CitizenAgentBase, AgentToolbox, Block
+from ..agent import Agent, AgentToolbox, Block, CitizenAgentBase
 from ..environment import Environment
 from ..llm import LLM
-from ..memory import Memory
-
 from ..logger import get_logger
-from .blocks import (
-    CognitionBlock,
-    EconomyBlock,
-    MobilityBlock,
-    NeedsBlock,
-    OtherBlock,
-    PlanBlock,
-    SocialBlock,
-)
+from ..memory import Memory
+from .blocks import (CognitionBlock, EconomyBlock, MobilityBlock, NeedsBlock,
+                     OtherBlock, PlanBlock, SocialBlock)
 from .blocks.economy_block import MonthPlanBlock
 
 
@@ -164,7 +156,7 @@ class PlanAndActionBlock(Block):
             await self.memory.status.update("current_plan", current_plan)
             await self.memory.status.update("execution_context", execution_context)
 
-    async def forward(self):
+    async def forward(self, step=None, context=None):
         # Long-term decision
         await self.month_plan_block.forward()
 
@@ -198,7 +190,7 @@ class MindBlock(Block):
             llm=self.llm, memory=self.memory, environment=self.environment
         )
 
-    async def forward(self):
+    async def forward(self, step=None, context=None):
         """Execute cognitive processing for emotion updates."""
         await self.cognition_block.forward()
 
