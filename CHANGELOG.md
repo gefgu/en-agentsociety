@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.3.7] - 2025-04-28
+
+### Added
+- N/A
+
+### Changed
+- Update wechat group QR code.
+
+### Deprecated
+- N/A
+
+### Fixed
+- N/A
+
+
 ## [1.3.6] - 2025-04-17
 
 ### Added
