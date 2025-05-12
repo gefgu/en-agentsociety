@@ -5,10 +5,13 @@ from collections.abc import Callable
 from enum import Enum
 from typing import Any, List, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
+import networkx as nx
+from pydantic import (BaseModel, ConfigDict, Field, field_serializer,
+                      model_validator)
 
 from ..environment import EnvironmentConfig
-from ..message.message_interceptor import MessageBlockBase, MessageBlockListenerBase
+from ..message.message_interceptor import (MessageBlockBase,
+                                           MessageBlockListenerBase)
 from ..survey import Survey
 
 __all__ = [
@@ -241,6 +244,15 @@ class MessageInterceptConfig(BaseModel):
 
     listener: Optional[type[MessageBlockListenerBase]] = None
     """Listener for message interception"""
+    
+    public_network: Optional[nx.Graph] = None
+    """Public network for message interception"""
+
+    private_network: Optional[nx.Graph] = None
+    """Private network for message interception"""
+    
+    forward_strategy: Literal["outer_control", "inner_control"] = "inner_control"
+    """Forward strategy for message interception"""
 
     # When serialize to json, change blocks and listener to their class name
 

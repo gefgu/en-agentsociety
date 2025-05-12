@@ -189,6 +189,7 @@ def memory_config_societyagent(
         "work_hour_finish": (float, 0, False),
         # social
         "friends": (list, [], False),  # friends list
+        "public_friends": (list, [], False),  # public friends list
         "relationships": (dict, {}, False),  # relationship strength with each friend
         "relation_types": (dict, {}, False),
         "chat_histories": (dict, {}, False),  # all chat histories

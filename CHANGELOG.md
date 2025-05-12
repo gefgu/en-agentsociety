@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.4.0a0] - 2025-05-12
+
+### Added
+- N/A
+
+### Changed
+- N/A
+
+### Deprecated
+- N/A
+
+### Fixed
+- N/A
+
 ## [1.3.7] - 2025-04-28
 
 ### Added

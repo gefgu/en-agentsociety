@@ -5,6 +5,7 @@ A clear version of the simulation.
 import asyncio
 import inspect
 import time
+import traceback
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Callable, Literal, Optional, cast
@@ -14,15 +15,11 @@ import ray.util.queue
 import yaml
 
 from ..agent import Agent
-from ..agent.distribution import Distribution, DistributionConfig, DistributionType
+from ..agent.distribution import (Distribution, DistributionConfig,
+                                  DistributionType)
 from ..agent.memory_config_generator import MemoryConfigGenerator
-from ..configs import (
-    AgentConfig,
-    Config,
-    MetricExtractorConfig,
-    MetricType,
-    WorkflowType,
-)
+from ..configs import (AgentConfig, Config, MetricExtractorConfig, MetricType,
+                       WorkflowType)
 from ..environment import EnvironmentStarter
 from ..logger import get_logger, set_logger_level
 from ..message import MessageInterceptor, Messager
@@ -173,6 +170,8 @@ class AgentSociety:
                 blocks=self._config.exp.message_intercept.blocks,  # type: ignore
                 llm_config=self._config.llm,
                 queue=queue,
+                public_network=self._config.exp.message_intercept.public_network,
+                private_network=self._config.exp.message_intercept.private_network,
                 black_set=set(),
             )
             await self._message_interceptor.init.remote()  # type: ignore
@@ -188,6 +187,7 @@ class AgentSociety:
         self._messager = Messager(
             config=self._config.env.redis,
             exp_id=self.exp_id,
+            message_interceptor=self._message_interceptor,
         )
         await self._messager.init()
         await self._messager.subscribe_and_start_listening(
@@ -906,6 +906,39 @@ class AgentSociety:
                     await self.extract_metric(to_execute_metric)
                 get_logger().debug(f"({day}-{t}) Finished extracting metrics")
             # ======================
+            # forward message
+            # ======================
+            message_intercept_config = self.config.exp.message_intercept
+            if message_intercept_config is not None:
+                if message_intercept_config.forward_strategy == "outer_control":
+                    interceptor = self._message_interceptor
+                    assert (
+                        interceptor is not None
+                    ), "Message interceptor must be set when using `outer_control` strategy"
+                    validation_dict = await interceptor.get_validation_dict.remote()  # type: ignore
+                    # TODO(yanjunbo): implement the logic of outer control
+                    validation_dict, blocked_agent_ids, blocked_social_edges = None, None, None  # type: ignore
+                    interceptor.update_blocked_agent_ids.remote(blocked_agent_ids)  # type: ignore
+                    interceptor.update_blocked_social_edges.remote(blocked_social_edges)  # type: ignore
+                    # TODO(yanjunbo): modify validation_dict based on blocked_agent_ids and blocked_social_edges
+                    message_tasks = [self.messager.forward(validation_dict)]
+                    message_tasks.extend(
+                        [
+                            group.forward_message.remote(validation_dict)  # type: ignore
+                            for group in self._groups.values()
+                        ]
+                    )
+                    await asyncio.gather(*message_tasks)
+            else:
+                message_tasks = [self.messager.forward()]
+                message_tasks.extend(
+                    [
+                        group.forward_message.remote(None)  # type: ignore
+                        for group in self._groups.values()
+                    ]
+                )
+                await asyncio.gather(*message_tasks)
+            # ======================
             # go to next step
             # ======================
             self._total_steps += 1
@@ -913,8 +946,6 @@ class AgentSociety:
             get_logger().debug(f"({day}-{t}) Finished simulator sync")
             return all_logs
         except Exception as e:
-            import traceback
-
             get_logger().error(f"Simulation error: {str(e)}\n{traceback.format_exc()}")
             raise RuntimeError(str(e)) from e
 
@@ -1026,8 +1057,6 @@ class AgentSociety:
                 else:
                     raise ValueError(f"Unknown workflow type: {step.type}")
         except Exception as e:
-            import traceback
-
             get_logger().error(f"Simulation error: {str(e)}\n{traceback.format_exc()}")
             self._exp_info.status = ExperimentStatus.ERROR.value
             self._exp_info.error = str(e)

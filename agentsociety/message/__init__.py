@@ -9,6 +9,7 @@ from .message_interceptor import (
     MessageBlockBase,
     MessageBlockListenerBase,
     MessageInterceptor,
+    MessageIdentifier,
 )
 from .messager import Messager, RedisConfig
 
@@ -18,4 +19,5 @@ __all__ = [
     "MessageBlockBase",
     "MessageBlockListenerBase",
     "MessageInterceptor",
+    "MessageIdentifier",
 ]

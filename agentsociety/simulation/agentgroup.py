@@ -5,22 +5,15 @@ from typing import Any, Optional, Union, cast
 import jsonc
 import ray
 
-from ..agent import (
-    Agent,
-    AgentToolbox,
-    BankAgentBase,
-    CitizenAgentBase,
-    FirmAgentBase,
-    GovernmentAgentBase,
-    NBSAgentBase,
-)
+from ..agent import (Agent, AgentToolbox, BankAgentBase, CitizenAgentBase,
+                     FirmAgentBase, GovernmentAgentBase, NBSAgentBase)
 from ..agent.memory_config_generator import MemoryConfigGenerator
 from ..configs import Config
 from ..environment import Environment
 from ..llm import LLM, init_embedding, monitor_requests
 from ..logger import get_logger, set_logger_level
 from ..memory import FaissQuery, Memory
-from ..message import Messager
+from ..message import Messager, MessageIdentifier
 from ..metrics import MlflowClient
 from ..storage import AvroSaver
 from ..storage.type import StorageProfile, StorageStatus
@@ -161,7 +154,9 @@ class AgentGroup:
         # Initialize messager
         # ====================
         get_logger().info(f"Initializing messager...")
-        self._messager = Messager(self._config.env.redis, self._exp_id)
+        self._messager = Messager(
+            self._config.env.redis, self._exp_id, self._message_interceptor
+        )
         await self._messager.init()
         get_logger().info(f"Messager initialized")
 
@@ -692,3 +687,8 @@ class AgentGroup:
                 if agent.id in target_agent_ids:
                     results[agent.id] = await agent.status.get(content)
         return results
+    async def forward_message(self, validation_dict: MessageIdentifier):
+        """
+        Forward the message to the channel if the message is valid.
+        """
+        await self.messager.forward(validation_dict)

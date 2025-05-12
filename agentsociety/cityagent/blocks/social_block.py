@@ -189,8 +189,10 @@ class FindPersonBlock(Block):
         """
         try:
             # Get friends list and relationship strength
-            friends = await self.memory.status.get("friends") or []
-            relationships = await self.memory.status.get("relationships") or {}
+            private_friends = await self.memory.status.get("friends", [])
+            public_friends = await self.memory.status.get("public_friends", [])
+            friends = private_friends + public_friends
+            relationships = await self.memory.status.get("relationships", {})
 
             if not friends:
                 node_id = await self.memory.stream.add_social(
@@ -250,7 +252,8 @@ class FindPersonBlock(Block):
 
                 # Convert index to ID
                 target = index_to_id[friend_index]
-                context["target"] = target
+                if context is not None:
+                    context["target"] = target
             except Exception as e:
                 # If parsing fails, select the friend with the strongest relationship as the default option
                 target = (
@@ -349,6 +352,7 @@ class MessageBlock(Block):
         Returns:
             Result dict with message content, target, and execution status.
         """
+        target = None
         try:
             # Get target from context or find one
             target = context.get("target") if context else None

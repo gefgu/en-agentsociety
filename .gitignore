@@ -1,12 +1,10 @@
 /avro
 .vscode/
 .env
-cache/
 .python-version
 .venv/
 wheelhouse/
 build/
-.venv/
 .python-version
 log/
 test*
