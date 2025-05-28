@@ -3,6 +3,7 @@ from typing import Any, Callable, Optional, Union, cast, List
 
 import jsonc
 from pydantic import BaseModel
+from ..s3 import S3Client, S3Config
 from .distribution import Distribution, DistributionConfig
 
 __all__ = [
@@ -45,6 +46,7 @@ class MemoryConfigGenerator:
         class_config: Optional[list[StatusAttribute]] = None,
         file: Optional[str] = None,
         distributions: dict[str, Union[Distribution, DistributionConfig]] = {},
+        s3config: S3Config = S3Config.model_validate({}),
     ):
         """
         Initialize the memory config generator.
@@ -53,12 +55,14 @@ class MemoryConfigGenerator:
             - `config_func` (Callable): The function to generate the memory configuration.
             - `file` (Optional[str]): The path to the file containing the memory configuration.
             - `distributions` (dict[str, Distribution]): The distributions to use for the memory configuration. Default is empty dict.
+            - `s3config` (S3Config): The S3 configuration.
         """
         self._memory_config_func = config_func
         self._class_config = class_config
         self._file_path = file
+        self._s3config = s3config
         if file is not None:
-            self._memory_data = _memory_config_load_file(file)
+            self._memory_data = _memory_config_load_file(file, s3config)
         else:
             self._memory_data = None
         distributions = copy.deepcopy(distributions)
@@ -123,12 +127,14 @@ class MemoryConfigGenerator:
             raise ValueError("No file was specified during initialization")
 
         if self._memory_data is None:
-            self._memory_data = _memory_config_load_file(self._file_path)
+            self._memory_data = _memory_config_load_file(
+                self._file_path, self._s3config
+            )
 
         return self._memory_data
 
 
-def _memory_config_load_file(file_path: str):
+def _memory_config_load_file(file_path: str, s3config: S3Config):
     """
     Loads the memory configuration from the given file.
     - **Description**:
@@ -146,10 +152,15 @@ def _memory_config_load_file(file_path: str):
     - **Raises**:
         - `ValueError`: If the file type is not supported.
     """
-    with open(file_path, "r") as f:
-        data_str = f.read()
-
     # Check file extension
+    if s3config.enabled:
+        s3client = S3Client(s3config)
+        data_bytes = s3client.download(file_path)
+        data_str = data_bytes.decode("utf-8")
+    else:
+        with open(file_path, "r") as f:
+            data_str = f.read()
+
     if file_path.endswith(".json"):
         memory_data = jsonc.loads(data_str)
         if not isinstance(memory_data, list):

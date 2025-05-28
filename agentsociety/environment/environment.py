@@ -20,6 +20,7 @@ from shapely.geometry import Point
 from agentsociety.message.messager import Messager
 
 from ..logger import get_logger
+from ..s3 import S3Client, S3Config
 from ..utils.decorators import log_execution_time
 from .economy.econ_client import EconomyClient
 from .mapdata import MapConfig, MapData
@@ -601,6 +602,7 @@ class EnvironmentStarter(Environment):
         map_config: MapConfig,
         simulator_config: SimulatorConfig,
         environment_config: EnvironmentConfig,
+        s3config: S3Config,
     ):
         """
         Environment config
@@ -613,7 +615,8 @@ class EnvironmentStarter(Environment):
         self._map_config = map_config
         self._environment_config = environment_config
         self._sim_config = simulator_config
-        mapdata = MapData(map_config)
+        self._s3config = s3config
+        mapdata = MapData(map_config, s3config)
 
         super().__init__(mapdata, None, environment_config)
 
@@ -653,7 +656,15 @@ class EnvironmentStarter(Environment):
         # init simulator
         # =========================
 
+        # if s3 enabled, download the map from s3
         file_path = self._map_config.file_path
+        if self._s3config.enabled:
+            client = S3Client(self._s3config)
+            map_bytes = client.download(self._map_config.file_path)
+            file_path = tempfile.mktemp()
+            with open(file_path, "wb") as f:
+                f.write(map_bytes)
+
         config_base64 = encode_to_base64(_generate_yaml_config(file_path))
         os.environ["GOMAXPROCS"] = str(self._sim_config.max_process)
         self._server_addr = (
@@ -686,6 +697,10 @@ class EnvironmentStarter(Environment):
         get_logger().info(
             f"start agentsociety-sim at {self._server_addr}, PID={self._sim_proc.pid}"
         )
+
+        # remove the temporary file
+        if self._s3config.enabled:
+            os.remove(file_path)
 
         super().init()
 

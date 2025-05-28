@@ -21,6 +21,7 @@ from sqlalchemy import delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...configs import EnvConfig
+from ...s3 import S3Client
 from ..models import ApiResponseWrapper
 from ..models.agent_profiles import AgentProfile
 from .const import DEMO_USER_ID
@@ -299,11 +300,11 @@ async def upload_agent_profile(
 
         # Generate a unique ID for the file
         file_id = str(uuid.uuid4())
-        path = f"agent_profiles/{tenant_id}/{file_id}.json"
+        s3_path = f"agent_profiles/{tenant_id}/{file_id}.json"
 
-        # Convert to JSON and upload
+        # Convert to JSON and upload to S3
         data_json = json.dumps(data)
-        fs_client.upload(data_json.encode("utf-8"), path)
+        fs_client.upload(data_json.encode("utf-8"), s3_path)
 
         # Use provided name or filename
         profile_name = name if name else os.path.splitext(filename)[0]
@@ -322,7 +323,7 @@ async def upload_agent_profile(
                 name=profile_name,
                 description=profile_description,
                 agent_type="citizen",  # Default value
-                file_path=path,
+                file_path=s3_path,
                 record_count=record_count,
             )
 
@@ -337,7 +338,7 @@ async def upload_agent_profile(
                 "description": profile_description,
                 "count": record_count,
                 "created_at": new_profile.created_at.isoformat() if new_profile.created_at else None,
-                "file_path": path,
+                "file_path": s3_path,
             }
             return ApiResponseWrapper(data=response_data)
     except json.JSONDecodeError:

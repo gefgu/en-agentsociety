@@ -150,7 +150,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-`````{py:class} MemoryConfigGenerator(config_func: typing.Callable[[dict[str, agentsociety.agent.distribution.Distribution], typing.Optional[list[agentsociety.agent.memory_config_generator.StatusAttribute]]], tuple[dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, typing.Union[agentsociety.agent.memory_config_generator.MemoryT, float]], dict[str, typing.Any]]], class_config: typing.Optional[list[agentsociety.agent.memory_config_generator.StatusAttribute]] = None, file: typing.Optional[str] = None, distributions: dict[str, typing.Union[agentsociety.agent.distribution.Distribution, agentsociety.agent.distribution.DistributionConfig]] = {})
+`````{py:class} MemoryConfigGenerator(config_func: typing.Callable[[dict[str, agentsociety.agent.distribution.Distribution], typing.Optional[list[agentsociety.agent.memory_config_generator.StatusAttribute]]], tuple[dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, typing.Union[agentsociety.agent.memory_config_generator.MemoryT, float]], dict[str, typing.Any]]], class_config: typing.Optional[list[agentsociety.agent.memory_config_generator.StatusAttribute]] = None, file: typing.Optional[str] = None, distributions: dict[str, typing.Union[agentsociety.agent.distribution.Distribution, agentsociety.agent.distribution.DistributionConfig]] = {}, s3config: agentsociety.s3.S3Config = S3Config.model_validate({}))
 :canonical: agentsociety.agent.memory_config_generator.MemoryConfigGenerator
 
 ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryConfigGenerator
@@ -188,7 +188,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-````{py:function} _memory_config_load_file(file_path: str)
+````{py:function} _memory_config_load_file(file_path: str, s3config: agentsociety.s3.S3Config)
 :canonical: agentsociety.agent.memory_config_generator._memory_config_load_file
 
 ```{autodoc2-docstring} agentsociety.agent.memory_config_generator._memory_config_load_file

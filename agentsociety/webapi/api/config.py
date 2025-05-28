@@ -20,6 +20,7 @@ from sqlalchemy import delete, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...configs import EnvConfig
+from ...s3 import S3Client
 from ..models import ApiResponseWrapper
 from ..models.config import (
     AgentConfig,

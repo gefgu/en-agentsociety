@@ -22,6 +22,7 @@ agentsociety.memory
 agentsociety.llm
 agentsociety.simulation
 agentsociety.logger
+agentsociety.s3
 agentsociety.cityagent
 agentsociety.executor
 agentsociety.survey

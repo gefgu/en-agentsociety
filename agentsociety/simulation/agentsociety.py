@@ -15,22 +15,18 @@ import ray.util.queue
 import yaml
 
 from ..agent import Agent, StatusAttribute
-from ..agent.distribution import Distribution, DistributionConfig, DistributionType
+from ..agent.distribution import (Distribution, DistributionConfig,
+                                  DistributionType)
 from ..agent.memory_config_generator import MemoryConfigGenerator, MemoryT
-from ..configs import (
-    AgentConfig,
-    AgentFilterConfig,
-    Config,
-    MetricExtractorConfig,
-    MetricType,
-    WorkflowType,
-)
+from ..configs import (AgentConfig, AgentFilterConfig, Config,
+                       MetricExtractorConfig, MetricType, WorkflowType)
 from ..environment import EnvironmentStarter
 from ..llm import LLM, monitor_requests
 from ..logger import get_logger, set_logger_level
 from ..message import MessageInterceptor, Messager
 from ..message.message_interceptor import MessageBlockListenerBase
 from ..metrics import MlflowClient
+from ..s3 import S3Config
 from ..storage import AvroSaver
 from ..storage.pgsql import PgWriter
 from ..storage.type import StorageExpInfo, StorageGlobalPrompt
@@ -45,7 +41,7 @@ MIN_ID = 1
 MAX_ID = 100000000
 
 
-def _init_agent_class(agent_config: AgentConfig):
+def _init_agent_class(agent_config: AgentConfig, s3config: S3Config):
     """
     Initialize the agent class.
 
@@ -74,6 +70,7 @@ def _init_agent_class(agent_config: AgentConfig):
             if agent_config.memory_distributions is not None
             else {}
         ),
+        s3config,
     )
     # lazy generate memory values
     # param config
@@ -130,6 +127,7 @@ class AgentSociety:
                             "password": True,
                             "mlflow_uri": True,
                         },
+                        "s3": True,
                     },
                 },
             ),
@@ -170,6 +168,7 @@ class AgentSociety:
             self._config.map,
             self._config.advanced.simulator,
             self._config.exp.environment,
+            self._config.env.s3,
         )
         await self._environment.init()
         get_logger().info(f"Environment initialized")
@@ -255,7 +254,6 @@ class AgentSociety:
         agents = []  # (id, agent_class, generator, memory_index)
         next_id = 1
         defined_ids = set()  # used to check if the id is already defined
-
         def _find_next_id():
             nonlocal next_id  # Declare that we want to modify the outer variable
             while next_id in defined_ids:
@@ -264,7 +262,7 @@ class AgentSociety:
                 raise ValueError(f"Agent ID {next_id} is greater than MAX_ID {MAX_ID}")
             defined_ids.add(next_id)
             return next_id
-
+        
         group_size = self._config.advanced.group_size
         get_logger().info(f"Initializing agent groups (size={group_size})...")
         citizen_ids = set()
@@ -329,6 +327,7 @@ class AgentSociety:
                     if agent_config.memory_distributions is not None
                     else {}
                 ),
+                self._config.env.s3,
             )
             # Get agent data from file
             agent_data = generator.get_agent_data_from_file()
@@ -337,9 +336,7 @@ class AgentSociety:
                 agent_id = agent_datum.get("id")
                 assert agent_id is not None, "id is required in memory_from_file[Firms]"
                 assert agent_id >= MIN_ID, f"id {agent_id} is less than MIN_ID {MIN_ID}"
-                assert (
-                    agent_id <= MAX_ID
-                ), f"id {agent_id} is greater than MAX_ID {MAX_ID}"
+                assert agent_id <= MAX_ID, f"id {agent_id} is greater than MAX_ID {MAX_ID}"
                 assert agent_id not in defined_ids, f"id {agent_id} is already defined"
                 defined_ids.add(agent_id)
                 firm_ids.add(agent_id)
@@ -365,15 +362,14 @@ class AgentSociety:
                     if agent_config.memory_distributions is not None
                     else {}
                 ),
+                self._config.env.s3,
             )
             agent_data = generator.get_agent_data_from_file()
             for agent_datum in agent_data:
                 agent_id = agent_datum.get("id")
                 assert agent_id is not None, "id is required in memory_from_file[Banks]"
                 assert agent_id >= MIN_ID, f"id {agent_id} is less than MIN_ID {MIN_ID}"
-                assert (
-                    agent_id <= MAX_ID
-                ), f"id {agent_id} is greater than MAX_ID {MAX_ID}"
+                assert agent_id <= MAX_ID, f"id {agent_id} is greater than MAX_ID {MAX_ID}"
                 assert agent_id not in defined_ids, f"id {agent_id} is already defined"
                 defined_ids.add(agent_id)
                 bank_ids.add(agent_id)
@@ -399,15 +395,14 @@ class AgentSociety:
                     if agent_config.memory_distributions is not None
                     else {}
                 ),
+                self._config.env.s3,
             )
             agent_data = generator.get_agent_data_from_file()
             for agent_datum in agent_data:
                 agent_id = agent_datum.get("id")
                 assert agent_id is not None, "id is required in memory_from_file[NBS]"
                 assert agent_id >= MIN_ID, f"id {agent_id} is less than MIN_ID {MIN_ID}"
-                assert (
-                    agent_id <= MAX_ID
-                ), f"id {agent_id} is greater than MAX_ID {MAX_ID}"
+                assert agent_id <= MAX_ID, f"id {agent_id} is greater than MAX_ID {MAX_ID}"
                 assert agent_id not in defined_ids, f"id {agent_id} is already defined"
                 defined_ids.add(agent_id)
                 nbs_ids.add(agent_id)
@@ -433,17 +428,14 @@ class AgentSociety:
                     if agent_config.memory_distributions is not None
                     else {}
                 ),
+                self._config.env.s3,
             )
             agent_data = generator.get_agent_data_from_file()
             for agent_datum in agent_data:
                 agent_id = agent_datum.get("id")
-                assert (
-                    agent_id is not None
-                ), "id is required in memory_from_file[Governments]"
+                assert agent_id is not None, "id is required in memory_from_file[Governments]"
                 assert agent_id >= MIN_ID, f"id {agent_id} is less than MIN_ID {MIN_ID}"
-                assert (
-                    agent_id <= MAX_ID
-                ), f"id {agent_id} is greater than MAX_ID {MAX_ID}"
+                assert agent_id <= MAX_ID, f"id {agent_id} is greater than MAX_ID {MAX_ID}"
                 assert agent_id not in defined_ids, f"id {agent_id} is already defined"
                 defined_ids.add(agent_id)
                 government_ids.add(agent_id)
@@ -469,18 +461,15 @@ class AgentSociety:
                     if agent_config.memory_distributions is not None
                     else {}
                 ),
+                self._config.env.s3,
             )
             citizen_generators.append(generator)
             agent_data = generator.get_agent_data_from_file()
             for agent_datum in agent_data:
                 agent_id = agent_datum.get("id")
-                assert (
-                    agent_id is not None
-                ), "id is required in memory_from_file[Citizens]"
+                assert agent_id is not None, "id is required in memory_from_file[Citizens]"
                 assert agent_id >= MIN_ID, f"id {agent_id} is less than MIN_ID {MIN_ID}"
-                assert (
-                    agent_id <= MAX_ID
-                ), f"id {agent_id} is greater than MAX_ID {MAX_ID}"
+                assert agent_id <= MAX_ID, f"id {agent_id} is greater than MAX_ID {MAX_ID}"
                 assert agent_id not in defined_ids, f"id {agent_id} is already defined"
                 defined_ids.add(agent_id)
                 citizen_ids.add(agent_id)
@@ -495,9 +484,7 @@ class AgentSociety:
                     )
                 )
 
-        get_logger().info(
-            f"{len(defined_ids)} defined ids found in memory_config_files"
-        )
+        get_logger().info(f"{len(defined_ids)} defined ids found in memory_config_files")
 
         # Step 2: Process all agents without memory_from_file
         for agent_config in agent_configs_normal["firms"]:
@@ -511,7 +498,7 @@ class AgentSociety:
                 dist_type=DistributionType.CHOICE,
                 choices=list(aoi_ids),
             )
-            firm_classes, _ = _init_agent_class(agent_config)
+            firm_classes, _ = _init_agent_class(agent_config, self._config.env.s3)
             firms = [
                 (_find_next_id(), *firm_class)
                 for i, firm_class in enumerate(firm_classes)
@@ -520,7 +507,7 @@ class AgentSociety:
             agents += firms
 
         for agent_config in agent_configs_normal["banks"]:
-            bank_classes, _ = _init_agent_class(agent_config)
+            bank_classes, _ = _init_agent_class(agent_config, self._config.env.s3)
             banks = [
                 (_find_next_id(), *bank_class)
                 for i, bank_class in enumerate(bank_classes)
@@ -529,15 +516,18 @@ class AgentSociety:
             agents += banks
 
         for agent_config in agent_configs_normal["nbs"]:
-            nbs_classes, _ = _init_agent_class(agent_config)
+            nbs_classes, _ = _init_agent_class(agent_config, self._config.env.s3)
             nbs = [
-                (_find_next_id(), *nbs_class) for i, nbs_class in enumerate(nbs_classes)
+                (_find_next_id(), *nbs_class)
+                for i, nbs_class in enumerate(nbs_classes)
             ]
             nbs_ids.update([nbs[0] for nbs in nbs])
             agents += nbs
 
         for agent_config in agent_configs_normal["governments"]:
-            government_classes, _ = _init_agent_class(agent_config)
+            government_classes, _ = _init_agent_class(
+                agent_config, self._config.env.s3
+            )
             governments = [
                 (_find_next_id(), *government_class)
                 for i, government_class in enumerate(government_classes)
@@ -546,7 +536,9 @@ class AgentSociety:
             agents += governments
 
         for agent_config in agent_configs_normal["citizens"]:
-            citizen_classes, generator = _init_agent_class(agent_config)
+            citizen_classes, generator = _init_agent_class(
+                agent_config, self._config.env.s3
+            )
             citizen_generators.append(generator)
             citizens = [
                 (_find_next_id(), *citizen_class)
@@ -558,17 +550,17 @@ class AgentSociety:
         # Step 3: Insert essential distributions for citizens
         memory_distributions = {}
         for key, ids in [
-            ("firm_id", firm_ids),
-            ("bank_id", bank_ids),
-            ("nbs_id", nbs_ids),
-            ("government_id", government_ids),
-            ("home_aoi_id", aoi_ids),
-            ("work_aoi_id", aoi_ids),
-        ]:
-            memory_distributions[key] = DistributionConfig(
-                dist_type=DistributionType.CHOICE,
-                choices=list(ids),
-            )
+                ("firm_id", firm_ids),
+                ("bank_id", bank_ids),
+                ("nbs_id", nbs_ids),
+                ("government_id", government_ids),
+                ("home_aoi_id", aoi_ids),
+                ("work_aoi_id", aoi_ids),
+            ]:
+                memory_distributions[key] = DistributionConfig(
+                    dist_type=DistributionType.CHOICE,
+                    choices=list(ids),
+                )
         for generator in citizen_generators:
             generator.merge_distributions(memory_distributions)
 
