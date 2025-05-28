@@ -15,6 +15,8 @@
 :class: autosummary longtable
 :align: left
 
+* - {py:obj}`CognitionBlockParams <agentsociety.cityagent.blocks.cognition_block.CognitionBlockParams>`
+  -
 * - {py:obj}`CognitionBlock <agentsociety.cityagent.blocks.cognition_block.CognitionBlock>`
   - ```{autodoc2-docstring} agentsociety.cityagent.blocks.cognition_block.CognitionBlock
     :summary:
@@ -64,7 +66,25 @@
 ```
 ````
 
-`````{py:class} CognitionBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, memory: agentsociety.memory.Memory)
+`````{py:class} CognitionBlockParams(/, **data: typing.Any)
+:canonical: agentsociety.cityagent.blocks.cognition_block.CognitionBlockParams
+
+Bases: {py:obj}`agentsociety.agent.BlockParams`
+
+````{py:attribute} top_k
+:canonical: agentsociety.cityagent.blocks.cognition_block.CognitionBlockParams.top_k
+:type: int
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.cognition_block.CognitionBlockParams.top_k
+```
+
+````
+
+`````
+
+`````{py:class} CognitionBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, agent_memory: agentsociety.memory.Memory, block_params: typing.Optional[agentsociety.cityagent.blocks.cognition_block.CognitionBlockParams] = None)
 :canonical: agentsociety.cityagent.blocks.cognition_block.CognitionBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -78,32 +98,42 @@ Bases: {py:obj}`agentsociety.agent.Block`
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.cognition_block.CognitionBlock.__init__
 ```
 
-````{py:attribute} configurable_fields
-:canonical: agentsociety.cityagent.blocks.cognition_block.CognitionBlock.configurable_fields
+````{py:attribute} ParamsType
+:canonical: agentsociety.cityagent.blocks.cognition_block.CognitionBlock.ParamsType
 :value: >
-   ['top_k']
+   None
 
-```{autodoc2-docstring} agentsociety.cityagent.blocks.cognition_block.CognitionBlock.configurable_fields
+```{autodoc2-docstring} agentsociety.cityagent.blocks.cognition_block.CognitionBlock.ParamsType
 ```
 
 ````
 
-````{py:attribute} default_values
-:canonical: agentsociety.cityagent.blocks.cognition_block.CognitionBlock.default_values
+````{py:attribute} name
+:canonical: agentsociety.cityagent.blocks.cognition_block.CognitionBlock.name
 :value: >
-   None
+   'CognitionBlock'
 
-```{autodoc2-docstring} agentsociety.cityagent.blocks.cognition_block.CognitionBlock.default_values
+```{autodoc2-docstring} agentsociety.cityagent.blocks.cognition_block.CognitionBlock.name
 ```
 
 ````
 
-````{py:attribute} fields_description
-:canonical: agentsociety.cityagent.blocks.cognition_block.CognitionBlock.fields_description
+````{py:attribute} description
+:canonical: agentsociety.cityagent.blocks.cognition_block.CognitionBlock.description
+:value: >
+   'Handles daily updates of attitudes, thoughts, and emotions'
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.cognition_block.CognitionBlock.description
+```
+
+````
+
+````{py:attribute} actions
+:canonical: agentsociety.cityagent.blocks.cognition_block.CognitionBlock.actions
 :value: >
    None
 
-```{autodoc2-docstring} agentsociety.cityagent.blocks.cognition_block.CognitionBlock.fields_description
+```{autodoc2-docstring} agentsociety.cityagent.blocks.cognition_block.CognitionBlock.actions
 ```
 
 ````

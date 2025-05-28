@@ -23,6 +23,10 @@
   - ```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherNoneBlock
     :summary:
     ```
+* - {py:obj}`OtherBlockParams <agentsociety.cityagent.blocks.other_block.OtherBlockParams>`
+  -
+* - {py:obj}`OtherBlockContext <agentsociety.cityagent.blocks.other_block.OtherBlockContext>`
+  -
 * - {py:obj}`OtherBlock <agentsociety.cityagent.blocks.other_block.OtherBlock>`
   - ```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherBlock
     :summary:
@@ -31,7 +35,7 @@
 
 ### API
 
-`````{py:class} SleepBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory)
+`````{py:class} SleepBlock(llm: agentsociety.llm.LLM, agent_memory: typing.Optional[agentsociety.memory.Memory] = None)
 :canonical: agentsociety.cityagent.blocks.other_block.SleepBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -45,7 +49,27 @@ Bases: {py:obj}`agentsociety.agent.Block`
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.SleepBlock.__init__
 ```
 
-````{py:method} forward(step, context)
+````{py:attribute} name
+:canonical: agentsociety.cityagent.blocks.other_block.SleepBlock.name
+:value: >
+   'SleepBlock'
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.SleepBlock.name
+```
+
+````
+
+````{py:attribute} description
+:canonical: agentsociety.cityagent.blocks.other_block.SleepBlock.description
+:value: >
+   'Handles sleep-related actions'
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.SleepBlock.description
+```
+
+````
+
+````{py:method} forward(context: agentsociety.agent.DotDict)
 :canonical: agentsociety.cityagent.blocks.other_block.SleepBlock.forward
 :async:
 
@@ -56,7 +80,7 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 `````
 
-`````{py:class} OtherNoneBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory)
+`````{py:class} OtherNoneBlock(llm: agentsociety.llm.LLM, agent_memory: typing.Optional[agentsociety.memory.Memory] = None)
 :canonical: agentsociety.cityagent.blocks.other_block.OtherNoneBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -70,7 +94,27 @@ Bases: {py:obj}`agentsociety.agent.Block`
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherNoneBlock.__init__
 ```
 
-````{py:method} forward(step, context)
+````{py:attribute} name
+:canonical: agentsociety.cityagent.blocks.other_block.OtherNoneBlock.name
+:value: >
+   'OtherNoneBlock'
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherNoneBlock.name
+```
+
+````
+
+````{py:attribute} description
+:canonical: agentsociety.cityagent.blocks.other_block.OtherNoneBlock.description
+:value: >
+   'Handles all kinds of intentions/actions except sleep'
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherNoneBlock.description
+```
+
+````
+
+````{py:method} forward(context: agentsociety.agent.DotDict)
 :canonical: agentsociety.cityagent.blocks.other_block.OtherNoneBlock.forward
 :async:
 
@@ -78,7 +122,21 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 `````
 
-`````{py:class} OtherBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory)
+```{py:class} OtherBlockParams(/, **data: typing.Any)
+:canonical: agentsociety.cityagent.blocks.other_block.OtherBlockParams
+
+Bases: {py:obj}`agentsociety.agent.BlockParams`
+
+```
+
+```{py:class} OtherBlockContext(/, **data: typing.Any)
+:canonical: agentsociety.cityagent.blocks.other_block.OtherBlockContext
+
+Bases: {py:obj}`agentsociety.agent.BlockContext`
+
+```
+
+`````{py:class} OtherBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, agent_memory: agentsociety.memory.Memory, block_params: typing.Optional[agentsociety.cityagent.blocks.other_block.OtherBlockParams] = None)
 :canonical: agentsociety.cityagent.blocks.other_block.OtherBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -92,29 +150,67 @@ Bases: {py:obj}`agentsociety.agent.Block`
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherBlock.__init__
 ```
 
-````{py:attribute} sleep_block
-:canonical: agentsociety.cityagent.blocks.other_block.OtherBlock.sleep_block
-:type: agentsociety.cityagent.blocks.other_block.SleepBlock
+````{py:attribute} ParamsType
+:canonical: agentsociety.cityagent.blocks.other_block.OtherBlock.ParamsType
 :value: >
    None
 
-```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherBlock.sleep_block
+```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherBlock.ParamsType
 ```
 
 ````
 
-````{py:attribute} other_none_block
-:canonical: agentsociety.cityagent.blocks.other_block.OtherBlock.other_none_block
-:type: agentsociety.cityagent.blocks.other_block.OtherNoneBlock
+````{py:attribute} OutputType
+:canonical: agentsociety.cityagent.blocks.other_block.OtherBlock.OutputType
 :value: >
    None
 
-```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherBlock.other_none_block
+```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherBlock.OutputType
 ```
 
 ````
 
-````{py:method} forward(step, context)
+````{py:attribute} ContextType
+:canonical: agentsociety.cityagent.blocks.other_block.OtherBlock.ContextType
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherBlock.ContextType
+```
+
+````
+
+````{py:attribute} name
+:canonical: agentsociety.cityagent.blocks.other_block.OtherBlock.name
+:value: >
+   'OtherBlock'
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherBlock.name
+```
+
+````
+
+````{py:attribute} description
+:canonical: agentsociety.cityagent.blocks.other_block.OtherBlock.description
+:value: >
+   'Responsible for all kinds of intentions/actions except mobility, economy, and social'
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherBlock.description
+```
+
+````
+
+````{py:attribute} actions
+:canonical: agentsociety.cityagent.blocks.other_block.OtherBlock.actions
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherBlock.actions
+```
+
+````
+
+````{py:method} forward(agent_context: agentsociety.agent.DotDict) -> agentsociety.cityagent.sharing_params.SocietyAgentBlockOutput
 :canonical: agentsociety.cityagent.blocks.other_block.OtherBlock.forward
 :async:
 

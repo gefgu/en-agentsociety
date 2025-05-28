@@ -7,11 +7,20 @@ import random
 import ray
 
 from agentsociety.cityagent import SocietyAgent, default
-from agentsociety.configs import (AgentsConfig, Config, EnvConfig, ExpConfig,
-                                  LLMConfig, MapConfig)
+from agentsociety.configs import (
+    AgentsConfig,
+    Config,
+    EnvConfig,
+    ExpConfig,
+    LLMConfig,
+    MapConfig,
+)
 from agentsociety.configs.agent import AgentClassType, AgentConfig
-from agentsociety.configs.exp import (MessageInterceptConfig,
-                                      WorkflowStepConfig, WorkflowType)
+from agentsociety.configs.exp import (
+    MessageInterceptConfig,
+    WorkflowStepConfig,
+    WorkflowType,
+)
 from agentsociety.environment import EnvironmentConfig
 from agentsociety.llm import LLMProviderType
 from agentsociety.message import RedisConfig

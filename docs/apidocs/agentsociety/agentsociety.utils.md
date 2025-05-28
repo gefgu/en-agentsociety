@@ -22,7 +22,6 @@ agentsociety.utils.parsers
 :titlesonly:
 :maxdepth: 1
 
-agentsociety.utils.survey_util
 agentsociety.utils.llm
 agentsociety.utils.decorators
 ```
@@ -50,7 +49,7 @@ agentsociety.utils.decorators
 ````{py:data} __all__
 :canonical: agentsociety.utils.__all__
 :value: >
-   ['process_survey_for_llm', 'NONE_SENDER_ID']
+   ['NONE_SENDER_ID']
 
 ```{autodoc2-docstring} agentsociety.utils.__all__
 ```

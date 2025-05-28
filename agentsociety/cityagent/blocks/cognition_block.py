@@ -1,12 +1,12 @@
 import logging
-
+from typing import Optional
 import jsonc
-
+from pydantic import Field
 from ...environment import Environment
 from ...llm import LLM
 from ...logger import get_logger
 from ...memory import Memory
-from ...agent import Block, FormatPrompt
+from ...agent import Block, FormatPrompt, BlockParams
 
 __all__ = ["CognitionBlock"]
 
@@ -39,6 +39,12 @@ def extract_json(output_str):
         return None
 
 
+class CognitionBlockParams(BlockParams):
+    top_k: int = Field(
+        default=20, description="Number of most relevant memories to return"
+    )
+
+
 class CognitionBlock(Block):
     """A cognitive processing block handling daily updates of attitudes, thoughts, and emotions.
 
@@ -50,13 +56,18 @@ class CognitionBlock(Block):
         last_check_time: Timestamp tracker for daily update cycles.
     """
 
-    configurable_fields = ["top_k"]
-    default_values = {"top_k": 20}
-    fields_description = {
-        "top_k": "Number of most relevant memories to return, defaults to 20"
-    }
+    ParamsType = CognitionBlockParams
+    name = "CognitionBlock"
+    description = "Handles daily updates of attitudes, thoughts, and emotions"
+    actions = {}
 
-    def __init__(self, llm: LLM, environment: Environment, memory: Memory):
+    def __init__(
+        self,
+        llm: LLM,
+        environment: Environment,
+        agent_memory: Memory,
+        block_params: Optional[CognitionBlockParams] = None,
+    ):
         """Initialize CognitionBlock with dependencies.
 
         Args:
@@ -65,9 +76,11 @@ class CognitionBlock(Block):
             memory: Memory system to store/retrieve agent status and experiences.
         """
         super().__init__(
-            "CognitionBlock", llm=llm, environment=environment, memory=memory
+            llm=llm,
+            environment=environment,
+            agent_memory=agent_memory,
+            block_params=block_params,
         )
-        self.top_k = 20
         self.last_check_day = 0
 
     async def set_status(self, status):
@@ -100,7 +113,7 @@ class CognitionBlock(Block):
             "age": await self.memory.status.get("age"),
             "race": await self.memory.status.get("race"),
             "religion": await self.memory.status.get("religion"),
-            "marital_status": await self.memory.status.get("marital_status"),
+            "marriage_status": await self.memory.status.get("marriage_status"),
             "residence": await self.memory.status.get("residence"),
             "occupation": await self.memory.status.get("occupation"),
             "education": await self.memory.status.get("education"),
@@ -115,7 +128,7 @@ class CognitionBlock(Block):
         for topic in attitude:
             description_prompt = """
             You are a {gender}, aged {age}, belonging to the {race} race and identifying as {religion}. 
-            Your marital status is {marital_status}, and you currently reside in a {residence} area. 
+            Your marital status is {marriage_status}, and you currently reside in a {residence} area. 
             Your occupation is {occupation}, and your education level is {education}. 
             You are {personality}, with a consumption level of {consumption} and a family consumption level of {family_consumption}. 
             Your income is {income}, and you are skilled in {skill}.
@@ -126,7 +139,7 @@ class CognitionBlock(Block):
             Joy, Distress, Resentment, Pity, Hope, Fear, Satisfaction, Relief, Disappointment, Pride, Admiration, Shame, Reproach, Liking, Disliking, Gratitude, Anger, Gratification, Remorse, Love, Hate.
             """
             incident_str = await self.memory.stream.search(
-                query=topic, top_k=self.top_k
+                query=topic, top_k=self.params.top_k
             )
             if incident_str:
                 incident_prompt = "Today, these incidents happened:"
@@ -156,7 +169,7 @@ class CognitionBlock(Block):
             prompt_data["anger"] = anger
             prompt_data["surprise"] = surprise
 
-            question_prompt.format(**prompt_data)
+            await question_prompt.format(**prompt_data)
             evaluation = True
             response: dict = {}
             for retry in range(10):
@@ -197,7 +210,7 @@ class CognitionBlock(Block):
         """
         description_prompt = """
         You are a {gender}, aged {age}, belonging to the {race} race and identifying as {religion}. 
-        Your marital status is {marital_status}, and you currently reside in a {residence} area. 
+        Your marital status is {marriage_status}, and you currently reside in a {residence} area. 
         Your occupation is {occupation}, and your education level is {education}. 
         You are {personality}, with a consumption level of {consumption} and a family consumption level of {family_consumption}. 
         Your income is {income}, and you are skilled in {skill}.
@@ -227,12 +240,12 @@ class CognitionBlock(Block):
         disgust = emotion["disgust"]
         anger = emotion["anger"]
         surprise = emotion["surprise"]
-        question_prompt.format(
+        await question_prompt.format(
             gender=await self.memory.status.get("gender"),
             age=await self.memory.status.get("age"),
             race=await self.memory.status.get("race"),
             religion=await self.memory.status.get("religion"),
-            marital_status=await self.memory.status.get("marital_status"),
+            marriage_status=await self.memory.status.get("marriage_status"),
             residence=await self.memory.status.get("residence"),
             occupation=await self.memory.status.get("occupation"),
             education=await self.memory.status.get("education"),
@@ -325,7 +338,7 @@ class CognitionBlock(Block):
         """
         description_prompt = """
         You are a {gender}, aged {age}, belonging to the {race} race and identifying as {religion}. 
-        Your marital status is {marital_status}, and you currently reside in a {residence} area. 
+        Your marital status is {marriage_status}, and you currently reside in a {residence} area. 
         Your occupation is {occupation}, and your education level is {education}. 
         You are {personality}, with a consumption level of {consumption} and a family consumption level of {family_consumption}. 
         Your income is {income}, and you are skilled in {skill}.
@@ -350,12 +363,12 @@ class CognitionBlock(Block):
         disgust = emotion["disgust"]
         anger = emotion["anger"]
         surprise = emotion["surprise"]
-        question_prompt.format(
+        await question_prompt.format(
             gender=await self.memory.status.get("gender"),
             age=await self.memory.status.get("age"),
             race=await self.memory.status.get("race"),
             religion=await self.memory.status.get("religion"),
-            marital_status=await self.memory.status.get("marital_status"),
+            marriage_status=await self.memory.status.get("marriage_status"),
             residence=await self.memory.status.get("residence"),
             occupation=await self.memory.status.get("occupation"),
             education=await self.memory.status.get("education"),

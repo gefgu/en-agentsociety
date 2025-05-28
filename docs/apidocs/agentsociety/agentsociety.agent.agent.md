@@ -65,7 +65,7 @@
 
 ````
 
-`````{py:class} CitizenAgentBase(id: int, name: str, toolbox: agentsociety.agent.agent_base.AgentToolbox, memory: agentsociety.memory.Memory)
+`````{py:class} CitizenAgentBase(id: int, name: str, toolbox: agentsociety.agent.agent_base.AgentToolbox, memory: agentsociety.memory.Memory, agent_params: typing.Optional[typing.Any] = None, blocks: typing.Optional[list[agentsociety.agent.block.Block]] = None)
 :canonical: agentsociety.agent.agent.CitizenAgentBase
 
 Bases: {py:obj}`agentsociety.agent.agent_base.Agent`
@@ -124,9 +124,36 @@ Bases: {py:obj}`agentsociety.agent.agent_base.Agent`
 
 ````
 
+````{py:method} get_aoi_info()
+:canonical: agentsociety.agent.agent.CitizenAgentBase.get_aoi_info
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent.CitizenAgentBase.get_aoi_info
+```
+
+````
+
+````{py:method} get_nowtime()
+:canonical: agentsociety.agent.agent.CitizenAgentBase.get_nowtime
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent.CitizenAgentBase.get_nowtime
+```
+
+````
+
+````{py:method} before_forward()
+:canonical: agentsociety.agent.agent.CitizenAgentBase.before_forward
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent.CitizenAgentBase.before_forward
+```
+
+````
+
 `````
 
-`````{py:class} InstitutionAgentBase(id: int, name: str, toolbox: agentsociety.agent.agent_base.AgentToolbox, memory: agentsociety.memory.Memory)
+`````{py:class} InstitutionAgentBase(id: int, name: str, toolbox: agentsociety.agent.agent_base.AgentToolbox, memory: agentsociety.memory.Memory, agent_params: typing.Optional[typing.Any] = None, blocks: typing.Optional[list[agentsociety.agent.block.Block]] = None)
 :canonical: agentsociety.agent.agent.InstitutionAgentBase
 
 Bases: {py:obj}`agentsociety.agent.agent_base.Agent`
@@ -167,27 +194,9 @@ Bases: {py:obj}`agentsociety.agent.agent_base.Agent`
 
 ````
 
-````{py:method} handle_gather_message(payload: dict)
-:canonical: agentsociety.agent.agent.InstitutionAgentBase.handle_gather_message
-:async:
-
-```{autodoc2-docstring} agentsociety.agent.agent.InstitutionAgentBase.handle_gather_message
-```
-
-````
-
-````{py:method} gather_messages(agent_ids: list[int], target: str) -> list[dict]
-:canonical: agentsociety.agent.agent.InstitutionAgentBase.gather_messages
-:async:
-
-```{autodoc2-docstring} agentsociety.agent.agent.InstitutionAgentBase.gather_messages
-```
-
-````
-
 `````
 
-````{py:class} FirmAgentBase(id: int, name: str, toolbox: agentsociety.agent.agent_base.AgentToolbox, memory: agentsociety.memory.Memory)
+````{py:class} FirmAgentBase(id: int, name: str, toolbox: agentsociety.agent.agent_base.AgentToolbox, memory: agentsociety.memory.Memory, agent_params: typing.Optional[typing.Any] = None, blocks: typing.Optional[list[agentsociety.agent.block.Block]] = None)
 :canonical: agentsociety.agent.agent.FirmAgentBase
 
 Bases: {py:obj}`agentsociety.agent.agent.InstitutionAgentBase`
@@ -203,7 +212,7 @@ Bases: {py:obj}`agentsociety.agent.agent.InstitutionAgentBase`
 
 ````
 
-````{py:class} BankAgentBase(id: int, name: str, toolbox: agentsociety.agent.agent_base.AgentToolbox, memory: agentsociety.memory.Memory)
+````{py:class} BankAgentBase(id: int, name: str, toolbox: agentsociety.agent.agent_base.AgentToolbox, memory: agentsociety.memory.Memory, agent_params: typing.Optional[typing.Any] = None, blocks: typing.Optional[list[agentsociety.agent.block.Block]] = None)
 :canonical: agentsociety.agent.agent.BankAgentBase
 
 Bases: {py:obj}`agentsociety.agent.agent.InstitutionAgentBase`
@@ -219,7 +228,7 @@ Bases: {py:obj}`agentsociety.agent.agent.InstitutionAgentBase`
 
 ````
 
-````{py:class} NBSAgentBase(id: int, name: str, toolbox: agentsociety.agent.agent_base.AgentToolbox, memory: agentsociety.memory.Memory)
+````{py:class} NBSAgentBase(id: int, name: str, toolbox: agentsociety.agent.agent_base.AgentToolbox, memory: agentsociety.memory.Memory, agent_params: typing.Optional[typing.Any] = None, blocks: typing.Optional[list[agentsociety.agent.block.Block]] = None)
 :canonical: agentsociety.agent.agent.NBSAgentBase
 
 Bases: {py:obj}`agentsociety.agent.agent.InstitutionAgentBase`
@@ -235,7 +244,7 @@ Bases: {py:obj}`agentsociety.agent.agent.InstitutionAgentBase`
 
 ````
 
-````{py:class} GovernmentAgentBase(id: int, name: str, toolbox: agentsociety.agent.agent_base.AgentToolbox, memory: agentsociety.memory.Memory)
+````{py:class} GovernmentAgentBase(id: int, name: str, toolbox: agentsociety.agent.agent_base.AgentToolbox, memory: agentsociety.memory.Memory, agent_params: typing.Optional[typing.Any] = None, blocks: typing.Optional[list[agentsociety.agent.block.Block]] = None)
 :canonical: agentsociety.agent.agent.GovernmentAgentBase
 
 Bases: {py:obj}`agentsociety.agent.agent.InstitutionAgentBase`

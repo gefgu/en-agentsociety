@@ -5,8 +5,18 @@ from typing import Any, Optional, Union, cast
 import jsonc
 import ray
 
-from ..agent import (Agent, AgentToolbox, BankAgentBase, CitizenAgentBase,
-                     FirmAgentBase, GovernmentAgentBase, NBSAgentBase)
+from ..agent import (
+    Agent,
+    AgentParams,
+    AgentToolbox,
+    BankAgentBase,
+    Block,
+    BlockParams,
+    CitizenAgentBase,
+    FirmAgentBase,
+    GovernmentAgentBase,
+    NBSAgentBase,
+)
 from ..agent.memory_config_generator import MemoryConfigGenerator
 from ..configs import Config
 from ..environment import Environment
@@ -45,7 +55,8 @@ class AgentGroup:
                 ],
                 MemoryConfigGenerator,
                 int,
-                dict[str, Any],
+                AgentParams,  # agent_params
+                dict[type[Block], BlockParams],  # blocks
             ]
         ],
         environment_init: dict,
@@ -62,33 +73,57 @@ class AgentGroup:
         Initialize the AgentGroupV2.
 
         """
-        set_logger_level(config.advanced.logging_level.upper())
+        try:
+            get_logger().info("Starting AgentGroup initialization...")
+            set_logger_level(config.advanced.logging_level.upper())
 
-        self._tenant_id = tenant_id
-        self._exp_name = exp_name
-        self._exp_id = exp_id
-        self._group_id = group_id
-        self._config = config
-        self._agent_inits = agent_inits
-        self._environment_init = environment_init
-        self._pgsql_writer = pgsql_writer
-        self._message_interceptor = message_interceptor
-        self._mlflow_run_id = mlflow_run_id
-        self._agent_config_file = agent_config_file
-        self._embedding_model = init_embedding(config.advanced.embedding_model)
-        self._faiss_query = FaissQuery(self._embedding_model)
+            self._tenant_id = tenant_id
+            get_logger().debug(f"Set tenant_id: {tenant_id}")
+            self._exp_name = exp_name
+            get_logger().debug(f"Set exp_name: {exp_name}")
+            self._exp_id = exp_id
+            get_logger().debug(f"Set exp_id: {exp_id}")
+            self._group_id = group_id
+            get_logger().debug(f"Set group_id: {group_id}")
+            self._config = config
+            get_logger().debug(f"Config loaded")
+            self._agent_inits = agent_inits
+            get_logger().debug(f"Agent inits loaded, count: {len(agent_inits)}")
+            self._environment_init = environment_init
+            get_logger().debug(f"Environment init loaded")
+            self._pgsql_writer = pgsql_writer
+            get_logger().debug(f"PGSQL writer reference set")
+            self._message_interceptor = message_interceptor
+            get_logger().debug(f"Message interceptor reference set")
+            self._mlflow_run_id = mlflow_run_id
+            get_logger().debug(f"MLflow run ID set: {mlflow_run_id}")
+            self._agent_config_file = agent_config_file
+            get_logger().debug(f"Agent config file loaded")
 
-        # typing definition
-        self._llm: Optional[LLM] = None
-        self._environment: Optional[Environment] = None
-        self._messager: Optional[Messager] = None
-        self._avro_saver: Optional[AvroSaver] = None
-        self._mlflow_client: Optional[MlflowClient] = None
+            get_logger().info("Initializing embedding model...")
+            self._embedding_model = init_embedding(config.advanced.embedding_model)
+            get_logger().debug(f"Embedding model initialized")
+            self._faiss_query = FaissQuery(self._embedding_model)
+            get_logger().debug(f"FAISS query initialized")
 
-        self._agents: list[Agent] = []
-        self._id2agent: dict[int, Agent] = {}
-        self._message_dispatch_task: Optional[asyncio.Task] = None
-        self._last_asyncio_pg_task: Optional[asyncio.Task] = None
+            # typing definition
+            self._llm = None
+            self._environment = None
+            self._messager = None
+            self._avro_saver = None
+            self._mlflow_client = None
+
+            self._agents = []
+            self._id2agent = {}
+            self._message_dispatch_task = None
+            self._last_asyncio_pg_task = None
+            get_logger().info("AgentGroup initialization completed successfully")
+        except Exception as e:
+            get_logger().error(f"Error in AgentGroup.__init__: {str(e)}")
+            import traceback
+
+            get_logger().error(f"Traceback: {traceback.format_exc()}")
+            raise
 
     # ====================
     # Property Accessors
@@ -201,7 +236,8 @@ class AgentGroup:
                 agent_class,
                 memory_config_generator,
                 index_for_generator,
-                param_config,
+                agent_params,
+                blocks,
             ) = agent_init
             memory_dict = memory_config_generator.generate(index_for_generator)
             extra_attributes = memory_dict.get("extra_attributes", {})
@@ -216,15 +252,28 @@ class AgentGroup:
                 profile=profile,
                 base=base,
             )
+            # # build blocks
+            if blocks is not None:
+                blocks = [
+                    block_type(
+                        llm=self.llm,
+                        environment=self.environment,
+                        agent_memory=memory_init,
+                        block_params=block_params,
+                    )
+                    for block_type, block_params in blocks.items()
+                ]
+            else:
+                blocks = None
+            # build agent
             agent = agent_class(
                 id=id,
                 name=f"{agent_class.__name__}_{id}",
                 toolbox=agent_toolbox,
                 memory=memory_init,
+                agent_params=agent_params,
+                blocks=blocks,
             )
-            # load_from_config
-            if param_config is not None:
-                agent.load_from_config(param_config)
             self._agents.append(agent)
             self._id2agent[id] = agent
         get_logger().info(
@@ -343,6 +392,7 @@ class AgentGroup:
             self.messager.clear_log_list()
             self.environment.clear_log_list()
             self.environment.economy_client.clear_log_list()
+
             return group_logs
         except Exception as e:
             import traceback
@@ -395,20 +445,34 @@ class AgentGroup:
                     payload = cast(bytes, message["data"])
                     payload = jsonc.loads(payload.decode("utf-8"))
 
-                    # Extract agent_id (channel format is "exps:{exp_id}:agents:{agent_id}:{topic_type}")
-                    _, _, _, agent_id, topic_type = channel.strip(":").split(":")
-                    agent_id = int(agent_id)
-                    if agent_id in self._id2agent:
-                        agent = self._id2agent[agent_id]
-                        # topic_type: agent-chat, user-chat, user-survey, gather
-                        if topic_type == "agent-chat":
-                            await agent.handle_agent_chat_message(payload)
-                        elif topic_type == "user-chat":
-                            await agent.handle_user_chat_message(payload)
-                        elif topic_type == "user-survey":
-                            await agent.handle_user_survey_message(payload)
-                        elif topic_type == "gather":
-                            await agent.handle_gather_message(payload)
+                    if "agents" in channel:
+                        # Extract agent_id (channel format is "exps:{exp_id}:agents:{agent_id}:{topic_type}")
+                        _, _, _, agent_id, topic_type = channel.strip(":").split(":")
+                        agent_id = int(agent_id)
+                        if agent_id in self._id2agent:
+                            agent = self._id2agent[agent_id]
+                            # topic_type: agent-chat, user-chat, user-survey, gather
+                            if topic_type == "agent-chat":
+                                await agent.handle_agent_chat_message(payload)
+                            elif topic_type == "user-chat":
+                                await agent.handle_user_chat_message(payload)
+                            elif topic_type == "user-survey":
+                                await agent.handle_user_survey_message(payload)
+                            elif topic_type == "gather":
+                                await agent.handle_gather_message(payload)
+                            elif topic_type == "gather_receive":
+                                await agent.handle_gather_receive_message(payload)
+                    elif "aoi" in channel:
+                        _, _, _, aoi_id = channel.strip(":").split(":")
+                        aoi_id = int(aoi_id)
+                        agent_id = payload["agent_id"]
+                        operation = payload["type"]
+                        if operation == "aoi_message_register":
+                            self.environment.register_aoi_message(
+                                agent_id, aoi_id, payload
+                            )
+                        elif operation == "aoi_message_cancel":
+                            self.environment.cancel_aoi_message(agent_id, aoi_id)
             except Exception as e:
                 get_logger().error(f"Error dispatching message: {e}")
                 import traceback
@@ -624,16 +688,14 @@ class AgentGroup:
     async def filter(
         self,
         types: Optional[tuple[type[Agent]]] = None,
-        keys: Optional[list[str]] = None,
-        values: Optional[list[Any]] = None,
+        memory_kv: Optional[dict[str, Any]] = None,
     ) -> list[int]:
         """
         Filters agents based on type and/or key-value pairs in their status.
 
         - **Args**:
             - `types` (Optional[List[Type[Agent]]]): A list of agent types to filter by.
-            - `keys` (Optional[List[str]]): A list of keys to check in the agent's status.
-            - `values` (Optional[List[Any]]): The corresponding values for each key in the `keys` list.
+            - `memory_kv` (Optional[Dict[str, Any]]): A dictionary of key-value pairs to check in the agent's status.
 
         - **Returns**:
             - `List[int]`: A list of agent IDs for agents that match the filter criteria.
@@ -643,23 +705,41 @@ class AgentGroup:
             add = True
             if types:
                 if isinstance(agent, types):
-                    if keys:
-                        for key in keys:
-                            assert values is not None
-                            if agent.status.get(key) != values[keys.index(key)]:
+                    if memory_kv:
+                        for key in memory_kv:
+                            if isinstance(memory_kv[key], list):
+                                if agent.status.get(key) not in memory_kv[key]:
+                                    add = False
+                                    break
+                            else:
+                                if agent.status.get(key) != memory_kv[key]:
+                                    add = False
+                                    break
+                    if add:
+                        filtered_ids.append(agent.id)
+            else:
+                if memory_kv:
+                    for key in memory_kv:
+                        if isinstance(memory_kv[key], list):
+                            if agent.status.get(key) not in memory_kv[key]:
+                                add = False
+                                break
+                        else:
+                            if agent.status.get(key) != memory_kv[key]:
                                 add = False
                                 break
                     if add:
                         filtered_ids.append(agent.id)
-            elif keys:
-                for key in keys:
-                    assert values is not None
-                    if agent.status.get(key) != values[keys.index(key)]:
-                        add = False
-                        break
-                if add:
-                    filtered_ids.append(agent.id)
         return filtered_ids
+
+    async def final(self):
+        """
+        Finalize the agent group.
+        """
+        tasks = []
+        for agent in self._agents:
+            tasks.append(agent.final())
+        await asyncio.gather(*tasks)
 
     async def gather(self, content: str, target_agent_ids: Optional[list[int]] = None):
         """
@@ -687,6 +767,44 @@ class AgentGroup:
                 if agent.id in target_agent_ids:
                     results[agent.id] = await agent.status.get(content)
         return results
+
+    async def delete_agents(self, target_agent_ids: list[int]):
+        """
+        Deletes the specified agents from the agent group.
+
+        - **Description**:
+            - Removes agents with the specified IDs from both the agents list and the ID-to-agent mapping.
+            - Handles cases where specified agent IDs might not exist in the group.
+
+        - **Args**:
+            - `target_agent_ids` (list[int]): List of agent IDs to be deleted.
+
+        - **Returns**:
+            - None
+        """
+        # Finalize the agents that are being deleted
+        agents_to_delete = [
+            agent for agent in self._agents if agent.id in target_agent_ids
+        ]
+        final_tasks = []
+        for agent in agents_to_delete:
+            final_tasks.append(agent.final())
+        await asyncio.gather(*final_tasks)
+
+        # Create a new list with agents that should be kept
+        self._agents = [
+            agent for agent in self._agents if agent.id not in target_agent_ids
+        ]
+
+        # Remove from the id-to-agent mapping
+        for agent_id in target_agent_ids:
+            if agent_id in self._id2agent:
+                del self._id2agent[agent_id]
+            else:
+                get_logger().warning(
+                    f"Attempted to delete non-existent agent with ID {agent_id}"
+                )
+
     async def forward_message(self, validation_dict: MessageIdentifier):
         """
         Forward the message to the channel if the message is valid.

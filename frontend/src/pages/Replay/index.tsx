@@ -3,8 +3,8 @@ import {
     Row,
 } from "antd";
 
-import InfoPanel from "./InfoPanel";
-import { ChatBox } from "./ChatBox";
+import InfoPanel from "./LeftPanel";
+import { RightPanel } from "./ChatBox";
 import LngLatJump from "./components/LngLatJump";
 import { LngLat } from "./components/type";
 import Deck from "./Deck";
@@ -33,7 +33,7 @@ const Replay: React.FC = observer(() => {
                 <Deck style={{}} />
             </div>
 
-            <div className="left">
+            <div className="agentsociety-left">
                 <InfoPanel />
             </div>
             {(store.globalPrompt ?? "") !== "" &&
@@ -51,8 +51,8 @@ const Replay: React.FC = observer(() => {
                 boxShadow: "0px 4px 10px 0px rgba(80, 80, 80, 0.1)",
             }}>
             </Row>
-            <div className="right">
-                <ChatBox />
+            <div className="agentsociety-right">
+                <RightPanel />
             </div>
         </>
     );

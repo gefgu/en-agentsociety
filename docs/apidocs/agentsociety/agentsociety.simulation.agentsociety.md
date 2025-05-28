@@ -43,6 +43,14 @@
   - ```{autodoc2-docstring} agentsociety.simulation.agentsociety.__all__
     :summary:
     ```
+* - {py:obj}`MIN_ID <agentsociety.simulation.agentsociety.MIN_ID>`
+  - ```{autodoc2-docstring} agentsociety.simulation.agentsociety.MIN_ID
+    :summary:
+    ```
+* - {py:obj}`MAX_ID <agentsociety.simulation.agentsociety.MAX_ID>`
+  - ```{autodoc2-docstring} agentsociety.simulation.agentsociety.MAX_ID
+    :summary:
+    ```
 ````
 
 ### API
@@ -57,7 +65,27 @@
 
 ````
 
-````{py:function} _init_agent_class(agent_config: agentsociety.configs.AgentConfig, s3config: agentsociety.s3.S3Config)
+````{py:data} MIN_ID
+:canonical: agentsociety.simulation.agentsociety.MIN_ID
+:value: >
+   1
+
+```{autodoc2-docstring} agentsociety.simulation.agentsociety.MIN_ID
+```
+
+````
+
+````{py:data} MAX_ID
+:canonical: agentsociety.simulation.agentsociety.MAX_ID
+:value: >
+   100000000
+
+```{autodoc2-docstring} agentsociety.simulation.agentsociety.MAX_ID
+```
+
+````
+
+````{py:function} _init_agent_class(agent_config: agentsociety.configs.AgentConfig)
 :canonical: agentsociety.simulation.agentsociety._init_agent_class
 
 ```{autodoc2-docstring} agentsociety.simulation.agentsociety._init_agent_class
@@ -150,7 +178,16 @@
 
 ````
 
-````{py:method} gather(content: str, target_agent_ids: typing.Optional[list[int]] = None, flatten: bool = False)
+````{py:method} _extract_target_agent_ids(target_agent: typing.Optional[typing.Union[list[int], agentsociety.configs.AgentFilterConfig]] = None) -> list[int]
+:canonical: agentsociety.simulation.agentsociety.AgentSociety._extract_target_agent_ids
+:async:
+
+```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety._extract_target_agent_ids
+```
+
+````
+
+````{py:method} gather(content: str, target_agent_ids: typing.Optional[list[int]] = None, flatten: bool = False, keep_id: bool = False) -> typing.Union[dict[int, typing.Any], list[typing.Any]]
 :canonical: agentsociety.simulation.agentsociety.AgentSociety.gather
 :async:
 
@@ -159,7 +196,7 @@
 
 ````
 
-````{py:method} filter(types: typing.Optional[tuple[type[agentsociety.agent.Agent]]] = None, keys: typing.Optional[list[str]] = None, values: typing.Optional[list[typing.Any]] = None) -> list[int]
+````{py:method} filter(types: typing.Optional[tuple[type[agentsociety.agent.Agent]]] = None, memory_kv: typing.Optional[dict[str, typing.Any]] = None) -> list[int]
 :canonical: agentsociety.simulation.agentsociety.AgentSociety.filter
 :async:
 
@@ -245,6 +282,15 @@
 :async:
 
 ```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety._save_global_prompt
+```
+
+````
+
+````{py:method} delete_agents(target_agent_ids: list[int])
+:canonical: agentsociety.simulation.agentsociety.AgentSociety.delete_agents
+:async:
+
+```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety.delete_agents
 ```
 
 ````

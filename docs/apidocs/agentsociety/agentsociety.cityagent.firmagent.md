@@ -15,6 +15,10 @@
 :class: autosummary longtable
 :align: left
 
+* - {py:obj}`FirmAgentConfig <agentsociety.cityagent.firmagent.FirmAgentConfig>`
+  - ```{autodoc2-docstring} agentsociety.cityagent.firmagent.FirmAgentConfig
+    :summary:
+    ```
 * - {py:obj}`FirmAgent <agentsociety.cityagent.firmagent.FirmAgent>`
   - ```{autodoc2-docstring} agentsociety.cityagent.firmagent.FirmAgent
     :summary:
@@ -45,7 +49,56 @@
 
 ````
 
-`````{py:class} FirmAgent(id: int, name: str, toolbox: agentsociety.agent.AgentToolbox, memory: agentsociety.memory.Memory)
+`````{py:class} FirmAgentConfig(/, **data: typing.Any)
+:canonical: agentsociety.cityagent.firmagent.FirmAgentConfig
+
+Bases: {py:obj}`agentsociety.agent.AgentParams`
+
+```{autodoc2-docstring} agentsociety.cityagent.firmagent.FirmAgentConfig
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.cityagent.firmagent.FirmAgentConfig.__init__
+```
+
+````{py:attribute} time_diff
+:canonical: agentsociety.cityagent.firmagent.FirmAgentConfig.time_diff
+:type: int
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.cityagent.firmagent.FirmAgentConfig.time_diff
+```
+
+````
+
+````{py:attribute} max_price_inflation
+:canonical: agentsociety.cityagent.firmagent.FirmAgentConfig.max_price_inflation
+:type: float
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.cityagent.firmagent.FirmAgentConfig.max_price_inflation
+```
+
+````
+
+````{py:attribute} max_wage_inflation
+:canonical: agentsociety.cityagent.firmagent.FirmAgentConfig.max_wage_inflation
+:type: float
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.cityagent.firmagent.FirmAgentConfig.max_wage_inflation
+```
+
+````
+
+`````
+
+`````{py:class} FirmAgent(id: int, name: str, toolbox: agentsociety.agent.AgentToolbox, memory: agentsociety.memory.Memory, agent_params: typing.Optional[agentsociety.cityagent.firmagent.FirmAgentConfig] = None, blocks: typing.Optional[list[agentsociety.agent.Block]] = None)
 :canonical: agentsociety.cityagent.firmagent.FirmAgent
 
 Bases: {py:obj}`agentsociety.agent.FirmAgentBase`
@@ -59,32 +112,22 @@ Bases: {py:obj}`agentsociety.agent.FirmAgentBase`
 ```{autodoc2-docstring} agentsociety.cityagent.firmagent.FirmAgent.__init__
 ```
 
-````{py:attribute} configurable_fields
-:canonical: agentsociety.cityagent.firmagent.FirmAgent.configurable_fields
+````{py:attribute} ParamsType
+:canonical: agentsociety.cityagent.firmagent.FirmAgent.ParamsType
 :value: >
-   ['time_diff', 'max_price_inflation', 'max_wage_inflation']
+   None
 
-```{autodoc2-docstring} agentsociety.cityagent.firmagent.FirmAgent.configurable_fields
+```{autodoc2-docstring} agentsociety.cityagent.firmagent.FirmAgent.ParamsType
 ```
 
 ````
 
-````{py:attribute} default_values
-:canonical: agentsociety.cityagent.firmagent.FirmAgent.default_values
-:value: >
-   None
+````{py:attribute} description
+:canonical: agentsociety.cityagent.firmagent.FirmAgent.description
+:type: str
+:value: <Multiline-String>
 
-```{autodoc2-docstring} agentsociety.cityagent.firmagent.FirmAgent.default_values
-```
-
-````
-
-````{py:attribute} fields_description
-:canonical: agentsociety.cityagent.firmagent.FirmAgent.fields_description
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.cityagent.firmagent.FirmAgent.fields_description
+```{autodoc2-docstring} agentsociety.cityagent.firmagent.FirmAgent.description
 ```
 
 ````
@@ -107,7 +150,7 @@ Bases: {py:obj}`agentsociety.agent.FirmAgentBase`
 
 ````
 
-````{py:method} gather_messages(agent_ids, content)
+````{py:method} gather_messages(agent_ids: list[int], target: str) -> list[str]
 :canonical: agentsociety.cityagent.firmagent.FirmAgent.gather_messages
 :async:
 

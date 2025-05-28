@@ -15,246 +15,93 @@
 :class: autosummary longtable
 :align: left
 
-* - {py:obj}`PlanAndActionBlock <agentsociety.cityagent.societyagent.PlanAndActionBlock>`
-  - ```{autodoc2-docstring} agentsociety.cityagent.societyagent.PlanAndActionBlock
-    :summary:
-    ```
-* - {py:obj}`MindBlock <agentsociety.cityagent.societyagent.MindBlock>`
-  - ```{autodoc2-docstring} agentsociety.cityagent.societyagent.MindBlock
-    :summary:
-    ```
 * - {py:obj}`SocietyAgent <agentsociety.cityagent.societyagent.SocietyAgent>`
-  - ```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent
+  -
+````
+
+### Data
+
+````{list-table}
+:class: autosummary longtable
+:align: left
+
+* - {py:obj}`ENVIRONMENT_REFLECTION_PROMPT <agentsociety.cityagent.societyagent.ENVIRONMENT_REFLECTION_PROMPT>`
+  - ```{autodoc2-docstring} agentsociety.cityagent.societyagent.ENVIRONMENT_REFLECTION_PROMPT
     :summary:
     ```
 ````
 
 ### API
 
-`````{py:class} PlanAndActionBlock(agent: agentsociety.agent.Agent, llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, memory: agentsociety.memory.Memory, enable_mobility: bool = True, enable_social: bool = True, enable_economy: bool = True, enable_cognition: bool = True)
-:canonical: agentsociety.cityagent.societyagent.PlanAndActionBlock
+````{py:data} ENVIRONMENT_REFLECTION_PROMPT
+:canonical: agentsociety.cityagent.societyagent.ENVIRONMENT_REFLECTION_PROMPT
+:value: <Multiline-String>
 
-Bases: {py:obj}`agentsociety.agent.Block`
-
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.PlanAndActionBlock
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.PlanAndActionBlock.__init__
-```
-
-````{py:attribute} month_plan_block
-:canonical: agentsociety.cityagent.societyagent.PlanAndActionBlock.month_plan_block
-:type: agentsociety.cityagent.blocks.economy_block.MonthPlanBlock
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.PlanAndActionBlock.month_plan_block
+```{autodoc2-docstring} agentsociety.cityagent.societyagent.ENVIRONMENT_REFLECTION_PROMPT
 ```
 
 ````
 
-````{py:attribute} needs_block
-:canonical: agentsociety.cityagent.societyagent.PlanAndActionBlock.needs_block
-:type: agentsociety.cityagent.blocks.NeedsBlock
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.PlanAndActionBlock.needs_block
-```
-
-````
-
-````{py:attribute} plan_block
-:canonical: agentsociety.cityagent.societyagent.PlanAndActionBlock.plan_block
-:type: agentsociety.cityagent.blocks.PlanBlock
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.PlanAndActionBlock.plan_block
-```
-
-````
-
-````{py:attribute} mobility_block
-:canonical: agentsociety.cityagent.societyagent.PlanAndActionBlock.mobility_block
-:type: agentsociety.cityagent.blocks.MobilityBlock
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.PlanAndActionBlock.mobility_block
-```
-
-````
-
-````{py:attribute} social_block
-:canonical: agentsociety.cityagent.societyagent.PlanAndActionBlock.social_block
-:type: agentsociety.cityagent.blocks.SocialBlock
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.PlanAndActionBlock.social_block
-```
-
-````
-
-````{py:attribute} economy_block
-:canonical: agentsociety.cityagent.societyagent.PlanAndActionBlock.economy_block
-:type: agentsociety.cityagent.blocks.EconomyBlock
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.PlanAndActionBlock.economy_block
-```
-
-````
-
-````{py:attribute} other_block
-:canonical: agentsociety.cityagent.societyagent.PlanAndActionBlock.other_block
-:type: agentsociety.cityagent.blocks.OtherBlock
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.PlanAndActionBlock.other_block
-```
-
-````
-
-````{py:method} reset()
-:canonical: agentsociety.cityagent.societyagent.PlanAndActionBlock.reset
-:async:
-
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.PlanAndActionBlock.reset
-```
-
-````
-
-````{py:method} plan_generation()
-:canonical: agentsociety.cityagent.societyagent.PlanAndActionBlock.plan_generation
-:async:
-
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.PlanAndActionBlock.plan_generation
-```
-
-````
-
-````{py:method} step_execution()
-:canonical: agentsociety.cityagent.societyagent.PlanAndActionBlock.step_execution
-:async:
-
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.PlanAndActionBlock.step_execution
-```
-
-````
-
-````{py:method} forward()
-:canonical: agentsociety.cityagent.societyagent.PlanAndActionBlock.forward
-:async:
-
-````
-
-`````
-
-`````{py:class} MindBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, memory: agentsociety.memory.Memory)
-:canonical: agentsociety.cityagent.societyagent.MindBlock
-
-Bases: {py:obj}`agentsociety.agent.Block`
-
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.MindBlock
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.MindBlock.__init__
-```
-
-````{py:attribute} cognition_block
-:canonical: agentsociety.cityagent.societyagent.MindBlock.cognition_block
-:type: agentsociety.cityagent.blocks.CognitionBlock
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.MindBlock.cognition_block
-```
-
-````
-
-````{py:method} forward()
-:canonical: agentsociety.cityagent.societyagent.MindBlock.forward
-:async:
-
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.MindBlock.forward
-```
-
-````
-
-`````
-
-`````{py:class} SocietyAgent(id: int, name: str, toolbox: agentsociety.agent.AgentToolbox, memory: agentsociety.memory.Memory)
+`````{py:class} SocietyAgent(id: int, name: str, toolbox: agentsociety.agent.AgentToolbox, memory: agentsociety.memory.Memory, agent_params: typing.Optional[agentsociety.cityagent.sharing_params.SocietyAgentConfig] = None, blocks: typing.Optional[list[agentsociety.agent.Block]] = None)
 :canonical: agentsociety.cityagent.societyagent.SocietyAgent
 
 Bases: {py:obj}`agentsociety.agent.CitizenAgentBase`
 
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.__init__
-```
-
-````{py:attribute} mind_block
-:canonical: agentsociety.cityagent.societyagent.SocietyAgent.mind_block
-:type: agentsociety.cityagent.societyagent.MindBlock
+````{py:attribute} ParamsType
+:canonical: agentsociety.cityagent.societyagent.SocietyAgent.ParamsType
 :value: >
    None
 
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.mind_block
+```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.ParamsType
 ```
 
 ````
 
-````{py:attribute} plan_and_action_block
-:canonical: agentsociety.cityagent.societyagent.SocietyAgent.plan_and_action_block
-:type: agentsociety.cityagent.societyagent.PlanAndActionBlock
+````{py:attribute} BlockOutputType
+:canonical: agentsociety.cityagent.societyagent.SocietyAgent.BlockOutputType
 :value: >
    None
 
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.plan_and_action_block
+```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.BlockOutputType
 ```
 
 ````
 
-````{py:attribute} configurable_fields
-:canonical: agentsociety.cityagent.societyagent.SocietyAgent.configurable_fields
+````{py:attribute} Context
+:canonical: agentsociety.cityagent.societyagent.SocietyAgent.Context
 :value: >
-   ['enable_cognition', 'enable_mobility', 'enable_social', 'enable_economy']
+   None
 
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.configurable_fields
+```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.Context
 ```
 
 ````
 
-````{py:attribute} default_values
-:canonical: agentsociety.cityagent.societyagent.SocietyAgent.default_values
+````{py:attribute} StatusAttributes
+:canonical: agentsociety.cityagent.societyagent.SocietyAgent.StatusAttributes
 :value: >
    None
 
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.default_values
+```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.StatusAttributes
 ```
 
 ````
 
-````{py:attribute} fields_description
-:canonical: agentsociety.cityagent.societyagent.SocietyAgent.fields_description
-:value: >
-   None
+````{py:attribute} description
+:canonical: agentsociety.cityagent.societyagent.SocietyAgent.description
+:type: str
+:value: <Multiline-String>
 
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.fields_description
+```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.description
+```
+
+````
+
+````{py:method} before_forward()
+:canonical: agentsociety.cityagent.societyagent.SocietyAgent.before_forward
+:async:
+
+```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.before_forward
 ```
 
 ````
@@ -264,6 +111,24 @@ Bases: {py:obj}`agentsociety.agent.CitizenAgentBase`
 :async:
 
 ```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.reset
+```
+
+````
+
+````{py:method} plan_generation()
+:canonical: agentsociety.cityagent.societyagent.SocietyAgent.plan_generation
+:async:
+
+```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.plan_generation
+```
+
+````
+
+````{py:method} reflect_to_environment()
+:canonical: agentsociety.cityagent.societyagent.SocietyAgent.reflect_to_environment
+:async:
+
+```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.reflect_to_environment
 ```
 
 ````
@@ -309,6 +174,15 @@ Bases: {py:obj}`agentsociety.agent.CitizenAgentBase`
 :async:
 
 ```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.reset_position
+```
+
+````
+
+````{py:method} step_execution()
+:canonical: agentsociety.cityagent.societyagent.SocietyAgent.step_execution
+:async:
+
+```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.step_execution
 ```
 
 ````

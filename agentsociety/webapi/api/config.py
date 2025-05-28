@@ -1,20 +1,36 @@
+import os
 import uuid
-from typing import List, Optional, cast, Any
+from typing import Any, List, Optional, cast
 
-from fastapi import APIRouter, Body, HTTPException, Request, status
-from sqlalchemy import or_, select, update, delete, insert
+from pydantic import BaseModel
+import redis.asyncio as aioredis
+from fastapi import (
+    APIRouter,
+    Body,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    status,
+    File,
+    UploadFile,
+)
+from fastapi.responses import FileResponse, StreamingResponse
+from sqlalchemy import delete, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ...configs import EnvConfig
 from ..models import ApiResponseWrapper
 from ..models.config import (
-    LLMConfig,
-    ApiLLMConfig,
-    MapConfig,
-    ApiMapConfig,
     AgentConfig,
     ApiAgentConfig,
-    WorkflowConfig,
+    ApiLLMConfig,
+    ApiMapConfig,
     ApiWorkflowConfig,
+    LLMConfig,
+    MapConfig,
+    RealMapConfig,
+    WorkflowConfig,
 )
 
 __all__ = ["router"]
@@ -39,8 +55,24 @@ async def list_llm_configs(
         )
         results = await db.execute(stmt)
         db_configs = list(results.scalars().all())
-        configs = cast(List[ApiLLMConfig], db_configs)
-        return ApiResponseWrapper(data=configs)
+        api_configs = [
+            ApiLLMConfig(
+                tenant_id=config.tenant_id,
+                id=config.id,
+                name=config.name,
+                description=config.description,
+                config=config.config,
+                created_at=config.created_at,
+                updated_at=config.updated_at,
+            )
+            for config in db_configs
+        ]
+        # if config.tenant_id is "", hide the api_key
+        for api_config in api_configs:
+            if api_config.tenant_id == "":
+                for c in api_config.config:
+                    c["api_key"] = "********"
+        return ApiResponseWrapper(data=api_configs)
 
 
 @router.get("/llm-configs/{config_id}")
@@ -65,7 +97,20 @@ async def get_llm_config_by_id(
                 detail="LLM configuration not found",
             )
         config = row
-        return ApiResponseWrapper(data=config)
+        api_config = ApiLLMConfig(
+            tenant_id=config.tenant_id,
+            id=config.id,
+            name=config.name,
+            description=config.description,
+            config=config.config,
+            created_at=config.created_at,
+            updated_at=config.updated_at,
+        )
+        # if config.tenant_id is "", hide the api_key
+        if api_config.tenant_id == "":
+            for c in api_config.config:
+                c["api_key"] = "********"
+        return ApiResponseWrapper(data=api_config)
 
 
 @router.post("/llm-configs")
@@ -202,6 +247,37 @@ async def get_map_config_by_id(
         return ApiResponseWrapper(data=config)
 
 
+@router.post("/map-configs/-/upload")
+async def upload_map_file(
+    request: Request,
+    file: UploadFile = File(...),
+):
+    """Upload a map file to S3"""
+    if request.app.state.read_only:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Server is in read-only mode"
+        )
+
+    tenant_id = await request.app.state.get_tenant_id(request)
+    env: EnvConfig = request.app.state.env
+    # Validate file extension
+    if not file.filename or not file.filename.endswith(".pb"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Only .pb files are allowed"
+        )
+    # Generate a unique map ID
+    map_id = str(uuid.uuid4())
+    # Construct S3 path
+    path = f"maps/{tenant_id}/{map_id}.pb"
+
+    # Upload to S3
+    fs_client = env.webui_fs_client
+    content = await file.read()
+    fs_client.upload(content, path)
+
+    return ApiResponseWrapper(data={"file_path": path})
+
+
 @router.post("/map-configs", status_code=status.HTTP_201_CREATED)
 async def create_map_config(
     request: Request,
@@ -215,7 +291,9 @@ async def create_map_config(
 
     tenant_id = await request.app.state.get_tenant_id(request)
 
+    config_data.tenant_id = tenant_id
     config_data.validate_config()
+
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
         stmt = insert(MapConfig).values(
@@ -242,6 +320,7 @@ async def update_map_config(
 
     tenant_id = await request.app.state.get_tenant_id(request)
 
+    config_data.tenant_id = tenant_id
     config_data.validate_config()
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
@@ -288,6 +367,153 @@ async def delete_map_config(
                 detail="Map configuration not found",
             )
         await db.commit()
+
+
+@router.post("/map-configs/{config_id}/export")
+async def export_map_config(
+    request: Request,
+    config_id: uuid.UUID,
+):
+    """Export map configuration and file"""
+    tenant_id = await request.app.state.get_tenant_id(request)
+
+    async with request.app.state.get_db() as db:
+        db = cast(AsyncSession, db)
+        stmt = select(MapConfig).where(
+            MapConfig.tenant_id.in_([tenant_id, ""]),
+            MapConfig.id == config_id,
+        )
+        result = await db.execute(stmt)
+        row = result.scalar_one_or_none()
+        if not row:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Map configuration not found",
+            )
+    config = RealMapConfig.model_validate(row.config)
+
+    env: EnvConfig = request.app.state.env
+    # Get map file path from config
+    map_path = config.file_path
+
+    fs_client = env.webui_fs_client
+    # download map file from s3
+    file_content = fs_client.download(map_path)
+
+    # Create response with file
+    return StreamingResponse(
+        content=iter([file_content]),
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f"attachment; filename={os.path.basename(map_path)}"
+        },
+    )
+
+
+class CreateTempDownloadLinkRequest(BaseModel):
+    expire_seconds: int = 600
+
+
+class CreateTempDownloadLinkResponse(BaseModel):
+    token: str
+
+
+@router.post("/map-configs/{config_id}/temp-link")
+async def create_temp_download_link(
+    request: Request,
+    config_id: uuid.UUID,
+    body: CreateTempDownloadLinkRequest = Body(...),
+):
+    """Create a temporary download link for map"""
+    tenant_id = await request.app.state.get_tenant_id(request)
+
+    async with request.app.state.get_db() as db:
+        db = cast(AsyncSession, db)
+        stmt = select(MapConfig).where(
+            MapConfig.tenant_id.in_([tenant_id, ""]),
+            MapConfig.id == config_id,
+        )
+        result = await db.execute(stmt)
+        row = result.scalar_one_or_none()
+        if not row:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Map configuration not found",
+            )
+    env: EnvConfig = request.app.state.env
+    client = aioredis.Redis(
+        host=env.redis.server,
+        port=env.redis.port,
+        db=env.redis.db,
+        password=env.redis.password,
+        socket_timeout=env.redis.timeout,
+        socket_keepalive=True,
+        health_check_interval=5,
+        single_connection_client=True,
+    )
+    # key: agentsociety:map:<config_id>:token:<token>
+    # value: "1"
+    # expire: expire_seconds
+    token = str(uuid.uuid4().hex)
+    await client.set(
+        f"agentsociety:map:{config_id}:token:{token}", "1", ex=body.expire_seconds
+    )
+    await client.close()
+
+    return ApiResponseWrapper(data=CreateTempDownloadLinkResponse(token=token))
+
+
+@router.get("/map-configs/{config_id}/temp-link")
+async def download_map_by_token(
+    request: Request,
+    config_id: uuid.UUID,
+    token: str = Query(...),
+):
+    """Download map by token"""
+    env: EnvConfig = request.app.state.env
+    client = aioredis.Redis(
+        host=env.redis.server,
+        port=env.redis.port,
+        db=env.redis.db,
+        password=env.redis.password,
+        socket_timeout=env.redis.timeout,
+        socket_keepalive=True,
+        health_check_interval=5,
+        single_connection_client=True,
+    )
+    res = await client.get(f"agentsociety:map:{config_id}:token:{token}")
+    await client.close()
+
+    if res is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Download link expired or invalid",
+        )
+
+    async with request.app.state.get_db() as db:
+        db = cast(AsyncSession, db)
+        stmt = select(MapConfig).where(MapConfig.id == config_id)
+        result = await db.execute(stmt)
+        row = result.scalar_one_or_none()
+        if not row:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Map configuration not found",
+            )
+
+    config = RealMapConfig.model_validate(row.config)
+    map_path = config.file_path
+
+    fs_client = env.webui_fs_client
+    file_content = fs_client.download(map_path)
+
+    return StreamingResponse(
+        content=iter([file_content]),
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f"attachment; filename={os.path.basename(map_path)}"
+        },
+    )
 
 
 # Agent Config API

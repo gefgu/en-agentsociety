@@ -15,6 +15,10 @@
 :class: autosummary longtable
 :align: left
 
+* - {py:obj}`NBSAgentConfig <agentsociety.cityagent.nbsagent.NBSAgentConfig>`
+  - ```{autodoc2-docstring} agentsociety.cityagent.nbsagent.NBSAgentConfig
+    :summary:
+    ```
 * - {py:obj}`NBSAgent <agentsociety.cityagent.nbsagent.NBSAgent>`
   - ```{autodoc2-docstring} agentsociety.cityagent.nbsagent.NBSAgent
     :summary:
@@ -45,7 +49,56 @@
 
 ````
 
-`````{py:class} NBSAgent(id: int, name: str, toolbox: agentsociety.agent.AgentToolbox, memory: agentsociety.memory.Memory)
+`````{py:class} NBSAgentConfig(/, **data: typing.Any)
+:canonical: agentsociety.cityagent.nbsagent.NBSAgentConfig
+
+Bases: {py:obj}`agentsociety.agent.AgentParams`
+
+```{autodoc2-docstring} agentsociety.cityagent.nbsagent.NBSAgentConfig
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.cityagent.nbsagent.NBSAgentConfig.__init__
+```
+
+````{py:attribute} time_diff
+:canonical: agentsociety.cityagent.nbsagent.NBSAgentConfig.time_diff
+:type: int
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.cityagent.nbsagent.NBSAgentConfig.time_diff
+```
+
+````
+
+````{py:attribute} num_labor_hours
+:canonical: agentsociety.cityagent.nbsagent.NBSAgentConfig.num_labor_hours
+:type: int
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.cityagent.nbsagent.NBSAgentConfig.num_labor_hours
+```
+
+````
+
+````{py:attribute} productivity_per_labor
+:canonical: agentsociety.cityagent.nbsagent.NBSAgentConfig.productivity_per_labor
+:type: float
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.cityagent.nbsagent.NBSAgentConfig.productivity_per_labor
+```
+
+````
+
+`````
+
+`````{py:class} NBSAgent(id: int, name: str, toolbox: agentsociety.agent.AgentToolbox, memory: agentsociety.memory.Memory, agent_params: typing.Optional[agentsociety.cityagent.nbsagent.NBSAgentConfig] = None, blocks: typing.Optional[list[agentsociety.agent.block.Block]] = None)
 :canonical: agentsociety.cityagent.nbsagent.NBSAgent
 
 Bases: {py:obj}`agentsociety.agent.NBSAgentBase`
@@ -59,32 +112,22 @@ Bases: {py:obj}`agentsociety.agent.NBSAgentBase`
 ```{autodoc2-docstring} agentsociety.cityagent.nbsagent.NBSAgent.__init__
 ```
 
-````{py:attribute} configurable_fields
-:canonical: agentsociety.cityagent.nbsagent.NBSAgent.configurable_fields
+````{py:attribute} ParamsType
+:canonical: agentsociety.cityagent.nbsagent.NBSAgent.ParamsType
 :value: >
-   ['time_diff', 'num_labor_hours', 'productivity_per_labor']
+   None
 
-```{autodoc2-docstring} agentsociety.cityagent.nbsagent.NBSAgent.configurable_fields
+```{autodoc2-docstring} agentsociety.cityagent.nbsagent.NBSAgent.ParamsType
 ```
 
 ````
 
-````{py:attribute} default_values
-:canonical: agentsociety.cityagent.nbsagent.NBSAgent.default_values
-:value: >
-   None
+````{py:attribute} description
+:canonical: agentsociety.cityagent.nbsagent.NBSAgent.description
+:type: str
+:value: <Multiline-String>
 
-```{autodoc2-docstring} agentsociety.cityagent.nbsagent.NBSAgent.default_values
-```
-
-````
-
-````{py:attribute} fields_description
-:canonical: agentsociety.cityagent.nbsagent.NBSAgent.fields_description
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.cityagent.nbsagent.NBSAgent.fields_description
+```{autodoc2-docstring} agentsociety.cityagent.nbsagent.NBSAgent.description
 ```
 
 ````
@@ -107,7 +150,7 @@ Bases: {py:obj}`agentsociety.agent.NBSAgentBase`
 
 ````
 
-````{py:method} gather_messages(agent_ids, content)
+````{py:method} gather_messages(agent_ids: list[int], target: str) -> list[typing.Any]
 :canonical: agentsociety.cityagent.nbsagent.NBSAgent.gather_messages
 :async:
 

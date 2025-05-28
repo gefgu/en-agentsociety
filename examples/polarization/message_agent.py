@@ -174,7 +174,6 @@ class DisagreeAgent(CitizenAgentBase):
             self.last_time_trigger = now_time
             return True
         return False
-    
 
     async def forward(self):
         # sync agent status with simulator

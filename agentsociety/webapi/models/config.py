@@ -2,6 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 from typing import Optional, Any
+from fastapi import HTTPException, status
 from pydantic import AwareDatetime, BaseModel
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -109,7 +110,17 @@ class ApiMapConfig(BaseModel):
         from_attributes = True
 
     def validate_config(self):
-        RealMapConfig.model_validate(self.config)
+        real_config = RealMapConfig.model_validate(self.config)
+        # more check
+        # 1. the map file path must have prefix: maps/{tenant_id}/
+        if not real_config.file_path.startswith(f"maps/{self.tenant_id}/"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"the map file path must have prefix: maps/{self.tenant_id}/, but got {real_config.file_path}",
+            )
+        # 2. set the cache_path to `{file_path}.cache`
+        real_config.cache_path = f"{real_config.file_path}.cache"
+        self.config = real_config.model_dump()
 
 
 class AgentConfig(Base):

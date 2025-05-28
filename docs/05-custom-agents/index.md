@@ -8,5 +8,6 @@ This document provides a detailed guide on how to customize the behavior logic o
 01-concept
 02-agent-tools
 03-memory
-04-agent-customization
+04-prompt-organization
+05-agent-customization
 ```

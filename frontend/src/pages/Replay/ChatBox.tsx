@@ -1,6 +1,6 @@
 import { Button, Col, Divider, Flex, GetProp, message, Modal, Row, Select, Tabs } from 'antd';
-import { AndroidOutlined, ArrowUpOutlined, CommentOutlined, ProfileOutlined, SmileOutlined, UpOutlined, UserOutlined } from '@ant-design/icons';
-import { AgentDialog, AgentProfile, AgentSurvey } from './components/type';
+import { AndroidOutlined, ArrowUpOutlined, CommentOutlined, ProfileOutlined, SmileOutlined, UpOutlined, UserOutlined, LineChartOutlined } from '@ant-design/icons';
+import { AgentDialog, AgentProfile, AgentSurvey, ApiMLflowMetric } from './components/type';
 import { Bubble, Sender } from '@ant-design/x';
 import { parseT } from '../../components/util';
 import React, { useContext, useState } from 'react';
@@ -8,6 +8,8 @@ import { observer } from 'mobx-react-lite';
 import { StoreContext } from './store';
 import { Model, Survey as SurveyUI } from 'survey-react-ui';
 import { fetchCustom } from '../../components/fetch';
+import { useTranslation } from 'react-i18next';
+import Plot from 'react-plotly.js';
 
 const roles: GetProp<typeof Bubble.List, 'roles'> = {
     self: {
@@ -30,8 +32,9 @@ const roles: GetProp<typeof Bubble.List, 'roles'> = {
     },
 };
 
-export const ChatBox = observer(() => {
+export const RightPanel = observer(() => {
     const store = useContext(StoreContext);
+    const { t } = useTranslation();
 
     const agent = store.clickedAgent;
     const agentDialogs = store.clickedAgentDialogs;
@@ -67,7 +70,7 @@ export const ChatBox = observer(() => {
         if (res.status !== 200) {
             console.error('Failed to send survey:', res);
         } else {
-            message.success('Survey sent, you should wait for the agent to save the survey into database and respond');
+            message.success(t('replay.chatbox.survey.surveySent'));
         }
         setSelectedSurveyID(undefined);
     };
@@ -116,7 +119,9 @@ export const ChatBox = observer(() => {
                     loading: false,
                     role: role,
                     content: content,
-                    header: <div>{name} (Day {m.day} {parseT(m.t)})</div>
+                    header: <div>
+                        {name} ({t('replay.day', { day: m.day })} {parseT(m.t)})
+                    </div>
                 }
             })}
         />
@@ -137,7 +142,7 @@ export const ChatBox = observer(() => {
                     if (res.status !== 200) {
                         console.error('Failed to send message:', res);
                     } else {
-                        message.success('Message sent, you should wait for the agent to save the message into database and respond');
+                        message.success(t('replay.chatbox.dialog.sendSuccess'));
                     }
                     setContent('');
                 }}
@@ -172,14 +177,14 @@ export const ChatBox = observer(() => {
                         key: `${s.id}-${i}`,
                         loading: false,
                         role: "user",
-                        content: <div>Survey Name: {survey.name} <Button
+                        content: <div>{t('replay.chatbox.survey.surveyName')}: {survey.name} <Button
                             type='link'
                             onClick={() => {
                                 setPreviousSurvey(JSON.stringify(survey.data));
                                 setOpenPreview(true);
                             }}
                         >
-                            Preview
+                            {t('replay.chatbox.survey.preview')}
                         </Button></div>,
                         header: <div>Survey Day {s.day} {parseT(s.t)}</div>
                     }, {
@@ -187,7 +192,7 @@ export const ChatBox = observer(() => {
                         loading: false,
                         role: "agent",
                         content: <div>{Object.entries(s.result).map(([k, v]) => (
-                            <><span>{k}: {v}</span><br /></>
+                            <><span>{k}: {JSON.stringify(v)}</span><br /></>
                         ))}</div>,
                         header: <div>{agent?.name} Day {s.day} {parseT(s.t)}</div>
                     }];
@@ -221,6 +226,95 @@ export const ChatBox = observer(() => {
         </Row>
     </>);
 
+    const renderMetrics = () => {
+        const metrics = store.metrics;
+        if (metrics.size === 0) {
+            return <div>{t('replay.chatbox.metrics.noMetrics')}</div>;
+        }
+
+        return (
+            <div style={{ overflow: 'auto', height: '70vh', width: '100%' }}>
+                {Array.from(metrics.entries()).map(([key, values]) => {
+                    const x = values.map(v => v.step);
+                    const y = values.map(v => v.value);
+
+                    return (
+                        <div key={key}>
+                            <Plot
+                                data={[
+                                    {
+                                        x: x,
+                                        y: y,
+                                        type: 'scatter',
+                                        mode: 'lines+markers',
+                                        name: key,
+                                        line: {
+                                            width: 2,
+                                            color: '#1890ff'
+                                        },
+                                        marker: {
+                                            size: 6,
+                                            color: '#1890ff'
+                                        }
+                                    }
+                                ]}
+                                layout={{
+                                    title: {
+                                        text: key,
+                                        font: {
+                                            size: 16,
+                                            family: 'Arial'
+                                        }
+                                    },
+                                    autosize: true,
+                                    width: null,
+                                    height: 200,
+                                    margin: {
+                                        l: 30,
+                                        r: 10,
+                                        t: 30,
+                                        b: 30
+                                    },
+                                    xaxis: {
+                                        title: {
+                                            text: t('replay.chatbox.metrics.step'),
+                                            font: {
+                                                size: 12
+                                            }
+                                        },
+                                        showgrid: true,
+                                        gridcolor: '#f0f0f0'
+                                    },
+                                    yaxis: {
+                                        title: {
+                                            text: t('replay.chatbox.metrics.value'),
+                                            font: {
+                                                size: 12
+                                            }
+                                        },
+                                        showgrid: true,
+                                        gridcolor: '#f0f0f0'
+                                    },
+                                    paper_bgcolor: 'rgba(0,0,0,0)',
+                                    plot_bgcolor: 'rgba(0,0,0,0)'
+                                }}
+                                config={{
+                                    responsive: true,
+                                    displaylogo: false,
+                                    modeBarButtonsToRemove: ['lasso2d', 'select2d']
+                                }}
+                                style={{
+                                    width: '100%',
+                                    height: '100%'
+                                }}
+                            />
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
+
     let model = new Model({});
     if (previewSurvey !== undefined) {
         try {
@@ -231,28 +325,33 @@ export const ChatBox = observer(() => {
     }
     model.showCompleteButton = false;
 
-    const rootClass = agent ? "right-inner" : "right-inner collapsed";
+    const rootClass = "right-inner";
 
     return (<>
         <Flex vertical className={rootClass}>
             <Tabs centered defaultActiveKey="0" animated={{ inkBar: true, tabPane: true }} className='tabs w-full'>
-                <Tabs.TabPane tab="Reflection" icon={<SmileOutlined />} key="0">
-                    {renderDialogs(0)}
-                </Tabs.TabPane>
-                <Tabs.TabPane tab="Agent" icon={<AndroidOutlined />} key="1">
-                    {renderDialogs(1)}
-                </Tabs.TabPane>
-                <Tabs.TabPane tab="User" icon={<CommentOutlined />} key="2">
-                    {renderDialogs(2)}
-                </Tabs.TabPane>
-                <Tabs.TabPane tab="Survey" icon={<ProfileOutlined />} key="3">
-                    {renderSurveys()}
+                {agent !== undefined && <>
+                    <Tabs.TabPane tab={t('replay.chatbox.tabs.reflection')} icon={<SmileOutlined />} key="0">
+                        {renderDialogs(0)}
+                    </Tabs.TabPane>
+                    <Tabs.TabPane tab={t('replay.chatbox.tabs.agent')} icon={<AndroidOutlined />} key="1">
+                        {renderDialogs(1)}
+                    </Tabs.TabPane>
+                    <Tabs.TabPane tab={t('replay.chatbox.tabs.user')} icon={<CommentOutlined />} key="2">
+                        {renderDialogs(2)}
+                    </Tabs.TabPane>
+                    <Tabs.TabPane tab={t('replay.chatbox.tabs.survey')} icon={<ProfileOutlined />} key="3">
+                        {renderSurveys()}
+                    </Tabs.TabPane>
+                </>}
+                <Tabs.TabPane tab={t('replay.chatbox.tabs.metrics')} icon={<LineChartOutlined />} key="4">
+                    {renderMetrics()}
                 </Tabs.TabPane>
             </Tabs>
         </Flex>
         <Modal
             width='50vw'
-            title="Survey Preview"
+            title={t('replay.chatbox.survey.preview')}
             open={openPreview}
             onCancel={() => setOpenPreview(false)}
             footer={null}

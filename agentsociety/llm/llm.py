@@ -432,10 +432,8 @@ class LLM:
                     end_time = time.time()
                     log["consumption"] = end_time - start_time
                     self._log_list.append(log)
-                    if tools and response.choices[0].message.tool_calls:
-                        return jsonc.loads(
-                            response.choices[0].message.tool_calls[0].function.arguments
-                        )
+                    if tools:
+                        return response
                     else:
                         content = response.choices[0].message.content
                         if content is None:

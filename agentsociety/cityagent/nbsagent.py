@@ -1,12 +1,29 @@
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
+from pydantic import Field
 
-from ..agent import AgentToolbox, NBSAgentBase
+from ..agent import AgentParams, AgentToolbox, NBSAgentBase
 from ..logger import get_logger
 from ..memory import Memory
+from ..agent.block import Block
 
 __all__ = ["NBSAgent"]
+
+
+class NBSAgentConfig(AgentParams):
+    """Configuration for NBSAgent."""
+
+    time_diff: int = Field(
+        default=30 * 24 * 60 * 60,
+        description="Time difference between each forward, day * hour * minute * second",
+    )
+    num_labor_hours: int = Field(
+        default=168, description="Number of labor hours per week"
+    )
+    productivity_per_labor: float = Field(
+        default=1, description="Productivity per labor hour"
+    )
 
 
 class NBSAgent(NBSAgentBase):
@@ -17,17 +34,10 @@ class NBSAgent(NBSAgentBase):
     GDP, labor statistics, prices, and citizen welfare indicators.
     """
 
-    configurable_fields = ["time_diff", "num_labor_hours", "productivity_per_labor"]
-    default_values = {
-        "time_diff": 30 * 24 * 60 * 60,
-        "num_labor_hours": 168,
-        "productivity_per_labor": 1,
-    }
-    fields_description = {
-        "time_diff": "Time difference between each forward, day * hour * minute * second",
-        "num_labor_hours": "Number of labor hours per week",
-        "productivity_per_labor": "Productivity per labor hour",
-    }
+    ParamsType = NBSAgentConfig
+    description: str = """
+The National Bureau of Statistics Agent simulating economic data collection and analysis.
+    """
 
     def __init__(
         self,
@@ -35,6 +45,8 @@ class NBSAgent(NBSAgentBase):
         name: str,
         toolbox: AgentToolbox,
         memory: Memory,
+        agent_params: Optional[NBSAgentConfig] = None,
+        blocks: Optional[list[Block]] = None,
     ) -> None:
         """Initialize NBSAgent with dependencies and configuration.
 
@@ -51,14 +63,12 @@ class NBSAgent(NBSAgentBase):
             name=name,
             toolbox=toolbox,
             memory=memory,
+            agent_params=agent_params,
+            blocks=blocks,
         )
         self.initailzed = False
         self.last_time_trigger = None
-        self.time_diff = 30 * 24 * 60 * 60
         self.forward_times = 0
-        self.num_labor_hours = 168
-        self.productivity_per_labor = 1
-        self.price = 1
 
     async def reset(self):
         """Reset the NBSAgent."""
@@ -74,7 +84,7 @@ class NBSAgent(NBSAgentBase):
         if self.last_time_trigger is None:
             self.last_time_trigger = now_tick
             return False
-        if now_tick - self.last_time_trigger >= self.time_diff:
+        if now_tick - self.last_time_trigger >= self.params.time_diff:
             self.last_time_trigger = now_tick
             return True
         return False
@@ -115,7 +125,7 @@ class NBSAgent(NBSAgentBase):
             if sum(work_propensity) == 0.0:
                 working_hours = 0.0
             else:
-                working_hours = np.mean(work_propensity) * self.num_labor_hours
+                working_hours = np.mean(work_propensity) * self.params.num_labor_hours
             await self.environment.economy_client.update(
                 nbs_id, "working_hours", {t_now: working_hours}, mode="merge"
             )

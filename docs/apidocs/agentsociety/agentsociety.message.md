@@ -36,7 +36,7 @@ agentsociety.message.message_interceptor
 ````{py:data} __all__
 :canonical: agentsociety.message.__all__
 :value: >
-   ['Messager', 'RedisConfig', 'MessageBlockBase', 'MessageBlockListenerBase', 'MessageInterceptor']
+   ['Messager', 'RedisConfig', 'MessageBlockBase', 'MessageBlockListenerBase', 'MessageInterceptor', 'M...
 
 ```{autodoc2-docstring} agentsociety.message.__all__
 ```

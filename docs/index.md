@@ -59,7 +59,7 @@ We welcome collaborative opportunities to advance social science research throug
 :maxdepth: 2
 
 01-quick-start/index
-02-version-1.3/index
+02-version-1.5/index
 03-configurations/index
 04-experiment-design/index
 05-custom-agents/index

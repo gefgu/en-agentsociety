@@ -7,9 +7,26 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from ._base import TABLE_PREFIX, Base
 
-__all__ = ["Experiment", "ExperimentStatus", "ApiExperiment", "ApiTime"]
+__all__ = [
+    "Experiment",
+    "ExperimentStatus",
+    "ApiExperiment",
+    "ApiTime",
+    "RunningExperiment",
+]
 
 # Database Models
+
+
+class RunningExperiment(Base):
+    """Running experiment model"""
+
+    __tablename__ = f"{TABLE_PREFIX}running_experiment"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    tenant_id: Mapped[str] = mapped_column()
+    callback_auth_token: Mapped[str] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(default=datetime.now)
 
 
 class ExperimentStatus(enum.IntEnum):
@@ -19,6 +36,7 @@ class ExperimentStatus(enum.IntEnum):
     RUNNING = 1  # The experiment is running
     FINISHED = 2  #  The experiment is finished
     ERROR = 3  # The experiment has error and stopped
+    STOPPED = 4  # The experiment is stopped by user
 
 
 class Experiment(Base):

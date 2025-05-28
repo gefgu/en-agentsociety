@@ -78,11 +78,11 @@ Agents communicate through a message-passing system that supports:
 
 The communication framework includes capabilities for message interception, which allows for monitoring, filtering, or modifying messages between agents for research or control purposes.
 
-## Block-Based Design Pattern
+## Integrate Blocks into your Design
 
 ```{admonition} Note
 :class: note
-Refer to [Block-Based Design Pattern](./04-agent-customization.md#what-is-a-block) for details.
+Refer to [agent-block-action architecture](../02-version-1.5/02.agent-block-action architecture.md) for details.
 ```
 
 Agent behaviors are organized using a modular "Block" design pattern (optional):
@@ -93,3 +93,17 @@ Agent behaviors are organized using a modular "Block" design pattern (optional):
 - **Event-Driven Execution**: Blocks can be triggered based on specific conditions or events
 
 This modular design allows researchers to create complex behaviors by combining simpler components, promoting code reuse and systematic experimentation with agent designs.
+
+### Block System Architecture
+
+The Block system provides a flexible way to extend agent capabilities:
+
+1. **Community Blocks**: You can leverage pre-built blocks from the community to quickly add capabilities to your agents
+2. **Custom Blocks**: Design and implement your own blocks to create specialized agent behaviors, you can refer to [Implement Custom Blocks](./04-agent-customization.md#Implementation-Example) for details.
+3. **Block Dispatcher**: Coordinate block execution through a central dispatcher that manages block invocation
+
+By using the Block architecture, you can:
+- Easily share and reuse agent capabilities across different projects
+- Create complex agent behaviors by combining simpler functional components
+- Extend agent functionality without modifying core agent logic
+- Contribute your custom blocks back to the community

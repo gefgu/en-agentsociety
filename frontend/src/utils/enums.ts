@@ -19,8 +19,9 @@ export enum WorkflowType {
   ENVIRONMENT_INTERVENE = "environment",
   UPDATE_STATE_INTERVENE = "update_state",
   MESSAGE_INTERVENE = "message",
-  // INTERVENE = "other",
-  // FUNCTION = "function"
+  NEXT_ROUND = "next_round",
+  INTERVENE = "other",
+  FUNCTION = "function"
 }
 
 export enum MetricType {

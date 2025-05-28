@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import asyncio
 import random
-from typing import Any
+from typing import Any, Optional
 from pycityproto.city.person.v2 import person_pb2 as person_pb2
 
 from ..environment.sim.person_service import PersonService
 from ..logger import get_logger
 from ..memory import Memory
 from .agent_base import Agent, AgentToolbox, AgentType
+from .block import Block
+from .decorator import register_get
 
 __all__ = [
     "CitizenAgentBase",
@@ -38,6 +40,8 @@ class CitizenAgentBase(Agent):
         name: str,
         toolbox: AgentToolbox,
         memory: Memory,
+        agent_params: Optional[Any] = None,
+        blocks: Optional[list[Block]] = None,
     ) -> None:
         """
         Initialize a new instance of the CitizenAgent.
@@ -57,6 +61,8 @@ class CitizenAgentBase(Agent):
             type=AgentType.Citizen,
             toolbox=toolbox,
             memory=memory,
+            agent_params=agent_params,
+            blocks=blocks,
         )
 
     async def init(self):
@@ -160,7 +166,31 @@ class CitizenAgentBase(Agent):
             "from": self.id,
             "content": content,
         }
-        await self._send_message(sender_id, payload, "gather")
+        await self._send_message(sender_id, payload, "gather_receive")
+
+    async def get_aoi_info(self):
+        """Get the surrounding environment information - aoi information"""
+        position = await self.status.get("position")
+        if "aoi_position" in position:
+            parent_id = position["aoi_position"]["aoi_id"]
+            return self.environment.sense_aoi(parent_id)
+        else:
+            return None
+
+    @register_get("Get the current time in the format of HH:MM:SS")
+    async def get_nowtime(self):
+        """Get the current time"""
+        now_time = self.environment.get_datetime(format_time=True)
+        return now_time[1]
+
+    async def before_forward(self):
+        """
+        Before forward.
+        """
+        await super().before_forward()
+        # sync agent status with simulator
+        await self.update_motion()
+        get_logger().debug(f"Agent {self.id}: Finished main workflow - update motion")
 
 
 class InstitutionAgentBase(Agent):
@@ -183,6 +213,8 @@ class InstitutionAgentBase(Agent):
         name: str,
         toolbox: AgentToolbox,
         memory: Memory,
+        agent_params: Optional[Any] = None,
+        blocks: Optional[list[Block]] = None,
     ):
         """
         Initialize a new instance of the InstitutionAgent.
@@ -202,9 +234,9 @@ class InstitutionAgentBase(Agent):
             type=AgentType.Institution,
             toolbox=toolbox,
             memory=memory,
+            agent_params=agent_params,
+            blocks=blocks,
         )
-        # add response collector
-        self._gather_responses: dict[int, asyncio.Future] = {}
 
     async def init(self):
         """
@@ -310,70 +342,6 @@ class InstitutionAgentBase(Agent):
             - React to an intervention.
         """
         ...
-
-    async def handle_gather_message(self, payload: dict):
-        """
-        Handle a gather message received by the agent.
-
-        - **Args**:
-            - `payload` (`dict`): The message payload containing the content and sender ID.
-
-        - **Description**:
-            - Extracts the content and sender ID from the payload.
-            - Stores the response in the corresponding Future object using the sender ID as the key.
-        """
-        content = payload["content"]
-        sender_id = payload["from"]
-
-        # Store the response into the corresponding Future
-        response_key = sender_id
-        if response_key in self._gather_responses:
-            self._gather_responses[response_key].set_result(
-                {
-                    "from": sender_id,
-                    "content": content,
-                }
-            )
-
-    async def gather_messages(self, agent_ids: list[int], target: str) -> list[Any]:
-        """
-        Gather messages from multiple agents.
-
-        - **Args**:
-            - `agent_ids` (`list[int]`): A list of IDs for the target agents.
-            - `target` (`str`): The type of information to collect from each agent.
-
-        - **Returns**:
-            - `list[Any]`: A list of collected responses.
-
-        - **Description**:
-            - For each agent ID provided, creates a `Future` object to wait for its response.
-            - Sends a gather request to each specified agent.
-            - Waits for all responses and returns them as a list of dictionaries.
-            - Ensures cleanup of Futures after collecting responses.
-        """
-        # Create a Future for each agent
-        futures = {}
-        for agent_id in agent_ids:
-            futures[agent_id] = asyncio.Future()
-            self._gather_responses[agent_id] = futures[agent_id]  
-
-        # Send gather requests
-        payload = {
-            "from": self.id,
-            "target": target,
-        }
-        for agent_id in agent_ids:
-            await self._send_message(agent_id, payload, "gather")
-
-        try:
-            # Wait for all responses
-            responses = await asyncio.gather(*futures.values())
-            return responses
-        finally:
-            # Cleanup Futures
-            for key in futures:
-                self._gather_responses.pop(key, None)
 
 
 class FirmAgentBase(InstitutionAgentBase):

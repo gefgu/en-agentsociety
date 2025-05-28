@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Typography, Button, Space, Row, Col } from 'antd';
 import { GithubOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 
 const { Title, Text, Link } = Typography;
 
@@ -16,6 +17,7 @@ const newsBarStyle = {
 
 const HomePage = () => {
     const [stars, setStars] = useState(0);
+    const { t } = useTranslation();
 
     useEffect(() => {
         fetch('https://api.github.com/repos/tsinghua-fib-lab/agentsociety')
@@ -37,11 +39,11 @@ const HomePage = () => {
                                 padding: '4px 12px',
                                 marginRight: '8px',
                             }}
-                        >What's New</Col>
+                        >{t('home.whatsNew')}</Col>
                         <Col style={{
                             color: 'white'
                         }}>
-                            Release v1.3. Click here to view the release notes.
+                            {t('home.releaseNotes')}
                         </Col>
                     </Space>
                 </div>
@@ -57,7 +59,7 @@ const HomePage = () => {
                 AgentSociety
             </Text>
 
-            <Text
+            <div
                 style={{
                     color: 'white',
                     fontSize: '1.3rem',
@@ -65,9 +67,8 @@ const HomePage = () => {
                     display: 'block',
                     marginBottom: '64px',
                 }}
-            >
-                Create your society with <strong><em>Large Model-driven Social Human Agent</em></strong> and <strong><em>Realistic Urban Social Environment</em></strong>.
-            </Text>
+                dangerouslySetInnerHTML={{ __html: t('home.mainDescription') }}
+            />
 
             {/* 按钮组 */}
             <Space size="large">
@@ -87,7 +88,7 @@ const HomePage = () => {
                             backgroundColor: 'rgba(255, 255, 255, 0.1)'
                         }}
                     >
-                        Get Started
+                        {t('home.getStarted')}
                     </Button>
                 </Link>
 
@@ -105,7 +106,7 @@ const HomePage = () => {
                             color: 'white'
                         }}
                     >
-                        {stars > 0 ? `${stars.toLocaleString()} Stars` : 'GitHub'}
+                        {stars > 0 ? `${stars.toLocaleString()} ${t('home.stars')}` : 'GitHub'}
                     </Button>
                 </Link>
             </Space>

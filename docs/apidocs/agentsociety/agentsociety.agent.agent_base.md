@@ -15,6 +15,8 @@
 :class: autosummary longtable
 :align: left
 
+* - {py:obj}`AgentParams <agentsociety.agent.agent_base.AgentParams>`
+  -
 * - {py:obj}`AgentToolbox <agentsociety.agent.agent_base.AgentToolbox>`
   - ```{autodoc2-docstring} agentsociety.agent.agent_base.AgentToolbox
     :summary:
@@ -64,6 +66,24 @@
 ```
 
 ````
+
+`````{py:class} AgentParams(/, **data: typing.Any)
+:canonical: agentsociety.agent.agent_base.AgentParams
+
+Bases: {py:obj}`pydantic.BaseModel`
+
+````{py:attribute} block_dispatch_prompt
+:canonical: agentsociety.agent.agent_base.AgentParams.block_dispatch_prompt
+:type: str
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.AgentParams.block_dispatch_prompt
+```
+
+````
+
+`````
 
 `````{py:class} AgentToolbox
 :canonical: agentsociety.agent.agent_base.AgentToolbox
@@ -194,7 +214,7 @@ Bases: {py:obj}`enum.Enum`
 ```
 ````
 
-`````{py:class} Agent(id: int, name: str, type: agentsociety.agent.agent_base.AgentType, toolbox: agentsociety.agent.agent_base.AgentToolbox, memory: agentsociety.memory.Memory)
+`````{py:class} Agent(id: int, name: str, type: agentsociety.agent.agent_base.AgentType, toolbox: agentsociety.agent.agent_base.AgentToolbox, memory: agentsociety.memory.Memory, agent_params: typing.Optional[typing.Any] = None, blocks: typing.Optional[list[agentsociety.agent.block.Block]] = None)
 :canonical: agentsociety.agent.agent_base.Agent
 
 Bases: {py:obj}`abc.ABC`
@@ -208,35 +228,89 @@ Bases: {py:obj}`abc.ABC`
 ```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.__init__
 ```
 
-````{py:attribute} configurable_fields
-:canonical: agentsociety.agent.agent_base.Agent.configurable_fields
-:type: list[str]
+````{py:attribute} ParamsType
+:canonical: agentsociety.agent.agent_base.Agent.ParamsType
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.ParamsType
+```
+
+````
+
+````{py:attribute} Context
+:canonical: agentsociety.agent.agent_base.Agent.Context
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.Context
+```
+
+````
+
+````{py:attribute} BlockOutputType
+:canonical: agentsociety.agent.agent_base.Agent.BlockOutputType
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.BlockOutputType
+```
+
+````
+
+````{py:attribute} StatusAttributes
+:canonical: agentsociety.agent.agent_base.Agent.StatusAttributes
+:type: list[agentsociety.agent.memory_config_generator.StatusAttribute]
 :value: >
    []
 
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.configurable_fields
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.StatusAttributes
 ```
 
 ````
 
-````{py:attribute} default_values
-:canonical: agentsociety.agent.agent_base.Agent.default_values
-:type: dict[str, typing.Any]
-:value: >
-   None
+````{py:attribute} description
+:canonical: agentsociety.agent.agent_base.Agent.description
+:type: str
+:value: <Multiline-String>
 
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.default_values
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.description
 ```
 
 ````
 
-````{py:attribute} fields_description
-:canonical: agentsociety.agent.agent_base.Agent.fields_description
-:type: dict[str, str]
-:value: >
-   None
+````{py:method} default_params() -> ParamsType
+:canonical: agentsociety.agent.agent_base.Agent.default_params
+:classmethod:
 
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.fields_description
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.default_params
+```
+
+````
+
+````{py:method} default_context() -> Context
+:canonical: agentsociety.agent.agent_base.Agent.default_context
+:classmethod:
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.default_context
+```
+
+````
+
+````{py:method} __init_subclass__(**kwargs)
+:canonical: agentsociety.agent.agent_base.Agent.__init_subclass__
+:classmethod:
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.__init_subclass__
+```
+
+````
+
+````{py:method} _getx(function_name: str, *args, **kwargs)
+:canonical: agentsociety.agent.agent_base.Agent._getx
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent._getx
 ```
 
 ````
@@ -252,68 +326,6 @@ Bases: {py:obj}`abc.ABC`
 
 ````{py:method} __getstate__()
 :canonical: agentsociety.agent.agent_base.Agent.__getstate__
-
-````
-
-````{py:method} export_class_config() -> dict[str, dict]
-:canonical: agentsociety.agent.agent_base.Agent.export_class_config
-:classmethod:
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.export_class_config
-```
-
-````
-
-````{py:method} _export_subblocks(block_cls: type[agentsociety.agent.block.Block]) -> list[dict]
-:canonical: agentsociety.agent.agent_base.Agent._export_subblocks
-:classmethod:
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent._export_subblocks
-```
-
-````
-
-````{py:method} export_to_file(filepath: str) -> None
-:canonical: agentsociety.agent.agent_base.Agent.export_to_file
-:classmethod:
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.export_to_file
-```
-
-````
-
-````{py:method} import_block_config(config: dict[str, typing.Union[list[dict], str]]) -> agentsociety.agent.agent_base.Agent
-:canonical: agentsociety.agent.agent_base.Agent.import_block_config
-:abstractmethod:
-:classmethod:
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.import_block_config
-```
-
-````
-
-````{py:method} import_from_file(filepath: str) -> agentsociety.agent.agent_base.Agent
-:canonical: agentsociety.agent.agent_base.Agent.import_from_file
-:classmethod:
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.import_from_file
-```
-
-````
-
-````{py:method} load_from_config(config: dict[str, typing.Any]) -> None
-:canonical: agentsociety.agent.agent_base.Agent.load_from_config
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.load_from_config
-```
-
-````
-
-````{py:method} load_from_file(filepath: str) -> None
-:canonical: agentsociety.agent.agent_base.Agent.load_from_file
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.load_from_file
-```
 
 ````
 
@@ -417,7 +429,7 @@ Bases: {py:obj}`abc.ABC`
 
 ````
 
-````{py:method} generate_user_survey_response(survey: dict) -> str
+````{py:method} generate_user_survey_response(survey: agentsociety.survey.models.Survey) -> str
 :canonical: agentsociety.agent.agent_base.Agent.generate_user_survey_response
 :async:
 
@@ -426,7 +438,7 @@ Bases: {py:obj}`abc.ABC`
 
 ````
 
-````{py:method} _process_survey(survey: dict)
+````{py:method} _process_survey(survey: agentsociety.survey.models.Survey)
 :canonical: agentsociety.agent.agent_base.Agent._process_survey
 :async:
 
@@ -507,11 +519,29 @@ Bases: {py:obj}`abc.ABC`
 
 ````
 
-````{py:method} handle_gather_message(payload: typing.Any)
+````{py:method} handle_gather_message(payload: dict)
 :canonical: agentsociety.agent.agent_base.Agent.handle_gather_message
 :async:
 
 ```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.handle_gather_message
+```
+
+````
+
+````{py:method} handle_gather_receive_message(payload: typing.Any)
+:canonical: agentsociety.agent.agent_base.Agent.handle_gather_receive_message
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.handle_gather_receive_message
+```
+
+````
+
+````{py:method} gather_messages(agent_ids: list[int], target: typing.Union[str, list[str]]) -> list[typing.Any]
+:canonical: agentsociety.agent.agent_base.Agent.gather_messages
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.gather_messages
 ```
 
 ````
@@ -534,7 +564,25 @@ Bases: {py:obj}`abc.ABC`
 
 ````
 
-````{py:method} forward() -> None
+````{py:method} register_aoi_message(target_aoi: typing.Union[int, list[int]], content: str)
+:canonical: agentsociety.agent.agent_base.Agent.register_aoi_message
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.register_aoi_message
+```
+
+````
+
+````{py:method} cancel_aoi_message(target_aoi: typing.Union[int, list[int]])
+:canonical: agentsociety.agent.agent_base.Agent.cancel_aoi_message
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.cancel_aoi_message
+```
+
+````
+
+````{py:method} forward() -> typing.Any
 :canonical: agentsociety.agent.agent_base.Agent.forward
 :abstractmethod:
 :async:
@@ -544,7 +592,52 @@ Bases: {py:obj}`abc.ABC`
 
 ````
 
-````{py:method} run() -> None
+````{py:method} final()
+:canonical: agentsociety.agent.agent_base.Agent.final
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.final
+```
+
+````
+
+````{py:method} before_forward()
+:canonical: agentsociety.agent.agent_base.Agent.before_forward
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.before_forward
+```
+
+````
+
+````{py:method} after_forward()
+:canonical: agentsociety.agent.agent_base.Agent.after_forward
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.after_forward
+```
+
+````
+
+````{py:method} before_blocks()
+:canonical: agentsociety.agent.agent_base.Agent.before_blocks
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.before_blocks
+```
+
+````
+
+````{py:method} after_blocks()
+:canonical: agentsociety.agent.agent_base.Agent.after_blocks
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.after_blocks
+```
+
+````
+
+````{py:method} run() -> typing.Any
 :canonical: agentsociety.agent.agent_base.Agent.run
 :async:
 

@@ -1,10 +1,11 @@
 import asyncio
 import logging
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
+from pydantic import Field
 
-from ..agent import AgentToolbox, GovernmentAgentBase
+from ..agent import AgentParams, AgentToolbox, GovernmentAgentBase, Block
 from ..environment import EconomyClient, Environment
 from ..llm import LLM
 from ..logger import get_logger
@@ -14,16 +15,22 @@ from ..message import Messager
 __all__ = ["GovernmentAgent"]
 
 
+class GovernmentAgentConfig(AgentParams):
+    """Configuration for GovernmentAgent."""
+
+    time_diff: int = Field(
+        default=30 * 24 * 60 * 60,
+        description="Time difference between each forward, day * hour * minute * second",
+    )
+
+
 class GovernmentAgent(GovernmentAgentBase):
     """A government institution agent that handles periodic economic operations such as tax collection."""
 
-    configurable_fields = ["time_diff"]
-    default_values = {
-        "time_diff": 30 * 24 * 60 * 60,
-    }
-    fields_description = {
-        "time_diff": "Time difference between each forward, day * hour * minute * second",
-    }
+    ParamsType = GovernmentAgentConfig
+    description: str = """
+A government institution agent that handles periodic economic operations such as tax collection.
+    """
 
     def __init__(
         self,
@@ -31,6 +38,8 @@ class GovernmentAgent(GovernmentAgentBase):
         name: str,
         toolbox: AgentToolbox,
         memory: Memory,
+        agent_params: Optional[GovernmentAgentConfig] = None,
+        blocks: Optional[list[Block]] = None,
     ) -> None:
         """
         Initialize the GovernmentAgent.
@@ -48,10 +57,11 @@ class GovernmentAgent(GovernmentAgentBase):
             name=name,
             toolbox=toolbox,
             memory=memory,
+            agent_params=agent_params,
+            blocks=blocks,
         )
         self.initailzed = False
         self.last_time_trigger = None
-        self.time_diff = 30 * 24 * 60 * 60
         self.forward_times = 0
 
     async def reset(self):
@@ -69,7 +79,7 @@ class GovernmentAgent(GovernmentAgentBase):
         if self.last_time_trigger is None:
             self.last_time_trigger = now_tick
             return False
-        if now_tick - self.last_time_trigger >= self.time_diff:
+        if now_tick - self.last_time_trigger >= self.params.time_diff:
             self.last_time_trigger = now_tick
             return True
         return False

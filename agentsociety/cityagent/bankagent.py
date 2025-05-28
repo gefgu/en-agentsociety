@@ -1,8 +1,9 @@
-from typing import cast
+from typing import Optional, cast
 
 import numpy as np
+from pydantic import Field
 
-from ..agent import AgentToolbox, BankAgentBase
+from ..agent import AgentParams, AgentToolbox, BankAgentBase, Block
 from ..logger import get_logger
 from ..memory import Memory
 
@@ -48,6 +49,15 @@ def calculate_inflation(prices):
     return inflation_rates
 
 
+class BankAgentConfig(AgentParams):
+    """Configuration for BankAgent."""
+
+    time_diff: int = Field(
+        default=30 * 24 * 60 * 60,
+        description="Time difference between each forward, day * hour * minute * second",
+    )
+
+
 class BankAgent(BankAgentBase):
     """
     A central banking agent that manages monetary policy in the simulation.
@@ -61,13 +71,10 @@ class BankAgent(BankAgentBase):
     - time_diff: Frequency of policy updates in simulation seconds (default: 30 days)
     """
 
-    configurable_fields = ["time_diff"]
-    default_values = {
-        "time_diff": 30 * 24 * 60 * 60,
-    }
-    fields_description = {
-        "time_diff": "Time difference between each forward, day * hour * minute * second",
-    }
+    ParamsType = BankAgentConfig
+    description: str = """
+The central banking agent that manages monetary policy in the simulation.
+    """
 
     def __init__(
         self,
@@ -75,6 +82,8 @@ class BankAgent(BankAgentBase):
         name: str,
         toolbox: AgentToolbox,
         memory: Memory,
+        agent_params: Optional[BankAgentConfig] = None,
+        blocks: Optional[list[Block]] = None,
     ) -> None:
         """
         Initialize the banking agent.
@@ -92,10 +101,11 @@ class BankAgent(BankAgentBase):
             name=name,
             toolbox=toolbox,
             memory=memory,
+            agent_params=agent_params,
+            blocks=blocks,
         )
         self.initailzed = False
         self.last_time_trigger = None
-        self.time_diff = 30 * 24 * 60 * 60
         self.forward_times = 0
 
     async def reset(self):
@@ -116,7 +126,7 @@ class BankAgent(BankAgentBase):
         if self.last_time_trigger is None:
             self.last_time_trigger = now_tick
             return False
-        if now_tick - self.last_time_trigger >= self.time_diff:
+        if now_tick - self.last_time_trigger >= self.params.time_diff:
             self.last_time_trigger = now_tick
             return True
         return False

@@ -471,4 +471,12 @@ Bases: {py:obj}`int`, {py:obj}`enum.Enum`
 
 ````
 
+````{py:method} _prepare_parameter(param: typing.Any, length: int) -> list[typing.Any]
+:canonical: agentsociety.environment.economy.econ_client.EconomyClient._prepare_parameter
+
+```{autodoc2-docstring} agentsociety.environment.economy.econ_client.EconomyClient._prepare_parameter
+```
+
+````
+
 `````

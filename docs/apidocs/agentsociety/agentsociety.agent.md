@@ -14,7 +14,10 @@
 :maxdepth: 1
 
 agentsociety.agent.prompt
+agentsociety.agent.decorator
 agentsociety.agent.distribution
+agentsociety.agent.context
+agentsociety.agent.dispatcher
 agentsociety.agent.block
 agentsociety.agent.agent_base
 agentsociety.agent.memory_config_generator
@@ -41,7 +44,7 @@ agentsociety.agent.trigger
 ````{py:data} __all__
 :canonical: agentsociety.agent.__all__
 :value: >
-   ['Agent', 'CitizenAgentBase', 'AgentType', 'AgentToolbox', 'FirmAgentBase', 'BankAgentBase', 'NBSAge...
+   ['Agent', 'AgentParams', 'StatusAttribute', 'CitizenAgentBase', 'AgentType', 'AgentToolbox', 'FirmAg...
 
 ```{autodoc2-docstring} agentsociety.agent.__all__
 ```

@@ -57,7 +57,7 @@
 
 ````
 
-`````{py:class} PlanBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, memory: agentsociety.memory.Memory)
+`````{py:class} PlanBlock(agent: agentsociety.agent.Agent, llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, agent_memory: agentsociety.memory.Memory, agent_context: agentsociety.agent.DotDict, max_plan_steps: int = 6, detailed_plan_prompt: str = DETAILED_PLAN_PROMPT)
 :canonical: agentsociety.cityagent.blocks.plan_block.PlanBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -71,37 +71,6 @@ Bases: {py:obj}`agentsociety.agent.Block`
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.plan_block.PlanBlock.__init__
 ```
 
-````{py:attribute} configurable_fields
-:canonical: agentsociety.cityagent.blocks.plan_block.PlanBlock.configurable_fields
-:type: list[str]
-:value: >
-   ['max_plan_steps']
-
-```{autodoc2-docstring} agentsociety.cityagent.blocks.plan_block.PlanBlock.configurable_fields
-```
-
-````
-
-````{py:attribute} default_values
-:canonical: agentsociety.cityagent.blocks.plan_block.PlanBlock.default_values
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.cityagent.blocks.plan_block.PlanBlock.default_values
-```
-
-````
-
-````{py:attribute} fields_description
-:canonical: agentsociety.cityagent.blocks.plan_block.PlanBlock.fields_description
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.cityagent.blocks.plan_block.PlanBlock.fields_description
-```
-
-````
-
 ````{py:method} select_guidance(current_need: str) -> typing.Optional[typing.Tuple[dict, str]]
 :canonical: agentsociety.cityagent.blocks.plan_block.PlanBlock.select_guidance
 :async:
@@ -111,7 +80,7 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 ````
 
-````{py:method} generate_detailed_plan(selected_option: str) -> typing.Optional[dict]
+````{py:method} generate_detailed_plan() -> typing.Optional[dict]
 :canonical: agentsociety.cityagent.blocks.plan_block.PlanBlock.generate_detailed_plan
 :async:
 

@@ -3,12 +3,13 @@ import importlib.metadata
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 from urllib.parse import urlsplit
 
 import click
+from fastapi import APIRouter
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 version_string_of_agentsociety = importlib.metadata.version("agentsociety")
 
@@ -85,7 +86,8 @@ def ui(config: str, config_base64: str):
 
     from ..configs import EnvConfig
     from ..logger import get_logger, set_logger_level
-    from ..webapi.app import create_app
+    from ..webapi.app import create_app, empty_get_tenant_id
+    from ..executor import ProcessExecutor
 
     class WebUIConfig(BaseModel):
         addr: str = Field(default="127.0.0.1:8080")
@@ -94,35 +96,51 @@ def ui(config: str, config_base64: str):
         debug: bool = Field(default=False)
         logging_level: str = Field(default="INFO")
 
-    c = WebUIConfig.model_validate(config_data)
-    set_logger_level(c.logging_level.upper())
-    get_logger().info("Launching AgentSociety WebUI")
-    get_logger().debug(f"WebUI config: {c}")
-    # for compatibility with the old config
-    # postgres:// in DSN is not supported by SQLAlchemy
-    # replace it with postgresql://
+    async def _main():
+        c = WebUIConfig.model_validate(config_data)
+        set_logger_level(c.logging_level.upper())
+        get_logger().info("Launching AgentSociety WebUI")
+        get_logger().debug(f"WebUI config: {c}")
+        # for compatibility with the old config
+        # postgres:// in DSN is not supported by SQLAlchemy
+        # replace it with postgresql://
 
-    pg_dsn = c.env.pgsql.dsn
-    if pg_dsn.startswith("postgresql://"):
-        pg_dsn = pg_dsn.replace("postgresql://", "postgresql+asyncpg://", 1)
+        pg_dsn = c.env.pgsql.dsn
+        if pg_dsn.startswith("postgresql://"):
+            pg_dsn = pg_dsn.replace("postgresql://", "postgresql+asyncpg://", 1)
+        executor = ProcessExecutor(c.env.webui_home_dir)
+        get_tenant_id = empty_get_tenant_id
+        more_state: Dict[str, Any] = {
+            "executor": executor,
+        }
+        more_router = None
 
-    app = create_app(
-        pg_dsn=pg_dsn,
-        mlflow_url=c.env.mlflow.mlflow_uri if c.env.mlflow.enabled else "/",
-        read_only=c.read_only,
-        env=c.env,
-    )
+        app = create_app(
+            pg_dsn=pg_dsn,
+            mlflow_url=c.env.mlflow.mlflow_uri if c.env.mlflow.enabled else "",
+            read_only=c.read_only,
+            env=c.env,
+            get_tenant_id=get_tenant_id,
+            more_router=more_router,
+            more_state=more_state,
+        )
 
-    # Start server
-    url = urlsplit("//" + c.addr)
-    host, port = url.hostname, url.port
-    if host is None or host == "" or host == "localhost":
-        host = "127.0.0.1"
-    if port is None:
-        port = 8080
-    log_level = "debug" if c.debug else "info"
-    get_logger().info("Starting server at %s:%s", host, port)
-    uvicorn.run(app, host=host, port=port, log_level=log_level)
+        # Start server
+        url = urlsplit("//" + c.addr)
+        host, port = url.hostname, url.port
+        if host is None or host == "" or host == "localhost":
+            host = "127.0.0.1"
+        if port is None:
+            port = 8080
+        log_level = "debug" if c.debug else "info"
+        get_logger().info("Starting server at %s:%s", host, port)
+        config = uvicorn.Config(app, host=host, port=port, log_level=log_level)
+        server = uvicorn.Server(config)
+        await server.serve()
+
+    import asyncio
+
+    asyncio.run(_main())
 
 
 @cli.command()
@@ -269,10 +287,14 @@ def check(config: str, config_base64: str):
 
 @cli.command()
 @common_options
-def run(config: str, config_base64: str):
+def run(
+    config: str,
+    config_base64: str,
+):
     """Run the simulation"""
     config_dict = load_config(config, config_base64)
 
+    import requests
     from ..configs import Config
     from ..simulation import AgentSociety
     from ..cityagent import default

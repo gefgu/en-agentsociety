@@ -43,3 +43,10 @@ export interface LngLat {
     lng: number;
     lat: number;
 }
+
+export interface ApiMLflowMetric {
+    key: string;
+    value: number;
+    step: number;
+    is_nan: boolean;
+}

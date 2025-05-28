@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Tuple
 
 import jsonc
 
-from ...agent import Block, FormatPrompt
+from ...agent import Agent, Block, FormatPrompt, DotDict, param_docs
 from ...environment import Environment
 from ...llm import LLM
 from ...logger import get_logger
@@ -55,21 +55,21 @@ Please response in json format (Do not return any other text), example:
 DETAILED_PLAN_PROMPT = """As an intelligent agent's plan system, please help me generate specific execution steps based on the selected guidance plan. 
 The Environment will influence the choice of steps.
 
-Current weather: {weather}
-Current temperature: {temperature}
+Current weather: ${context.weather}
+Current temperature: ${context.temperature}
 Other information: 
 -------------------------
-{other_info}
+${context.other_information}
 -------------------------
 
-Selected plan: {selected_option}
-Current location: {current_location} 
-Current time: {current_time}
-My income/consumption level: {consumption_level}
-My occupation: {occupation}
-My age: {age}
-My emotion: {emotion_types}
-My thought: {thought}
+Plan target: ${context.plan_target}
+Current location: ${context.current_position} 
+Current time: ${context.current_time}
+My income/consumption level: ${profile.consumption}
+My occupation: ${profile.occupation}
+My age: ${profile.age}
+My emotion: ${profile.emotion_types}
+My thought: ${context.current_thought}
 
 Notes:
 1. type can only be one of these four: mobility, social, economy, other
@@ -77,7 +77,7 @@ Notes:
     1.2 social: Decisions or behaviors related to social interaction, such as finding contacts, chatting with friends, etc.
     1.3 economy: Decisions or behaviors related to shopping, work, etc.
     1.4 other: Other types of decisions or behaviors, such as small-scale activities, learning, resting, entertainment, etc.
-2. steps should only include steps necessary to fulfill the target (limited to {max_plan_steps} steps)
+2. steps should only include steps necessary to fulfill the target (limited to ${context.max_plan_steps} steps)
 3. intention in each step should be concise and clear
 
 Please response in json format (Do not return any other text), example:
@@ -100,30 +100,6 @@ Please response in json format (Do not return any other text), example:
         ]
     }}
 }}
-
-{{
-    "plan": {{
-        "target": "Eat outside",
-        "steps": [
-            {{
-                "intention": "Select restaurant",
-                "type": "mobility"
-            }},
-            {{
-                "intention": "Go to restaurant",
-                "type": "mobility"
-            }},
-            {{
-                "intention": "Order food",
-                "type": "economy"
-            }},
-            {{
-                "intention": "Have meal",
-                "type": "other"
-            }}
-        ]
-    }}
-}}
 """
 
 
@@ -138,11 +114,16 @@ class PlanBlock(Block):
         max_plan_steps: Maximum allowed steps in generated plans (configurable)
     """
 
-    configurable_fields: list[str] = ["max_plan_steps"]
-    default_values = {"max_plan_steps": 6}
-    fields_description = {"max_plan_steps": "The maximum number of steps in a plan"}
-
-    def __init__(self, llm: LLM, environment: Environment, memory: Memory):
+    def __init__(
+        self,
+        agent: Agent,
+        llm: LLM,
+        environment: Environment,
+        agent_memory: Memory,
+        agent_context: DotDict,
+        max_plan_steps: int = 6,
+        detailed_plan_prompt: str = DETAILED_PLAN_PROMPT,
+    ):
         """Initialize PlanBlock with required components.
 
         Args:
@@ -150,9 +131,11 @@ class PlanBlock(Block):
             environment: Environment for contextual data
             memory: Agent's memory storage for status tracking
         """
-        super().__init__("PlanBlock", llm=llm, environment=environment, memory=memory)
+        super().__init__(llm=llm, environment=environment, agent_memory=agent_memory)
+        self.set_agent(agent)
+        self.context = agent_context
         self.guidance_prompt = FormatPrompt(template=GUIDANCE_SELECTION_PROMPT)
-        self.detail_prompt = FormatPrompt(template=DETAILED_PLAN_PROMPT)
+        self.detail_prompt = FormatPrompt(template=detailed_plan_prompt, memory=agent_memory)
         self.trigger_time = 0
         self.token_consumption = 0
         self.guidance_options = {
@@ -163,8 +146,7 @@ class PlanBlock(Block):
             "whatever": ["leisure and entertainment", "other", "stay at home"],
         }
 
-        # configurable fields
-        self.max_plan_steps = 6
+        self.context["max_plan_steps"] = max_plan_steps
 
     async def select_guidance(self, current_need: str) -> Optional[Tuple[dict, str]]:
         """Select optimal guidance option using Theory of Planned Behavior evaluation.
@@ -205,11 +187,11 @@ class PlanBlock(Block):
         options = self.guidance_options.get(current_need, [])
         if len(options) == 0:
             options = "Do things that can satisfy your needs or actions."
-        self.guidance_prompt.format(
+        await self.guidance_prompt.format(
+            current_need=current_need,
             weather=self.environment.sense("weather"),
             temperature=self.environment.sense("temperature"),
-            other_info=self.environment.environment.get("other_information", "None"),
-            current_need=current_need,
+            other_info=self.environment.sense("other_information"),
             options=options,
             current_location=current_location,
             current_time=current_time,
@@ -247,43 +229,17 @@ class PlanBlock(Block):
                 retry -= 1
         return None
 
-    async def generate_detailed_plan(self, selected_option: str) -> Optional[dict]:
+    async def generate_detailed_plan(self) -> Optional[dict]:
         """Generate executable steps for selected guidance option.
 
         Args:
-            selected_option: The chosen guidance option from select_guidance()
+            plan_target: The target of the plan
 
         Returns:
             dict: Structured plan with target and typed execution steps. None if no plan is generated by bad response from LLM.
         """
-        position_now = await self.memory.status.get("position")
-        home_location = await self.memory.status.get("home")
-        work_location = await self.memory.status.get("work")
-        current_location = "Out"
-        if (
-            "aoi_position" in position_now
-            and position_now["aoi_position"] == home_location["aoi_position"]
-        ):
-            current_location = "At home"
-        elif (
-            "aoi_position" in position_now
-            and position_now["aoi_position"] == work_location["aoi_position"]
-        ):
-            current_location = "At workplace"
-        day, current_time = self.environment.get_datetime(format_time=True)
-        self.detail_prompt.format(
-            weather=self.environment.sense("weather"),
-            temperature=self.environment.sense("temperature"),
-            other_info=self.environment.environment.get("other_information", "None"),
-            selected_option=selected_option,
-            current_location=current_location,
-            current_time=current_time,
-            consumption_level=await self.memory.status.get("consumption"),
-            occupation=await self.memory.status.get("occupation"),
-            age=await self.memory.status.get("age"),
-            emotion_types=await self.memory.status.get("emotion_types"),
-            thought=await self.memory.status.get("thought"),
-            max_plan_steps=self.max_plan_steps,
+        await self.detail_prompt.format(
+            context=self.context,
         )
 
         response = await self.llm.atext_request(self.detail_prompt.to_dialog())
@@ -320,11 +276,10 @@ class PlanBlock(Block):
         if not select_guidance:
             return None
         guidance_result, cognition = select_guidance
+        self.context["plan_target"] = guidance_result["selected_option"]
 
         # Step 2: Generate detailed plan
-        detailed_plan = await self.generate_detailed_plan(
-            guidance_result["selected_option"]
-        )
+        detailed_plan = await self.generate_detailed_plan()
 
         if not detailed_plan:
             await self.memory.status.update("current_plan", None)

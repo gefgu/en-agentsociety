@@ -3,18 +3,20 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, Optional
 
+import redis.asyncio as aioredis
 from fastapi import APIRouter, FastAPI, HTTPException, Request, Response, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from starlette.middleware.sessions import SessionMiddleware
 
+from ..configs import EnvConfig
 from .api import api_router
 from .models._base import Base
-from ..configs import EnvConfig
 
 __all__ = ["create_app", "empty_get_tenant_id"]
 
@@ -72,13 +74,22 @@ def create_app(
             await conn.run_sync(Base.metadata.create_all)
         yield
 
-    # 创建FastAPI应用
+    # create FastAPI app
     app = FastAPI(
         title="AgentSociety WebUI API",
         lifespan=lifespan,
         openapi_url="/api/openapi.json",
         docs_url="/api/docs",
         redoc_url="/api/redoc",
+    )
+
+    # add CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["https://moss.fiblab.net"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     # https://stackoverflow.com/questions/75958222/can-i-return-400-error-instead-of-422-error

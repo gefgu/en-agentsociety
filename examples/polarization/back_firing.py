@@ -9,10 +9,20 @@ import ray
 from message_agent import AgreeAgent, DisagreeAgent
 
 from agentsociety.agent.distribution import Distribution, DistributionConfig
-from agentsociety.cityagent import (DEFAULT_DISTRIBUTIONS, SocietyAgent,
-                                    default, memory_config_societyagent)
-from agentsociety.configs import (AgentsConfig, Config, EnvConfig, ExpConfig,
-                                  LLMConfig, MapConfig)
+from agentsociety.cityagent import (
+    DEFAULT_DISTRIBUTIONS,
+    SocietyAgent,
+    default,
+    memory_config_societyagent,
+)
+from agentsociety.configs import (
+    AgentsConfig,
+    Config,
+    EnvConfig,
+    ExpConfig,
+    LLMConfig,
+    MapConfig,
+)
 from agentsociety.configs.agent import AgentClassType, AgentConfig
 from agentsociety.configs.exp import WorkflowStepConfig, WorkflowType
 from agentsociety.environment import EnvironmentConfig

@@ -9,6 +9,18 @@
 
 ## Module Contents
 
+### Classes
+
+````{list-table}
+:class: autosummary longtable
+:align: left
+
+* - {py:obj}`AgentChatMessage <agentsociety.webapi.api.agent.AgentChatMessage>`
+  -
+* - {py:obj}`AgentSurveyMessage <agentsociety.webapi.api.agent.AgentSurveyMessage>`
+  -
+````
+
 ### Functions
 
 ````{list-table}
@@ -45,6 +57,14 @@
     ```
 * - {py:obj}`get_global_prompt_by_day_t <agentsociety.webapi.api.agent.get_global_prompt_by_day_t>`
   - ```{autodoc2-docstring} agentsociety.webapi.api.agent.get_global_prompt_by_day_t
+    :summary:
+    ```
+* - {py:obj}`post_agent_dialog <agentsociety.webapi.api.agent.post_agent_dialog>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.agent.post_agent_dialog
+    :summary:
+    ```
+* - {py:obj}`post_agent_survey <agentsociety.webapi.api.agent.post_agent_survey>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.agent.post_agent_survey
     :summary:
     ```
 ````
@@ -148,5 +168,57 @@
 :async:
 
 ```{autodoc2-docstring} agentsociety.webapi.api.agent.get_global_prompt_by_day_t
+```
+````
+
+`````{py:class} AgentChatMessage(/, **data: typing.Any)
+:canonical: agentsociety.webapi.api.agent.AgentChatMessage
+
+Bases: {py:obj}`pydantic.BaseModel`
+
+````{py:attribute} content
+:canonical: agentsociety.webapi.api.agent.AgentChatMessage.content
+:type: str
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.api.agent.AgentChatMessage.content
+```
+
+````
+
+`````
+
+````{py:function} post_agent_dialog(request: fastapi.Request, exp_id: uuid.UUID, agent_id: int, message: agentsociety.webapi.api.agent.AgentChatMessage = Body(...)) -> agentsociety.webapi.models.ApiResponseWrapper[None]
+:canonical: agentsociety.webapi.api.agent.post_agent_dialog
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.agent.post_agent_dialog
+```
+````
+
+`````{py:class} AgentSurveyMessage(/, **data: typing.Any)
+:canonical: agentsociety.webapi.api.agent.AgentSurveyMessage
+
+Bases: {py:obj}`pydantic.BaseModel`
+
+````{py:attribute} survey_id
+:canonical: agentsociety.webapi.api.agent.AgentSurveyMessage.survey_id
+:type: uuid.UUID
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.api.agent.AgentSurveyMessage.survey_id
+```
+
+````
+
+`````
+
+````{py:function} post_agent_survey(request: fastapi.Request, exp_id: uuid.UUID, agent_id: int, message: agentsociety.webapi.api.agent.AgentSurveyMessage = Body(...)) -> agentsociety.webapi.models.ApiResponseWrapper[None]
+:canonical: agentsociety.webapi.api.agent.post_agent_survey
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.agent.post_agent_survey
 ```
 ````

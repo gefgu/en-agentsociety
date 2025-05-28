@@ -22,12 +22,12 @@ const WorkflowList: React.FC = () => {
         try {
             const res = await fetchCustom('/api/workflow-configs');
             if (!res.ok) {
-                throw new Error('Failed to fetch workflow configurations');
+                throw new Error(await res.text());
             }
             const data = (await res.json()).data;
             setWorkflows(data);
         } catch (error) {
-            message.error(`Failed to load workflows: ${JSON.stringify(error)}`, 3);
+            message.error(`Failed to load workflows: ${JSON.stringify(error.message)}`, 3);
             console.error(error);
         } finally {
             setLoading(false);
@@ -97,12 +97,12 @@ const WorkflowList: React.FC = () => {
                 method: 'DELETE'
             });
             if (!res.ok) {
-                throw new Error('Failed to delete workflow');
+                throw new Error(await res.text());
             }
             message.success('Workflow deleted successfully');
             loadWorkflows();
         } catch (error) {
-            message.error(`Failed to delete workflow: ${JSON.stringify(error)}`, 3);
+            message.error(`Failed to delete workflow: ${JSON.stringify(error.message)}`, 3);
             console.error(error);
         }
     };
@@ -150,13 +150,13 @@ const WorkflowList: React.FC = () => {
                 });
             }
             if (!res.ok) {
-                throw new Error('Failed to save workflow config');
+                throw new Error(await res.text());
             }
             message.success(`Workflow ${currentWorkflow ? 'updated' : 'created'} successfully`);
             setIsModalVisible(false);
             loadWorkflows();
         } catch (error) {
-            message.error(`Workflow ${currentWorkflow ? 'update' : 'create'} failed: ${JSON.stringify(error)}`, 3);
+            message.error(`Workflow ${currentWorkflow ? 'update' : 'create'} failed: ${JSON.stringify(error.message)}`, 3);
             console.error('Validation failed:', error);
         }
     };
@@ -182,35 +182,39 @@ const WorkflowList: React.FC = () => {
         },
         {
             title: 'Last Updated',
-            dataIndex: 'updatedAt',
-            key: 'updatedAt',
+            dataIndex: 'updated_at',
+            key: 'updated_at',
             render: (text: string) => dayjs(text).format('YYYY-MM-DD HH:mm:ss'),
-            sorter: (a: ConfigItem, b: ConfigItem) => dayjs(a.updatedAt).valueOf() - dayjs(b.updatedAt).valueOf()
+            sorter: (a: ConfigItem, b: ConfigItem) => dayjs(a.updated_at).valueOf() - dayjs(b.updated_at).valueOf()
         },
         {
             title: 'Actions',
             key: 'actions',
             render: (_: any, record: ConfigItem) => (
                 <Space size="small">
-                    <Tooltip title="Edit">
-                        <Button icon={<EditOutlined />} size="small" onClick={() => handleEdit(record)} />
-                    </Tooltip>
+                    {
+                        <Tooltip title="Edit">
+                            <Button icon={<EditOutlined />} size="small" onClick={() => handleEdit(record)} />
+                        </Tooltip>
+                    }
                     <Tooltip title="Duplicate">
                         <Button icon={<CopyOutlined />} size="small" onClick={() => handleDuplicate(record)} />
                     </Tooltip>
                     <Tooltip title="Export">
                         <Button icon={<ExportOutlined />} size="small" onClick={() => handleExport(record)} />
                     </Tooltip>
-                    <Tooltip title="Delete">
-                        <Popconfirm
-                            title="Are you sure you want to delete this workflow?"
-                            onConfirm={() => handleDelete(record.id)}
-                            okText="Yes"
-                            cancelText="No"
-                        >
-                            <Button icon={<DeleteOutlined />} size="small" danger />
-                        </Popconfirm>
-                    </Tooltip>
+                    {
+                        <Tooltip title="Delete">
+                            <Popconfirm
+                                title="Are you sure you want to delete this workflow?"
+                                onConfirm={() => handleDelete(record.id)}
+                                okText="Yes"
+                                cancelText="No"
+                            >
+                                <Button icon={<DeleteOutlined />} size="small" danger />
+                            </Popconfirm>
+                        </Tooltip>
+                    }
                 </Space>
             )
         }
@@ -241,7 +245,7 @@ const WorkflowList: React.FC = () => {
                 onOk={handleModalOk}
                 onCancel={handleModalCancel}
                 width={800}
-                destroyOnClose
+                destroyOnHidden
             >
                 <Card title="Configuration Metadata" style={{ marginBottom: 16 }}>
                     <Form

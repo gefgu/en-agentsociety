@@ -1,15 +1,16 @@
 import asyncio
 import logging
 import time
-from typing import List, Optional, Any, Literal
+from typing import Any, List, Literal, Optional
 
 import jsonc
-from pydantic import BaseModel, Field
 import ray
 import redis.asyncio as aioredis
+from pydantic import BaseModel, Field
 from redis.asyncio.client import PubSub
 
 from ..logger import get_logger
+from ..utils import NONE_SENDER_ID
 from ..utils.decorators import lock_decorator
 from .message_interceptor import MessageIdentifier
 
@@ -227,21 +228,25 @@ class Messager:
         }
         message = jsonc.dumps(payload, default=str)
         if self.forward_strategy == "outer_control":
-            async with self._lock:
-                self._wait_for_send_message.append(
-                    {
-                        "channel": channel,
-                        "from_id": from_id,
-                        "to_id": to_id,
-                        "message": message,
-                    }
-                )
             interceptor = self.message_interceptor
-            assert interceptor is not None, "Message interceptor must be set when using `outer_control` strategy"
-            if (from_id is not None and to_id is not None):
+            assert (
+                interceptor is not None
+            ), "Message interceptor must be set when using `outer_control` strategy"
+            if (
+                from_id is not None and to_id is not None
+            ) and from_id != NONE_SENDER_ID:
                 # if all of from_id and to_id are not None, the message is intercepted by the message interceptor (agent-agent message)
                 interceptor.add_message.remote(from_id, to_id, message)  # type: ignore
                 # ATTENTION: the message is sent to the interceptor, but the message is not sent to the channel until forward() is called
+                async with self._lock:
+                    self._wait_for_send_message.append(
+                        {
+                            "channel": channel,
+                            "from_id": from_id,
+                            "to_id": to_id,
+                            "message": message,
+                        }
+                    )
             else:
                 await self.client.publish(channel, message)
                 log["sent"] = True
@@ -251,7 +256,12 @@ class Messager:
                     self._log_list.append(log)
         elif self.forward_strategy == "inner_control":
             interceptor = self.message_interceptor
-            if (interceptor is not None and from_id is not None and to_id is not None):
+            if (
+                interceptor is not None
+                and from_id is not None
+                and to_id is not None
+                and from_id != NONE_SENDER_ID
+            ):
                 # if all of from_id and to_id are not None, the message is intercepted by the message interceptor (agent-agent message)
                 is_valid = await interceptor.check_message.remote(from_id, to_id, message)  # type: ignore
                 if is_valid:
@@ -262,7 +272,9 @@ class Messager:
                     async with self._lock:
                         self._log_list.append(log)
                 else:
-                    get_logger().info(f"Message not sent to {channel}: {message} due to interceptor")
+                    get_logger().info(
+                        f"Message not sent to {channel}: {message} due to interceptor"
+                    )
             else:
                 await self.client.publish(channel, message)
                 log["sent"] = True
@@ -308,22 +320,53 @@ class Messager:
     async def forward(
         self,
         validation_dict: Optional[MessageIdentifier] = None,
+        persuasion_messages: Optional[list[dict[str, Any]]] = None,
     ):
         """
         Forward the message to the channel if the message is valid.
         """
         if self.forward_strategy == "outer_control":
-            assert validation_dict is not None, "Validation dict must be set when using `outer_control` strategy"
+            assert (
+                validation_dict is not None
+            ), "Validation dict must be set when using `outer_control` strategy"
             for _wait_for_send_message in self._wait_for_send_message:
-                is_valid = validation_dict.get((_wait_for_send_message["from_id"], _wait_for_send_message["to_id"], _wait_for_send_message["message"]), True)
+                from_id, to_id, message, channel = (
+                    _wait_for_send_message["from_id"],
+                    _wait_for_send_message["to_id"],
+                    _wait_for_send_message["message"],
+                    _wait_for_send_message["channel"],
+                )
+                is_valid = validation_dict.get(
+                    (
+                        from_id,
+                        to_id,
+                        message,
+                    ),
+                    True,
+                )
                 if is_valid:
-                    await self.client.publish(
-                        _wait_for_send_message["channel"],
-                        _wait_for_send_message["message"],
-                    )
+                    await self.client.publish(channel, message)
                 else:
-                    get_logger().info(
-                        f"Message not sent to {_wait_for_send_message['channel']}: {_wait_for_send_message['message']} due to interceptor"
+                    failed_payload = {
+                        "from": "interceptor",
+                        "content": f"Your message `{message}` is blocked by the interceptor.",
+                        "type": "social",
+                    }
+                    await self.client.publish(
+                        channel.replace(to_id, from_id),
+                        jsonc.dumps(
+                            failed_payload,
+                            default=str,
+                        ),
+                    )
+                    get_logger().debug(
+                        f"Message not sent to {channel}: {message} due to interceptor"
+                    )
+            self._wait_for_send_message = []
+            if persuasion_messages is not None:
+                for msg in persuasion_messages:
+                    await self.client.publish(
+                        self.get_agent_chat_channel(msg["agent_id"]), msg["message"]
                     )
         elif self.forward_strategy == "inner_control":
             # do nothing
@@ -335,6 +378,9 @@ class Messager:
 
     def get_subtopic_channel(self, agent_id: int, subtopic: str):
         return f"exps:{self.exp_id}:agents:{agent_id}:{subtopic}"
+
+    def get_aoi_channel(self, aoi_id: int):
+        return f"exps:{self.exp_id}:aois:{aoi_id}"
 
     def get_user_survey_channel(self, agent_id: int):
         return self.get_subtopic_channel(agent_id, "user-survey")

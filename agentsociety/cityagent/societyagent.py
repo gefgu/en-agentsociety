@@ -2,223 +2,91 @@ import random
 import time
 
 import jsonc
+from typing import Optional, Any
 
-from ..agent import Agent, AgentToolbox, Block, CitizenAgentBase
-from ..environment import Environment
-from ..llm import LLM
+from pydantic import Field
+from ..agent import (
+    AgentToolbox,
+    Block,
+    BlockOutput,
+    CitizenAgentBase,
+    AgentParams,
+    FormatPrompt,
+    StatusAttribute,
+    register_get,
+)
 from ..logger import get_logger
 from ..memory import Memory
-from .blocks import (CognitionBlock, EconomyBlock, MobilityBlock, NeedsBlock,
-                     OtherBlock, PlanBlock, SocialBlock)
-from .blocks.economy_block import MonthPlanBlock
+from .blocks import CognitionBlock, NeedsBlock, PlanBlock
+from .blocks.economy_block import MonthEconomyPlanBlock
+from .sharing_params import (
+    SocietyAgentConfig,
+    SocietyAgentBlockOutput,
+    SocietyAgentContext,
+)
 
+ENVIRONMENT_REFLECTION_PROMPT = """
+You are a citizen of the city.
+Your occupation: {occupation}
+Your age: {age}
+Your current emotion: {emotion_types}
 
-class PlanAndActionBlock(Block):
-    """Active workflow coordinating needs assessment, planning, and action execution.
+In your current location, you can sense the following information:
+{area_information}
 
-    Combines multiple sub-modules to manage agent's monthly planning, needs updates,
-    step-by-step plan generation, and execution of mobility/social/economic actions.
-    """
-
-    # Sub-modules for different behavioral aspects
-    month_plan_block: MonthPlanBlock
-    needs_block: NeedsBlock
-    plan_block: PlanBlock
-    mobility_block: MobilityBlock
-    social_block: SocialBlock
-    economy_block: EconomyBlock
-    other_block: OtherBlock
-
-    def __init__(
-        self,
-        agent: Agent,
-        llm: LLM,
-        environment: Environment,
-        memory: Memory,
-        enable_mobility: bool = True,
-        enable_social: bool = True,
-        enable_economy: bool = True,
-        enable_cognition: bool = True,
-    ):
-        """Initialize PlanAndActionBlock with configurable behavior switches and sub-modules."""
-        super().__init__(
-            name="plan_and_action_block",
-            llm=llm,
-            environment=environment,
-            memory=memory,
-        )
-        self._agent = agent
-        # Configuration flags for enabling/disabling behaviors
-        self.enable_mobility = enable_mobility
-        self.enable_social = enable_social
-        self.enable_economy = enable_economy
-        self.enable_cognition = enable_cognition
-        self.month_plan_block = MonthPlanBlock(
-            llm=llm, environment=environment, memory=memory
-        )
-        self.needs_block = NeedsBlock(llm=llm, environment=environment, memory=memory)
-        self.plan_block = PlanBlock(llm=llm, environment=environment, memory=memory)
-        self.mobility_block = MobilityBlock(
-            llm=llm, environment=environment, memory=memory
-        )
-        self.social_block = SocialBlock(
-            agent=agent, llm=llm, environment=environment, memory=memory
-        )
-        self.economy_block = EconomyBlock(
-            llm=llm, environment=environment, memory=memory
-        )
-        self.other_block = OtherBlock(llm=llm, memory=memory)
-
-    async def reset(self):
-        """Reset the plan and action block."""
-        await self.needs_block.reset()
-
-    async def plan_generation(self):
-        """Generate a new plan if no current plan exists in memory."""
-        cognition = None
-        current_plan = await self.memory.status.get("current_plan")
-        if current_plan is None or not current_plan:
-            cognition = (
-                await self.plan_block.forward()
-            )  # Delegate to PlanBlock for plan creation
-        return cognition
-
-    async def step_execution(self):
-        """Execute the current step in the active plan based on step type."""
-        current_plan = await self.memory.status.get("current_plan")
-        if (
-            current_plan is None
-            or not current_plan
-            or len(current_plan.get("steps", [])) == 0
-        ):
-            return  # No plan, no execution
-        step_index = current_plan.get("index", 0)
-        execution_context = await self.memory.status.get("execution_context")
-        current_step = current_plan.get("steps", [])[step_index]
-        # check current_step is valid (not empty)
-        if current_step:
-            step_type = current_step.get("type")
-            position = await self.memory.status.get("position")
-            if "aoi_position" in position:
-                current_step["position"] = position["aoi_position"]["aoi_id"]
-            current_step["start_time"] = self.environment.get_tick()
-            result = None
-            if step_type == "mobility":
-                if self.enable_mobility:
-                    result = await self.mobility_block.forward(
-                        current_step, execution_context
-                    )
-                else:
-                    result = {
-                        "success": False,
-                        "evaluation": f"Mobility Behavior is disabled",
-                        "consumed_time": 0,
-                        "node_id": None,
-                    }
-            elif step_type == "social":
-                if self.enable_social:
-                    result = await self.social_block.forward(
-                        current_step, execution_context
-                    )
-                else:
-                    result = {
-                        "success": False,
-                        "evaluation": f"Social Behavior is disabled",
-                        "consumed_time": 0,
-                        "node_id": None,
-                    }
-            elif step_type == "economy":
-                if self.enable_economy:
-                    result = await self.economy_block.forward(
-                        current_step, execution_context
-                    )
-                else:
-                    result = {
-                        "success": False,
-                        "evaluation": f"Economy Behavior is disabled",
-                        "consumed_time": 0,
-                        "node_id": None,
-                    }
-            elif step_type == "other":
-                result = await self.other_block.forward(current_step, execution_context)
-            else:
-                result = {
-                    "success": True,
-                    "evaluation": f"Finished {current_step['intention']}",
-                    "consumed_time": random.randint(1, 10),
-                    "node_id": None,
-                }
-            if result != None:
-                current_step["evaluation"] = result
-
-            # Update current_step, plan, and execution_context information
-            current_plan["steps"][step_index] = current_step
-            await self.memory.status.update("current_plan", current_plan)
-            await self.memory.status.update("execution_context", execution_context)
-
-    async def forward(self, step=None, context=None):
-        # Long-term decision
-        await self.month_plan_block.forward()
-
-        # update needs
-        cognition = await self.needs_block.forward()
-        if cognition:
-            await self._agent.save_agent_thought(cognition)
-
-        # plan generation
-        cognition = await self.plan_generation()
-        if cognition:
-            await self._agent.save_agent_thought(cognition)
-
-        # step execution
-        await self.step_execution()
-
-
-class MindBlock(Block):
-    """Cognitive workflow handling emotion updates and reasoning processes."""
-
-    cognition_block: CognitionBlock
-
-    def __init__(self, llm: LLM, environment: Environment, memory: Memory):
-        super().__init__(
-            name="mind_block",
-            llm=llm,
-            environment=environment,
-            memory=memory,
-        )
-        self.cognition_block = CognitionBlock(
-            llm=self.llm, memory=self.memory, environment=self.environment
-        )
-
-    async def forward(self, step=None, context=None):
-        """Execute cognitive processing for emotion updates."""
-        await self.cognition_block.forward()
+What's your feeling about those environmental information?
+"""
 
 
 class SocietyAgent(CitizenAgentBase):
-    """Agent implementation with configurable cognitive/behavioral modules and social interaction capabilities."""
-
-    mind_block: MindBlock
-    plan_and_action_block: PlanAndActionBlock
-
-    configurable_fields = [
-        "enable_cognition",
-        "enable_mobility",
-        "enable_social",
-        "enable_economy",
+    ParamsType = SocietyAgentConfig
+    BlockOutputType = SocietyAgentBlockOutput
+    Context = SocietyAgentContext
+    StatusAttributes = [
+        # Needs Model
+        StatusAttribute(name="hunger_satisfaction",type=float,default=0.9,description="agent's hunger satisfaction, 0-1"),
+        StatusAttribute(name="energy_satisfaction",type=float,default=0.9,description="agent's energy satisfaction, 0-1"),
+        StatusAttribute(name="safety_satisfaction",type=float,default=0.4,description="agent's safety satisfaction, 0-1"),
+        StatusAttribute(name="social_satisfaction",type=float,default=0.6,description="agent's social satisfaction, 0-1"),
+        StatusAttribute(name="current_need",type=str,default="none",description="agent's current need"),
+        # cognition
+        StatusAttribute(name="emotion",type=dict,default={"sadness": 5, "joy": 5, "fear": 5, "disgust": 5, "anger": 5, "surprise": 5},description="agent's emotion, 0-10"),
+        StatusAttribute(name="thought",type=str,default="Currently nothing good or bad is happening",description="agent's thought",whether_embedding=True),
+        StatusAttribute(name="emotion_types",type=str,default="Relief",description="agent's emotion types",whether_embedding=True),
+        StatusAttribute(name="firm_id",type=int,default=0,description="agent's firm id"),
+        StatusAttribute(name="government_id",type=int,default=0,description="agent's government id"),
+        StatusAttribute(name="bank_id",type=int,default=0,description="agent's bank id"),
+        StatusAttribute(name="nbs_id",type=int,default=0,description="agent's nbs id"),
+        StatusAttribute(name="depression",type=float,default=0.0,description="agent's depression, 0-1"),
+        StatusAttribute(name="working_experience",type=list,default=[],description="agent's working experience"),
+        StatusAttribute(name="work_hour_month",type=float,default=160,description="agent's work hour per month"),
+        StatusAttribute(name="work_hour_finish",type=float,default=0,description="agent's work hour finished"),
+        # social
+        StatusAttribute(name="friends",type=list,default=[],description="agent's friends list"),
+        StatusAttribute(name="relationships",type=dict,default={},description="agent's relationship strength with each friend"),
+        StatusAttribute(name="relation_types",type=dict,default={},description="agent's relation types with each friend"),
+        StatusAttribute(name="chat_histories",type=dict,default={},description="all chat histories"),
+        StatusAttribute(name="interactions",type=dict,default={},description="all interaction records"),
+        # mobility
+        StatusAttribute(name="number_poi_visited",type=int,default=1,description="agent's number of poi visited"),
     ]
-    default_values = {
-        "enable_cognition": True,
-        "enable_mobility": True,
-        "enable_social": True,
-        "enable_economy": True,
-    }
-    fields_description = {
-        "enable_cognition": "Enable cognition workflow",
-        "enable_mobility": "Enable mobility workflow",
-        "enable_social": "Enable social workflow",
-        "enable_economy": "Enable economy workflow",
-    }
+    description: str = """
+A social agent that can interact with other agents and the environment.
+The main workflow includes:
+1. Agent needs determination (based on Maxlow's Hierarchy Needs) —— including hunger needs, safety needs, social needs and emergency needs)
+2. Plan generation (The citizen generate a detailed plan based on the needs)
+3. Step execution (The citizen execute the action based on the generated plan)
+
+Notice: The capability of citizen is controled by the BLOCKS (defaultly, it contains 4 blocks:
+1). MobilityBlock: endow the citizen with the ability to move around the city
+2). EconomyBlock: endow the citizen with the ability to shoping and working
+3). SocialBlock: endow the citizen with the ability to socializing with other citizens
+4). OtherBlocks: handle other intentions (e.g., cooking, sleeping, etc.)
+
+You can add more blocks to the citizen as you wish to adapt to the different scenarios. We strongly recommend you keep the default blocks as they are.
+"""
+
+    """Agent implementation with configurable cognitive/behavioral modules and social interaction capabilities."""
 
     def __init__(
         self,
@@ -226,6 +94,8 @@ class SocietyAgent(CitizenAgentBase):
         name: str,
         toolbox: AgentToolbox,
         memory: Memory,
+        agent_params: Optional[SocietyAgentConfig] = None,
+        blocks: Optional[list[Block]] = None,
     ) -> None:
         """Initialize agent with core components and configuration."""
         super().__init__(
@@ -233,29 +103,96 @@ class SocietyAgent(CitizenAgentBase):
             name=name,
             toolbox=toolbox,
             memory=memory,
+            agent_params=agent_params,
+            blocks=blocks,
         )
 
-        # config
-        self.enable_cognition = True
-        self.enable_mobility = True
-        self.enable_social = True
-        self.enable_economy = True
-
-        self.mind_block = MindBlock(
-            llm=self.llm, environment=self.environment, memory=self.memory
+        self.month_plan_block = MonthEconomyPlanBlock(
+            llm=self.llm,
+            environment=self.environment,
+            agent_memory=self.memory,
+            ubi=self.params.UBI,
+            num_labor_hours=self.params.num_labor_hours,
+            productivity_per_labor=self.params.productivity_per_labor,
+            time_diff=self.params.time_diff,
         )
-        self.plan_and_action_block = PlanAndActionBlock(
+
+        self.needs_block = NeedsBlock(
+            llm=self.llm,
+            environment=self.environment,
+            agent_memory=self.memory,
+            agent_context=self.context,
+            initial_prompt=self.params.need_initialization_prompt,
+        )
+
+        self.plan_block = PlanBlock(
             agent=self,
             llm=self.llm,
             environment=self.environment,
-            memory=self.memory,
-            enable_mobility=self.enable_mobility,
-            enable_social=self.enable_social,
-            enable_economy=self.enable_economy,
-            enable_cognition=self.enable_cognition,
+            agent_memory=self.memory,
+            agent_context=self.context,
+            max_plan_steps=self.params.max_plan_steps,
+            detailed_plan_prompt=self.params.plan_generation_prompt,
         )
+
+        self.cognition_block = CognitionBlock(
+            llm=self.llm, agent_memory=self.memory, environment=self.environment
+        )
+        self.environment_reflection_prompt = FormatPrompt(ENVIRONMENT_REFLECTION_PROMPT, memory=self.memory)
         self.step_count = -1
         self.cognition_update = -1
+
+    async def before_forward(self):
+        """Before forward"""
+        await super().before_forward()
+        # preparing context values
+        # Current Time
+        now_time = self.environment.get_datetime(format_time=True)
+        self.context.current_time = now_time[1]
+
+        # Current Emotion
+        emotion_types = await self.memory.status.get("emotion_types")
+        self.context.current_emotion = emotion_types
+
+        # Current Thought
+        thought = await self.memory.status.get("thought")
+        self.context.current_thought = thought
+
+        # Current Location
+        position_now = await self.memory.status.get("position")
+        home_location = await self.memory.status.get("home")
+        work_location = await self.memory.status.get("work")
+        current_location = "Outside"
+        if (
+            "aoi_position" in position_now
+            and position_now["aoi_position"] == home_location["aoi_position"]
+        ):
+            current_location = "At home"
+        elif (
+            "aoi_position" in position_now
+            and position_now["aoi_position"] == work_location["aoi_position"]
+        ):
+            current_location = "At workplace"
+        self.context.current_position = current_location
+
+        # Area Information
+        aoi_info = await self.get_aoi_info()
+        if not aoi_info:
+            self.context.area_information = "Don't know"
+        else:
+            self.context.area_information = aoi_info
+
+        # Weather
+        weather_info = self.environment.sense("weather")
+        self.context.weather = weather_info
+
+        # Temperature
+        temperature_info = self.environment.sense("temperature")
+        self.context.temperature = temperature_info
+
+        # Other Information
+        other_info = self.environment.sense("other_information")
+        self.context.other_information = other_info
 
     async def reset(self):
         """Reset the agent."""
@@ -270,16 +207,36 @@ class SocietyAgent(CitizenAgentBase):
         await self.memory.status.update("execution_context", {})
 
         # reset initial flag
-        await self.plan_and_action_block.reset()
+        await self.needs_block.reset()
+
+    async def plan_generation(self):
+        """Generate a new plan if no current plan exists in memory."""
+        cognition = None
+        current_plan = await self.memory.status.get("current_plan")
+        if current_plan is None or not current_plan:
+            cognition = (
+                await self.plan_block.forward()
+            )  # Delegate to PlanBlock for plan creation
+        return cognition
+
+    async def reflect_to_environment(self):
+        """Reflect to the environment"""
+        aoi_info = await self.get_aoi_info()
+        if aoi_info:
+            await self.environment_reflection_prompt.format()
+            reflection = await self.llm.atext_request(
+                self.environment_reflection_prompt.to_dialog()
+            )
+            await self.save_agent_thought(reflection)
 
     # Main workflow
     async def forward(self):
         """Main agent loop coordinating status updates, plan execution, and cognition."""
         start_time = time.time()
         self.step_count += 1
-        # sync agent status with simulator
-        await self.update_motion()
-        get_logger().debug(f"Agent {self.id}: Finished main workflow - update motion")
+
+        # reflect to environment
+        await self.reflect_to_environment()
 
         # check last step
         ifpass = await self.check_and_update_step()
@@ -289,13 +246,27 @@ class SocietyAgent(CitizenAgentBase):
             f"Agent {self.id}: Finished main workflow - check and update step"
         )
 
-        # plan and action
-        await self.plan_and_action_block.forward()
-        get_logger().debug(f"Agent {self.id}: Finished main workflow - plan and action")
+        # month plan
+        await self.month_plan_block.forward()
+
+        # Maxlow's Needs
+        cognition = await self.needs_block.forward()
+        if self.params.enable_cognition and cognition:
+            await self.save_agent_thought(cognition)
+
+        # Planned-Behavior
+        cognition = await self.plan_generation()
+        if cognition:
+            await self.save_agent_thought(cognition)
+        get_logger().debug(f"Agent {self.id}: Finished main workflow - plan")
+
+        # step execution - dispatch to different blocks
+        await self.step_execution()
+        get_logger().debug(f"Agent {self.id}: Finished main workflow - step execution")
 
         # cognition
-        if self.enable_cognition:
-            await self.mind_block.forward()
+        if self.params.enable_cognition:
+            await self.cognition_block.forward()
         get_logger().debug(f"Agent {self.id}: Finished main workflow - cognition")
 
         return time.time() - start_time
@@ -342,17 +313,15 @@ class SocietyAgent(CitizenAgentBase):
                         format_time=True
                     )
                     related_memories = None
-                    if self.enable_cognition:
+                    if self.params.enable_cognition:
                         try:
                             # Update emotion for the plan
                             related_memories = await self.memory.stream.get_by_ids(
                                 current_plan["stream_nodes"]
                             )
                             incident = f"You have successfully completed the plan: {related_memories}"
-                            conclusion = (
-                                await self.mind_block.cognition_block.emotion_update(
-                                    incident
-                                )
+                            conclusion = await self.cognition_block.emotion_update(
+                                incident
                             )
                             await self.save_agent_thought(conclusion)
                             await self.memory.stream.add_cognition_to_memory(
@@ -360,7 +329,7 @@ class SocietyAgent(CitizenAgentBase):
                             )
                         except Exception as e:
                             get_logger().warning(
-                                f"Error in check_and_update_step (emotion_update): {str(e)}\nrelated_memories: {related_memories}"
+                                f"Check_and_update_step (emotion_update): {str(e)}\nrelated_memories: {related_memories}"
                             )
                     await self.memory.status.update("current_plan", current_plan)
                 return True
@@ -370,7 +339,7 @@ class SocietyAgent(CitizenAgentBase):
                 _, current_plan["end_time"] = self.environment.get_datetime(
                     format_time=True
                 )
-                if self.enable_cognition:
+                if self.params.enable_cognition:
                     related_memories = None
                     try:
                         # Update emotion for the plan
@@ -380,18 +349,14 @@ class SocietyAgent(CitizenAgentBase):
                         incident = (
                             f"You have failed to complete the plan: {related_memories}"
                         )
-                        conclusion = (
-                            await self.mind_block.cognition_block.emotion_update(
-                                incident
-                            )
-                        )
+                        conclusion = await self.cognition_block.emotion_update(incident)
                         await self.save_agent_thought(conclusion)
                         await self.memory.stream.add_cognition_to_memory(
                             current_plan["stream_nodes"], conclusion
                         )
                     except Exception as e:
                         get_logger().warning(
-                            f"Error in check_and_update_step (emotion_update): {str(e)}\nrelated_memories: {related_memories}"
+                            f"Check_and_update_step (emotion_update): {str(e)}\nrelated_memories: {related_memories}"
                         )
                 await self.memory.status.update("current_plan", current_plan)
                 return True
@@ -425,9 +390,9 @@ class SocietyAgent(CitizenAgentBase):
                 # add social memory
                 description = f"You received a social message: {content}"
                 await self.memory.stream.add_social(description=description)
-                if self.enable_cognition:
+                if self.params.enable_cognition:
                     # update emotion
-                    await self.mind_block.cognition_block.emotion_update(description)
+                    await self.cognition_block.emotion_update(description)
 
                 # Get chat histories and ensure proper format
                 chat_histories = await self.memory.status.get("chat_histories") or {}
@@ -543,25 +508,80 @@ class SocietyAgent(CitizenAgentBase):
             description = f"You received a economic message: Your {key} has changed from {await self.memory.status.get(key)} to {value}"
             await self.memory.status.update(key, value)
             await self.memory.stream.add_economy(description=description)
-            if self.enable_cognition:
-                await self.mind_block.cognition_block.emotion_update(description)
+            if self.params.enable_cognition:
+                await self.cognition_block.emotion_update(description)
             return ""
 
     async def react_to_intervention(self, intervention_message: str):
         """React to an intervention"""
         # cognition
-        conclusion = await self.mind_block.cognition_block.emotion_update(
-            intervention_message
-        )
+        conclusion = await self.cognition_block.emotion_update(intervention_message)
         await self.save_agent_thought(conclusion)
         await self.memory.stream.add_cognition(description=conclusion)
         # needs
-        await self.plan_and_action_block.needs_block.reflect_to_intervention(
-            intervention_message
-        )
+        await self.needs_block.reflect_to_intervention(intervention_message)
 
     async def reset_position(self):
         """Reset the position of the agent."""
         home = await self.status.get("home")
         home = home["aoi_position"]["aoi_id"]
         await self.environment.reset_person_position(person_id=self.id, aoi_id=home)
+
+    async def step_execution(self):
+        """Execute the current step in the active plan based on step type."""
+        current_plan = await self.memory.status.get("current_plan")
+        if (
+            current_plan is None
+            or not current_plan
+            or len(current_plan.get("steps", [])) == 0
+        ):
+            return  # No plan, no execution
+        step_index = current_plan.get("index", 0)
+        execution_context = await self.memory.status.get("execution_context")
+        current_step = current_plan.get("steps", [])[step_index]
+        # check current_step is valid (not empty)
+        if current_step:
+            self.context.current_step = current_step
+            self.context.current_intention = current_step["intention"]
+            self.context.plan_context = execution_context
+            position = await self.memory.status.get("position")
+            if "aoi_position" in position:
+                current_step["position"] = position["aoi_position"]["aoi_id"]
+            current_step["start_time"] = self.environment.get_tick()
+            result = None
+            if self.blocks and len(self.blocks) > 0:
+                selected_block = await self.dispatcher.dispatch(
+                    self.context
+                )
+                if selected_block:
+                    result = await selected_block.forward(
+                        self.context
+                    )
+                    result = result.model_dump()
+                else:
+                    get_logger().warning(
+                        f"There is no appropriate block found for {self.context['current_intention']}"
+                    )
+                    result = {
+                        "success": False,
+                        "evaluation": f"Failed to {self.context['current_intention']}",
+                        "consumed_time": random.randint(1, 100),
+                        "node_id": None,
+                    }
+            else:
+                get_logger().warning(
+                    f"There is no block found for {self.context['current_intention']}"
+                )
+                result = {
+                    "success": True,
+                    "evaluation": f"Successfully {self.context['current_intention']}",
+                    "consumed_time": random.randint(1, 100),
+                    "node_id": None,
+                }
+            if result != None:
+                current_step["evaluation"] = result
+
+            # Update current_step, plan, and execution_context information
+            current_plan["steps"][step_index] = current_step
+            await self.memory.status.update("current_plan", current_plan)
+            await self.memory.status.update("execution_context", execution_context)

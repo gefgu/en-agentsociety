@@ -11,7 +11,6 @@ from pydantic import BaseModel, Field
 from shapely.geometry import Point, Polygon
 
 from ..logger import get_logger
-from ..s3 import S3Config, S3Client
 from .utils.const import POI_CATG_DICT
 
 __all__ = ["MapData", "MapConfig"]
@@ -33,40 +32,25 @@ class MapData:
     Map API
     """
 
-    def __init__(self, config: MapConfig, s3config: S3Config):
+    def __init__(self, config: MapConfig):
         """
         Args:
         - config (MapConfig): Map config, Defaults to None. Map config.
         """
         get_logger().info("MapData init")
-        s3client = None
-        if s3config.enabled:
-            s3client = S3Client(s3config)
         map_data = None
         # 1. try to load from cache
         if config.cache_path is not None:
-            exists = (
-                s3client.exists(config.cache_path)
-                if s3client is not None
-                else os.path.exists(config.cache_path)
-            )
+            exists = os.path.exists(config.cache_path)
             if exists:
                 get_logger().info("Start load cache file in MapData")
-                if s3client is not None:
-                    map_bytes = s3client.download(config.cache_path)
-                    map_data = pickle.loads(map_bytes)
-                else:
-                    with open(config.cache_path, "rb") as f:
-                        map_data = pickle.load(f)
+                with open(config.cache_path, "rb") as f:
+                    map_data = pickle.load(f)
                 get_logger().info("Finish load cache file in MapData")
         if map_data is None:
             get_logger().info("No cache file found, start parse pb file in MapData")
-            if s3client is not None:
-                map_bytes = s3client.download(config.file_path)
-                pb = map_pb2.Map().FromString(map_bytes)
-            else:
-                with open(config.file_path, "rb") as f:
-                    pb = map_pb2.Map().FromString(f.read())
+            with open(config.file_path, "rb") as f:
+                pb = map_pb2.Map().FromString(f.read())
 
             jsons = []
             # add header
@@ -111,11 +95,8 @@ class MapData:
             get_logger().info("Finish parse pb file")
             if config.cache_path is not None:
                 get_logger().info("Start save cache file")
-                if s3client is not None:
-                    s3client.upload(pickle.dumps(map_data), config.cache_path)
-                else:
-                    with open(config.cache_path, "wb") as f:
-                        pickle.dump(map_data, f)
+                with open(config.cache_path, "wb") as f:
+                    pickle.dump(map_data, f)
                 get_logger().info("Finish save cache file")
 
         self.header: dict = map_data["header"]

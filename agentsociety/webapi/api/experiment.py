@@ -1,16 +1,17 @@
+from collections import defaultdict
 import csv
 import io
+import json
 import logging
 import uuid
 import zipfile
-from typing import List, cast
+from typing import List, cast, Dict, Tuple
 
 import yaml
 from fastapi import APIRouter, Form, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from ..models import ApiResponseWrapper
 from ..models.agent import (
     agent_dialog,
@@ -20,6 +21,8 @@ from ..models.agent import (
     global_prompt,
 )
 from ..models.experiment import ApiExperiment, ApiTime, Experiment, ExperimentStatus
+from ..models.metric import MLflowRun, MLflowMetric, ApiMLflowMetric
+from .const import DEMO_USER_ID
 
 __all__ = ["router"]
 
@@ -31,9 +34,9 @@ async def list_experiments(
     request: Request,
 ) -> ApiResponseWrapper[List[ApiExperiment]]:
     """List all experiments"""
+    tenant_id = await request.app.state.get_tenant_id(request)
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
-        tenant_id = await request.app.state.get_tenant_id(request)
         stmt = (
             select(Experiment)
             .where(Experiment.tenant_id == tenant_id)
@@ -52,9 +55,9 @@ async def get_experiment_by_id(
 ) -> ApiResponseWrapper[ApiExperiment]:
     """Get experiment by ID"""
 
+    tenant_id = await request.app.state.get_tenant_id(request)
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
-        tenant_id = await request.app.state.get_tenant_id(request)
         stmt = select(Experiment).where(
             Experiment.tenant_id == tenant_id, Experiment.id == exp_id
         )
@@ -75,9 +78,9 @@ async def get_experiment_status_timeline_by_id(
 ) -> ApiResponseWrapper[List[ApiTime]]:
     """Get experiment status timeline by ID"""
 
+    tenant_id = await request.app.state.get_tenant_id(request)
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
-        tenant_id = await request.app.state.get_tenant_id(request)
         stmt = select(Experiment).where(
             Experiment.tenant_id == tenant_id, Experiment.id == exp_id
         )
@@ -127,6 +130,11 @@ async def delete_experiment_by_id(
             status_code=status.HTTP_403_FORBIDDEN, detail="Server is in read-only mode"
         )
     tenant_id = await request.app.state.get_tenant_id(request)
+    if tenant_id == DEMO_USER_ID:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Demo user is not allowed to delete experiments",
+        )
 
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
@@ -179,6 +187,96 @@ async def delete_experiment_by_id(
             )
 
 
+async def get_experiment_metrics_by_id(
+    db: AsyncSession,
+    exp_id: uuid.UUID,
+) -> Tuple[bool, Dict[str, List[ApiMLflowMetric]]]:
+    """Get metrics for an experiment by ID
+
+    Args:
+        db: Database session
+        exp_id: Experiment ID
+
+    Returns:
+        Tuple containing:
+        - bool: Whether metrics were found
+        - Dict[str, List[ApiMLflowMetric]]: Metrics data aggregated by key
+    """
+    join_stmt = (
+        select(MLflowRun, MLflowMetric)
+        .join(MLflowMetric, MLflowRun.run_uuid == MLflowMetric.run_uuid)
+        .where(MLflowRun.name == str(exp_id))
+        .order_by(MLflowMetric.step)
+    )
+    results = await db.execute(join_stmt)
+    rows = results.all()
+
+    if not rows:
+        return False, {}
+
+    # Aggregate metrics by key
+    metrics_by_key: Dict[str, List[ApiMLflowMetric]] = defaultdict(list)
+    for _, metric in rows:
+        api_metric = ApiMLflowMetric(
+            key=metric.key,
+            value=metric.value,
+            step=metric.step,
+            is_nan=metric.is_nan,
+        )
+        metrics_by_key[metric.key].append(api_metric)
+
+    return True, metrics_by_key
+
+
+def serialize_metrics(
+    metrics_by_key: Dict[str, List[ApiMLflowMetric]],
+) -> Dict[str, List[dict]]:
+    """Serialize metrics data for JSON output
+
+    Args:
+        metrics_by_key: Metrics data aggregated by key
+
+    Returns:
+        Dict with serialized metrics data
+    """
+    return {
+        key: [metric.model_dump() for metric in metrics]
+        for key, metrics in metrics_by_key.items()
+    }
+
+
+@router.get("/experiments/{exp_id}/metrics")
+async def get_experiment_metrics(
+    request: Request,
+    exp_id: uuid.UUID,
+) -> ApiResponseWrapper[Dict[str, List[ApiMLflowMetric]]]:
+    """Get all metrics for an experiment, aggregated by metric key"""
+
+    tenant_id = await request.app.state.get_tenant_id(request)
+    async with request.app.state.get_db() as db:
+        db = cast(AsyncSession, db)
+
+        # First verify the experiment exists
+        stmt = select(Experiment).where(
+            Experiment.tenant_id == tenant_id, Experiment.id == exp_id
+        )
+        result = await db.execute(stmt)
+        row = result.scalar_one_or_none()
+        if not row:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Experiment not found"
+            )
+
+        found, metrics_by_key = await get_experiment_metrics_by_id(db, exp_id)
+        if not found:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No MLflow run found for this experiment",
+            )
+
+        return ApiResponseWrapper(data=metrics_by_key)
+
+
 @router.post("/experiments/{exp_id}/export")
 async def export_experiment_data(
     request: Request,
@@ -186,9 +284,9 @@ async def export_experiment_data(
 ) -> StreamingResponse:
     """Export experiment data as a zip file containing YAML and CSV files"""
 
+    tenant_id = await request.app.state.get_tenant_id(request)
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
-        tenant_id = await request.app.state.get_tenant_id(request)
 
         # Get experiment info
         stmt = select(Experiment).where(
@@ -209,6 +307,13 @@ async def export_experiment_data(
             exp_dict = experiment.to_dict()
             yaml_content = yaml.dump(exp_dict, allow_unicode=True)
             zip_file.writestr("experiment.yaml", yaml_content)
+
+            # Export metrics data as JSON
+            found, metrics_by_key = await get_experiment_metrics_by_id(db, exp_id)
+            if found:
+                serialized_metrics = serialize_metrics(metrics_by_key)
+                metrics_json = json.dumps(serialized_metrics, indent=2)
+                zip_file.writestr("metrics.json", metrics_json)
 
             # get all tables
             tables = {

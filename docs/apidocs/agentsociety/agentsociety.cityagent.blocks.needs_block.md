@@ -35,8 +35,8 @@
   - ```{autodoc2-docstring} agentsociety.cityagent.blocks.needs_block.EVALUATION_PROMPT
     :summary:
     ```
-* - {py:obj}`REFLECT_PROMPT <agentsociety.cityagent.blocks.needs_block.REFLECT_PROMPT>`
-  - ```{autodoc2-docstring} agentsociety.cityagent.blocks.needs_block.REFLECT_PROMPT
+* - {py:obj}`REFLECTION_PROMPT <agentsociety.cityagent.blocks.needs_block.REFLECTION_PROMPT>`
+  - ```{autodoc2-docstring} agentsociety.cityagent.blocks.needs_block.REFLECTION_PROMPT
     :summary:
     ```
 ````
@@ -61,16 +61,16 @@
 
 ````
 
-````{py:data} REFLECT_PROMPT
-:canonical: agentsociety.cityagent.blocks.needs_block.REFLECT_PROMPT
+````{py:data} REFLECTION_PROMPT
+:canonical: agentsociety.cityagent.blocks.needs_block.REFLECTION_PROMPT
 :value: <Multiline-String>
 
-```{autodoc2-docstring} agentsociety.cityagent.blocks.needs_block.REFLECT_PROMPT
+```{autodoc2-docstring} agentsociety.cityagent.blocks.needs_block.REFLECTION_PROMPT
 ```
 
 ````
 
-`````{py:class} NeedsBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, memory: agentsociety.memory.Memory)
+`````{py:class} NeedsBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, agent_memory: agentsociety.memory.Memory, agent_context: agentsociety.agent.DotDict, evaluation_prompt: str = EVALUATION_PROMPT, reflection_prompt: str = REFLECTION_PROMPT, initial_prompt: str = INITIAL_NEEDS_PROMPT)
 :canonical: agentsociety.cityagent.blocks.needs_block.NeedsBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`

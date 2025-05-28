@@ -2,8 +2,9 @@ import logging
 from typing import Optional, cast
 
 import numpy as np
+from pydantic import Field
 
-from ..agent import AgentToolbox, FirmAgentBase
+from ..agent import AgentParams, AgentToolbox, FirmAgentBase, Block
 from ..environment import EconomyClient, Environment
 from ..llm import LLM
 from ..logger import get_logger
@@ -11,6 +12,21 @@ from ..memory import Memory
 from ..message import Messager
 
 __all__ = ["FirmAgent"]
+
+
+class FirmAgentConfig(AgentParams):
+    """Configuration for FirmAgent."""
+
+    time_diff: int = Field(
+        default=30 * 24 * 60 * 60,
+        description="Time difference between each forward, day * hour * minute * second",
+    )
+    max_price_inflation: float = Field(
+        default=0.05, description="Maximum price inflation rate"
+    )
+    max_wage_inflation: float = Field(
+        default=0.05, description="Maximum wage inflation rate"
+    )
 
 
 class FirmAgent(FirmAgentBase):
@@ -21,17 +37,10 @@ class FirmAgent(FirmAgentBase):
     Inherits from InstitutionAgent and extends its economic behaviors.
     """
 
-    configurable_fields = ["time_diff", "max_price_inflation", "max_wage_inflation"]
-    default_values = {
-        "time_diff": 30 * 24 * 60 * 60,
-        "max_price_inflation": 0.05,
-        "max_wage_inflation": 0.05,
-    }
-    fields_description = {
-        "time_diff": "Time difference between each forward, day * hour * minute * second",
-        "max_price_inflation": "Maximum price inflation rate",
-        "max_wage_inflation": "Maximum wage inflation rate",
-    }
+    ParamsType = FirmAgentConfig
+    description: str = """
+The firm agent that manages economic activities including price adjustments, wage policies, inventory control, and employee skill development.
+    """
 
     def __init__(
         self,
@@ -39,6 +48,8 @@ class FirmAgent(FirmAgentBase):
         name: str,
         toolbox: AgentToolbox,
         memory: Memory,
+        agent_params: Optional[FirmAgentConfig] = None,
+        blocks: Optional[list[Block]] = None,
     ) -> None:
         """Initialize a FirmAgent with essential components for economic simulation.
 
@@ -55,13 +66,12 @@ class FirmAgent(FirmAgentBase):
             name=name,
             toolbox=toolbox,
             memory=memory,
+            agent_params=agent_params,
+            blocks=blocks,
         )
         self.initailzed = False
         self.last_time_trigger = None
         self.forward_times = 0
-        self.time_diff = 30 * 24 * 60 * 60
-        self.max_price_inflation = 0.05
-        self.max_wage_inflation = 0.05
 
     async def reset(self):
         """Reset the FirmAgent."""
@@ -78,7 +88,7 @@ class FirmAgent(FirmAgentBase):
         if self.last_time_trigger is None:
             self.last_time_trigger = now_tick
             return False
-        if now_tick - self.last_time_trigger >= self.time_diff:
+        if now_tick - self.last_time_trigger >= self.params.time_diff:
             self.last_time_trigger = now_tick
             return True
         return False
@@ -118,7 +128,7 @@ class FirmAgent(FirmAgentBase):
             )
             skills = np.array(skills)
             skill_change_ratio = np.random.uniform(
-                0, max_change_rate * self.max_wage_inflation
+                0, max_change_rate * self.params.max_wage_inflation
             )
             await self.environment.economy_client.update(
                 employees,
@@ -133,7 +143,7 @@ class FirmAgent(FirmAgentBase):
                     * (
                         1
                         + np.random.uniform(
-                            0, max_change_rate * self.max_price_inflation
+                            0, max_change_rate * self.params.max_price_inflation
                         )
                     ),
                     1,

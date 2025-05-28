@@ -28,6 +28,7 @@ agentsociety.cityagent.memory_config
 agentsociety.cityagent.initial
 agentsociety.cityagent.governmentagent
 agentsociety.cityagent.bankagent
+agentsociety.cityagent.sharing_params
 agentsociety.cityagent.firmagent
 agentsociety.cityagent.metrics
 agentsociety.cityagent.nbsagent
@@ -65,6 +66,10 @@ agentsociety.cityagent.nbsagent
   - ```{autodoc2-docstring} agentsociety.cityagent.__all__
     :summary:
     ```
+* - {py:obj}`BLOCK_MAPPING <agentsociety.cityagent.BLOCK_MAPPING>`
+  - ```{autodoc2-docstring} agentsociety.cityagent.BLOCK_MAPPING
+    :summary:
+    ```
 ````
 
 ### API
@@ -75,6 +80,16 @@ agentsociety.cityagent.nbsagent
    ['default', 'SocietyAgent', 'FirmAgent', 'BankAgent', 'NBSAgent', 'GovernmentAgent', 'memory_config_...
 
 ```{autodoc2-docstring} agentsociety.cityagent.__all__
+```
+
+````
+
+````{py:data} BLOCK_MAPPING
+:canonical: agentsociety.cityagent.BLOCK_MAPPING
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.cityagent.BLOCK_MAPPING
 ```
 
 ````

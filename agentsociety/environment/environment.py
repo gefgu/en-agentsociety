@@ -17,8 +17,9 @@ from pydantic import BaseModel, ConfigDict, Field
 from pyproj import Proj
 from shapely.geometry import Point
 
+from agentsociety.message.messager import Messager
+
 from ..logger import get_logger
-from ..s3 import S3Client, S3Config
 from ..utils.decorators import log_execution_time
 from .economy.econ_client import EconomyClient
 from .mapdata import MapConfig, MapData
@@ -140,6 +141,9 @@ class Environment:
         self._tick = 0
         """number of simulated ticks"""
 
+        self._aoi_message: dict[int, dict[int, list[str]]] = {}
+        """aoi message"""
+
         self._init_citizen_ids = citizen_ids
         self._init_firm_ids = firm_ids
         self._init_bank_ids = bank_ids
@@ -206,6 +210,38 @@ class Environment:
         aois = self._map.get_all_aois()
         return [aoi["id"] for aoi in aois]
 
+    def register_aoi_message(
+        self, agent_id: int, target_aoi: Union[int, list[int]], content: str
+    ):
+        """
+        Register aoi message
+
+        - **Args**:
+            - `target_aoi` (`Union[int, list[int]]`): The ID of the target aoi.
+            - `content` (`str`): The content of the message to send.
+        """
+        if isinstance(target_aoi, int):
+            target_aoi = [target_aoi]
+        for aoi in target_aoi:
+            if aoi not in self._aoi_message:
+                self._aoi_message[aoi] = {}
+            if agent_id not in self._aoi_message[aoi]:
+                self._aoi_message[aoi][agent_id] = []
+            self._aoi_message[aoi][agent_id].append(content)
+
+    def cancel_aoi_message(self, agent_id: int, target_aoi: Union[int, list[int]]):
+        """
+        Cancel aoi message
+        """
+        if isinstance(target_aoi, int):
+            target_aoi = [target_aoi]
+        for aoi in target_aoi:
+            if aoi in self._aoi_message:
+                if agent_id in self._aoi_message[aoi]:
+                    self._aoi_message[aoi].pop(agent_id)
+                if len(self._aoi_message[aoi]) == 0:
+                    self._aoi_message.pop(aoi)
+
     @property
     def environment(self) -> dict[str, str]:
         """
@@ -232,7 +268,21 @@ class Environment:
         - **Returns**:
             - `Any`: The value of the corresponding key, or an empty string if not found.
         """
-        return self._environment_prompt.get(key, "")
+        return self._environment_prompt.get(key, "Don't know")
+
+    def sense_aoi(self, aoi_id: int) -> str:
+        """
+        Retrieve the value of an environment variable by its key.
+        """
+        if aoi_id in self._aoi_message:
+            msg_ = ""
+            aoi_messages = self._aoi_message[aoi_id]
+            for _, messages in aoi_messages.items():
+                for message in messages:
+                    msg_ += message + "\n"
+            return msg_
+        else:
+            return ""
 
     def update_environment(self, key: str, value: Any):
         """
@@ -551,7 +601,6 @@ class EnvironmentStarter(Environment):
         map_config: MapConfig,
         simulator_config: SimulatorConfig,
         environment_config: EnvironmentConfig,
-        s3config: S3Config,
     ):
         """
         Environment config
@@ -564,8 +613,7 @@ class EnvironmentStarter(Environment):
         self._map_config = map_config
         self._environment_config = environment_config
         self._sim_config = simulator_config
-        self._s3config = s3config
-        mapdata = MapData(map_config, s3config)
+        mapdata = MapData(map_config)
 
         super().__init__(mapdata, None, environment_config)
 
@@ -605,15 +653,7 @@ class EnvironmentStarter(Environment):
         # init simulator
         # =========================
 
-        # if s3 enabled, download the map from s3
         file_path = self._map_config.file_path
-        if self._s3config.enabled:
-            client = S3Client(self._s3config)
-            map_bytes = client.download(self._map_config.file_path)
-            file_path = tempfile.mktemp()
-            with open(file_path, "wb") as f:
-                f.write(map_bytes)
-
         config_base64 = encode_to_base64(_generate_yaml_config(file_path))
         os.environ["GOMAXPROCS"] = str(self._sim_config.max_process)
         self._server_addr = (
@@ -646,10 +686,6 @@ class EnvironmentStarter(Environment):
         get_logger().info(
             f"start agentsociety-sim at {self._server_addr}, PID={self._sim_proc.pid}"
         )
-
-        # remove the temporary file
-        if self._s3config.enabled:
-            os.remove(file_path)
 
         super().init()
 

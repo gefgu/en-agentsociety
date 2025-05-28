@@ -13,9 +13,9 @@ class ApiResponseWrapper(BaseModel, Generic[T]):
     data: T = Field(..., description="Response Data")
 
 
-# # 分页响应模型
-# class PaginatedResponse(BaseModel, Generic[T]):
-#     """分页响应模型"""
+# 分页响应模型
+class ApiPaginatedResponseWrapper(BaseModel, Generic[T]):
+    """分页响应模型"""
 
-#     total: int = Field(..., description="总记录数")
-#     items: List[T] = Field(..., description="数据项列表")
+    total: int = Field(..., description="总记录数")
+    data: List[T] = Field(..., description="数据项列表")

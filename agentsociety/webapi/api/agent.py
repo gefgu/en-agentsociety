@@ -1,12 +1,16 @@
-from typing import List, Optional, cast
+from datetime import datetime, timezone
+import json
 import uuid
+from typing import List, Optional, cast
 
-from fastapi import APIRouter, HTTPException, Request, status, Query
+import redis.asyncio as aioredis
+from fastapi import APIRouter, Body, HTTPException, Query, Request, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agentsociety.webapi.models import ApiResponseWrapper
-
+from ...configs import EnvConfig
+from ..models import ApiResponseWrapper
 from ..models.agent import (
     ApiAgentDialog,
     ApiAgentProfile,
@@ -20,6 +24,7 @@ from ..models.agent import (
     global_prompt,
 )
 from ..models.experiment import Experiment, ExperimentStatus
+from ..models.survey import Survey
 
 __all__ = ["router"]
 
@@ -29,6 +34,7 @@ router = APIRouter(tags=["agent"])
 async def _find_started_experiment_by_id(
     request: Request, db: AsyncSession, exp_id: uuid.UUID
 ) -> Experiment:
+    """Find an experiment by ID and check if it has started"""
     tenant_id = await request.app.state.get_tenant_id(request)
     stmt = select(Experiment).where(
         Experiment.tenant_id == tenant_id, Experiment.id == exp_id
@@ -235,3 +241,136 @@ async def get_global_prompt_by_day_t(
         prompt = ApiGlobalPrompt(**{columns[i]: row[i] for i in range(len(columns))})
 
         return ApiResponseWrapper(data=prompt)
+
+
+class AgentChatMessage(BaseModel):
+    content: str
+
+
+@router.post("/experiments/{exp_id}/agents/{agent_id}/dialog")
+async def post_agent_dialog(
+    request: Request,
+    exp_id: uuid.UUID,
+    agent_id: int,
+    message: AgentChatMessage = Body(...),
+) -> ApiResponseWrapper[None]:
+    """Send dialog to agent by experiment ID and agent ID"""
+
+    # Get tenant_id from request
+    tenant_id = await request.app.state.get_tenant_id(request)
+
+    # Check whether the experiment is started and belongs to the tenant
+    async with request.app.state.get_db() as db:
+        db = cast(AsyncSession, db)
+        stmt = select(Experiment).where(
+            Experiment.tenant_id == tenant_id, Experiment.id == exp_id
+        )
+        result = await db.execute(stmt)
+        experiment = result.scalar_one_or_none()
+        if not experiment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Experiment not found or you don't have permission to access it",
+            )
+
+        if ExperimentStatus(experiment.status) != ExperimentStatus.RUNNING:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Experiment not running"
+            )
+
+        env: EnvConfig = request.app.state.env
+
+        # Get Redis client from app state
+        redis_client = aioredis.Redis(
+            host=env.redis.server,
+            port=env.redis.port,
+            db=env.redis.db,
+            password=env.redis.password,
+            socket_timeout=env.redis.timeout,
+            socket_keepalive=True,
+            health_check_interval=5,
+            single_connection_client=True,
+        )
+
+        # Send message through Redis
+        channel = f"exps:{exp_id}:agents:{agent_id}:user-chat"
+        await redis_client.publish(channel, message.model_dump_json())
+        await redis_client.close()
+
+        return ApiResponseWrapper(data=None)
+
+
+class AgentSurveyMessage(BaseModel):
+    survey_id: uuid.UUID
+
+
+@router.post("/experiments/{exp_id}/agents/{agent_id}/survey")
+async def post_agent_survey(
+    request: Request,
+    exp_id: uuid.UUID,
+    agent_id: int,
+    message: AgentSurveyMessage = Body(...),
+) -> ApiResponseWrapper[None]:
+    """Send survey to agent by experiment ID and agent ID"""
+
+    # Get tenant_id from request
+    tenant_id = await request.app.state.get_tenant_id(request)
+
+    # Check whether the experiment is started and belongs to the tenant
+    async with request.app.state.get_db() as db:
+        db = cast(AsyncSession, db)
+        stmt = select(Experiment).where(
+            Experiment.tenant_id == tenant_id, Experiment.id == exp_id
+        )
+        result = await db.execute(stmt)
+        experiment = result.scalar_one_or_none()
+        if not experiment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Experiment not found or you don't have permission to access it",
+            )
+
+        if ExperimentStatus(experiment.status) != ExperimentStatus.RUNNING:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Experiment not running"
+            )
+
+        # Check whether the survey exists
+        stmt = select(Survey).where(
+            Survey.tenant_id.in_([tenant_id, ""]), Survey.id == message.survey_id
+        )
+        result = await db.execute(stmt)
+        survey = result.scalar_one_or_none()
+        if not survey:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Survey not found"
+            )
+
+        env: EnvConfig = request.app.state.env
+
+        # Get Redis client from app state
+        redis_client = aioredis.Redis(
+            host=env.redis.server,
+            port=env.redis.port,
+            db=env.redis.db,
+            password=env.redis.password,
+            socket_timeout=env.redis.timeout,
+            socket_keepalive=True,
+            health_check_interval=5,
+            single_connection_client=True,
+        )
+
+        # Send message through Redis
+        channel = f"exps:{exp_id}:agents:{agent_id}:user-survey"
+        survey_dict = survey.data
+        survey_dict["id"] = str(message.survey_id)
+        payload = {
+            "from": tenant_id,
+            "survey_id": str(message.survey_id),
+            "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "data": survey_dict,
+        }
+        await redis_client.publish(channel, json.dumps(payload))
+        await redis_client.close()
+
+        return ApiResponseWrapper(data=None)

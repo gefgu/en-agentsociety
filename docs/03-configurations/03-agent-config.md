@@ -21,8 +21,36 @@ The `agent_class` field specifies the type of agent to create. It can be either:
 ### Agent Count
 The `number` field (required) specifies how many agents of this type to create. Must be greater than 0.
 
-### Parameter Configuration
-The `param_config` field (optional) allows passing additional configuration parameters to the agent class as a dictionary.
+### Agent Parameters
+The `agent_params` field (optional) allows passing configuration parameters to the agent class as a dictionary to modify the working behavior of target agents. A use case is as follows:
+
+```yaml
+agent_class: citizen
+number: 100
+agent_params:
+  enable_cognition: true
+  UBI: 1000
+  num_labor_hours: 168
+  productivity_per_labor: 1
+  time_diff: 30 * 24 * 60 * 60
+  max_plan_steps: 6
+```
+
+Each agent class has its own parameter configurations. You can find the parameter configurations through `AgentClassType.ParamsType`, in which the parameters are defined with default values and descriptions.
+
+### Blocks Configuration
+The `blocks` field (optional) allows passing additional blocks to the agent as you need to endow the agent with more capabilities. A use case is as follows:
+
+```yaml
+blocks:
+  mobilityblock:
+    search_limit: 50
+  otherblock:
+    block_parameter_01: value_01
+    block_parameter_02: value_02
+```
+
+You can find usable blocks in the [agentsociety-community](https://github.com/tsinghua-fib-lab/agentsociety-community) with its description and usablitity. Note that each kinds of blocks have their own parameters, please refer to the documentation of the specific block you want to use.
 
 ### Memory Configuration
 The memory configuration can be specified in one of three mutually exclusive ways:

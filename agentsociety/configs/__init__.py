@@ -15,6 +15,7 @@ from .exp import (
     MetricType,
     WorkflowStepConfig,
     WorkflowType,
+    AgentFilterConfig,
 )
 from .utils import load_config_from_file
 
@@ -31,6 +32,7 @@ __all__ = [
     "AgentClassType",
     "MetricType",
     "WorkflowType",
+    "AgentFilterConfig",
 ]
 
 
@@ -83,6 +85,9 @@ class AgentsConfig(BaseModel):
         min_length=1,
     )
     """Government Agent configuration"""
+
+    others: list[AgentConfig] = Field([])
+    """Other Agent configuration"""
 
     init_funcs: list[Callable[[Any], Union[None, Awaitable[None]]]] = Field([])
     """Initialization functions for simulation, the only one argument is the AgentSociety object"""
@@ -153,7 +158,9 @@ class Config(BaseModel):
             self.agents.nbs,
             self.agents.governments,
         ]:
-            num_agents += sum(agent.number for agent in agents)
+            num_agents += sum(
+                agent.number for agent in agents if agent.number is not None
+            )
 
         cpu_count = psutil.cpu_count()
         memory_gb = psutil.virtual_memory().available / (1024 * 1024 * 1024)

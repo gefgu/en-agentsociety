@@ -75,7 +75,7 @@ class MlflowClient:
         self._mlflow_uri = config.mlflow_uri
         self._client = mlflow.MlflowClient(tracking_uri=self._mlflow_uri)
         if current_run_id is None:
-            run_name = f"run_{exp_id}"
+            run_name = exp_id
 
             # Create or get experiment
             try:

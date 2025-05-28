@@ -31,6 +31,10 @@
   - ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.MessageBlock
     :summary:
     ```
+* - {py:obj}`SocialBlockParams <agentsociety.cityagent.blocks.social_block.SocialBlockParams>`
+  -
+* - {py:obj}`SocialBlockContext <agentsociety.cityagent.blocks.social_block.SocialBlockContext>`
+  -
 * - {py:obj}`SocialBlock <agentsociety.cityagent.blocks.social_block.SocialBlock>`
   - ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialBlock
     :summary:
@@ -62,7 +66,7 @@
 
 `````
 
-`````{py:class} SocialNoneBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory)
+`````{py:class} SocialNoneBlock(llm: agentsociety.llm.LLM, agent_memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.social_block.SocialNoneBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -76,6 +80,26 @@ Bases: {py:obj}`agentsociety.agent.Block`
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialNoneBlock.__init__
 ```
 
+````{py:attribute} name
+:canonical: agentsociety.cityagent.blocks.social_block.SocialNoneBlock.name
+:value: >
+   'SocialNoneBlock'
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialNoneBlock.name
+```
+
+````
+
+````{py:attribute} description
+:canonical: agentsociety.cityagent.blocks.social_block.SocialNoneBlock.description
+:value: >
+   'Handle all other cases'
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialNoneBlock.description
+```
+
+````
+
 ````{py:method} forward(step, context)
 :canonical: agentsociety.cityagent.blocks.social_block.SocialNoneBlock.forward
 :async:
@@ -87,7 +111,7 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 `````
 
-`````{py:class} FindPersonBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, memory: agentsociety.memory.Memory)
+`````{py:class} FindPersonBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, agent_memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.social_block.FindPersonBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -101,7 +125,27 @@ Bases: {py:obj}`agentsociety.agent.Block`
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.FindPersonBlock.__init__
 ```
 
-````{py:method} forward(step: dict[str, typing.Any], context: typing.Optional[dict] = None) -> dict[str, typing.Any]
+````{py:attribute} name
+:canonical: agentsociety.cityagent.blocks.social_block.FindPersonBlock.name
+:value: >
+   'FindPersonBlock'
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.FindPersonBlock.name
+```
+
+````
+
+````{py:attribute} description
+:canonical: agentsociety.cityagent.blocks.social_block.FindPersonBlock.description
+:value: >
+   'Find a suitable person to socialize with'
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.FindPersonBlock.description
+```
+
+````
+
+````{py:method} forward(context: agentsociety.agent.DotDict)
 :canonical: agentsociety.cityagent.blocks.social_block.FindPersonBlock.forward
 :async:
 
@@ -112,7 +156,7 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 `````
 
-`````{py:class} MessageBlock(agent, llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, memory: agentsociety.memory.Memory)
+`````{py:class} MessageBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, agent_memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.social_block.MessageBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -126,6 +170,26 @@ Bases: {py:obj}`agentsociety.agent.Block`
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.MessageBlock.__init__
 ```
 
+````{py:attribute} name
+:canonical: agentsociety.cityagent.blocks.social_block.MessageBlock.name
+:value: >
+   'MessageBlock'
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.MessageBlock.name
+```
+
+````
+
+````{py:attribute} description
+:canonical: agentsociety.cityagent.blocks.social_block.MessageBlock.description
+:value: >
+   'Send a message to someone'
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.MessageBlock.description
+```
+
+````
+
 ````{py:method} _serialize_message(message: str, propagation_count: int) -> str
 :canonical: agentsociety.cityagent.blocks.social_block.MessageBlock._serialize_message
 
@@ -134,7 +198,7 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 ````
 
-````{py:method} forward(step: dict[str, typing.Any], context: typing.Optional[dict] = None) -> dict[str, typing.Any]
+````{py:method} forward(context: agentsociety.agent.DotDict)
 :canonical: agentsociety.cityagent.blocks.social_block.MessageBlock.forward
 :async:
 
@@ -145,7 +209,32 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 `````
 
-`````{py:class} SocialBlock(agent, llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, memory: agentsociety.memory.Memory)
+```{py:class} SocialBlockParams(/, **data: typing.Any)
+:canonical: agentsociety.cityagent.blocks.social_block.SocialBlockParams
+
+Bases: {py:obj}`agentsociety.agent.BlockParams`
+
+```
+
+`````{py:class} SocialBlockContext(/, **data: typing.Any)
+:canonical: agentsociety.cityagent.blocks.social_block.SocialBlockContext
+
+Bases: {py:obj}`agentsociety.agent.BlockContext`
+
+````{py:attribute} target
+:canonical: agentsociety.cityagent.blocks.social_block.SocialBlockContext.target
+:type: typing.Optional[int]
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialBlockContext.target
+```
+
+````
+
+`````
+
+`````{py:class} SocialBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, agent_memory: agentsociety.memory.Memory, block_params: typing.Optional[agentsociety.cityagent.blocks.social_block.SocialBlockParams] = None)
 :canonical: agentsociety.cityagent.blocks.social_block.SocialBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -159,40 +248,67 @@ Bases: {py:obj}`agentsociety.agent.Block`
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialBlock.__init__
 ```
 
-````{py:attribute} find_person_block
-:canonical: agentsociety.cityagent.blocks.social_block.SocialBlock.find_person_block
-:type: agentsociety.cityagent.blocks.social_block.FindPersonBlock
+````{py:attribute} ParamsType
+:canonical: agentsociety.cityagent.blocks.social_block.SocialBlock.ParamsType
 :value: >
    None
 
-```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialBlock.find_person_block
+```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialBlock.ParamsType
 ```
 
 ````
 
-````{py:attribute} message_block
-:canonical: agentsociety.cityagent.blocks.social_block.SocialBlock.message_block
-:type: agentsociety.cityagent.blocks.social_block.MessageBlock
+````{py:attribute} OutputType
+:canonical: agentsociety.cityagent.blocks.social_block.SocialBlock.OutputType
 :value: >
    None
 
-```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialBlock.message_block
+```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialBlock.OutputType
 ```
 
 ````
 
-````{py:attribute} noneblock
-:canonical: agentsociety.cityagent.blocks.social_block.SocialBlock.noneblock
-:type: agentsociety.cityagent.blocks.social_block.SocialNoneBlock
+````{py:attribute} ContextType
+:canonical: agentsociety.cityagent.blocks.social_block.SocialBlock.ContextType
 :value: >
    None
 
-```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialBlock.noneblock
+```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialBlock.ContextType
 ```
 
 ````
 
-````{py:method} forward(step: dict[str, typing.Any], context: typing.Optional[dict] = None) -> dict[str, typing.Any]
+````{py:attribute} name
+:canonical: agentsociety.cityagent.blocks.social_block.SocialBlock.name
+:value: >
+   'SocialBlock'
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialBlock.name
+```
+
+````
+
+````{py:attribute} description
+:canonical: agentsociety.cityagent.blocks.social_block.SocialBlock.description
+:value: >
+   'Responsible for all kinds of social interactions'
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialBlock.description
+```
+
+````
+
+````{py:attribute} actions
+:canonical: agentsociety.cityagent.blocks.social_block.SocialBlock.actions
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialBlock.actions
+```
+
+````
+
+````{py:method} forward(agent_context: agentsociety.agent.DotDict) -> agentsociety.cityagent.sharing_params.SocietyAgentBlockOutput
 :canonical: agentsociety.cityagent.blocks.social_block.SocialBlock.forward
 :async:
 

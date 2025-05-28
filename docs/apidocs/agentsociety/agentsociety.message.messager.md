@@ -120,7 +120,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} Messager(config: agentsociety.message.messager.RedisConfig, exp_id: str, message_interceptor: typing.Optional[ray.ObjectRef] = None)
+`````{py:class} Messager(config: agentsociety.message.messager.RedisConfig, exp_id: str, message_interceptor: typing.Optional[ray.ObjectRef] = None, forward_strategy: typing.Literal[outer_control, inner_control] = 'inner_control')
 :canonical: agentsociety.message.messager.Messager
 
 ```{autodoc2-docstring} agentsociety.message.messager.Messager
@@ -219,10 +219,27 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
+````{py:method} forward(validation_dict: typing.Optional[agentsociety.message.message_interceptor.MessageIdentifier] = None, persuasion_messages: typing.Optional[list[dict[str, typing.Any]]] = None)
+:canonical: agentsociety.message.messager.Messager.forward
+:async:
+
+```{autodoc2-docstring} agentsociety.message.messager.Messager.forward
+```
+
+````
+
 ````{py:method} get_subtopic_channel(agent_id: int, subtopic: str)
 :canonical: agentsociety.message.messager.Messager.get_subtopic_channel
 
 ```{autodoc2-docstring} agentsociety.message.messager.Messager.get_subtopic_channel
+```
+
+````
+
+````{py:method} get_aoi_channel(aoi_id: int)
+:canonical: agentsociety.message.messager.Messager.get_aoi_channel
+
+```{autodoc2-docstring} agentsociety.message.messager.Messager.get_aoi_channel
 ```
 
 ````

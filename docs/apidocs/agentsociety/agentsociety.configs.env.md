@@ -103,13 +103,22 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:attribute} s3
-:canonical: agentsociety.configs.env.EnvConfig.s3
-:type: agentsociety.s3.S3Config
+````{py:attribute} webui_home_dir
+:canonical: agentsociety.configs.env.EnvConfig.webui_home_dir
+:type: str
 :value: >
    'Field(...)'
 
-```{autodoc2-docstring} agentsociety.configs.env.EnvConfig.s3
+```{autodoc2-docstring} agentsociety.configs.env.EnvConfig.webui_home_dir
+```
+
+````
+
+````{py:property} webui_fs_client
+:canonical: agentsociety.configs.env.EnvConfig.webui_fs_client
+:type: agentsociety.filesystem.FileSystemClient
+
+```{autodoc2-docstring} agentsociety.configs.env.EnvConfig.webui_fs_client
 ```
 
 ````

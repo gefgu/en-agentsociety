@@ -7,10 +7,15 @@ from typing import Any, Callable, List, Optional, Union
 import jsonc
 import numpy as np
 
-from ..agent.distribution import (ChoiceDistribution, ConstantDistribution,
-                                  Distribution, UniformIntDistribution,
-                                  sample_field_value)
+from ..agent.distribution import (
+    ChoiceDistribution,
+    ConstantDistribution,
+    Distribution,
+    UniformIntDistribution,
+    sample_field_value,
+)
 from ..agent.memory_config_generator import MemoryT
+from ..agent.agent_base import StatusAttribute
 from ..environment.economy import EconomyEntityType
 
 pareto_param = 8
@@ -69,15 +74,6 @@ DEFAULT_DISTRIBUTIONS: dict[str, Distribution] = {
     "education": ChoiceDistribution(
         choices=["Doctor", "Master", "Bachelor", "College", "High School"]
     ),
-    "skill": ChoiceDistribution(
-        choices=[
-            "Good at problem-solving",
-            "Good at communication",
-            "Good at creativity",
-            "Good at teamwork",
-            "Other",
-        ]
-    ),
     "occupation": ChoiceDistribution(
         choices=[
             "Student",
@@ -91,34 +87,7 @@ DEFAULT_DISTRIBUTIONS: dict[str, Distribution] = {
             "Other",
         ]
     ),
-    "family_consumption": ChoiceDistribution(choices=["low", "medium", "high"]),
-    "consumption": ChoiceDistribution(
-        choices=["low", "slightly low", "medium", "slightly high", "high"]
-    ),
-    "personality": ChoiceDistribution(
-        choices=["outgoint", "introvert", "ambivert", "extrovert"]
-    ),
-    "income": UniformIntDistribution(min_value=1000, max_value=20000),
-    "currency": UniformIntDistribution(min_value=1000, max_value=100000),
-    "residence": ChoiceDistribution(choices=["city", "suburb", "rural"]),
-    "city": ConstantDistribution(value="New York"),
-    "race": ChoiceDistribution(
-        choices=[
-            "Chinese",
-            "American",
-            "British",
-            "French",
-            "German",
-            "Japanese",
-            "Korean",
-            "Russian",
-            "Other",
-        ]
-    ),
-    "religion": ChoiceDistribution(
-        choices=["none", "Christian", "Muslim", "Buddhist", "Hindu", "Other"]
-    ),
-    "marital_status": ChoiceDistribution(
+    "marriage_status": ChoiceDistribution(
         choices=["not married", "married", "divorced", "widowed"]
     ),
 }
@@ -126,8 +95,9 @@ DEFAULT_DISTRIBUTIONS: dict[str, Distribution] = {
 
 def memory_config_societyagent(
     distributions: dict[str, Distribution],
+    class_config: Optional[list[StatusAttribute]] = None,
 ) -> tuple[dict[str, MemoryT], dict[str, MemoryT], dict[str, Any]]:
-    EXTRA_ATTRIBUTES = {
+    EXTRA_ATTRIBUTES: dict[str, MemoryT] = {
         "type": (str, "citizen"),
         # Needs Model
         "hunger_satisfaction": (float, 0.9, False),  # hunger satisfaction
@@ -176,7 +146,7 @@ def memory_config_societyagent(
         ),
         "bank_id": (int, sample_field_value(distributions, "bank_id"), False),
         "nbs_id": (int, sample_field_value(distributions, "nbs_id"), False),
-        "dialog_queue": (deque(maxlen=3), [], False),
+        "dialog_queue": (deque(maxlen=3), [], False),  # type: ignore
         "firm_forward": (int, 0, False),
         "bank_forward": (int, 0, False),
         "nbs_forward": (int, 0, False),
@@ -199,31 +169,34 @@ def memory_config_societyagent(
         "location_knowledge": (dict, {}, False),  # location knowledge
     }
 
+    # extra attributes from class config
+    if class_config:
+        for attr in class_config:
+            if attr.name in EXTRA_ATTRIBUTES:
+                continue
+            if attr.embedding_template:
+                EXTRA_ATTRIBUTES[attr.name] = (attr.type, attr.default, attr.whether_embedding, attr.embedding_template)
+            else:
+                EXTRA_ATTRIBUTES[attr.name] = (attr.type, attr.default, attr.whether_embedding)
+
     PROFILE = {
         "name": (str, sample_field_value(distributions, "name"), True),
         "gender": (str, sample_field_value(distributions, "gender"), True),
         "age": (int, sample_field_value(distributions, "age"), True),
         "education": (str, sample_field_value(distributions, "education"), True),
-        "skill": (str, sample_field_value(distributions, "skill"), True),
+        "skill": (str, "unknown", True),
         "occupation": (str, sample_field_value(distributions, "occupation"), True),
-        "family_consumption": (
-            str,
-            sample_field_value(distributions, "family_consumption"),
-            True,
-        ),
-        "consumption": (str, sample_field_value(distributions, "consumption"), True),
-        "personality": (str, sample_field_value(distributions, "personality"), True),
-        "income": (float, sample_field_value(distributions, "income"), True),
-        "currency": (float, sample_field_value(distributions, "currency"), True),
-        "residence": (str, sample_field_value(distributions, "residence"), True),
-        "city": (str, sample_field_value(distributions, "city"), True),
-        "race": (str, sample_field_value(distributions, "race"), True),
-        "religion": (str, sample_field_value(distributions, "religion"), True),
-        "marital_status": (
-            str,
-            sample_field_value(distributions, "marital_status"),
-            True,
-        ),
+        "family_consumption": (str, "unknown", True),
+        "consumption": (str, "unknown", True),
+        "personality": (str, "unknown", True),
+        "income": (float, 5000, True),
+        "currency": (float, 30000, True),
+        "residence": (str, "unknown", True),
+        "city": (str, "unknown", True),
+        "race": (str, "unknown", True),
+        "religion": (str, "unknown", True),
+        "marriage_status": (str, sample_field_value(distributions, "marriage_status"), True),
+        "background_story": (str, "No background story", True),
     }
 
     BASE = {
@@ -240,6 +213,7 @@ def memory_config_societyagent(
 
 def memory_config_firm(
     distributions: dict[str, Distribution],
+    class_config: Optional[dict[str, Any]] = None,
 ) -> tuple[dict[str, MemoryT], dict[str, Union[MemoryT, float]], dict[str, Any]]:
     EXTRA_ATTRIBUTES = {
         "type": (int, EconomyEntityType.Firm),
@@ -276,6 +250,7 @@ def memory_config_firm(
 
 def memory_config_government(
     distributions: dict[str, Distribution],
+    class_config: Optional[dict[str, Any]] = None,
 ) -> tuple[dict[str, MemoryT], dict[str, Union[MemoryT, float]], dict[str, Any]]:
     EXTRA_ATTRIBUTES = {
         "type": (int, EconomyEntityType.Government),
@@ -308,6 +283,7 @@ def memory_config_government(
 
 def memory_config_bank(
     distributions: dict[str, Distribution],
+    class_config: Optional[dict[str, Any]] = None,
 ) -> tuple[dict[str, MemoryT], dict[str, Union[MemoryT, float]], dict[str, Any]]:
     EXTRA_ATTRIBUTES = {
         "type": (int, EconomyEntityType.Bank),
@@ -338,6 +314,7 @@ def memory_config_bank(
 
 def memory_config_nbs(
     distributions: dict[str, Distribution],
+    class_config: Optional[dict[str, Any]] = None,
 ) -> tuple[dict[str, MemoryT], dict[str, Union[MemoryT, float]], dict[str, Any]]:
     EXTRA_ATTRIBUTES = {
         "type": (int, EconomyEntityType.NBS),

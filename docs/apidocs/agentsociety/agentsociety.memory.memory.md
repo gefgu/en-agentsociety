@@ -403,7 +403,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ````
 
-````{py:method} set_semantic_templates(templates: typing.Dict[str, str])
+````{py:method} set_semantic_templates(templates: dict[str, str])
 :canonical: agentsociety.memory.memory.StatusMemory.set_semantic_templates
 
 ```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory.set_semantic_templates

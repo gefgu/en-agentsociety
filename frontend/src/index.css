@@ -81,7 +81,7 @@ body {
     z-index: 0;
 }
 
-.left {
+.agentsociety-left {
     position: absolute;
     top: calc(68px + 20px);
     left: 0px;
@@ -149,7 +149,7 @@ body {
     padding: 8px;
 }
 
-.right {
+.agentsociety-right {
     position: absolute;
     top: calc(68px + 20px);
     right: 0px;
@@ -177,8 +177,8 @@ body {
     width: 21vw;
     height: calc(100vh - 68px - 60px);
 
-    justify-content: center;
-    align-items: center;
+    justify-content: flex-start;
+    align-items: flex-start;
 
     backdrop-filter: blur(40px);
 
@@ -235,7 +235,8 @@ body {
     box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.2);
     border-radius: 8px;
     top: 96px;
-    left: calc(50% - 26vw);
+    left: 50%;
+    transform: translateX(-50%);
     max-width: calc(26vw * 2);
     z-index: 1;
     justify-content: center;
@@ -246,6 +247,7 @@ body {
     padding: 2px 32px;
     text-align: center;
     font-weight: bolder;
+    white-space: pre-line;
 }
 
 .control-progress {

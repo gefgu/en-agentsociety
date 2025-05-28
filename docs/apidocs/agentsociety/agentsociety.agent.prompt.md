@@ -23,7 +23,7 @@
 
 ### API
 
-`````{py:class} FormatPrompt(template: str, system_prompt: typing.Optional[str] = None)
+`````{py:class} FormatPrompt(template: str, format_prompt: typing.Optional[str] = None, system_prompt: typing.Optional[str] = None, memory: typing.Optional[agentsociety.memory.Memory] = None)
 :canonical: agentsociety.agent.prompt.FormatPrompt
 
 ```{autodoc2-docstring} agentsociety.agent.prompt.FormatPrompt
@@ -43,8 +43,26 @@
 
 ````
 
-````{py:method} format(**kwargs) -> str
+````{py:method} _is_safe_expression(expr: str) -> bool
+:canonical: agentsociety.agent.prompt.FormatPrompt._is_safe_expression
+
+```{autodoc2-docstring} agentsociety.agent.prompt.FormatPrompt._is_safe_expression
+```
+
+````
+
+````{py:method} _eval_expr(expr: str, context: dict) -> typing.Any
+:canonical: agentsociety.agent.prompt.FormatPrompt._eval_expr
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.prompt.FormatPrompt._eval_expr
+```
+
+````
+
+````{py:method} format(context: typing.Optional[dict] = None, **kwargs) -> str
 :canonical: agentsociety.agent.prompt.FormatPrompt.format
+:async:
 
 ```{autodoc2-docstring} agentsociety.agent.prompt.FormatPrompt.format
 ```

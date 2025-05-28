@@ -1,11 +1,9 @@
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import AwareDatetime, BaseModel
-from sqlalchemy import TIMESTAMP, Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from ._base import TABLE_PREFIX, Base
 

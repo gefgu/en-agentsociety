@@ -19,6 +19,10 @@
   - ```{autodoc2-docstring} agentsociety.configs.agent.AgentClassType
     :summary:
     ```
+* - {py:obj}`BlockClassType <agentsociety.configs.agent.BlockClassType>`
+  - ```{autodoc2-docstring} agentsociety.configs.agent.BlockClassType
+    :summary:
+    ```
 * - {py:obj}`AgentConfig <agentsociety.configs.agent.AgentConfig>`
   - ```{autodoc2-docstring} agentsociety.configs.agent.AgentConfig
     :summary:
@@ -115,6 +119,62 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
+`````{py:class} BlockClassType()
+:canonical: agentsociety.configs.agent.BlockClassType
+
+Bases: {py:obj}`str`, {py:obj}`enum.Enum`
+
+```{autodoc2-docstring} agentsociety.configs.agent.BlockClassType
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.configs.agent.BlockClassType.__init__
+```
+
+````{py:attribute} MOBILITYBLOCK
+:canonical: agentsociety.configs.agent.BlockClassType.MOBILITYBLOCK
+:value: >
+   'mobilityblock'
+
+```{autodoc2-docstring} agentsociety.configs.agent.BlockClassType.MOBILITYBLOCK
+```
+
+````
+
+````{py:attribute} ECONOMYBLOCK
+:canonical: agentsociety.configs.agent.BlockClassType.ECONOMYBLOCK
+:value: >
+   'economyblock'
+
+```{autodoc2-docstring} agentsociety.configs.agent.BlockClassType.ECONOMYBLOCK
+```
+
+````
+
+````{py:attribute} SOCIALBLOCK
+:canonical: agentsociety.configs.agent.BlockClassType.SOCIALBLOCK
+:value: >
+   'socialblock'
+
+```{autodoc2-docstring} agentsociety.configs.agent.BlockClassType.SOCIALBLOCK
+```
+
+````
+
+````{py:attribute} OTHERBLOCK
+:canonical: agentsociety.configs.agent.BlockClassType.OTHERBLOCK
+:value: >
+   'otherblock'
+
+```{autodoc2-docstring} agentsociety.configs.agent.BlockClassType.OTHERBLOCK
+```
+
+````
+
+`````
+
 `````{py:class} AgentConfig(/, **data: typing.Any)
 :canonical: agentsociety.configs.agent.AgentConfig
 
@@ -152,7 +212,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````{py:attribute} number
 :canonical: agentsociety.configs.agent.AgentConfig.number
-:type: int
+:type: typing.Optional[int]
 :value: >
    'Field(...)'
 
@@ -161,13 +221,24 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:attribute} param_config
-:canonical: agentsociety.configs.agent.AgentConfig.param_config
-:type: typing.Optional[dict[str, typing.Any]]
+````{py:attribute} agent_params
+:canonical: agentsociety.configs.agent.AgentConfig.agent_params
+:type: typing.Optional[typing.Any]
 :value: >
    None
 
-```{autodoc2-docstring} agentsociety.configs.agent.AgentConfig.param_config
+```{autodoc2-docstring} agentsociety.configs.agent.AgentConfig.agent_params
+```
+
+````
+
+````{py:attribute} blocks
+:canonical: agentsociety.configs.agent.AgentConfig.blocks
+:type: typing.Optional[dict[typing.Union[type[agentsociety.agent.Block], agentsociety.configs.agent.BlockClassType], typing.Any]]
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.configs.agent.AgentConfig.blocks
 ```
 
 ````
@@ -201,6 +272,14 @@ Bases: {py:obj}`pydantic.BaseModel`
    None
 
 ```{autodoc2-docstring} agentsociety.configs.agent.AgentConfig.memory_distributions
+```
+
+````
+
+````{py:method} validate_configuration()
+:canonical: agentsociety.configs.agent.AgentConfig.validate_configuration
+
+```{autodoc2-docstring} agentsociety.configs.agent.AgentConfig.validate_configuration
 ```
 
 ````

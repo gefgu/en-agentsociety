@@ -88,8 +88,6 @@ class MessageInterceptor:
         blocks: list[MessageBlockBase],
         llm_config: list[LLMConfig],
         queue: Queue,
-        public_network: Optional[nx.Graph] = None,
-        private_network: Optional[nx.Graph] = None,
         max_blocked_messages_per_round: Optional[int] = None,
         max_communicated_agents_per_round: Optional[int] = None,
         max_communication_length_cn: Optional[int] = None,
@@ -120,8 +118,6 @@ class MessageInterceptor:
         self._black_set = black_set
         self._llm = LLM(llm_config)
         self._queue = queue
-        self.public_network = public_network
-        self.private_network = private_network
         self.max_blocked_messages_per_round = max_blocked_messages_per_round
         self.max_communicated_agents_per_round = max_communicated_agents_per_round
         self.max_communication_length_cn = max_communication_length_cn
@@ -411,12 +407,7 @@ class MessageInterceptor:
             self.blocked_social_edges.extend(blocked_social_edges)
             self.blocked_social_edges = list(set(self.blocked_social_edges))
             # check can be blocked social edges (not in private network)
-            self.blocked_social_edges = [
-                edge
-                for edge in self.blocked_social_edges
-                if self.private_network is None
-                or edge not in self.private_network.edges()
-            ]
+            self.blocked_social_edges = [edge for edge in self.blocked_social_edges]
             if (
                 self.max_total_cut_edges is not None
                 and len(self.blocked_social_edges) > self.max_total_cut_edges
@@ -429,9 +420,33 @@ class MessageInterceptor:
                 )
 
     @lock_decorator
-    async def get_validation_dict(self) -> MessageIdentifier:
+    async def modify_validation_dict(
+        self, validation_dict: MessageIdentifier
+    ) -> MessageIdentifier:
+        # update validation_dict
+        self.validation_dict.update(validation_dict)
+        # modify validation_dict
+        for (from_id, to_id, msg), is_valid in list(self.validation_dict.items()):
+            # blocked agent ids
+            if from_id in self.blocked_agent_ids:
+                is_valid = False
+            # blocked social edges
+            if (from_id, to_id) in self.blocked_social_edges:
+                is_valid = False
+            self.validation_dict[(from_id, to_id, msg)] = is_valid
         return self.validation_dict
 
+    @lock_decorator
+    async def get_blocked_agent_ids(self) -> list[int]:
+        return self.blocked_agent_ids
+
+    @lock_decorator
+    async def clear_validation_dict(self) -> None:
+        self.validation_dict = {}
+
+    @lock_decorator
+    async def get_validation_dict(self) -> MessageIdentifier:
+        return self.validation_dict
 
 class MessageBlockListenerBase(ABC):
     """

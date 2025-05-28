@@ -31,6 +31,18 @@
   - ```{autodoc2-docstring} agentsociety.webapi.api.experiment.delete_experiment_by_id
     :summary:
     ```
+* - {py:obj}`get_experiment_metrics_by_id <agentsociety.webapi.api.experiment.get_experiment_metrics_by_id>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.experiment.get_experiment_metrics_by_id
+    :summary:
+    ```
+* - {py:obj}`serialize_metrics <agentsociety.webapi.api.experiment.serialize_metrics>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.experiment.serialize_metrics
+    :summary:
+    ```
+* - {py:obj}`get_experiment_metrics <agentsociety.webapi.api.experiment.get_experiment_metrics>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.experiment.get_experiment_metrics
+    :summary:
+    ```
 * - {py:obj}`export_experiment_data <agentsociety.webapi.api.experiment.export_experiment_data>`
   - ```{autodoc2-docstring} agentsociety.webapi.api.experiment.export_experiment_data
     :summary:
@@ -104,6 +116,29 @@
 :async:
 
 ```{autodoc2-docstring} agentsociety.webapi.api.experiment.delete_experiment_by_id
+```
+````
+
+````{py:function} get_experiment_metrics_by_id(db: sqlalchemy.ext.asyncio.AsyncSession, exp_id: uuid.UUID) -> typing.Tuple[bool, typing.Dict[str, typing.List[agentsociety.webapi.models.metric.ApiMLflowMetric]]]
+:canonical: agentsociety.webapi.api.experiment.get_experiment_metrics_by_id
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment.get_experiment_metrics_by_id
+```
+````
+
+````{py:function} serialize_metrics(metrics_by_key: typing.Dict[str, typing.List[agentsociety.webapi.models.metric.ApiMLflowMetric]]) -> typing.Dict[str, typing.List[dict]]
+:canonical: agentsociety.webapi.api.experiment.serialize_metrics
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment.serialize_metrics
+```
+````
+
+````{py:function} get_experiment_metrics(request: fastapi.Request, exp_id: uuid.UUID) -> agentsociety.webapi.models.ApiResponseWrapper[typing.Dict[str, typing.List[agentsociety.webapi.models.metric.ApiMLflowMetric]]]
+:canonical: agentsociety.webapi.api.experiment.get_experiment_metrics
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment.get_experiment_metrics
 ```
 ````
 

@@ -133,17 +133,40 @@ const CreateExperiment: React.FC = () => {
             await form.validateFields();
 
             // Build configuration from selected components
+            const llm = llms.find(llm => llm.id === selectedLLM);
+            if (!llm) {
+                throw new Error('LLM not found');
+            }
+            const map = maps.find(map => map.id === selectedMap);
+            if (!map) {
+                throw new Error('Map not found');
+            }
+            const agent = agents.find(agent => agent.id === selectedAgent);
+            if (!agent) {
+                throw new Error('Agent not found');
+            }
+            const workflow = workflows.find(workflow => workflow.id === selectedWorkflow);
+            if (!workflow) {
+                throw new Error('Workflow not found');
+            }
             const config = {
-                llm: llms.find(llm => llm.id === selectedLLM)?.config,
-                map: maps.find(map => map.id === selectedMap)?.config,
-                agents: agents.find(agent => agent.id === selectedAgent)?.config,
-                exp: {
-                    name: experimentName,
-                    workflow: workflows.find(workflow => workflow.id === selectedWorkflow)?.config,
-                    environment: {
-                        start_tick: 28800, // TODO: set when create exp
-                    }
-                }
+                exp_name: experimentName,
+                llm: {
+                    tenant_id: llm.tenant_id,
+                    id: llm.id,
+                },
+                map: {
+                    tenant_id: map.tenant_id,
+                    id: map.id,
+                },
+                agents: {
+                    tenant_id: agent.tenant_id,
+                    id: agent.id,
+                },
+                workflow: {
+                    tenant_id: workflow.tenant_id,
+                    id: workflow.id,
+                },
             }
 
             // Send request to start experiment
@@ -156,8 +179,7 @@ const CreateExperiment: React.FC = () => {
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Failed to start experiment');
+                throw new Error(await response.text());
             }
 
             const data = await response.json();
@@ -167,13 +189,74 @@ const CreateExperiment: React.FC = () => {
             setExperimentRunning(true);
             message.success(`Experiment started successfully! ExperimentId: ${newExperimentId}`);
 
-            // Navigate to experiment details after a short delay
-            setTimeout(() => {
-                navigate(`/console`);
+            // Start polling for pod status
+            const interval = setInterval(async () => {
+                try {
+                    const statusResponse = await fetchCustom(`/api/run-experiments/${newExperimentId}/status`);
+                    if (!statusResponse.ok) {
+                        throw new Error('Failed to fetch experiment status');
+                    }
+                    const statusData = await statusResponse.json();
+                    const status = statusData.data;
+                    if (status !== 'Running') {
+                        setExperimentStatus(status);
+                    }
+
+                    if (status === 'Running') {
+                        try {
+                            // Pod is running, now check experiment initialization
+                            const experimentResponse = await fetchCustom(`/api/experiments/${newExperimentId}`);
+                            
+                            if (experimentResponse.status === 404) {
+                                // 404 is expected during initialization, continue waiting
+                                setExperimentStatus('Initializing experiment data...');
+                                return;
+                            }
+                            
+                            if (!experimentResponse.ok) {
+                                throw new Error('Failed to fetch experiment details');
+                            }
+
+                            const experimentData = await experimentResponse.json();
+                            const experiment = experimentData.data;
+
+                            // Check if experiment is fully initialized
+                            if (experiment.status === 1) {
+                                clearInterval(interval);
+                                message.success('Experiment initialized successfully!');
+                                navigate('/console');
+                            } else {
+                                setExperimentStatus('Initializing experiment data...');
+                            }
+                        } catch (error) {
+                            if (error.response?.status === 404) {
+                                // 404 error is expected during initialization, continue waiting
+                                setExperimentStatus('Initializing experiment data...');
+                                return;
+                            }
+                            throw error;
+                        }
+                    } else if (status === 'Failed' || status === 'Error') {
+                        clearInterval(interval);
+                        message.error('Experiment failed to start');
+                        setExperimentRunning(false);
+                    }
+                } catch (error) {
+                    // Only handle non-404 errors as failures
+                    if (error.response?.status !== 404) {
+                        console.error('Error checking experiment status:', error);
+                        message.error('Failed to check experiment status');
+                        clearInterval(interval);
+                        setExperimentRunning(false);
+                    }
+                }
             }, 2000);
+
+            setStatusCheckInterval(interval);
         } catch (error) {
-            message.error(`Failed to start experiment: ${error.message}`);
+            message.error(`Failed to start experiment: ${error.message}`, 3);
             console.error(error);
+            setExperimentRunning(false);
         } finally {
             setLoading(false);
         }
@@ -346,9 +429,30 @@ const CreateExperiment: React.FC = () => {
 
                 {experimentRunning && (
                     <div style={{ textAlign: 'center', marginTop: 16 }}>
-                        <Spin />
+                        <Spin size="large" />
+                        <div style={{ marginTop: 16 }}>
+                            <Text>
+                                Experiment Status: {' '}
+                                <Text strong type={
+                                    experimentStatus === 'Running' ? 'warning' :
+                                    experimentStatus?.includes('Initializing') ? 'warning' :
+                                    experimentStatus === 'Failed' || experimentStatus === 'Error' ? 'danger' :
+                                    'warning'
+                                }>
+                                    {experimentStatus === 'Running' ? 'Starting Services...' :
+                                     experimentStatus === 'Failed' ? 'Start-up Failed' :
+                                     experimentStatus === 'Error' ? 'Error Occurred' :
+                                     experimentStatus || 'Preparing Environment...'}
+                                </Text>
+                            </Text>
+                        </div>
                         <div style={{ marginTop: 8 }}>
-                            <Text>Experiment is running. Status: {experimentStatus || 'Starting...'}</Text>
+                            <Text type="secondary">
+                                {experimentStatus === 'Running' ? 'Services started, initializing experiment data...' :
+                                 experimentStatus?.includes('Initializing') ? 'Setting up experiment environment...' :
+                                 experimentStatus === 'Failed' || experimentStatus === 'Error' ? 'Please check your configuration and try again' :
+                                 'Starting experiment services. This may take a few minutes...'}
+                            </Text>
                         </div>
                     </div>
                 )}

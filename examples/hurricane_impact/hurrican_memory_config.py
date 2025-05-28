@@ -3,7 +3,7 @@ import random
 from collections import deque
 
 import numpy as np
-from typing import Any
+from typing import Any, Optional
 from agentsociety.agent.memory_config_generator import Distribution, MemoryT
 
 pareto_param = 8
@@ -22,6 +22,7 @@ index_lock = threading.Lock()
 
 def memory_config_societyagent_hurrican(
     distributions: dict[str, Distribution],
+    class_config: Optional[dict[str, MemoryT]] = None,
 ) -> tuple[dict[str, MemoryT], dict[str, MemoryT], dict[str, Any]]:
     if not hasattr(memory_config_societyagent_hurrican, "profile_list"):
         with open("profiles_with_aoi.json", "r") as f:
@@ -192,7 +193,7 @@ def memory_config_societyagent_hurrican(
             ),
             True,
         ),
-        "marital_status": (
+        "marriage_status": (
             str,
             random.choice(["not married", "married", "divorced", "widowed"]),
             True,

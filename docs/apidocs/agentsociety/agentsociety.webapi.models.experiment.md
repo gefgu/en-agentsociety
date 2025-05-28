@@ -15,6 +15,10 @@
 :class: autosummary longtable
 :align: left
 
+* - {py:obj}`RunningExperiment <agentsociety.webapi.models.experiment.RunningExperiment>`
+  - ```{autodoc2-docstring} agentsociety.webapi.models.experiment.RunningExperiment
+    :summary:
+    ```
 * - {py:obj}`ExperimentStatus <agentsociety.webapi.models.experiment.ExperimentStatus>`
   - ```{autodoc2-docstring} agentsociety.webapi.models.experiment.ExperimentStatus
     :summary:
@@ -50,12 +54,76 @@
 ````{py:data} __all__
 :canonical: agentsociety.webapi.models.experiment.__all__
 :value: >
-   ['Experiment', 'ExperimentStatus', 'ApiExperiment', 'ApiTime']
+   ['Experiment', 'ExperimentStatus', 'ApiExperiment', 'ApiTime', 'RunningExperiment']
 
 ```{autodoc2-docstring} agentsociety.webapi.models.experiment.__all__
 ```
 
 ````
+
+`````{py:class} RunningExperiment
+:canonical: agentsociety.webapi.models.experiment.RunningExperiment
+
+Bases: {py:obj}`agentsociety.webapi.models._base.Base`
+
+```{autodoc2-docstring} agentsociety.webapi.models.experiment.RunningExperiment
+```
+
+````{py:attribute} __tablename__
+:canonical: agentsociety.webapi.models.experiment.RunningExperiment.__tablename__
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.models.experiment.RunningExperiment.__tablename__
+```
+
+````
+
+````{py:attribute} id
+:canonical: agentsociety.webapi.models.experiment.RunningExperiment.id
+:type: sqlalchemy.orm.Mapped[uuid.UUID]
+:value: >
+   'mapped_column(...)'
+
+```{autodoc2-docstring} agentsociety.webapi.models.experiment.RunningExperiment.id
+```
+
+````
+
+````{py:attribute} tenant_id
+:canonical: agentsociety.webapi.models.experiment.RunningExperiment.tenant_id
+:type: sqlalchemy.orm.Mapped[str]
+:value: >
+   'mapped_column(...)'
+
+```{autodoc2-docstring} agentsociety.webapi.models.experiment.RunningExperiment.tenant_id
+```
+
+````
+
+````{py:attribute} callback_auth_token
+:canonical: agentsociety.webapi.models.experiment.RunningExperiment.callback_auth_token
+:type: sqlalchemy.orm.Mapped[str]
+:value: >
+   'mapped_column(...)'
+
+```{autodoc2-docstring} agentsociety.webapi.models.experiment.RunningExperiment.callback_auth_token
+```
+
+````
+
+````{py:attribute} created_at
+:canonical: agentsociety.webapi.models.experiment.RunningExperiment.created_at
+:type: sqlalchemy.orm.Mapped[datetime.datetime]
+:value: >
+   'mapped_column(...)'
+
+```{autodoc2-docstring} agentsociety.webapi.models.experiment.RunningExperiment.created_at
+```
+
+````
+
+`````
 
 `````{py:class} ExperimentStatus()
 :canonical: agentsociety.webapi.models.experiment.ExperimentStatus
@@ -107,6 +175,16 @@ Bases: {py:obj}`enum.IntEnum`
    3
 
 ```{autodoc2-docstring} agentsociety.webapi.models.experiment.ExperimentStatus.ERROR
+```
+
+````
+
+````{py:attribute} STOPPED
+:canonical: agentsociety.webapi.models.experiment.ExperimentStatus.STOPPED
+:value: >
+   4
+
+```{autodoc2-docstring} agentsociety.webapi.models.experiment.ExperimentStatus.STOPPED
 ```
 
 ````

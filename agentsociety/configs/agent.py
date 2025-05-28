@@ -5,9 +5,9 @@ import logging
 from collections.abc import Callable
 from typing import Any, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
 
-from ..agent import Agent
+from ..agent import Agent, Block
 from ..agent.distribution import Distribution, DistributionConfig
 
 __all__ = [
@@ -15,6 +15,7 @@ __all__ = [
 ]
 
 
+# TODO: 同BlockClassType
 class AgentClassType(str, Enum):
     """
     Defines the types of agent class types.
@@ -25,6 +26,17 @@ class AgentClassType(str, Enum):
     GOVERNMENT = "government"
     BANK = "bank"
     NBS = "nbs"
+
+
+class BlockClassType(str, Enum):
+    """
+    Defines the types of block class types.
+    """
+
+    MOBILITYBLOCK = "mobilityblock"
+    ECONOMYBLOCK = "economyblock"
+    SOCIALBLOCK = "socialblock"
+    OTHERBLOCK = "otherblock"
 
 
 class AgentConfig(BaseModel):
@@ -39,11 +51,14 @@ class AgentConfig(BaseModel):
     agent_class: Union[type[Agent], AgentClassType]
     """The class of the agent"""
 
-    number: int = Field(gt=0)
-    """The number of agents"""
+    number: Optional[int] = Field(default=None, gt=0)
+    """The number of agents. Required when using memory_distributions, ignored when using memory_from_file."""
 
-    param_config: Optional[dict[str, Any]] = None
+    agent_params: Optional[Any] = None
     """Agent configuration"""
+
+    blocks: Optional[dict[Union[type[Block], BlockClassType], Any]] = None
+    """Blocks configuration"""
 
     # Choose one of the following:
     # 1. memory_config_func: Optional[Callable] = None
@@ -59,7 +74,27 @@ class AgentConfig(BaseModel):
     memory_distributions: Optional[
         dict[str, Union[Distribution, DistributionConfig]]
     ] = None
-    """Memory distributions"""
+    """Memory distributions. Required when using number, ignored when using memory_from_file."""
+
+    @model_validator(mode="after")
+    def validate_configuration(self):
+        """Validate configuration options to ensure the user selects the correct combination"""
+        memory_from_file = self.memory_from_file
+        number = self.number
+        memory_distributions = self.memory_distributions
+
+        if memory_from_file is not None:
+            # When using file method, number and memory_distributions should not be set
+            if number is not None or memory_distributions is not None:
+                raise ValueError(
+                    "When using memory_from_file, number and memory_distributions should not be set"
+                )
+        else:
+            # When not using file method, both number and memory_distributions must be set
+            if number is None:
+                raise ValueError("When not using memory_from_file, number must be set")
+
+        return self
 
     @field_serializer("agent_class")
     def serialize_agent_class(self, agent_class, info):

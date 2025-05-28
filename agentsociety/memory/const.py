@@ -16,7 +16,8 @@ PROFILE_ATTRIBUTES = {
     "race": str(),
     "city": str(),
     "religion": str(),
-    "marital_status": str(),
+    "marriage_status": str(),
+    "background_story": str(),
 }
 
 STATE_ATTRIBUTES = {
@@ -37,6 +38,7 @@ STATE_ATTRIBUTES = {
     "direction": float(),
     "activity": str(),
     "l": float(),
+    "survey_responses": list(),
 }
 
 SELF_DEFINE_PREFIX = "self_define_"

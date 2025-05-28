@@ -3,7 +3,7 @@ from typing import cast
 
 import jsonc
 
-from ...agent import Block, FormatPrompt
+from ...agent import Block, FormatPrompt, DotDict
 from ...environment import Environment
 from ...llm import LLM
 from ...logger import get_logger
@@ -13,14 +13,14 @@ from .utils import clean_json_response
 INITIAL_NEEDS_PROMPT = """You are an intelligent agent satisfaction initialization system. Based on the profile information below, please help initialize the agent's satisfaction levels and related parameters.
 
 Profile Information:
-- Gender: {gender}
-- Education Level: {education} 
-- Consumption Level: {consumption}
-- Occupation: {occupation}
-- Age: {age}
-- Monthly Income: {income}
+- Gender: ${profile.gender}
+- Education Level: ${profile.education} 
+- Consumption Level: ${profile.consumption}
+- Occupation: ${profile.occupation}
+- Age: ${profile.age}
+- Monthly Income: ${profile.income}
 
-Current Time: {now_time}
+Current Time: ${context.current_time}
 
 Please initialize the agent's satisfaction levels and parameters based on the profile above. Return the values in JSON format with the following structure:
 
@@ -75,7 +75,7 @@ Please response in json format for whatever need adjustment (Do not return any o
 }}
 """
 
-REFLECT_PROMPT = """You are an intelligent agent reflection system. Based on the intervention message below, please help to rebuild the satisfaction levels of the agent.
+REFLECTION_PROMPT = """You are an intelligent agent reflection system. Based on the intervention message below, please help to rebuild the satisfaction levels of the agent.
 
 The agent has received/sense the following intervention message:
 --------------------------------
@@ -117,14 +117,23 @@ class NeedsBlock(Block):
     - Plan execution evaluation and satisfaction adjustments
     """
 
-    def __init__(self, llm: LLM, environment: Environment, memory: Memory):
+    def __init__(
+        self,
+        llm: LLM,
+        environment: Environment,
+        agent_memory: Memory,
+        agent_context: DotDict,
+        evaluation_prompt: str = EVALUATION_PROMPT,
+        reflection_prompt: str = REFLECTION_PROMPT,
+        initial_prompt: str = INITIAL_NEEDS_PROMPT,
+    ):
         """
         Initialize needs management system.
 
         Args:
             llm: Language model instance for processing prompts
             environment: Simulation environment controller
-            memory: Agent's memory storage interface
+            agent_memory: Agent's memory storage interface
 
         Configuration Parameters:
             alpha_H: Hunger satisfaction decay rate per hour (default: 0.15)
@@ -136,10 +145,11 @@ class NeedsBlock(Block):
             T_P: Safety threshold for triggering need (default: 0.2)
             T_C: Social threshold for triggering need (default: 0.3)
         """
-        super().__init__("NeedsBlock", llm=llm, environment=environment, memory=memory)
-        self.evaluation_prompt = FormatPrompt(EVALUATION_PROMPT)
-        self.initial_prompt = FormatPrompt(INITIAL_NEEDS_PROMPT)
-        self.reflect_prompt = FormatPrompt(REFLECT_PROMPT)
+        super().__init__(llm=llm, environment=environment, agent_memory=agent_memory)
+        self.context = agent_context
+        self.evaluation_prompt = FormatPrompt(template=evaluation_prompt)
+        self.initial_prompt = FormatPrompt(template=initial_prompt, memory=agent_memory)
+        self.reflection_prompt = FormatPrompt(template=reflection_prompt)
         self.need_work = True
         self.now_day = -1
         self.last_evaluation_time = None
@@ -185,16 +195,7 @@ class NeedsBlock(Block):
                 self.need_work = False
 
         if not self.initialized:
-            _, t_format = self.environment.get_datetime(format_time=True)
-            self.initial_prompt.format(
-                gender=await self.memory.status.get("gender"),
-                education=await self.memory.status.get("education"),
-                consumption=await self.memory.status.get("consumption"),
-                occupation=await self.memory.status.get("occupation"),
-                age=await self.memory.status.get("age"),
-                income=await self.memory.status.get("income"),
-                now_time=t_format,
-            )
+            await self.initial_prompt.format(context=self.context)
             response = await self.llm.atext_request(
                 self.initial_prompt.to_dialog(), response_format={"type": "json_object"}
             )
@@ -249,7 +250,7 @@ class NeedsBlock(Block):
             if current_action["intention"] != ""
             else "None"
         )
-        self.reflect_prompt.format(
+        await self.reflection_prompt.format(
             intervention_message=intervention,
             current_action=action_message,
             hunger_satisfaction=await self.memory.status.get("hunger_satisfaction"),
@@ -258,7 +259,7 @@ class NeedsBlock(Block):
             social_satisfaction=await self.memory.status.get("social_satisfaction"),
         )
         response = await self.llm.atext_request(
-            self.reflect_prompt.to_dialog(), response_format={"type": "json_object"}
+            self.reflection_prompt.to_dialog(), response_format={"type": "json_object"}
         )
         try:
             reflection = jsonc.loads(clean_json_response(response))  #
@@ -366,6 +367,7 @@ class NeedsBlock(Block):
             # check needs in priority order
             if self._need_to_do:
                 await self.memory.status.update("current_need", self._need_to_do)
+                self.context.current_intention = self._need_to_do
                 await self.memory.stream.add_cognition(
                     description=f"I need to do: {self._need_to_do}"
                 )
@@ -373,31 +375,37 @@ class NeedsBlock(Block):
                 self._need_to_do_checked = True
             elif hunger_satisfaction <= self.T_H:
                 await self.memory.status.update("current_need", "hungry")
+                self.context.current_intention = "hungry"
                 await self.memory.stream.add_cognition(description="I feel hungry")
                 cognition = "I feel hungry"
             elif energy_satisfaction <= self.T_D:
                 await self.memory.status.update("current_need", "tired")
+                self.context.current_intention = "tired"
                 await self.memory.stream.add_cognition(description="I feel tired")
                 cognition = "I feel tired"
             elif self.need_work:
                 await self.memory.status.update("current_need", "safe")
+                self.context.current_intention = "safe"
                 await self.memory.stream.add_cognition(description="I need to work")
                 cognition = "I need to work"
                 self.need_work = False
             elif safety_satisfaction <= self.T_P:
                 await self.memory.status.update("current_need", "safe")
+                self.context.current_intention = "safe"
                 await self.memory.stream.add_cognition(
                     description="I have safe needs right now"
                 )
                 cognition = "I have safe needs right now"
             elif social_satisfaction <= self.T_C:
                 await self.memory.status.update("current_need", "social")
+                self.context.current_intention = "social"
                 await self.memory.stream.add_cognition(
                     description="I have social needs right now"
                 )
                 cognition = "I have social needs right now"
             else:
                 await self.memory.status.update("current_need", "whatever")
+                self.context.current_intention = "whatever"
                 await self.memory.stream.add_cognition(
                     description="I have no specific needs right now"
                 )
@@ -449,6 +457,7 @@ class NeedsBlock(Block):
                 )
                 cognition = f"I need to change my plan because the need of [{new_need}] is more important than [{current_need}]"
                 await self.memory.status.update("current_need", new_need)
+                self.context.current_intention = new_need
                 await self.memory.status.update("plan_history", history)
                 await self.memory.status.update("current_plan", None)
                 await self.memory.status.update("execution_context", {})
@@ -474,7 +483,7 @@ class NeedsBlock(Block):
 
         # Use LLM for evaluation
         current_need = await self.memory.status.get("current_need")
-        self.evaluation_prompt.format(
+        await self.evaluation_prompt.format(
             current_need=current_need,
             plan_target=completed_plan["target"],
             evaluation_results=evaluation_results,

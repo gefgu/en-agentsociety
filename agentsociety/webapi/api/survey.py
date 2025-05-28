@@ -8,6 +8,7 @@ from sqlalchemy import select, insert, update, delete
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .const import DEMO_USER_ID
 from ..models import ApiResponseWrapper
 from ..models.survey import ApiSurvey, Survey
 
@@ -23,7 +24,7 @@ async def list_survey(request: Request) -> ApiResponseWrapper[List[ApiSurvey]]:
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
         tenant_id = await request.app.state.get_tenant_id(request)
-        stmt = select(Survey).where(Survey.tenant_id == tenant_id)
+        stmt = select(Survey).where(Survey.tenant_id.in_([tenant_id, ""]))
         results = await db.execute(stmt)
         db_surveys = [row[0] for row in results.all() if len(row) > 0]
         db_surveys = cast(List[ApiSurvey], db_surveys)
@@ -37,7 +38,9 @@ async def get_survey(request: Request, id: uuid.UUID) -> ApiResponseWrapper[ApiS
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
         tenant_id = await request.app.state.get_tenant_id(request)
-        stmt = select(Survey).where(Survey.tenant_id == tenant_id, Survey.id == id)
+        stmt = select(Survey).where(
+            Survey.tenant_id.in_([tenant_id, ""]), Survey.id == id
+        )
         result = await db.execute(stmt)
         row = result.first()
         if not row or len(row) == 0:
@@ -69,6 +72,11 @@ async def create_survey(
             status_code=status.HTTP_403_FORBIDDEN, detail="Server is in read-only mode"
         )
     tenant_id = await request.app.state.get_tenant_id(request)
+    if tenant_id == DEMO_USER_ID:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Demo user is not allowed to create surveys",
+        )
 
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
@@ -99,6 +107,11 @@ async def update_survey(
             status_code=status.HTTP_403_FORBIDDEN, detail="Server is in read-only mode"
         )
     tenant_id = await request.app.state.get_tenant_id(request)
+    if tenant_id == DEMO_USER_ID:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Demo user is not allowed to update surveys",
+        )
 
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
@@ -119,6 +132,11 @@ async def delete_survey(request: Request, id: uuid.UUID):
             status_code=status.HTTP_403_FORBIDDEN, detail="Server is in read-only mode"
         )
     tenant_id = await request.app.state.get_tenant_id(request)
+    if tenant_id == DEMO_USER_ID:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Demo user is not allowed to delete surveys",
+        )
 
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)

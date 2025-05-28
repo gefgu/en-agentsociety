@@ -5,15 +5,15 @@ from typing import Any, Optional
 
 import jsonc
 
-from ...agent import Block, FormatPrompt
+from ...agent import Block, FormatPrompt, BlockParams, DotDict, BlockContext
 from ...environment import Environment
 from ...llm import LLM
 from ...logger import get_logger
 from ...memory import Memory
-from .dispatcher import BlockDispatcher
+from ...agent.dispatcher import BlockDispatcher
 from .utils import TIME_ESTIMATE_PROMPT, clean_json_response
-
-
+from ..sharing_params import SocietyAgentBlockOutput
+from pydantic import Field
 class MessagePromptManager:
     """
     Manages the creation of message prompts by dynamically formatting templates with agent-specific data.
@@ -52,7 +52,7 @@ class MessagePromptManager:
 
         # Format prompt
         format_prompt = FormatPrompt(template)
-        format_prompt.format(
+        await format_prompt.format(
             gender=await memory.status.get("gender") or "",
             education=await memory.status.get("education") or "",
             personality=await memory.status.get("personality") or "",
@@ -77,10 +77,11 @@ class SocialNoneBlock(Block):
     NoneBlock
     """
 
-    def __init__(self, llm: LLM, memory: Memory):
-        super().__init__(
-            "NoneBlock", llm=llm, memory=memory, description="Handle all other cases"
-        )
+    name = "SocialNoneBlock"
+    description = "Handle all other cases"
+
+    def __init__(self, llm: LLM, agent_memory: Memory):
+        super().__init__(llm=llm, agent_memory=agent_memory)
         self.guidance_prompt = FormatPrompt(template=TIME_ESTIMATE_PROMPT)
 
     async def forward(self, step, context):
@@ -93,7 +94,7 @@ class SocialNoneBlock(Block):
         Returns:
             A result dictionary indicating success/failure, time consumed, and execution details.
         """
-        self.guidance_prompt.format(
+        await self.guidance_prompt.format(
             plan=context["plan"],
             intention=step["intention"],
             emotion_types=await self.memory.status.get("emotion_types"),
@@ -133,13 +134,14 @@ class FindPersonBlock(Block):
     Block for selecting an appropriate agent to socialize with based on relationship strength and context.
     """
 
-    def __init__(self, llm: LLM, environment: Environment, memory: Memory):
+    name = "FindPersonBlock"
+    description = "Find a suitable person to socialize with"
+
+    def __init__(self, llm: LLM, environment: Environment, agent_memory: Memory):
         super().__init__(
-            "FindPersonBlock",
             llm=llm,
             environment=environment,
-            memory=memory,
-            description="Find a suitable person to socialize with",
+            agent_memory=agent_memory,
         )
 
         self.prompt = """
@@ -176,12 +178,11 @@ class FindPersonBlock(Block):
         """
 
     async def forward(
-        self, step: dict[str, Any], context: Optional[dict] = None
-    ) -> dict[str, Any]:
+        self, context: DotDict
+    ):
         """Identifies a target agent and interaction mode (online/offline).
 
         Args:
-            step: Workflow step containing intention and context.
             context: Additional execution context (may store selected target).
 
         Returns:
@@ -224,12 +225,12 @@ class FindPersonBlock(Block):
 
             # Format the prompt
             formatted_prompt = FormatPrompt(self.prompt)
-            formatted_prompt.format(
+            await formatted_prompt.format(
                 gender=str(await self.memory.status.get("gender")),
                 education=str(await self.memory.status.get("education")),
                 personality=str(await self.memory.status.get("personality")),
                 occupation=str(await self.memory.status.get("occupation")),
-                intention=str(step.get("intention", "socialize")),
+                intention=str(context["current_step"].get("intention", "socialize")),
                 emotion_types=str(await self.memory.status.get("emotion_types")),
                 thought=str(await self.memory.status.get("thought")),
                 friend_info=str(formatted_friend_info),
@@ -290,16 +291,16 @@ class FindPersonBlock(Block):
 class MessageBlock(Block):
     """Generate and send messages"""
 
-    def __init__(self, agent, llm: LLM, environment: Environment, memory: Memory):
+    name = "MessageBlock"
+    description = "Send a message to someone"
+
+    def __init__(self, llm: LLM, environment: Environment, agent_memory: Memory):
         super().__init__(
-            "MessageBlock",
             llm=llm,
             environment=environment,
-            memory=memory,
-            description="Send a message to someone",
+            agent_memory=agent_memory,
         )
-        self.agent = agent
-        self.find_person_block = FindPersonBlock(llm, environment, memory)
+        self.find_person_block = FindPersonBlock(llm, environment, agent_memory)
 
         # configurable fields
         self.default_message_template = """
@@ -341,12 +342,11 @@ class MessageBlock(Block):
             return message
 
     async def forward(
-        self, step: dict[str, Any], context: Optional[dict] = None
-    ) -> dict[str, Any]:
+        self, context: DotDict
+    ):
         """Generates a message, sends it to the target, and updates chat history.
 
         Args:
-            step: Workflow step containing message intention.
             context: Execution context (may contain pre-selected target).
 
         Returns:
@@ -357,7 +357,7 @@ class MessageBlock(Block):
             # Get target from context or find one
             target = context.get("target") if context else None
             if not target:
-                result = await self.find_person_block.forward(step, context)
+                result = await self.find_person_block.forward(context)
                 if not result["success"]:
                     return {
                         "success": False,
@@ -369,7 +369,7 @@ class MessageBlock(Block):
 
             # Get formatted prompt using prompt manager
             formatted_prompt = await self.prompt_manager.get_prompt(
-                self.memory, step, target, self.default_message_template
+                self.memory, context["current_step"], target, self.default_message_template
             )
 
             # Generate message
@@ -391,7 +391,7 @@ class MessageBlock(Block):
 
             # Send message
             serialized_message = self._serialize_message(message, 1)
-            await self.agent.send_message_to_agent(target, serialized_message)
+            await self.agent.send_message(target, serialized_message)
             node_id = await self.memory.stream.add_social(
                 description=f"I sent a message to {target}: {message}"
             )
@@ -399,8 +399,6 @@ class MessageBlock(Block):
                 "success": True,
                 "evaluation": f"Sent message to {target}: {message}",
                 "consumed_time": 10,
-                "message": message,
-                "target": target,
                 "node_id": node_id,
             }
 
@@ -416,21 +414,46 @@ class MessageBlock(Block):
             }
 
 
+class SocialBlockParams(BlockParams): ...
+
+
+class SocialBlockContext(BlockContext): 
+    target: Optional[int] = Field(default=None, description="The target agent id that the agent is going to socialize with")
+
+
 class SocialBlock(Block):
     """
     Orchestrates social interactions by dispatching to appropriate sub-blocks.
     """
 
-    find_person_block: FindPersonBlock
-    message_block: MessageBlock
-    noneblock: SocialNoneBlock
+    ParamsType = SocialBlockParams
+    OutputType = SocietyAgentBlockOutput
+    ContextType = SocialBlockContext
+    name = "SocialBlock"
+    description = "Responsible for all kinds of social interactions"
+    actions = {
+        "find_person": "Support the find person action, determine the social target.",
+        "message": "Support the message action, send a message to the social target.",
+        "social_none": "Support other social operations",
+    }
 
-    def __init__(self, agent, llm: LLM, environment: Environment, memory: Memory):
-        super().__init__("SocialBlock", llm=llm, environment=environment, memory=memory)
-        self.find_person_block = FindPersonBlock(llm, environment, memory)
-        self.message_block = MessageBlock(agent, llm, environment, memory)
-        self.noneblock = SocialNoneBlock(llm, memory)
-        self.dispatcher = BlockDispatcher(llm)
+    def __init__(
+        self,
+        llm: LLM,
+        environment: Environment,
+        agent_memory: Memory,
+        block_params: Optional[SocialBlockParams] = None,
+    ):
+        super().__init__(
+            llm=llm,
+            environment=environment,
+            agent_memory=agent_memory,
+            block_params=block_params,
+        )
+        self.find_person_block = FindPersonBlock(llm, environment, agent_memory)
+        self.message_block = MessageBlock(llm, environment, agent_memory)
+        self.noneblock = SocialNoneBlock(llm, agent_memory)
+        self.dispatcher = BlockDispatcher(llm, agent_memory)
 
         self.trigger_time = 0
         self.token_consumption = 0
@@ -440,8 +463,8 @@ class SocialBlock(Block):
         )
 
     async def forward(
-        self, step: dict[str, Any], context: Optional[dict] = None
-    ) -> dict[str, Any]:
+        self, agent_context: DotDict
+    ) -> SocietyAgentBlockOutput:
         """Main entry point for social interactions. Dispatches to sub-blocks based on context.
 
         Args:
@@ -457,18 +480,27 @@ class SocialBlock(Block):
                 self.llm.prompt_tokens_used + self.llm.completion_tokens_used
             )
 
+            context = agent_context | self.context
+
             # Select the appropriate sub-block using dispatcher
-            selected_block = await self.dispatcher.dispatch(step)
+            selected_block = await self.dispatcher.dispatch(context)
+            if not selected_block:
+                return self.OutputType(
+                    success=False,
+                    evaluation=f"Failed to complete social interaction with default behavior: {context['current_intention']}",
+                    consumed_time=15,
+                    node_id=None,
+                )
 
             # Execute the selected sub-block and get the result
-            result = await selected_block.forward(step, context)
+            result = await selected_block.forward(context)
 
-            return result
+            return self.OutputType(**result)
 
         except Exception as e:
-            return {
-                "success": False,
-                "evaluation": "Failed to complete social interaction with default behavior",
-                "consumed_time": 15,
-                "node_id": None,
-            }
+            return self.OutputType(
+                success=False,
+                evaluation=f"Failed to complete social interaction with default behavior: {str(e)}",
+                consumed_time=15,
+                node_id=None,
+            )

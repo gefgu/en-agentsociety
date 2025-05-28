@@ -15,6 +15,10 @@
 :class: autosummary longtable
 :align: left
 
+* - {py:obj}`BankAgentConfig <agentsociety.cityagent.bankagent.BankAgentConfig>`
+  - ```{autodoc2-docstring} agentsociety.cityagent.bankagent.BankAgentConfig
+    :summary:
+    ```
 * - {py:obj}`BankAgent <agentsociety.cityagent.bankagent.BankAgent>`
   - ```{autodoc2-docstring} agentsociety.cityagent.bankagent.BankAgent
     :summary:
@@ -64,7 +68,34 @@
 ```
 ````
 
-`````{py:class} BankAgent(id: int, name: str, toolbox: agentsociety.agent.AgentToolbox, memory: agentsociety.memory.Memory)
+`````{py:class} BankAgentConfig(/, **data: typing.Any)
+:canonical: agentsociety.cityagent.bankagent.BankAgentConfig
+
+Bases: {py:obj}`agentsociety.agent.AgentParams`
+
+```{autodoc2-docstring} agentsociety.cityagent.bankagent.BankAgentConfig
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.cityagent.bankagent.BankAgentConfig.__init__
+```
+
+````{py:attribute} time_diff
+:canonical: agentsociety.cityagent.bankagent.BankAgentConfig.time_diff
+:type: int
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.cityagent.bankagent.BankAgentConfig.time_diff
+```
+
+````
+
+`````
+
+`````{py:class} BankAgent(id: int, name: str, toolbox: agentsociety.agent.AgentToolbox, memory: agentsociety.memory.Memory, agent_params: typing.Optional[agentsociety.cityagent.bankagent.BankAgentConfig] = None, blocks: typing.Optional[list[agentsociety.agent.Block]] = None)
 :canonical: agentsociety.cityagent.bankagent.BankAgent
 
 Bases: {py:obj}`agentsociety.agent.BankAgentBase`
@@ -78,32 +109,22 @@ Bases: {py:obj}`agentsociety.agent.BankAgentBase`
 ```{autodoc2-docstring} agentsociety.cityagent.bankagent.BankAgent.__init__
 ```
 
-````{py:attribute} configurable_fields
-:canonical: agentsociety.cityagent.bankagent.BankAgent.configurable_fields
+````{py:attribute} ParamsType
+:canonical: agentsociety.cityagent.bankagent.BankAgent.ParamsType
 :value: >
-   ['time_diff']
+   None
 
-```{autodoc2-docstring} agentsociety.cityagent.bankagent.BankAgent.configurable_fields
+```{autodoc2-docstring} agentsociety.cityagent.bankagent.BankAgent.ParamsType
 ```
 
 ````
 
-````{py:attribute} default_values
-:canonical: agentsociety.cityagent.bankagent.BankAgent.default_values
-:value: >
-   None
+````{py:attribute} description
+:canonical: agentsociety.cityagent.bankagent.BankAgent.description
+:type: str
+:value: <Multiline-String>
 
-```{autodoc2-docstring} agentsociety.cityagent.bankagent.BankAgent.default_values
-```
-
-````
-
-````{py:attribute} fields_description
-:canonical: agentsociety.cityagent.bankagent.BankAgent.fields_description
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.cityagent.bankagent.BankAgent.fields_description
+```{autodoc2-docstring} agentsociety.cityagent.bankagent.BankAgent.description
 ```
 
 ````
@@ -117,7 +138,7 @@ Bases: {py:obj}`agentsociety.agent.BankAgentBase`
 
 ````
 
-````{py:method} month_trigger()
+````{py:method} month_trigger() -> bool
 :canonical: agentsociety.cityagent.bankagent.BankAgent.month_trigger
 :async:
 
@@ -126,7 +147,7 @@ Bases: {py:obj}`agentsociety.agent.BankAgentBase`
 
 ````
 
-````{py:method} gather_messages(agent_ids, content)
+````{py:method} gather_messages(agent_ids: list[int], target: str) -> list[str]
 :canonical: agentsociety.cityagent.bankagent.BankAgent.gather_messages
 :async:
 

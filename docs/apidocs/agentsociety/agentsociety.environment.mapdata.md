@@ -87,7 +87,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} MapData(config: agentsociety.environment.mapdata.MapConfig, s3config: agentsociety.s3.S3Config)
+`````{py:class} MapData(config: agentsociety.environment.mapdata.MapConfig)
 :canonical: agentsociety.environment.mapdata.MapData
 
 ```{autodoc2-docstring} agentsociety.environment.mapdata.MapData

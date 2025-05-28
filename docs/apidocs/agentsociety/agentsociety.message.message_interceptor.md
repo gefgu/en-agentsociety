@@ -55,6 +55,14 @@
   - ```{autodoc2-docstring} agentsociety.message.message_interceptor.BlackSet
     :summary:
     ```
+* - {py:obj}`MessageIdentifierEntry <agentsociety.message.message_interceptor.MessageIdentifierEntry>`
+  - ```{autodoc2-docstring} agentsociety.message.message_interceptor.MessageIdentifierEntry
+    :summary:
+    ```
+* - {py:obj}`MessageIdentifier <agentsociety.message.message_interceptor.MessageIdentifier>`
+  - ```{autodoc2-docstring} agentsociety.message.message_interceptor.MessageIdentifier
+    :summary:
+    ```
 ````
 
 ### API
@@ -108,6 +116,26 @@
 
 ````
 
+````{py:data} MessageIdentifierEntry
+:canonical: agentsociety.message.message_interceptor.MessageIdentifierEntry
+:value: >
+   'TypeVar(...)'
+
+```{autodoc2-docstring} agentsociety.message.message_interceptor.MessageIdentifierEntry
+```
+
+````
+
+````{py:data} MessageIdentifier
+:canonical: agentsociety.message.message_interceptor.MessageIdentifier
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.message.message_interceptor.MessageIdentifier
+```
+
+````
+
 `````{py:class} MessageBlockBase(name: str = '')
 :canonical: agentsociety.message.message_interceptor.MessageBlockBase
 
@@ -143,7 +171,7 @@ Bases: {py:obj}`abc.ABC`
 
 `````
 
-`````{py:class} MessageInterceptor(blocks: list[agentsociety.message.message_interceptor.MessageBlockBase], llm_config: list[agentsociety.llm.LLMConfig], queue: ray.util.queue.Queue, black_set: agentsociety.message.message_interceptor.BlackSet = set())
+`````{py:class} MessageInterceptor(blocks: list[agentsociety.message.message_interceptor.MessageBlockBase], llm_config: list[agentsociety.llm.LLMConfig], queue: ray.util.queue.Queue, max_blocked_messages_per_round: typing.Optional[int] = None, max_communicated_agents_per_round: typing.Optional[int] = None, max_communication_length_cn: typing.Optional[int] = None, max_communication_length_en: typing.Optional[int] = None, max_total_cut_edges: typing.Optional[int] = None, max_total_blocked_agents: typing.Optional[int] = None, black_set: agentsociety.message.message_interceptor.BlackSet = set())
 :canonical: agentsociety.message.message_interceptor.MessageInterceptor
 
 ```{autodoc2-docstring} agentsociety.message.message_interceptor.MessageInterceptor
@@ -263,11 +291,83 @@ Bases: {py:obj}`abc.ABC`
 
 ````
 
-````{py:method} forward(from_id: int, to_id: int, msg: str)
+````{py:method} check_message(from_id: int, to_id: int, msg: str)
+:canonical: agentsociety.message.message_interceptor.MessageInterceptor.check_message
+:async:
+
+```{autodoc2-docstring} agentsociety.message.message_interceptor.MessageInterceptor.check_message
+```
+
+````
+
+````{py:method} add_message(from_id: int, to_id: int, msg: str) -> None
+:canonical: agentsociety.message.message_interceptor.MessageInterceptor.add_message
+:async:
+
+```{autodoc2-docstring} agentsociety.message.message_interceptor.MessageInterceptor.add_message
+```
+
+````
+
+````{py:method} forward()
 :canonical: agentsociety.message.message_interceptor.MessageInterceptor.forward
 :async:
 
 ```{autodoc2-docstring} agentsociety.message.message_interceptor.MessageInterceptor.forward
+```
+
+````
+
+````{py:method} update_blocked_agent_ids(blocked_agent_ids: typing.Optional[list[int]] = None)
+:canonical: agentsociety.message.message_interceptor.MessageInterceptor.update_blocked_agent_ids
+:async:
+
+```{autodoc2-docstring} agentsociety.message.message_interceptor.MessageInterceptor.update_blocked_agent_ids
+```
+
+````
+
+````{py:method} update_blocked_social_edges(blocked_social_edges: typing.Optional[list[tuple[int, int]]] = None)
+:canonical: agentsociety.message.message_interceptor.MessageInterceptor.update_blocked_social_edges
+:async:
+
+```{autodoc2-docstring} agentsociety.message.message_interceptor.MessageInterceptor.update_blocked_social_edges
+```
+
+````
+
+````{py:method} modify_validation_dict(validation_dict: agentsociety.message.message_interceptor.MessageIdentifier) -> agentsociety.message.message_interceptor.MessageIdentifier
+:canonical: agentsociety.message.message_interceptor.MessageInterceptor.modify_validation_dict
+:async:
+
+```{autodoc2-docstring} agentsociety.message.message_interceptor.MessageInterceptor.modify_validation_dict
+```
+
+````
+
+````{py:method} get_blocked_agent_ids() -> list[int]
+:canonical: agentsociety.message.message_interceptor.MessageInterceptor.get_blocked_agent_ids
+:async:
+
+```{autodoc2-docstring} agentsociety.message.message_interceptor.MessageInterceptor.get_blocked_agent_ids
+```
+
+````
+
+````{py:method} clear_validation_dict() -> None
+:canonical: agentsociety.message.message_interceptor.MessageInterceptor.clear_validation_dict
+:async:
+
+```{autodoc2-docstring} agentsociety.message.message_interceptor.MessageInterceptor.clear_validation_dict
+```
+
+````
+
+````{py:method} get_validation_dict() -> agentsociety.message.message_interceptor.MessageIdentifier
+:canonical: agentsociety.message.message_interceptor.MessageInterceptor.get_validation_dict
+:async:
+
+```{autodoc2-docstring} agentsociety.message.message_interceptor.MessageInterceptor.get_validation_dict
 ```
 
 ````

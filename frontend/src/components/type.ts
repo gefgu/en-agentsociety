@@ -13,13 +13,6 @@ export interface Experiment {
     updatedAt: string;
 }
 
-export const experimentStatusMap: { [key: number]: string } = {
-    0: 'Not Started',
-    1: 'Running',
-    2: 'Completed',
-    3: 'Error Interrupted'
-};
-
 export interface Survey {
     id: string;
     name: string;

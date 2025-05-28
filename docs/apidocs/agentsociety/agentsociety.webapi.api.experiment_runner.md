@@ -15,6 +15,14 @@
 :class: autosummary longtable
 :align: left
 
+* - {py:obj}`ConfigPrimaryKey <agentsociety.webapi.api.experiment_runner.ConfigPrimaryKey>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.ConfigPrimaryKey
+    :summary:
+    ```
+* - {py:obj}`ExperimentRequest <agentsociety.webapi.api.experiment_runner.ExperimentRequest>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.ExperimentRequest
+    :summary:
+    ```
 * - {py:obj}`ExperimentResponse <agentsociety.webapi.api.experiment_runner.ExperimentResponse>`
   - ```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.ExperimentResponse
     :summary:
@@ -29,6 +37,22 @@
 
 * - {py:obj}`run_experiment <agentsociety.webapi.api.experiment_runner.run_experiment>`
   - ```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.run_experiment
+    :summary:
+    ```
+* - {py:obj}`delete_experiment <agentsociety.webapi.api.experiment_runner.delete_experiment>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.delete_experiment
+    :summary:
+    ```
+* - {py:obj}`get_experiment_logs <agentsociety.webapi.api.experiment_runner.get_experiment_logs>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.get_experiment_logs
+    :summary:
+    ```
+* - {py:obj}`get_experiment_status <agentsociety.webapi.api.experiment_runner.get_experiment_status>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.get_experiment_status
+    :summary:
+    ```
+* - {py:obj}`finish_experiment <agentsociety.webapi.api.experiment_runner.finish_experiment>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.finish_experiment
     :summary:
     ```
 ````
@@ -85,6 +109,115 @@
 
 ````
 
+`````{py:class} ConfigPrimaryKey(/, **data: typing.Any)
+:canonical: agentsociety.webapi.api.experiment_runner.ConfigPrimaryKey
+
+Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.ConfigPrimaryKey
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.ConfigPrimaryKey.__init__
+```
+
+````{py:attribute} tenant_id
+:canonical: agentsociety.webapi.api.experiment_runner.ConfigPrimaryKey.tenant_id
+:type: str
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.ConfigPrimaryKey.tenant_id
+```
+
+````
+
+````{py:attribute} id
+:canonical: agentsociety.webapi.api.experiment_runner.ConfigPrimaryKey.id
+:type: str
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.ConfigPrimaryKey.id
+```
+
+````
+
+`````
+
+`````{py:class} ExperimentRequest(/, **data: typing.Any)
+:canonical: agentsociety.webapi.api.experiment_runner.ExperimentRequest
+
+Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.ExperimentRequest
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.ExperimentRequest.__init__
+```
+
+````{py:attribute} llm
+:canonical: agentsociety.webapi.api.experiment_runner.ExperimentRequest.llm
+:type: agentsociety.webapi.api.experiment_runner.ConfigPrimaryKey
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.ExperimentRequest.llm
+```
+
+````
+
+````{py:attribute} agents
+:canonical: agentsociety.webapi.api.experiment_runner.ExperimentRequest.agents
+:type: agentsociety.webapi.api.experiment_runner.ConfigPrimaryKey
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.ExperimentRequest.agents
+```
+
+````
+
+````{py:attribute} map
+:canonical: agentsociety.webapi.api.experiment_runner.ExperimentRequest.map
+:type: agentsociety.webapi.api.experiment_runner.ConfigPrimaryKey
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.ExperimentRequest.map
+```
+
+````
+
+````{py:attribute} workflow
+:canonical: agentsociety.webapi.api.experiment_runner.ExperimentRequest.workflow
+:type: agentsociety.webapi.api.experiment_runner.ConfigPrimaryKey
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.ExperimentRequest.workflow
+```
+
+````
+
+````{py:attribute} exp_name
+:canonical: agentsociety.webapi.api.experiment_runner.ExperimentRequest.exp_name
+:type: str
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.ExperimentRequest.exp_name
+```
+
+````
+
+`````
+
 `````{py:class} ExperimentResponse(/, **data: typing.Any)
 :canonical: agentsociety.webapi.api.experiment_runner.ExperimentResponse
 
@@ -110,34 +243,44 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:attribute} name
-:canonical: agentsociety.webapi.api.experiment_runner.ExperimentResponse.name
-:type: str
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.ExperimentResponse.name
-```
-
-````
-
-````{py:attribute} status
-:canonical: agentsociety.webapi.api.experiment_runner.ExperimentResponse.status
-:type: str
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.ExperimentResponse.status
-```
-
-````
-
 `````
 
-````{py:function} run_experiment(request: fastapi.Request, config: typing.Dict[str, typing.Any]) -> agentsociety.webapi.models.ApiResponseWrapper[agentsociety.webapi.api.experiment_runner.ExperimentResponse]
+````{py:function} run_experiment(request: fastapi.Request, config: agentsociety.webapi.api.experiment_runner.ExperimentRequest = Body(...)) -> agentsociety.webapi.models.ApiResponseWrapper[agentsociety.webapi.api.experiment_runner.ExperimentResponse]
 :canonical: agentsociety.webapi.api.experiment_runner.run_experiment
 :async:
 
 ```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.run_experiment
+```
+````
+
+````{py:function} delete_experiment(request: fastapi.Request, exp_id: str)
+:canonical: agentsociety.webapi.api.experiment_runner.delete_experiment
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.delete_experiment
+```
+````
+
+````{py:function} get_experiment_logs(request: fastapi.Request, exp_id: str) -> str
+:canonical: agentsociety.webapi.api.experiment_runner.get_experiment_logs
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.get_experiment_logs
+```
+````
+
+````{py:function} get_experiment_status(request: fastapi.Request, exp_id: str) -> agentsociety.webapi.models.ApiResponseWrapper[str]
+:canonical: agentsociety.webapi.api.experiment_runner.get_experiment_status
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.get_experiment_status
+```
+````
+
+````{py:function} finish_experiment(request: fastapi.Request, exp_id: str, callback_auth_token: str = Query(...))
+:canonical: agentsociety.webapi.api.experiment_runner.finish_experiment
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.finish_experiment
 ```
 ````

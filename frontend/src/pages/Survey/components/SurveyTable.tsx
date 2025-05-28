@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Modal, Form, Input, message, Space, Flex, Col, Row, Alert, Popconfirm } from 'antd';
+import { Table, Button, Modal, Form, Input, message, Space, Flex, Col, Row, Alert, Popconfirm, Dropdown } from 'antd';
 import dayjs from 'dayjs';
 import { Model, Survey as SurveyUI } from 'survey-react-ui';
 import 'survey-core/defaultV2.min.css';
 import { useForm } from 'antd/lib/form/Form';
-import { ExportOutlined } from '@ant-design/icons';
+import { ExportOutlined, EllipsisOutlined } from '@ant-design/icons';
 import { Editor } from '../../../components/Editor';
 import { Survey } from '../../../components/type';
 import { fetchCustom } from '../../../components/fetch';
+import { useTranslation } from 'react-i18next';
 
 interface EditingSurvey {
     id: string;
@@ -22,6 +23,7 @@ const EmptySurvey: EditingSurvey = {
 };
 
 const SurveyTable = () => {
+    const { t } = useTranslation();
     const [surveys, setSurveys] = useState<Survey[]>([]);
     const [open, setOpen] = useState(false);
     const [editingSurvey, setEditingSurvey] = useState<EditingSurvey>(EmptySurvey);
@@ -50,14 +52,13 @@ const SurveyTable = () => {
         try {
             const res = await fetchCustom('/api/surveys');
             if (!res.ok) {
-                // Read the error message as text
                 const errMessage = await res.text();
                 throw new Error(errMessage);
             }
             const data = await res.json();
             setSurveys(data.data);
         } catch (err) {
-            message.error(`Fetch surveys failed: ${err}`);
+            message.error(`${t('survey.fetchFailed')} ${err}`);
         }
     };
 
@@ -65,14 +66,13 @@ const SurveyTable = () => {
         try {
             const res = await fetchCustom(`/api/surveys/${id}`, { method: 'DELETE' });
             if (!res.ok) {
-                // Read the error message as text
                 const errMessage = await res.text();
                 throw new Error(errMessage);
             }
-            message.success('Delete success!');
+            message.success(t('survey.deleteSuccess'));
             await fetchSurveys();
         } catch (err) {
-            message.error(`Delete failed: ${err}`);
+            message.error(`${t('survey.deleteFailed')} ${err}`);
         }
     };
 
@@ -91,8 +91,6 @@ const SurveyTable = () => {
     };
 
     const handleSubmit = async (values) => {
-        console.log(values);
-        console.log(editingSurvey);
         if (editingSurvey.id !== '') {
             try {
                 const res = await fetchCustom(`/api/surveys/${editingSurvey.id}`, {
@@ -106,15 +104,14 @@ const SurveyTable = () => {
                     }),
                 });
                 if (!res.ok) {
-                    // Read the error message as text
                     const errMessage = await res.text();
                     throw new Error(errMessage);
                 }
-                message.success('Update success!');
+                message.success(t('survey.updateSuccess'));
                 setOpen(false);
                 await fetchSurveys();
             } catch (err) {
-                message.error(`Update failed: ${err}`);
+                message.error(`${t('survey.updateFailed')} ${err}`);
             }
         } else {
             try {
@@ -129,15 +126,14 @@ const SurveyTable = () => {
                     }),
                 });
                 if (!res.ok) {
-                    // Read the error message as text
                     const errMessage = await res.text();
                     throw new Error(errMessage);
                 }
-                message.success('Create success!');
+                message.success(t('survey.createSuccess'));
                 setOpen(false);
                 await fetchSurveys();
             } catch (err) {
-                message.error(`Create failed: ${err}`);
+                message.error(`${t('survey.createFailed')} ${err}`);
             }
         }
     };
@@ -147,37 +143,54 @@ const SurveyTable = () => {
     };
 
     const tableColumns = [
-        { title: 'ID', dataIndex: 'id', width: '13%' },
-        { title: 'Name', dataIndex: 'name', width: '7%' },
+        { title: t('survey.table.id'), dataIndex: 'id', width: '13%' },
+        { title: t('survey.table.name'), dataIndex: 'name', width: '7%' },
         {
-            title: 'Data',
+            title: t('survey.table.data'),
             dataIndex: 'data',
             width: '55%',
             ellipsis: true,
             render: (text) => JSON.stringify(text, null, 2),
         },
         {
-            title: 'Created At',
-            dataIndex: 'createdAt',
+            title: t('survey.table.createdAt'),
+            dataIndex: 'created_at',
             width: '10%',
             render: (date) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
         },
         {
-            title: 'Updated At',
-            dataIndex: 'updatedAt',
+            title: t('survey.table.updatedAt'),
+            dataIndex: 'updated_at',
             width: '10%',
             render: (date) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
         },
         {
-            title: 'Action',
+            title: t('survey.table.action'),
             key: 'action',
             width: '15%',
             render: (record) => (
                 <Space size="middle">
-                    <Button type="primary" onClick={() => handleEdit(record)}>Edit & Preview</Button>
-                    <Popconfirm title="Are you sure to delete this survey?" onConfirm={() => handleDelete(record.id)}>
-                        <Button type="primary" danger>Delete</Button>
-                    </Popconfirm>
+                    <Button type="primary" onClick={() => handleEdit(record)}
+                    >{t('survey.table.edit')}</Button>
+                    <Dropdown
+                        menu={{
+                            items: [
+                                {
+                                    key: 'delete',
+                                    label: (
+                                        <Popconfirm
+                                            title="Are you sure to delete this survey?"
+                                            onConfirm={() => handleDelete(record.id)}
+                                        >
+                                            <span style={{ color: '#ff4d4f' }}>{t('survey.table.delete')}</span>
+                                        </Popconfirm>
+                                    )
+                                }
+                            ]
+                        }}
+                    >
+                        <Button icon={<EllipsisOutlined />} />
+                    </Dropdown>
                 </Space>
             ),
         },
@@ -196,14 +209,14 @@ const SurveyTable = () => {
             <Flex vertical style={{ margin: "16px" }}>
                 <Flex justify='end'>
                     <Button type="primary" onClick={handleCreate} style={{ marginBottom: 16 }}>
-                        Create Survey
+                        {t('survey.createSurvey')}
                     </Button>
                 </Flex>
                 <Table dataSource={surveys} columns={tableColumns} rowKey="id" />
                 <Modal
                     open={open}
                     width='80vw'
-                    title={editingSurvey ? 'Edit Survey' : 'Create Survey'}
+                    title={editingSurvey.id ? t('survey.editSurvey') : t('survey.createSurvey')}
                     onCancel={handleModalCancel}
                     footer={null}
                 >
@@ -220,23 +233,23 @@ const SurveyTable = () => {
                             }}
                             onFinish={handleSubmit}
                         >
-                            <Form.Item label="Name" name="name" rules={[
-                                { required: true, message: 'Please input name' },
+                            <Form.Item label={t('survey.surveyName')} name="name" rules={[
+                                { required: true, message: t('survey.pleaseInputName') },
                             ]}>
                                 <Input />
                             </Form.Item>
                             <Form.Item
-                                label={<span>Survey JSON Data (Online Visual Editor&nbsp;<ExportOutlined onClick={handleJsonButton} />&nbsp;)</span>}
+                                label={<span>{t('survey.surveyJsonData')} ({t('survey.onlineVisualEditor')}&nbsp;<ExportOutlined onClick={handleJsonButton} />&nbsp;)</span>}
                                 name="data"
                                 rules={[
-                                    { required: true, message: 'Please input data JSON' },
+                                    { required: true, message: t('survey.pleaseInputData') },
                                     {
                                         validator: (_, value, callback) => {
                                             try {
                                                 JSON.parse(value);
                                                 callback();
                                             } catch (e) {
-                                                callback('Invalid JSON format');
+                                                callback(t('survey.invalidJson'));
                                             }
                                         }
                                     },
@@ -252,7 +265,7 @@ const SurveyTable = () => {
                                 />
                             </Form.Item>
                             <Button type="primary" htmlType='submit' style={{ marginTop: 8 }}>
-                                Submit
+                                {t('survey.submit')}
                             </Button>
                         </Form>
                         <div style={{ overflow: 'auto', maxHeight: '60vh', width: '50%' }}>
@@ -260,7 +273,7 @@ const SurveyTable = () => {
                         </div>
                     </Flex>
                 </Modal>
-            </Flex >
+            </Flex>
         </>
     );
 };

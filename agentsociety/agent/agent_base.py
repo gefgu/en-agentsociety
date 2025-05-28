@@ -3,14 +3,16 @@ from __future__ import annotations
 import asyncio
 import inspect
 import logging
+import time
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, NamedTuple, Optional, Union, get_type_hints
+from typing import (Any, NamedTuple, Optional, Union)
 
 import jsonc
 import ray
 from pycityproto.city.person.v2 import person_pb2 as person_pb2
+from pydantic import BaseModel, Field
 
 from ..environment import Environment
 from ..llm import LLM
@@ -19,13 +21,24 @@ from ..memory import Memory
 from ..message import Messager
 from ..metrics import MlflowClient
 from ..storage import AvroSaver, StorageDialog, StorageSurvey
-from ..utils import process_survey_for_llm
+from ..survey.models import Survey
+from .context import AgentContext, context_to_dot_dict
 from .block import Block
+from .decorator import register_get
+from .dispatcher import DISPATCHER_PROMPT, BlockDispatcher
+from .memory_config_generator import MemoryT, StatusAttribute
 
 __all__ = [
     "Agent",
     "AgentType",
 ]
+
+
+class AgentParams(BaseModel):
+    block_dispatch_prompt: str = Field(
+        default=DISPATCHER_PROMPT,
+        description="The prompt used for the block dispatcher, there is a variable 'intention' in the prompt, which is the intention of the task, used to select the most appropriate block",
+    )
 
 
 class AgentToolbox(NamedTuple):
@@ -87,9 +100,11 @@ class Agent(ABC):
     Agent base class
     """
 
-    configurable_fields: list[str] = []
-    default_values: dict[str, Any] = {}
-    fields_description: dict[str, str] = {}
+    ParamsType = AgentParams  # Determine agent parameters
+    Context = AgentContext  # Agent Context for information retrieval
+    BlockOutputType = None  # Block output
+    StatusAttributes: list[StatusAttribute] = []  # Memory configuration
+    description: str = ""  # Agent description: How this agent works
 
     def __init__(
         self,
@@ -98,6 +113,8 @@ class Agent(ABC):
         type: AgentType,
         toolbox: AgentToolbox,
         memory: Memory,
+        agent_params: Optional[Any] = None,
+        blocks: Optional[list[Block]] = None,
     ) -> None:
         """
         Initialize the `Agent`.
@@ -116,6 +133,80 @@ class Agent(ABC):
         self._memory = memory
 
         self._last_asyncio_pg_task = None  # Hide SQL writes behind computational tasks
+        self._gather_responses: dict[int, asyncio.Future] = {}
+
+        # parse agent_params
+        if agent_params is None:
+            agent_params = self.default_params()
+        self.params = agent_params
+        for key, value in agent_params.model_dump().items():
+            setattr(self, key, value)
+
+        # initialize context
+        context = self.default_context()
+        self.context = context_to_dot_dict(context)
+
+        # register blocks
+        self.dispatcher = BlockDispatcher(self.llm, self.memory, self.params.block_dispatch_prompt)
+        if blocks is not None:
+            # Block output type checking
+            for block in blocks:
+                if block.OutputType != self.BlockOutputType:
+                    raise ValueError(f"Block output type mismatch, expected {self.BlockOutputType}, got {block.OutputType}")
+                if block.NeedAgent:
+                    block.set_agent(self)
+            self.blocks = blocks
+            self.dispatcher.register_blocks(self.blocks)
+        else:
+            self.blocks = []
+
+    @classmethod
+    def default_params(cls) -> ParamsType:
+        return cls.ParamsType()
+
+    @classmethod
+    def default_context(cls) -> Context:
+        return cls.Context()
+
+    @classmethod
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # Create a new dictionary that inherits from parent
+        cls.get_functions = dict(cls.__base__.get_functions) if hasattr(cls.__base__, "get_functions") else {}  # type: ignore
+
+        # Register all methods with _register_info
+        for name, method in cls.__dict__.items():
+            if hasattr(method, "_get_info"):
+                info = method._get_info
+                cls.get_functions[info["function_name"]] = info
+
+    async def _getx(self, function_name: str, *args, **kwargs):
+        """
+        Calls a registered function by name.
+
+        - **Description**:
+            - Calls a registered function by its function_name.
+
+        - **Args**:
+            - `function_name` (str): The name of the function to call.
+            - `*args`: Variable length argument list to pass to the function.
+            - `**kwargs`: Arbitrary keyword arguments to pass to the function.
+
+        - **Returns**:
+            - The result of the called function.
+
+        - **Raises**:
+            - `ValueError`: If the function_name is not registered.
+        """
+        if function_name not in self.__class__.get_functions:
+            raise ValueError(f"GET function '{function_name}' is not registered")
+
+        func_info = self.__class__.get_functions[function_name]
+        if func_info.get("is_async", False):
+            result = await func_info["original_method"](self, *args, **kwargs)
+        else:
+            result = func_info["original_method"](self, *args, **kwargs)
+        return result
 
     async def init(self):
         await self._memory.status.update(
@@ -127,195 +218,6 @@ class Agent(ABC):
         # Exclude lock objects
         del state["_toolbox"]
         return state
-
-    @classmethod
-    def export_class_config(cls) -> dict[str, dict]:
-        """
-        Export the class configuration as a dictionary.
-
-        - **Args**:
-            - None. This method relies on class attributes and type hints.
-
-        - **Returns**:
-            - `dict[str, dict]`: A dictionary containing the class configuration information, including:
-                - `agent_name`: The name of the class.
-                - `config`: A mapping of configurable fields to their default values.
-                - `description`: A mapping of descriptions for each configurable field.
-                - `blocks`: A list of dictionaries with configuration information for fields that are of type `Block`, each containing:
-                    - `name`: The name of the field.
-                    - `config`: Configuration information for the Block.
-                    - `description`: Description information for the Block.
-                    - `children`: Configuration information for any child Blocks (if applicable).
-
-        - **Description**:
-            - This method parses the annotations within the class to identify and process all fields that inherit from the `Block` class.
-            - For each `Block`-typed field, it calls the corresponding `export_class_config` method to retrieve its configuration and adds it to the result.
-            - If there are child `Block`s, it recursively exports their configurations using the `_export_subblocks` method.
-        """
-        result = {
-            "agent_name": cls.__name__,
-            "config": {},
-            "description": {},
-            "blocks": [],
-        }
-        config = {
-            field: cls.default_values.get(field, "default_value")
-            for field in cls.configurable_fields
-        }
-        result["config"] = config
-        result["description"] = {
-            field: cls.fields_description.get(field, "")
-            for field in cls.configurable_fields
-        }
-        # Parse class annotations to find fields of type Block
-        hints = get_type_hints(cls)
-        for attr_name, attr_type in hints.items():
-            if inspect.isclass(attr_type) and issubclass(attr_type, Block):
-                block_config = attr_type.export_class_config()
-                result["blocks"].append(
-                    {
-                        "name": attr_name,
-                        "config": block_config[0],
-                        "description": block_config[1],
-                        "children": cls._export_subblocks(attr_type),
-                    }
-                )
-        return result
-
-    @classmethod
-    def _export_subblocks(cls, block_cls: type[Block]) -> list[dict]:
-        children = []
-        hints = get_type_hints(block_cls)  # Get class annotations
-        for attr_name, attr_type in hints.items():
-            if inspect.isclass(attr_type) and issubclass(attr_type, Block):
-                block_config = attr_type.export_class_config()
-                children.append(
-                    {
-                        "name": attr_name,
-                        "config": block_config[0],
-                        "description": block_config[1],
-                        "children": cls._export_subblocks(attr_type),
-                    }
-                )
-        return children
-
-    @classmethod
-    def export_to_file(cls, filepath: str) -> None:
-        """
-        Export the class configuration to a JSON file.
-
-        - **Args**:
-            - `filepath` (`str`): The path where the JSON file will be saved.
-
-        - **Returns**:
-            - `None`
-
-        - **Description**:
-            - This method calls `export_class_config` to get the configuration dictionary and writes it to the specified file in JSON format with indentation for readability.
-        """
-        config = cls.export_class_config()
-        with open(filepath, "w") as f:
-            jsonc.dump(config, f, indent=4)
-
-    @classmethod
-    def import_block_config(cls, config: dict[str, Union[list[dict], str]]) -> "Agent":
-        """
-        Import an agent's configuration from a dictionary and initialize the Agent instance along with its Blocks.
-
-        - **Args**:
-            - `config` (`dict[str, Union[list[dict], str]]`): A dictionary containing the configuration of the agent and its blocks.
-
-        - **Returns**:
-            - `Agent`: An initialized Agent instance configured according to the provided configuration.
-
-        - **Description**:
-            - Initializes a new agent using the name found in the configuration.
-            - Dynamically creates Block instances based on the configuration data and assigns them to the agent.
-            - If a block is not found in the global namespace or cannot be created, this method may raise errors.
-        """
-        raise NotImplementedError("Bad implementation and should be re-implemented!")
-        agent = cls(name=config["agent_name"])
-
-        def build_block(block_data: dict[str, Any]) -> Block:
-            block_cls = globals()[block_data["name"]]
-            block_instance = block_cls.import_config(block_data)
-            return block_instance
-
-        # Create top-level Blocks
-        for block_data in config["blocks"]:
-            assert isinstance(block_data, dict)
-            block = build_block(block_data)
-            setattr(agent, block.name.lower(), block)
-        return agent
-
-    @classmethod
-    def import_from_file(cls, filepath: str) -> "Agent":
-        """
-        Load an agent's configuration from a JSON file and initialize the Agent instance.
-
-        - **Args**:
-            - `filepath` (`str`): The path to the JSON file containing the agent's configuration.
-
-        - **Returns**:
-            - `Agent`: An initialized Agent instance configured according to the loaded configuration.
-
-        - **Description**:
-            - Reads the JSON configuration from the given file path.
-            - Delegates the creation of the agent and its blocks to `import_block_config`.
-        """
-        with open(filepath, "r") as f:
-            config = jsonc.load(f)
-            return cls.import_block_config(config)
-
-    def load_from_config(self, config: dict[str, Any]) -> None:
-        """
-        Update the current Agent instance's Block hierarchy using the provided configuration.
-
-        - **Args**:
-            - `config` (`dict[str, Any]`): A dictionary containing the configuration for updating the agent and its blocks.
-
-        - **Returns**:
-            - `None`
-
-        - **Description**:
-            - Updates the base parameters of the current agent instance according to the provided configuration.
-            - Recursively updates or creates top-level Blocks as specified in the configuration.
-            - Raises a `KeyError` if a required Block is not found in the agent.
-        """
-        for field in self.configurable_fields:
-            if field in config["config"]:
-                if config["config"][field] != "default_value":
-                    setattr(self, field, config["config"][field])
-
-        for block_data in config.get("blocks", []):
-            block_name = block_data["name"]
-            existing_block = getattr(self, block_name, None)
-
-            if existing_block:
-                existing_block.load_from_config(block_data)
-            else:
-                raise KeyError(
-                    f"Block '{block_name}' not found in agent '{self.__class__.__name__}'"
-                )
-
-    def load_from_file(self, filepath: str) -> None:
-        """
-        Load configuration from a JSON file and update the current Agent instance.
-
-        - **Args**:
-            - `filepath` (`str`): The path to the JSON file containing the agent's configuration.
-
-        - **Returns**:
-            - `None`
-
-        - **Description**:
-            - Reads the configuration from the specified JSON file.
-            - Uses the `load_from_config` method to apply the loaded configuration to the current Agent instance.
-            - This method is useful for restoring an Agent's state from a saved configuration file.
-        """
-        with open(filepath, "r") as f:
-            config = jsonc.load(f)
-            self.load_from_config(config)
 
     @property
     def id(self):
@@ -397,12 +299,12 @@ class Agent(ABC):
         """
         raise NotImplementedError("This method should be implemented by subclasses")
 
-    async def generate_user_survey_response(self, survey: dict) -> str:
+    async def generate_user_survey_response(self, survey: Survey) -> str:
         """
         Generate a response to a user survey based on the agent's memory and current state.
 
         - **Args**:
-            - `survey` (`dict`): The survey that needs to be answered.
+            - `survey` (`Survey`): The survey that needs to be answered.
 
         - **Returns**:
             - `str`: The generated response from the agent.
@@ -414,11 +316,11 @@ class Agent(ABC):
             - If the LLM client is not available, it returns a default message indicating unavailability.
             - This method can be overridden by subclasses to customize survey response generation.
         """
-        survey_prompt = process_survey_for_llm(survey)
+        survey_prompt = survey.to_prompt()
         dialog = []
 
         # Add system prompt
-        system_prompt = "Please answer the survey question in first person. Follow the format requirements strictly and provide clear and specific answers."
+        system_prompt = "Please answer the survey question in first person. Follow the format requirements strictly and provide clear and specific answers (In JSON format)."
         dialog.append({"role": "system", "content": system_prompt})
 
         # Add memory context
@@ -439,9 +341,11 @@ class Agent(ABC):
         for retry in range(10):
             try:
                 # Use LLM to generate a response
+                # print(f"dialog: {dialog}")
                 _response = await self.llm.atext_request(
                     dialog, response_format={"type": "json_object"}
                 )
+                # print(f"response: {_response}")
                 json_str = extract_json(_response)
                 if json_str:
                     json_dict = jsonc.loads(json_str)
@@ -450,15 +354,19 @@ class Agent(ABC):
             except:
                 pass
         else:
-            raise Exception("Failed to generate survey response")
+            import traceback
+
+            traceback.print_exc()
+            get_logger().error("Failed to generate survey response")
+            json_str = ""
         return json_str
 
-    async def _process_survey(self, survey: dict):
+    async def _process_survey(self, survey: Survey):
         """
         Process a survey by generating a response and recording it in Avro format and PostgreSQL.
 
         - **Args**:
-            - `survey` (`dict`): The survey data that includes an ID and other relevant information.
+            - `survey` (`Survey`): The survey data that includes an ID and other relevant information.
 
         - **Description**:
             - Generates a survey response using `generate_user_survey_response`.
@@ -475,7 +383,7 @@ class Agent(ABC):
             id=self.id,
             day=day,
             t=t,
-            survey_id=survey["id"],
+            survey_id=str(survey.id),
             result=survey_response,
             created_at=date_time,
         )
@@ -490,10 +398,17 @@ class Agent(ABC):
                     [storage_survey]
                 )
             )
+        # status memory
+        await self.memory.status.update(
+            "survey_responses",
+            survey_response,
+            mode="merge",
+            protect_llm_read_only_fields=False,
+        )
         await self.messager.send_message(
             self.messager.get_user_payback_channel(), {"count": 1}
         )
-        get_logger().info(f"Sent payback message for survey {survey['id']}")
+        get_logger().info(f"Sent payback message for survey {survey.id}")
 
     async def generate_user_chat_response(self, question: str) -> str:
         """
@@ -614,6 +529,7 @@ class Agent(ABC):
             - Saves the thought data to the memory.
         """
         day, t = self.environment.get_datetime()
+        await self.memory.stream.add_cognition(thought)
         storage_thought = StorageDialog(
             id=self.id,
             day=day,
@@ -740,21 +656,99 @@ class Agent(ABC):
         # Process the received message, identify the sender
         # Parse sender ID and message content from the message
         get_logger().info(f"Agent {self.id} received user survey message: {payload}")
-        await self._process_survey(payload["data"])
+        survey = Survey.model_validate(payload["data"])
+        await self._process_survey(survey)
 
-    async def handle_gather_message(self, payload: Any):
+    async def handle_gather_message(self, payload: dict):
         """
-        Placeholder for handling gather messages.
+        Handle a gather message received by the agent.
 
         - **Args**:
-            - `payload` (`Any`): The received message payload.
-
-        - **Raises**:
-            - `NotImplementedError`: As this method is not implemented.
+            - `payload` (`dict`): The message payload containing the target attribute and sender ID.
 
         - **Description**:
-            - This method is intended to handle specific types of gather messages but has not been implemented yet.
+            - Extracts the target attribute and sender ID from the payload.
+            - Retrieves the content associated with the target attribute from the agent's status.
+            - Prepares a response payload with the retrieved content and sends it back to the sender using `_send_message`.
         """
+        # Process the received message, identify the sender
+        # Parse sender ID and message content from the message
+        target = payload["target"]
+        sender_id = payload["from"]
+        if not isinstance(target, list):
+            content = await self.status.get(target)
+        else:
+            content = {}
+            for single in target:
+                try:
+                    content[single] = await self.status.get(single)
+                except Exception as e:
+                    get_logger().error(f"Error gathering {single} from status: {e}")
+                    content[single] = None
+        payload = {
+            "from": self.id,
+            "content": content,
+        }
+        await self._send_message(sender_id, payload, "gather_receive")
+
+    async def handle_gather_receive_message(self, payload: Any):
+        """
+        Handle a gather receive message.
+        """
+        content = payload["content"]
+        sender_id = payload["from"]
+
+        # Store the response into the corresponding Future
+        response_key = sender_id
+        if response_key in self._gather_responses:
+            self._gather_responses[response_key].set_result(
+                {
+                    "from": sender_id,
+                    "content": content,
+                }
+            )
+
+    async def gather_messages(
+        self, agent_ids: list[int], target: Union[str, list[str]]
+    ) -> list[Any]:
+        """
+        Gather messages from multiple agents.
+
+        - **Args**:
+            - `agent_ids` (`list[int]`): A list of IDs for the target agents.
+            - `target` (`Union[str, list[str]]`): The type of information to collect from each agent.
+
+        - **Returns**:
+            - `list[Any]`: A list of collected responses.
+
+        - **Description**:
+            - For each agent ID provided, creates a `Future` object to wait for its response.
+            - Sends a gather request to each specified agent.
+            - Waits for all responses and returns them as a list of dictionaries.
+            - Ensures cleanup of Futures after collecting responses.
+        """
+        # Create a Future for each agent
+        futures = {}
+        for agent_id in agent_ids:
+            futures[agent_id] = asyncio.Future()
+            self._gather_responses[agent_id] = futures[agent_id]
+
+        # Send gather requests
+        payload = {
+            "from": self.id,
+            "target": target,
+        }
+        for agent_id in agent_ids:
+            await self._send_message(agent_id, payload, "gather")
+
+        try:
+            # Wait for all responses
+            responses = await asyncio.gather(*futures.values())
+            return responses
+        finally:
+            # Cleanup Futures
+            for key in futures:
+                self._gather_responses.pop(key, None)
 
     # Redis send message
     async def _send_message(self, to_agent_id: int, payload: dict, sub_topic: str):
@@ -839,6 +833,75 @@ class Agent(ABC):
                 )
             )
 
+    async def register_aoi_message(
+        self, target_aoi: Union[int, list[int]], content: str
+    ):
+        """
+        Register a message to target aoi
+
+        - **Args**:
+            - `target_aoi` (`Union[int, list[int]]`): The ID of the target aoi.
+            - `content` (`str`): The content of the message to send.
+
+        - **Description**:
+            - Register a message to target aoi.
+        """
+        day, t = self.environment.get_datetime()
+        if isinstance(target_aoi, int):
+            payload = {
+                "from": self.id,
+                "content": content,
+                "type": "aoi_message_register",
+                "timestamp": int(datetime.now().timestamp() * 1000),
+                "day": day,
+                "t": t,
+            }
+            await self.messager.send_message(
+                self.messager.get_aoi_channel(target_aoi), payload
+            )
+        else:
+            for aoi in target_aoi:
+                payload = {
+                    "from": self.id,
+                    "content": content,
+                    "type": "aoi_message_register",
+                    "timestamp": int(datetime.now().timestamp() * 1000),
+                    "day": day,
+                    "t": t,
+                }
+                await self.messager.send_message(
+                    self.messager.get_aoi_channel(aoi), payload
+                )
+
+    async def cancel_aoi_message(self, target_aoi: Union[int, list[int]]):
+        """
+        Cancel a message to target aoi
+        """
+        day, t = self.environment.get_datetime()
+        if isinstance(target_aoi, int):
+            payload = {
+                "from": self.id,
+                "type": "aoi_message_cancel",
+                "timestamp": int(datetime.now().timestamp() * 1000),
+                "day": day,
+                "t": t,
+            }
+            await self.messager.send_message(
+                self.messager.get_aoi_channel(target_aoi), payload
+            )
+        else:
+            for aoi in target_aoi:
+                payload = {
+                    "from": self.id,
+                    "type": "aoi_message_cancel",
+                    "timestamp": int(datetime.now().timestamp() * 1000),
+                    "day": day,
+                    "t": t,
+                }
+                await self.messager.send_message(
+                    self.messager.get_aoi_channel(aoi), payload
+                )
+
     # Agent logic
     @abstractmethod
     async def forward(self) -> Any:
@@ -854,6 +917,36 @@ class Agent(ABC):
         """
         raise NotImplementedError
 
+    async def final(self):
+        """Execute when the agent is deleted or the simulation is finished."""
+        pass
+
+    async def before_forward(self):
+        """
+        Before forward
+        """
+        pass
+
+    async def after_forward(self):
+        """
+        After forward
+        """
+        pass
+
+    async def before_blocks(self):
+        """
+        Before blocks
+        """
+        for block in self.blocks:
+            await block.before_forward()
+
+    async def after_blocks(self):
+        """
+        After blocks
+        """
+        for block in self.blocks:
+            await block.after_forward()
+
     async def run(self) -> Any:
         """
         Unified entry point for executing the agent's logic.
@@ -862,4 +955,14 @@ class Agent(ABC):
             - It calls the `forward` method to execute the agent's behavior logic.
             - Acts as the main control flow for the agent, coordinating when and how the agent performs its actions.
         """
-        return await self.forward()
+        start_time = time.time()
+        # run required methods before agent forward
+        await self.before_forward()
+        await self.before_blocks()
+        # run agent forward
+        await self.forward()
+        # run required methods after agent forward
+        await self.after_blocks()
+        await self.after_forward()
+        end_time = time.time()
+        return end_time - start_time

@@ -18,13 +18,9 @@
 * - {py:obj}`QuestionType <agentsociety.survey.models.QuestionType>`
   -
 * - {py:obj}`Question <agentsociety.survey.models.Question>`
-  - ```{autodoc2-docstring} agentsociety.survey.models.Question
-    :summary:
-    ```
+  -
 * - {py:obj}`Page <agentsociety.survey.models.Page>`
-  - ```{autodoc2-docstring} agentsociety.survey.models.Page
-    :summary:
-    ```
+  -
 * - {py:obj}`Survey <agentsociety.survey.models.Survey>`
   - ```{autodoc2-docstring} agentsociety.survey.models.Survey
     :summary:
@@ -33,10 +29,10 @@
 
 ### API
 
-`````{py:class} QuestionType(*args, **kwds)
+`````{py:class} QuestionType()
 :canonical: agentsociety.survey.models.QuestionType
 
-Bases: {py:obj}`enum.Enum`
+Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ````{py:attribute} TEXT
 :canonical: agentsociety.survey.models.QuestionType.TEXT
@@ -100,11 +96,10 @@ Bases: {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} Question
+`````{py:class} Question(/, **data: typing.Any)
 :canonical: agentsociety.survey.models.Question
 
-```{autodoc2-docstring} agentsociety.survey.models.Question
-```
+Bases: {py:obj}`pydantic.BaseModel`
 
 ````{py:attribute} name
 :canonical: agentsociety.survey.models.Question.name
@@ -141,9 +136,9 @@ Bases: {py:obj}`enum.Enum`
 
 ````{py:attribute} choices
 :canonical: agentsociety.survey.models.Question.choices
-:type: list[str]
+:type: typing.List[str]
 :value: >
-   'field(...)'
+   []
 
 ```{autodoc2-docstring} agentsociety.survey.models.Question.choices
 ```
@@ -152,9 +147,9 @@ Bases: {py:obj}`enum.Enum`
 
 ````{py:attribute} columns
 :canonical: agentsociety.survey.models.Question.columns
-:type: list[str]
+:type: typing.List[str]
 :value: >
-   'field(...)'
+   []
 
 ```{autodoc2-docstring} agentsociety.survey.models.Question.columns
 ```
@@ -163,9 +158,9 @@ Bases: {py:obj}`enum.Enum`
 
 ````{py:attribute} rows
 :canonical: agentsociety.survey.models.Question.rows
-:type: list[str]
+:type: typing.List[str]
 :value: >
-   'field(...)'
+   []
 
 ```{autodoc2-docstring} agentsociety.survey.models.Question.rows
 ```
@@ -205,21 +200,21 @@ Bases: {py:obj}`enum.Enum`
 
 ````
 
-````{py:method} to_dict() -> dict
-:canonical: agentsociety.survey.models.Question.to_dict
+````{py:method} parse_choices(value: typing.Any) -> typing.List[str]
+:canonical: agentsociety.survey.models.Question.parse_choices
+:classmethod:
 
-```{autodoc2-docstring} agentsociety.survey.models.Question.to_dict
+```{autodoc2-docstring} agentsociety.survey.models.Question.parse_choices
 ```
 
 ````
 
 `````
 
-`````{py:class} Page
+`````{py:class} Page(/, **data: typing.Any)
 :canonical: agentsociety.survey.models.Page
 
-```{autodoc2-docstring} agentsociety.survey.models.Page
-```
+Bases: {py:obj}`pydantic.BaseModel`
 
 ````{py:attribute} name
 :canonical: agentsociety.survey.models.Page.name
@@ -234,7 +229,7 @@ Bases: {py:obj}`enum.Enum`
 
 ````{py:attribute} elements
 :canonical: agentsociety.survey.models.Page.elements
-:type: list[agentsociety.survey.models.Question]
+:type: typing.List[agentsociety.survey.models.Question]
 :value: >
    None
 
@@ -243,20 +238,20 @@ Bases: {py:obj}`enum.Enum`
 
 ````
 
-````{py:method} to_dict() -> dict
-:canonical: agentsociety.survey.models.Page.to_dict
-
-```{autodoc2-docstring} agentsociety.survey.models.Page.to_dict
-```
-
-````
-
 `````
 
-`````{py:class} Survey
+`````{py:class} Survey(/, **data: typing.Any)
 :canonical: agentsociety.survey.models.Survey
 
+Bases: {py:obj}`pydantic.BaseModel`
+
 ```{autodoc2-docstring} agentsociety.survey.models.Survey
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.survey.models.Survey.__init__
 ```
 
 ````{py:attribute} id
@@ -294,7 +289,7 @@ Bases: {py:obj}`enum.Enum`
 
 ````{py:attribute} pages
 :canonical: agentsociety.survey.models.Survey.pages
-:type: list[agentsociety.survey.models.Page]
+:type: typing.List[agentsociety.survey.models.Page]
 :value: >
    None
 
@@ -305,9 +300,9 @@ Bases: {py:obj}`enum.Enum`
 
 ````{py:attribute} responses
 :canonical: agentsociety.survey.models.Survey.responses
-:type: dict[str, dict]
+:type: typing.Dict[str, dict]
 :value: >
-   'field(...)'
+   None
 
 ```{autodoc2-docstring} agentsociety.survey.models.Survey.responses
 ```
@@ -318,34 +313,17 @@ Bases: {py:obj}`enum.Enum`
 :canonical: agentsociety.survey.models.Survey.created_at
 :type: datetime.datetime
 :value: >
-   'field(...)'
+   'Field(...)'
 
 ```{autodoc2-docstring} agentsociety.survey.models.Survey.created_at
 ```
 
 ````
 
-````{py:method} to_dict() -> dict
-:canonical: agentsociety.survey.models.Survey.to_dict
+````{py:method} to_prompt() -> str
+:canonical: agentsociety.survey.models.Survey.to_prompt
 
-```{autodoc2-docstring} agentsociety.survey.models.Survey.to_dict
-```
-
-````
-
-````{py:method} to_json() -> str
-:canonical: agentsociety.survey.models.Survey.to_json
-
-```{autodoc2-docstring} agentsociety.survey.models.Survey.to_json
-```
-
-````
-
-````{py:method} from_json(json_str: str) -> agentsociety.survey.models.Survey
-:canonical: agentsociety.survey.models.Survey.from_json
-:classmethod:
-
-```{autodoc2-docstring} agentsociety.survey.models.Survey.from_json
+```{autodoc2-docstring} agentsociety.survey.models.Survey.to_prompt
 ```
 
 ````

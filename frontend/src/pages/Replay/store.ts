@@ -1,9 +1,10 @@
 import { makeAutoObservable, runInAction } from "mobx";
-import { Agent, AgentDialog, AgentProfile, AgentStatus, AgentSurvey, LngLat, Time } from "./components/type";
+import { Agent, AgentDialog, AgentProfile, AgentStatus, AgentSurvey, LngLat, Time, ApiMLflowMetric } from "./components/type";
 import { message } from "antd";
 import React from "react";
 import { Experiment, Survey } from "../../components/type";
 import { round4 } from "../../components/util";
+import { fetchCustom } from "../../components/fetch";
 
 const formatStatus = (status: any) => {
     if (typeof status === 'number') {
@@ -43,6 +44,7 @@ export class ReplayStore {
     _clickedAgentStatuses: AgentStatus[] = []
     _clickedAgentDialogs: AgentDialog[] = []
     _clickedAgentSurveys: AgentSurvey[] = []
+    _metrics: Map<string, ApiMLflowMetric[]> = new Map()
 
     _id2surveys: Map<string, Survey> = new Map()
 
@@ -67,7 +69,7 @@ export class ReplayStore {
 
     async _fetchSurveys() {
         try {
-            const res = await fetch('/api/surveys')
+            const res = await fetchCustom('/api/surveys')
             const data = await res.json()
             runInAction(() => {
                 const surveys = data.data as Survey[]
@@ -84,13 +86,13 @@ export class ReplayStore {
             return
         }
         try {
-            const res = await fetch(`/api/experiments/${this.expID}`)
+            const res = await fetchCustom(`/api/experiments/${this.expID}`)
             const data = await res.json()
             runInAction(() => {
                 this.experiment = data.data as Experiment
             })
             {
-                const res = await fetch(`/api/experiments/${this.expID}/timeline`)
+                const res = await fetchCustom(`/api/experiments/${this.expID}/timeline`)
                 const data = await res.json()
                 runInAction(() => {
                     this._timeline = data.data as Time[]
@@ -117,7 +119,7 @@ export class ReplayStore {
             return
         }
         try {
-            const res = await fetch(`/api/experiments/${this.expID}/agents/-/profile`)
+            const res = await fetchCustom(`/api/experiments/${this.expID}/agents/-/profile`)
             const data = await res.json()
             runInAction(() => {
                 this._agent2Profile = new Map((data.data as AgentProfile[]).map(a => {
@@ -141,7 +143,7 @@ export class ReplayStore {
             if (time !== undefined) {
                 url += `?day=${time.day}&t=${time.t}`
             }
-            const res = await fetch(url)
+            const res = await fetchCustom(url)
             const data = await res.json()
             const agentStatuses = data.data as AgentStatus[]
             // if (agentStatuses.length > 0) {
@@ -193,7 +195,7 @@ export class ReplayStore {
             if (time !== undefined) {
                 url += `?day=${time.day}&t=${time.t}`
             }
-            const res = await fetch(url)
+            const res = await fetchCustom(url)
             let prompt = undefined
             if (res.ok) {
                 const data = await res.json()
@@ -216,7 +218,7 @@ export class ReplayStore {
         }
         try {
             {
-                const res = await fetch(`/api/experiments/${this.expID}/agents/${this.clickedAgentID}/status`)
+                const res = await fetchCustom(`/api/experiments/${this.expID}/agents/${this.clickedAgentID}/status`)
                 const data = await res.json()
                 for (const status of data.data as AgentStatus[]) {
                     status.status = Object.fromEntries(Object.entries(status.status).map(([k, v]) => [k, formatStatus(v)]))
@@ -226,14 +228,14 @@ export class ReplayStore {
                 })
             }
             {
-                const res = await fetch(`/api/experiments/${this.expID}/agents/${this.clickedAgentID}/dialog`)
+                const res = await fetchCustom(`/api/experiments/${this.expID}/agents/${this.clickedAgentID}/dialog`)
                 const data = await res.json()
                 runInAction(() => {
                     this._clickedAgentDialogs = data.data as AgentDialog[]
                 })
             }
             {
-                const res = await fetch(`/api/experiments/${this.expID}/agents/${this.clickedAgentID}/survey`)
+                const res = await fetchCustom(`/api/experiments/${this.expID}/agents/${this.clickedAgentID}/survey`)
                 const data = await res.json()
                 runInAction(() => {
                     this._clickedAgentSurveys = data.data as AgentSurvey[]
@@ -243,6 +245,26 @@ export class ReplayStore {
             message.error(`Failed to fetch agent: ${JSON.stringify(err)}`, 3);
             console.error('Failed to fetch agent: ', err);
         }
+    }
+
+    async _fetchMetrics() {
+        if (this.expID === undefined) {
+            return
+        }
+        try {
+            const res = await fetchCustom(`/api/experiments/${this.expID}/metrics`)
+            const data = await res.json()
+            runInAction(() => {
+                this._metrics = new Map(Object.entries(data.data))
+            })
+        } catch (err) {
+            message.error(`Failed to fetch metrics: ${JSON.stringify(err)}`, 3);
+            console.error('Failed to fetch metrics: ', err);
+        }
+    }
+
+    get metrics() {
+        return this._metrics
     }
 
     async init(expID?: string) {
@@ -259,9 +281,11 @@ export class ReplayStore {
             this._timeline = []
             this._agent2Profile = new Map()
             this.agents = new Map()
+            this._metrics = new Map()
         } else {
             await this._fetchExperiment()
             await this._fetchAgentProfile()
+            await this._fetchMetrics()
             if (this.experiment?.status === 2) {
                 // completed -> fetch the newest data
                 await this._fetchAllAgentStatusAndPrompt(this._currentTime)
@@ -280,6 +304,7 @@ export class ReplayStore {
         this._currentTime = time
         await this._fetchAllAgentStatusAndPrompt(time)
         await this._fetchClickedAgent()
+        await this._fetchMetrics()
     }
 
     // 获取最新的experiment数据，刷新所有数据，如果有clickedAgentID，也刷新clickedAgentID的数据
@@ -290,6 +315,8 @@ export class ReplayStore {
         await this._fetchAllAgentStatusAndPrompt(this._currentTime)
         // 3. 刷新clickedAgent数据
         await this._fetchClickedAgent()
+        // 4. 刷新metrics数据
+        await this._fetchMetrics()
     }
 
     async setClickedAgentID(agentID?: string) {

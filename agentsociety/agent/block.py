@@ -3,15 +3,16 @@ from __future__ import annotations
 import asyncio
 import functools
 import inspect
-from collections.abc import Awaitable, Callable, Coroutine
+from collections.abc import Callable, Coroutine
 from typing import Any, Optional, Union, cast
+from pydantic import BaseModel, Field
 
 from ..environment import Environment
 from ..llm import LLM
 from ..memory import Memory
+from ..memory.state import StateMemory
 from ..utils.decorators import record_call_aio
-from .trigger import EventTrigger
-
+from .context import DotDict, BlockContext, context_to_dot_dict, auto_deepcopy_dotdict
 TRIGGER_INTERVAL = 1
 
 __all__ = [
@@ -20,6 +21,13 @@ __all__ = [
     "log_and_check_with_memory",
     "trigger_class",
 ]
+
+
+class BlockParams(BaseModel):
+    block_memory: Optional[dict[str, Any]] = None
+
+class BlockOutput(BaseModel):
+    ...
 
 
 def log_and_check_with_memory(
@@ -154,29 +162,26 @@ def trigger_class():
     return decorator
 
 
-# Define a Block, similar to a layer in PyTorch
+# Behavior Block, used for augmenting agent's behavior capabilities
 class Block:
     """
     A foundational component similar to a layer in PyTorch, used for building complex systems.
-
-    - **Attributes**:
-        - `configurable_fields` (list[str]): A list of fields that can be configured.
-        - `default_values` (dict[str, Any]): Default values for configurable fields.
-        - `fields_description` (dict[str, str]): Descriptions for each configurable field.
     """
 
-    configurable_fields: list[str] = []
-    default_values: dict[str, Any] = {}
-    fields_description: dict[str, str] = {}
+    ParamsType = BlockParams
+    Context = BlockContext
+    OutputType = None
+    NeedAgent: bool = False  # Whether the block needs an agent, if True, the associated agent will be set automatically
+    name: str = ""
+    description: str = ""
+    actions: dict[str, str] = {}
 
     def __init__(
         self,
-        name: str,
         llm: Optional[LLM] = None,
         environment: Optional[Environment] = None,
-        memory: Optional[Memory] = None,
-        trigger: Optional[EventTrigger] = None,
-        description: str = "",
+        agent_memory: Optional[Memory] = None,
+        block_params: Optional[Any] = None,
     ):
         """
         - **Description**:
@@ -189,119 +194,81 @@ class Block:
             - `memory` (Optional[Memory], optional): An instance of Memory. Defaults to None.
             - `trigger` (Optional[EventTrigger], optional): An event trigger that may be associated with this block. Defaults to None.
         """
-        self.name = name
         self._llm = llm
-        self._memory = memory
+        self._agent_memory = agent_memory
         self._environment = environment
-        # If a trigger is passed in, inject the block into the trigger and initialize it immediately.
-        if trigger is not None:
-            trigger.block = self
-            trigger.initialize()
-        self.trigger = trigger
-        self.description = description
+        self._agent = None
 
-    def export_config(self) -> dict[str, Optional[str]]:
-        """
-        - **Description**:
-            - Exports the configuration of the block as a dictionary.
-
-        - **Returns**:
-            - `Dict[str, Optional[str]]`: A dictionary containing the configuration of the block.
-        """
-        return {
-            field: self.default_values.get(field, "default_value")
-            for field in self.configurable_fields
-        }
-
-    @classmethod
-    def export_class_config(cls) -> tuple[dict[str, Any], dict[str, Any]]:
-        """
-        - **Description**:
-            - Exports the default configuration and descriptions for the configurable fields of the class.
-
-        - **Returns**:
-            - `tuple[Dict[str, Any], Dict[str, Any]]`: A tuple containing two dictionaries, one for default values and one for field descriptions.
-        """
-        return (
-            {
-                field: cls.default_values.get(field, "default_value")
-                for field in cls.configurable_fields
-            },
-            {
-                field: cls.fields_description.get(field, "")
-                for field in cls.configurable_fields
-            },
-        )
-
-    @classmethod
-    def import_config(cls, config: dict[str, Union[str, dict]]) -> Block:
-        """
-        - **Description**:
-            - Creates an instance of the Block from a configuration dictionary.
-
-        - **Args**:
-            - `config` (Dict[str, Union[str, dict]]): Configuration dictionary for creating the block.
-
-        - **Returns**:
-            - `Block`: An instance of the Block created from the provided configuration.
-        """
-        instance = cls(name=config["name"])  # type: ignore
-        assert isinstance(config["config"], dict)
-        for field, value in config["config"].items():
-            if field in cls.configurable_fields:
-                setattr(instance, field, value)
-
-        # Recursively create sub-blocks
-        for child_config in config.get("children", []):
-            child_block = Block.import_config(child_config)  # type: ignore
-            setattr(instance, child_block.name.lower(), child_block)
-
-        return instance
-
-    def load_from_config(self, config: dict[str, list[dict]]) -> None:
-        """
-        - **Description**:
-            - Updates the current Block instance parameters using a configuration dictionary and recursively updates its children.
-
-        - **Args**:
-            - `config` (Dict[str, List[Dict]]): Configuration dictionary for updating the block.
-        """
-        # Update parameters of the current Block
-        for field in self.configurable_fields:
-            if field in config["config"]:
-                if config["config"][field] != "default_value":
-                    setattr(self, field, config["config"][field])
-
-        def build_or_update_block(block_data: dict) -> Block:
-            block_name = block_data["name"]
-            existing_block = getattr(self, block_name, None)
-
-            if existing_block:
-                # Recursively update child Block
-                existing_block.load_from_config(block_data)
-                return existing_block
+        # parse block_params
+        if block_params is None:
+            block_params = self.default_params()
+        self.params = block_params
+        for key, value in block_params.model_dump().items():
+            if key == "block_memory":
+                self._block_memory = StateMemory(value)
             else:
-                # Create a new child Block
-                block_cls = globals().get(block_data["name"])
-                if block_cls is None:
-                    raise KeyError(f"Block class '{block_data['name']}' not found.")
-                block_instance = block_cls.import_config(block_data)
-                setattr(self, block_name, block_instance)
-                return block_instance
+                setattr(self, key, value)
 
-        # Recursively iterate through child Block configurations
-        for block_data in config.get("children", []):
-            build_or_update_block(block_data)
+        # initialize context
+        context = self.default_context()
+        self.context = context_to_dot_dict(context)
 
-    async def forward(self, step, context):
+    @classmethod
+    def default_params(cls) -> ParamsType:
+        return cls.ParamsType()
+    
+    @classmethod
+    def default_context(cls) -> Context:
+        return cls.Context()
+
+    @classmethod
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # Create a new dictionary that inherits from parent
+        cls.get_functions = dict(cls.__base__.get_functions) if hasattr(cls.__base__, "get_functions") else {}  # type: ignore
+
+        # Register all methods with _register_info
+        for name, method in cls.__dict__.items():
+            if hasattr(method, "_register_info"):
+                info = method._register_info
+                cls.get_functions[info["function_name"]] = info
+
+    def set_agent(self, agent: Any):
+        self._agent = agent
+
+    async def _getx(self, function_name: str, *args, **kwargs):
         """
+        Calls a registered function by name.
+
         - **Description**:
-            - Each block performs a specific reasoning task. This method should be overridden by subclasses.
+            - Calls a registered function by its function_name.
+
+        - **Args**:
+            - `function_name` (str): The name of the function to call.
+            - `*args`: Variable length argument list to pass to the function.
+            - `**kwargs`: Arbitrary keyword arguments to pass to the function.
+
+        - **Returns**:
+            - The result of the called function.
 
         - **Raises**:
-            - `NotImplementedError`: Subclasses must implement this method.
+            - `ValueError`: If the function_name is not registered.
         """
-        raise NotImplementedError("Subclasses should implement this method")
+        if function_name not in self.__class__.get_functions:
+            raise ValueError(f"GET function '{function_name}' is not registered")
+
+        func_info = self.__class__.get_functions[function_name]
+        if func_info.get("is_async", False):
+            result = await func_info["original_method"](self, *args, **kwargs)
+        else:
+            result = func_info["original_method"](self, *args, **kwargs)
+        return result
+    
+    @property
+    def agent(self) -> Any:
+        if self._agent is None:
+            raise RuntimeError(f"Agent access before assignment, please `set_agent` first!")
+        return self._agent
 
     @property
     def llm(self) -> LLM:
@@ -311,11 +278,27 @@ class Block:
 
     @property
     def memory(self) -> Memory:
-        if self._memory is None:
+        if self._agent_memory is None:
             raise RuntimeError(
                 f"Memory access before assignment, please `set_memory` first!"
             )
-        return self._memory
+        return self._agent_memory
+
+    @property
+    def agent_memory(self) -> Memory:
+        if self._agent_memory is None:
+            raise RuntimeError(
+                f"Memory access before assignment, please `set_memory` first!"
+            )
+        return self._agent_memory
+
+    @property
+    def block_memory(self) -> StateMemory:
+        if self._block_memory is None:
+            raise RuntimeError(
+                f"Block memory access before assignment, please `set_block_memory` first!"
+            )
+        return self._block_memory
 
     @property
     def environment(self) -> Environment:
@@ -324,3 +307,31 @@ class Block:
                 f"Environment access before assignment, please `set_environment` first!"
             )
         return self._environment
+
+    async def before_forward(self):
+        """
+        Before forward - prepare context
+        """
+        pass
+
+    async def after_forward(self):
+        """
+        After forward - update/clean context
+        """
+        pass
+
+    @auto_deepcopy_dotdict
+    async def forward(self, agent_context: DotDict):
+        """
+        - **Description**:
+            - Each block performs a specific reasoning task. This method should be overridden by subclasses.
+            - Subclasses can define their own parameters as needed.
+
+        - **Args**:
+            - `*args`: Variable length argument list.
+            - `**kwargs`: Arbitrary keyword arguments.
+
+        - **Raises**:
+            - `NotImplementedError`: Subclasses must implement this method.
+        """
+        raise NotImplementedError("Subclasses should implement this method")

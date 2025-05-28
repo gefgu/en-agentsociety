@@ -9,6 +9,18 @@
 
 ## Module Contents
 
+### Classes
+
+````{list-table}
+:class: autosummary longtable
+:align: left
+
+* - {py:obj}`CreateTempDownloadLinkRequest <agentsociety.webapi.api.config.CreateTempDownloadLinkRequest>`
+  -
+* - {py:obj}`CreateTempDownloadLinkResponse <agentsociety.webapi.api.config.CreateTempDownloadLinkResponse>`
+  -
+````
+
 ### Functions
 
 ````{list-table}
@@ -43,6 +55,10 @@
   - ```{autodoc2-docstring} agentsociety.webapi.api.config.get_map_config_by_id
     :summary:
     ```
+* - {py:obj}`upload_map_file <agentsociety.webapi.api.config.upload_map_file>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.config.upload_map_file
+    :summary:
+    ```
 * - {py:obj}`create_map_config <agentsociety.webapi.api.config.create_map_config>`
   - ```{autodoc2-docstring} agentsociety.webapi.api.config.create_map_config
     :summary:
@@ -53,6 +69,18 @@
     ```
 * - {py:obj}`delete_map_config <agentsociety.webapi.api.config.delete_map_config>`
   - ```{autodoc2-docstring} agentsociety.webapi.api.config.delete_map_config
+    :summary:
+    ```
+* - {py:obj}`export_map_config <agentsociety.webapi.api.config.export_map_config>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.config.export_map_config
+    :summary:
+    ```
+* - {py:obj}`create_temp_download_link <agentsociety.webapi.api.config.create_temp_download_link>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.config.create_temp_download_link
+    :summary:
+    ```
+* - {py:obj}`download_map_by_token <agentsociety.webapi.api.config.download_map_by_token>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.config.download_map_by_token
     :summary:
     ```
 * - {py:obj}`list_agent_configs <agentsociety.webapi.api.config.list_agent_configs>`
@@ -191,6 +219,14 @@
 ```
 ````
 
+````{py:function} upload_map_file(request: fastapi.Request, file: fastapi.UploadFile = File(...))
+:canonical: agentsociety.webapi.api.config.upload_map_file
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.config.upload_map_file
+```
+````
+
 ````{py:function} create_map_config(request: fastapi.Request, config_data: agentsociety.webapi.models.config.ApiMapConfig = Body(...))
 :canonical: agentsociety.webapi.api.config.create_map_config
 :async:
@@ -212,6 +248,66 @@
 :async:
 
 ```{autodoc2-docstring} agentsociety.webapi.api.config.delete_map_config
+```
+````
+
+````{py:function} export_map_config(request: fastapi.Request, config_id: uuid.UUID)
+:canonical: agentsociety.webapi.api.config.export_map_config
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.config.export_map_config
+```
+````
+
+`````{py:class} CreateTempDownloadLinkRequest(/, **data: typing.Any)
+:canonical: agentsociety.webapi.api.config.CreateTempDownloadLinkRequest
+
+Bases: {py:obj}`pydantic.BaseModel`
+
+````{py:attribute} expire_seconds
+:canonical: agentsociety.webapi.api.config.CreateTempDownloadLinkRequest.expire_seconds
+:type: int
+:value: >
+   600
+
+```{autodoc2-docstring} agentsociety.webapi.api.config.CreateTempDownloadLinkRequest.expire_seconds
+```
+
+````
+
+`````
+
+`````{py:class} CreateTempDownloadLinkResponse(/, **data: typing.Any)
+:canonical: agentsociety.webapi.api.config.CreateTempDownloadLinkResponse
+
+Bases: {py:obj}`pydantic.BaseModel`
+
+````{py:attribute} token
+:canonical: agentsociety.webapi.api.config.CreateTempDownloadLinkResponse.token
+:type: str
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.api.config.CreateTempDownloadLinkResponse.token
+```
+
+````
+
+`````
+
+````{py:function} create_temp_download_link(request: fastapi.Request, config_id: uuid.UUID, body: agentsociety.webapi.api.config.CreateTempDownloadLinkRequest = Body(...))
+:canonical: agentsociety.webapi.api.config.create_temp_download_link
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.config.create_temp_download_link
+```
+````
+
+````{py:function} download_map_by_token(request: fastapi.Request, config_id: uuid.UUID, token: str = Query(...))
+:canonical: agentsociety.webapi.api.config.download_map_by_token
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.config.download_map_by_token
 ```
 ````
 

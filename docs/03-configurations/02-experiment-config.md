@@ -42,11 +42,11 @@ The `workflow` field (required) defines a sequence of workflow steps that contro
   - `ticks_per_step`: Number of ticks per step
 
 - `interview`: Send interview questions to specific agents
-  - `target_agent`: List of agent IDs to interview
+  - `target_agent`: List of agent IDs to interview or a filter configuration
   - `interview_message`: The interview question/prompt
 
 - `survey`: Send surveys to specific agents
-  - `target_agent`: List of agent IDs to survey
+  - `target_agent`: List of agent IDs to survey or a filter configuration
   - `survey`: Survey object containing questions
 
 - `environment`: Modify environment variables
@@ -54,12 +54,12 @@ The `workflow` field (required) defines a sequence of workflow steps that contro
   - `value`: New value to set
 
 - `update_state`: Update agent states directly
-  - `target_agent`: List of agent IDs to update
+  - `target_agent`: List of agent IDs to update or a filter configuration
   - `key`: State variable to modify
   - `value`: New value to set
 
 - `message`: Send intervention messages to agents
-  - `target_agent`: List of agent IDs to message
+  - `target_agent`: List of agent IDs to message or a filter configuration
   - `intervene_message`: Message content
 
 - `other`: Custom intervention via function
@@ -68,14 +68,39 @@ The `workflow` field (required) defines a sequence of workflow steps that contro
 - `function`: Execute arbitrary function
   - `func`: Function to execute
 
+- `next_round`: Proceed to the next round of the simulation
+
+- `delete_agent`: Delete the specified agents
+  - `target_agent`: List of agent IDs to delete or a filter configuration
+
+The `target_agent` field can be a list of agent IDs or a filter configuration. The filter configuration is as follows:
+
+```yaml
+target_agent:
+  agent_class: <CHANGE_ME> # The class of the agent to filter
+  memory_kv: <CHANGE_ME> # The key-value pairs in agent's memory to filter
+```
+
+An use example is as follows:
+
+```python
+WorkflowStepConfig(
+    type=WorkflowType.DELETE_AGENT,
+    target_agent=AgentFilterConfig(
+      agent_class=(<AgentClass>,),  # The class of the agent to filter
+      memory_kv={"key": "value"}  # The key-value pairs in agent's memory to filter
+    ),
+    description="Delete target agents."
+),
+```
+
 ### Environment Configuration
 
 An example of the `environment` field is as follows:
 
 ```yaml
 environment:
-  start_tick: 28800 # Start time in seconds
-  total_tick: 7200 # Total time in seconds
+  start_tick: 28800 # Start time of simulation in seconds
 ```
 The `environment` field (required) contains environment settings through `EnvironmentConfig` that define the simulation environment parameters.
 
