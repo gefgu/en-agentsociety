@@ -67,6 +67,14 @@
   - ```{autodoc2-docstring} agentsociety.webapi.models.agent.global_prompt
     :summary:
     ```
+* - {py:obj}`pending_dialog <agentsociety.webapi.models.agent.pending_dialog>`
+  - ```{autodoc2-docstring} agentsociety.webapi.models.agent.pending_dialog
+    :summary:
+    ```
+* - {py:obj}`pending_survey <agentsociety.webapi.models.agent.pending_survey>`
+  - ```{autodoc2-docstring} agentsociety.webapi.models.agent.pending_survey
+    :summary:
+    ```
 ````
 
 ### Data
@@ -86,7 +94,7 @@
 ````{py:data} __all__
 :canonical: agentsociety.webapi.models.agent.__all__
 :value: >
-   ['agent_dialog', 'agent_profile', 'agent_status', 'agent_survey', 'global_prompt', 'AgentDialogType'...
+   ['agent_dialog', 'agent_profile', 'agent_status', 'agent_survey', 'global_prompt', 'pending_dialog',...
 
 ```{autodoc2-docstring} agentsociety.webapi.models.agent.__all__
 ```
@@ -125,6 +133,20 @@
 :canonical: agentsociety.webapi.models.agent.global_prompt
 
 ```{autodoc2-docstring} agentsociety.webapi.models.agent.global_prompt
+```
+````
+
+````{py:function} pending_dialog(table_name: str)
+:canonical: agentsociety.webapi.models.agent.pending_dialog
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent.pending_dialog
+```
+````
+
+````{py:function} pending_survey(table_name: str)
+:canonical: agentsociety.webapi.models.agent.pending_survey
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent.pending_survey
 ```
 ````
 

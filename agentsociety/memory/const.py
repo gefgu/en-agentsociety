@@ -1,4 +1,35 @@
 from pycityproto.city.person.v2.motion_pb2 import Status
+from typing import Optional
+from pydantic import BaseModel, Field, model_validator
+from enum import Enum
+
+
+class RelationType(str, Enum):
+    """
+    The type of the relation.
+    """
+
+    FRIEND = "friend"
+    FAMILY = "family"
+    COLLEAGUE = "colleague"
+    FOLLOWER = "follower"
+    FOLLOWING = "following"
+
+
+class SocialRelation(BaseModel):
+    """
+    Social relation between two agents.
+    """
+
+    source_id: Optional[int] = Field(
+        default=None, description="The id of the source agent"
+    )
+    target_id: int = Field(..., description="The id of the target agent")
+    kind: RelationType = Field(..., description="The type of the relation")
+    strength: Optional[float] = Field(
+        default=0.0, description="The strength of the relation", ge=0.0, le=1.0
+    )
+
 
 PROFILE_ATTRIBUTES = {
     "name": str(),
@@ -18,6 +49,7 @@ PROFILE_ATTRIBUTES = {
     "religion": str(),
     "marriage_status": str(),
     "background_story": str(),
+    "social_network": list[SocialRelation](),
 }
 
 STATE_ATTRIBUTES = {

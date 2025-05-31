@@ -122,17 +122,6 @@ Bases: {py:obj}`enum.IntEnum`
 
 ````
 
-````{py:attribute} redis_log
-:canonical: agentsociety.simulation.type.Logs.redis_log
-:type: list[typing.Any]
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.simulation.type.Logs.redis_log
-```
-
-````
-
 ````{py:attribute} simulator_log
 :canonical: agentsociety.simulation.type.Logs.simulator_log
 :type: list[typing.Any]

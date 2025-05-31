@@ -84,26 +84,13 @@ A government institution agent that handles periodic economic operations such as
             return True
         return False
 
-    async def gather_messages(self, agent_ids: list[int], target: str) -> list[Any]:
-        """
-        Collect messages from specified agents filtered by content type.
-
-        Args:
-            agent_ids: List of agent IDs to gather messages from.
-            target: Message content type to filter (e.g., "forward", "income_currency").
-
-        Returns:
-            List of message contents from the specified agents.
-        """
-        infos = await super().gather_messages(agent_ids, target)
-        return [info["content"] for info in infos]
-
     async def forward(self):
         """Execute the government's periodic tax collection and notification cycle."""
         if await self.month_trigger():
             get_logger().debug(
                 f"Agent {self.id}: Start main workflow - government forward"
             )
+            # TODO: move gather_messages to simulator
             citizen_ids = await self.memory.status.get("citizen_ids")
             agents_forward = await self.gather_messages(citizen_ids, "forward")
             if not np.all(np.array(agents_forward) > self.forward_times):

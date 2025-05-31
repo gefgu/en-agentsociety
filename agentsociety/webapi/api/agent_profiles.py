@@ -7,23 +7,20 @@ from typing import Any, Dict, List, Optional, cast
 
 from fastapi import (
     APIRouter,
-    Body,
     File,
     Form,
     HTTPException,
-    Query,
     Request,
     UploadFile,
     status,
 )
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, insert, select, update
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...configs import EnvConfig
-from ...s3 import S3Client
 from ..models import ApiResponseWrapper
-from ..models.agent_profiles import AgentProfile
+from ..models.agent_profiles import AgentProfile, ApiAgentProfile
 from .const import DEMO_USER_ID
 
 __all__ = ["router"]
@@ -45,7 +42,7 @@ class SaveProfileRequest(BaseModel):
 @router.get("/agent-profiles")
 async def list_agent_profiles(
     request: Request,
-) -> ApiResponseWrapper[List[Dict[str, Any]]]:
+) -> ApiResponseWrapper[List[ApiAgentProfile]]:
     """List all agent profiles for the current tenant"""
 
     tenant_id = await request.app.state.get_tenant_id(request)
@@ -63,21 +60,8 @@ async def list_agent_profiles(
         result = await db.execute(stmt)
         profiles = result.scalars().all()
 
-        # Convert to list of dictionaries
-        profile_list = []
-        for profile in profiles:
-            profile_list.append(
-                {
-                    "id": str(profile.id),
-                    "name": profile.name,
-                    "description": profile.description,
-                    "agent_type": profile.agent_type,
-                    "count": profile.record_count,
-                    "created_at": profile.created_at.isoformat(),
-                    "file_path": profile.file_path,
-                }
-            )
-
+        # Convert to ApiAgentProfile list
+        profile_list = [ApiAgentProfile.model_validate(profile) for profile in profiles]
         return ApiResponseWrapper(data=profile_list)
 
 
@@ -107,7 +91,7 @@ async def get_agent_profile(
 
         # Get the file from S3
         env: EnvConfig = request.app.state.env
-        fs_client = env.webui_fs_client
+        fs_client = env.fs_client
         try:
             content = fs_client.download(profile.file_path)
             data = json.loads(content)
@@ -155,7 +139,7 @@ async def delete_agent_profile(
 
         # Delete the file from webui storage
         env: EnvConfig = request.app.state.env
-        fs_client = env.webui_fs_client
+        fs_client = env.fs_client
         try:
             fs_client.delete(profile.file_path)
         except Exception as e:
@@ -178,51 +162,53 @@ def validate_and_process_ids(data: List[Dict[str, Any]]) -> List[Dict[str, Any]]
     1. All records have IDs
     2. No records have IDs
     3. Some records have IDs while others don't
-    
+
     Args:
         data: List of dictionaries containing agent profile data
-        
+
     Returns:
         List of dictionaries with validated and processed IDs
-        
+
     Raises:
         HTTPException: If invalid or duplicate IDs are found
     """
     # Collect existing IDs
     existing_ids = set()
     max_id = 0
-    
+
     # First pass: validate existing IDs
     for record in data:
-        if 'id' in record:
-            id_value = record['id']
+        if "id" in record:
+            id_value = record["id"]
             # Check if ID is an integer
-            if not isinstance(id_value, (int, str)) or (isinstance(id_value, str) and not id_value.isdigit()):
+            if not isinstance(id_value, (int, str)) or (
+                isinstance(id_value, str) and not id_value.isdigit()
+            ):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="ID must be an integer"
+                    detail="ID must be an integer",
                 )
-            
+
             id_value = int(id_value)
             if id_value in existing_ids:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Duplicate ID found: {id_value}"
+                    detail=f"Duplicate ID found: {id_value}",
                 )
             existing_ids.add(id_value)
             max_id = max(max_id, id_value)
-    
+
     # Second pass: assign new IDs to records without IDs
     next_id = max_id + 1
     for record in data:
-        if 'id' not in record:
+        if "id" not in record:
             # Find next available ID
             while next_id in existing_ids:
                 next_id += 1
-            record['id'] = next_id
+            record["id"] = next_id
             existing_ids.add(next_id)
             next_id += 1
-    
+
     return data
 
 
@@ -232,21 +218,8 @@ async def upload_agent_profile(
     file: UploadFile = File(...),
     name: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
-) -> ApiResponseWrapper[Dict[str, Any]]:
-    """Upload an agent profile file and save it to the database.
-    
-    Args:
-        request: FastAPI request object
-        file: Uploaded file (CSV or JSON)
-        name: Optional profile name
-        description: Optional profile description
-        
-    Returns:
-        ApiResponseWrapper containing the created profile metadata
-        
-    Raises:
-        HTTPException: If file processing fails or validation errors occur
-    """
+) -> ApiResponseWrapper[ApiAgentProfile]:
+    """Upload an agent profile file and save it to the database."""
     if request.app.state.read_only:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Server is in read-only mode"
@@ -261,7 +234,7 @@ async def upload_agent_profile(
         )
 
     env: EnvConfig = request.app.state.env
-    fs_client = env.webui_fs_client
+    fs_client = env.fs_client
 
     # Read file content
     content = await file.read()
@@ -281,7 +254,7 @@ async def upload_agent_profile(
             if not isinstance(data, list):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="JSON data must be a list of objects"
+                    detail="JSON data must be a list of objects",
                 )
             data = validate_and_process_ids(data)
             record_count = len(data)
@@ -308,9 +281,7 @@ async def upload_agent_profile(
 
         # Use provided name or filename
         profile_name = name if name else os.path.splitext(filename)[0]
-        profile_description = (
-            description if description else f"Uploaded file: {filename}"
-        )
+        profile_description = description if description else None
 
         # Save metadata to database
         async with request.app.state.get_db() as db:
@@ -331,16 +302,9 @@ async def upload_agent_profile(
             await db.commit()
             await db.refresh(new_profile)  # Refresh to get database-generated values
 
-            # Create response data dictionary
-            response_data = {
-                "id": str(profile_id),
-                "name": profile_name,
-                "description": profile_description,
-                "count": record_count,
-                "created_at": new_profile.created_at.isoformat() if new_profile.created_at else None,
-                "file_path": s3_path,
-            }
-            return ApiResponseWrapper(data=response_data)
+            # Convert to ApiAgentProfile
+            api_profile = ApiAgentProfile.model_validate(new_profile)
+            return ApiResponseWrapper(data=api_profile)
     except json.JSONDecodeError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON format"

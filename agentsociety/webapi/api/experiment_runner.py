@@ -90,7 +90,7 @@ async def run_experiment(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Permission denied",
         )
-    webui_fs_client = request.app.state.env.webui_fs_client
+    webui_fs_client = request.app.state.env.fs_client
     # get config from db
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)

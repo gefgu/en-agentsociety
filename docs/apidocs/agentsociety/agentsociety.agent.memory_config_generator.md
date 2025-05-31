@@ -29,6 +29,14 @@
 :class: autosummary longtable
 :align: left
 
+* - {py:obj}`default_memory_config_citizen <agentsociety.agent.memory_config_generator.default_memory_config_citizen>`
+  - ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.default_memory_config_citizen
+    :summary:
+    ```
+* - {py:obj}`default_memory_config_supervisor <agentsociety.agent.memory_config_generator.default_memory_config_supervisor>`
+  - ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.default_memory_config_supervisor
+    :summary:
+    ```
 * - {py:obj}`_memory_config_load_file <agentsociety.agent.memory_config_generator._memory_config_load_file>`
   - ```{autodoc2-docstring} agentsociety.agent.memory_config_generator._memory_config_load_file
     :summary:
@@ -60,7 +68,7 @@
 ````{py:data} __all__
 :canonical: agentsociety.agent.memory_config_generator.__all__
 :value: >
-   ['MemoryConfigGenerator', 'MemoryT', 'StatusAttribute']
+   ['MemoryConfigGenerator', 'MemoryT', 'StatusAttribute', 'default_memory_config_citizen']
 
 ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.__all__
 ```
@@ -148,6 +156,20 @@ Bases: {py:obj}`pydantic.BaseModel`
 ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryT
 ```
 
+````
+
+````{py:function} default_memory_config_citizen(distributions: dict[str, agentsociety.agent.distribution.Distribution], class_config: typing.Optional[list[agentsociety.agent.memory_config_generator.StatusAttribute]] = None) -> tuple[dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, typing.Any]]
+:canonical: agentsociety.agent.memory_config_generator.default_memory_config_citizen
+
+```{autodoc2-docstring} agentsociety.agent.memory_config_generator.default_memory_config_citizen
+```
+````
+
+````{py:function} default_memory_config_supervisor(distributions: dict[str, agentsociety.agent.distribution.Distribution], class_config: typing.Optional[list[agentsociety.agent.memory_config_generator.StatusAttribute]] = None) -> tuple[dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, typing.Any]]
+:canonical: agentsociety.agent.memory_config_generator.default_memory_config_supervisor
+
+```{autodoc2-docstring} agentsociety.agent.memory_config_generator.default_memory_config_supervisor
+```
 ````
 
 `````{py:class} MemoryConfigGenerator(config_func: typing.Callable[[dict[str, agentsociety.agent.distribution.Distribution], typing.Optional[list[agentsociety.agent.memory_config_generator.StatusAttribute]]], tuple[dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, typing.Union[agentsociety.agent.memory_config_generator.MemoryT, float]], dict[str, typing.Any]]], class_config: typing.Optional[list[agentsociety.agent.memory_config_generator.StatusAttribute]] = None, file: typing.Optional[str] = None, distributions: dict[str, typing.Union[agentsociety.agent.distribution.Distribution, agentsociety.agent.distribution.DistributionConfig]] = {}, s3config: agentsociety.s3.S3Config = S3Config.model_validate({}))

@@ -1,5 +1,5 @@
 import uuid
-from typing import Dict, List, cast, Any
+from typing import Dict, List, cast, Any, Type
 
 from fastapi import APIRouter, Body, HTTPException, Request, status
 from sqlalchemy import delete, insert, select, update
@@ -9,32 +9,31 @@ from ..models import ApiResponseWrapper
 from ..models.agent_template import (
     AgentTemplateDB,
     ApiAgentTemplate,
-    TemplateBlock,
-    Distribution,
-    DistributionConfig,
     ChoiceDistribution,
     UniformIntDistribution,
     NormalDistribution,
     ChoiceDistributionConfig,
     UniformIntDistributionConfig,
     NormalDistributionConfig,
-    BaseConfig,
-    StatesConfig,
     AgentParams,
+    DistributionType,
 )
-from ...cityagent.societyagent import SocietyAgent
-from ...cityagent.blocks.economy_block import (
-    EconomyBlock,
-)
-from ...cityagent.blocks.mobility_block import (
-    MobilityBlock,
-)
-from agentsociety.cityagent.blocks.other_block import (
-    OtherBlock,
-)
-from agentsociety.cityagent.blocks.social_block import (
-    SocialBlock,
-)
+
+try:
+    from agentsociety_community.agents import citizens, supervisors
+    from agentsociety_community.workflows import functions as workflow_functions
+    from agentsociety_community.blocks import citizens as citizen_blocks
+except ImportError:
+    import warnings
+
+    warnings.warn(
+        "agentsociety_community is not installed. Please install it with `pip install agentsociety-community`"
+    )
+
+    citizens = None
+    supervisors = None
+    workflow_functions = None
+    citizen_blocks = None
 
 __all__ = ["router"]
 
@@ -70,7 +69,7 @@ async def list_agent_templates(
                         if dist_type == "choice":
                             if "params" in value:
                                 memory_distributions_dict[key] = ChoiceDistribution(
-                                    type="choice",
+                                    type=DistributionType.CHOICE,
                                     params={
                                         "choices": value["params"]["choices"],
                                         "weights": value["params"]["weights"],
@@ -79,7 +78,7 @@ async def list_agent_templates(
                             else:
                                 memory_distributions_dict[key] = (
                                     ChoiceDistributionConfig(
-                                        type="choice",
+                                        type=DistributionType.CHOICE,
                                         choices=value["choices"],
                                         weights=value["weights"],
                                     )
@@ -87,7 +86,7 @@ async def list_agent_templates(
                         elif dist_type == "uniform_int":
                             if "params" in value:
                                 memory_distributions_dict[key] = UniformIntDistribution(
-                                    type="uniform_int",
+                                    type=DistributionType.UNIFORM_INT,
                                     params={
                                         "min_value": value["params"]["min_value"],
                                         "max_value": value["params"]["max_value"],
@@ -96,7 +95,7 @@ async def list_agent_templates(
                             else:
                                 memory_distributions_dict[key] = (
                                     UniformIntDistributionConfig(
-                                        type="uniform_int",
+                                        type=DistributionType.UNIFORM_INT,
                                         min_value=value["min_value"],
                                         max_value=value["max_value"],
                                     )
@@ -104,7 +103,7 @@ async def list_agent_templates(
                         elif dist_type == "normal":
                             if "params" in value:
                                 memory_distributions_dict[key] = NormalDistribution(
-                                    type="normal",
+                                    type=DistributionType.NORMAL,
                                     params={
                                         "mean": value["params"]["mean"],
                                         "std": value["params"]["std"],
@@ -113,7 +112,7 @@ async def list_agent_templates(
                             else:
                                 memory_distributions_dict[key] = (
                                     NormalDistributionConfig(
-                                        type="normal",
+                                        type=DistributionType.NORMAL,
                                         mean=value["mean"],
                                         std=value["std"],
                                     )
@@ -124,15 +123,13 @@ async def list_agent_templates(
                     id=template.id,
                     name=template.name,
                     description=template.description,
+                    agent_type=template.agent_type,
+                    agent_class=template.agent_class,
                     memory_distributions=memory_distributions_dict,
                     agent_params=AgentParams(**template.agent_params),
                     blocks=template.blocks,
-                    created_at=(
-                        template.created_at.isoformat() if template.created_at else None
-                    ),
-                    updated_at=(
-                        template.updated_at.isoformat() if template.updated_at else None
-                    ),
+                    created_at=template.created_at,
+                    updated_at=template.updated_at,
                 )
                 api_templates.append(api_template)
 
@@ -178,7 +175,7 @@ async def get_agent_template(
                     if dist_type == "choice":
                         if "params" in value:
                             memory_distributions_dict[key] = ChoiceDistribution(
-                                type="choice",
+                                type=DistributionType.CHOICE,
                                 params={
                                     "choices": value["params"]["choices"],
                                     "weights": value["params"]["weights"],
@@ -186,14 +183,14 @@ async def get_agent_template(
                             )
                         else:
                             memory_distributions_dict[key] = ChoiceDistributionConfig(
-                                type="choice",
+                                type=DistributionType.CHOICE,
                                 choices=value["choices"],
                                 weights=value["weights"],
                             )
                     elif dist_type == "uniform_int":
                         if "params" in value:
                             memory_distributions_dict[key] = UniformIntDistribution(
-                                type="uniform_int",
+                                type=DistributionType.UNIFORM_INT,
                                 params={
                                     "min_value": value["params"]["min_value"],
                                     "max_value": value["params"]["max_value"],
@@ -202,7 +199,7 @@ async def get_agent_template(
                         else:
                             memory_distributions_dict[key] = (
                                 UniformIntDistributionConfig(
-                                    type="uniform_int",
+                                    type=DistributionType.UNIFORM_INT,
                                     min_value=value["min_value"],
                                     max_value=value["max_value"],
                                 )
@@ -210,7 +207,7 @@ async def get_agent_template(
                     elif dist_type == "normal":
                         if "params" in value:
                             memory_distributions_dict[key] = NormalDistribution(
-                                type="normal",
+                                type=DistributionType.NORMAL,
                                 params={
                                     "mean": value["params"]["mean"],
                                     "std": value["params"]["std"],
@@ -218,7 +215,7 @@ async def get_agent_template(
                             )
                         else:
                             memory_distributions_dict[key] = NormalDistributionConfig(
-                                type="normal", mean=value["mean"], std=value["std"]
+                                type=DistributionType.NORMAL, mean=value["mean"], std=value["std"]
                             )
 
             api_template = ApiAgentTemplate(
@@ -226,15 +223,13 @@ async def get_agent_template(
                 id=template.id,
                 name=template.name,
                 description=template.description,
+                agent_type=template.agent_type,
+                agent_class=template.agent_class,
                 memory_distributions=memory_distributions_dict,
                 agent_params=AgentParams(**template.agent_params),
                 blocks=template.blocks,
-                created_at=(
-                    template.created_at.isoformat() if template.created_at else None
-                ),
-                updated_at=(
-                    template.updated_at.isoformat() if template.updated_at else None
-                ),
+                created_at=template.created_at,
+                updated_at=template.updated_at,
             )
 
             return ApiResponseWrapper(data=api_template)
@@ -276,12 +271,12 @@ async def create_agent_template(
                 ),
             ):
                 # 如果是Config类型，直接转换为字典
-                profile_dict[key] = value.dict()
+                profile_dict[key] = value.model_dump()
             elif isinstance(
                 value, (ChoiceDistribution, UniformIntDistribution, NormalDistribution)
             ):
                 # 如果是Distribution类型，保持params结构
-                profile_dict[key] = value.dict()
+                profile_dict[key] = value.model_dump()
             else:
                 # 如果已经是字典格式，直接使用
                 profile_dict[key] = value
@@ -303,6 +298,8 @@ async def create_agent_template(
                 id=template_id,
                 name=template.name,
                 description=template.description,
+                agent_type=template.agent_type,
+                agent_class=template.agent_class,
                 profile=profile_dict,
                 base=base_config,
                 states=states_config,
@@ -320,13 +317,15 @@ async def create_agent_template(
                 id=new_template.id,
                 name=new_template.name,
                 description=new_template.description,
+                agent_type=new_template.agent_type,
+                agent_class=new_template.agent_class,
                 memory_distributions=new_template.profile,
                 base=new_template.base,
                 states=new_template.states,
                 agent_params=AgentParams(**new_template.agent_params),
                 blocks=new_template.blocks,
-                created_at=new_template.created_at.isoformat(),
-                updated_at=new_template.updated_at.isoformat(),
+                created_at=new_template.created_at,
+                updated_at=new_template.updated_at,
             )
 
             return ApiResponseWrapper(data=response_template)
@@ -364,8 +363,10 @@ async def update_agent_template(
             .values(
                 name=template.name,
                 description=template.description,
+                agent_type=template.agent_type,
+                agent_class=template.agent_class,
                 profile=template.memory_distributions,
-                agent_params=template.agent_params.dict(),
+                agent_params=template.agent_params.model_dump(),
                 blocks=template.blocks,
             )
         )
@@ -409,50 +410,23 @@ async def delete_agent_template(
         return ApiResponseWrapper(data={"message": "Template deleted successfully"})
 
 
-# @router.get("/agent-functions")
-# async def get_agent_functions(
-#     request: Request,
-# ) -> ApiResponseWrapper[List[Dict[str, str]]]:
-#     """Get available functions for agent"""
-#     try:
-#         functions_map = SocietyAgent.get_functions
-#         functions = [
-#             {
-#                 "function_name": func_info["function_name"],
-#                 "description": func_info["description"],
-#             }
-#             for func_info in functions_map.values()
-#         ]
-#         return ApiResponseWrapper(data=functions)
-#     except Exception as e:
-#         print(f"Error in get_agent_functions: {str(e)}")
-#         raise HTTPException(
-#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-#             detail=f"Failed to get agent functions: {str(e)}",
-#         )
-
-
 @router.get("/agent-blocks")
 async def get_agent_blocks(
     request: Request,
-) -> ApiResponseWrapper[List[Dict[str, Any]]]:
-    """Get available blocks basic information including name and description"""
+) -> ApiResponseWrapper[List[str]]:
+    """Get available block types"""
     try:
-        block_classes = [
-            # CognitionBlock,
-            EconomyBlock,
-            MobilityBlock,
-            OtherBlock,
-            SocialBlock,
-        ]
-
         blocks = []
-        for block_class in block_classes:
-            block_info = {
-                "block_name": block_class.name,
-                "description": block_class.description,
-            }
-            blocks.append(block_info)
+        
+        # 获取citizen blocks
+        if citizen_blocks is not None:
+            # for block_name, block_class in citizen_blocks.get_type_to_cls_dict().items():
+            #     block_info = {
+            #         "block_name": block_class.name,
+            #         "description": block_class.description,
+            #     }
+            #     blocks.append(block_info)
+            blocks = list(citizen_blocks.get_type_to_cls_dict().keys())
 
         return ApiResponseWrapper(data=blocks)
     except Exception as e:
@@ -522,10 +496,39 @@ def get_field_info(field):
 @router.get("/agent-param")
 async def get_agent_param(
     request: Request,
+    agent_type: str,
+    agent_class: str,
 ) -> ApiResponseWrapper[Dict[str, Any]]:
-    """Get SocietyAgent's parameters including ParamsType, BlockOutputType, Context and StatusAttributes"""
+    """Get agent's parameters including ParamsType, BlockOutputType, Context and StatusAttributes based on agent type and class"""
     try:
-        # Get SocietyAgent parameters information
+        # Get the appropriate agent class based on agent_type and agent_class
+        if agent_type == "citizen":
+            if citizens is None:
+                type_dict = {}
+            else:
+                type_dict = citizens.get_type_to_cls_dict()
+        elif agent_type == "supervisor":
+            if supervisors is None:
+                type_dict = {}
+            else:
+                type_dict = supervisors.get_type_to_cls_dict()
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid agent_type. Must be 'citizen' or 'supervisor', got: {agent_type}",
+            )
+
+        if agent_class not in type_dict:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid agent_class '{agent_class}' for agent_type '{agent_type}'. Available classes: {list(type_dict.keys())}",
+            )
+
+        # Get the agent class
+        agent_cls_factory = type_dict[agent_class]
+        agent_cls = agent_cls_factory()
+
+        # Get agent parameters information
         param_data = {
             "params_type": {},
             "block_output_type": {},
@@ -534,24 +537,24 @@ async def get_agent_param(
         }
 
         # Process ParamsType
-        if hasattr(SocietyAgent.ParamsType, "model_fields"):
+        if hasattr(agent_cls.ParamsType, "model_fields"):
             param_data["params_type"] = {
                 field_name: get_field_info(field)
-                for field_name, field in SocietyAgent.ParamsType.model_fields.items()
+                for field_name, field in agent_cls.ParamsType.model_fields.items()
             }
 
         # Process BlockOutputType
-        if hasattr(SocietyAgent.BlockOutputType, "model_fields"):
+        if hasattr(agent_cls.BlockOutputType, "model_fields"):
             param_data["block_output_type"] = {
                 field_name: get_field_info(field)
-                for field_name, field in SocietyAgent.BlockOutputType.model_fields.items()
+                for field_name, field in agent_cls.BlockOutputType.model_fields.items()
             }
 
         # Process Context
-        if hasattr(SocietyAgent.Context, "model_fields"):
+        if hasattr(agent_cls.Context, "model_fields"):
             param_data["context"] = {
                 field_name: get_field_info(field)
-                for field_name, field in SocietyAgent.Context.model_fields.items()
+                for field_name, field in agent_cls.Context.model_fields.items()
             }
 
         # Process StatusAttributes
@@ -567,10 +570,12 @@ async def get_agent_param(
                 "description": attr.description,
                 # "whether_embedding": attr.whether_embedding if hasattr(attr, "whether_embedding") else False
             }
-            for attr in SocietyAgent.StatusAttributes
+            for attr in agent_cls.StatusAttributes
         ]
 
         return ApiResponseWrapper(data=param_data)
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error in get_agent_param: {str(e)}")
         raise HTTPException(
@@ -586,21 +591,18 @@ async def get_block_param(
 ) -> ApiResponseWrapper[Dict[str, Any]]:
     """Get Block's parameters including ParamsType and Context for specified block type"""
     try:
-        # Map block type string to block class
-        block_map = {
-            "EconomyBlock": EconomyBlock,
-            "MobilityBlock": MobilityBlock,
-            "OtherBlock": OtherBlock,
-            "SocialBlock": SocialBlock,
-        }
+        # 在citizen blocks中查找
+        if citizen_blocks is not None:
+            block_map = citizen_blocks.get_type_to_cls_dict()
+            if block_type in block_map:
+                block_class_factory = block_map[block_type]
+                block_class = block_class_factory()
 
-        if block_type not in block_map:
+        if block_class is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid block type. Available types: {', '.join(block_map.keys())}",
+                detail=f"Invalid block type: {block_type}",
             )
-
-        block_class = block_map[block_type]
 
         # Get Block parameters information
         param_data = {
@@ -635,4 +637,62 @@ async def get_block_param(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get block parameters: {str(e)}",
+        )
+
+
+@router.get("/agent-classes")
+async def get_agent_classes(
+    request: Request,
+    agent_type: str,
+) -> ApiResponseWrapper[List[Dict[str, str]]]:
+    """Get available agent classes base on agent type"""
+    try:
+        if agent_type == "citizen":
+            if citizens is None:
+                type_dict = {}
+            else:
+                type_dict = citizens.get_type_to_cls_dict()
+        elif agent_type == "supervisor":
+            if supervisors is None:
+                type_dict = {}
+            else:
+                type_dict = supervisors.get_type_to_cls_dict()
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid agent_type. Must be 'citizen' or 'supervisor', got: {agent_type}",
+            )
+
+        # Convert to list of dicts with value and label for frontend Select component
+        agent_type_result = [
+            {"value": type_name, "label": type_name} for type_name in type_dict.keys()
+        ]
+        return ApiResponseWrapper(data=agent_type_result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in get_agent_classes: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get agent_classes '{agent_type}': {str(e)}",
+        )
+
+
+@router.get("/community/workflow/functions")
+async def get_workflow_functions(
+    request: Request,
+) -> ApiResponseWrapper[List[str]]:
+    """Get available workflow function names"""
+    try:
+        if workflow_functions is None:
+            function_map = {}
+        else:
+            function_map = workflow_functions.get_type_to_cls_dict()
+        function_names = list(function_map.keys())
+        return ApiResponseWrapper(data=function_names)
+    except Exception as e:
+        print(f"Error in get_workflow_functions: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get workflow functions: {str(e)}",
         )

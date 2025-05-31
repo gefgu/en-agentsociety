@@ -5,20 +5,16 @@ from collections.abc import Callable
 from enum import Enum
 from typing import Any, Awaitable, List, Literal, Optional, Union
 
-from pydantic import (BaseModel, ConfigDict, Field, field_serializer,
-                      model_validator)
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
 
 from ..agent import Agent
 from ..environment import EnvironmentConfig
-from ..message.message_interceptor import (MessageBlockBase,
-                                           MessageBlockListenerBase)
 from ..survey import Survey
 
 __all__ = [
     "WorkflowStepConfig",
     "MetricExtractorConfig",
     "EnvironmentConfig",
-    "MessageInterceptConfig",
     "ExpConfig",
     "WorkflowType",
     "MetricType",
@@ -241,44 +237,6 @@ class MetricExtractorConfig(BaseModel):
         return func.__name__
 
 
-class MessageInterceptConfig(BaseModel):
-    """Configuration for message interception in the simulation."""
-
-    model_config = ConfigDict(
-        use_enum_values=True,
-        use_attribute_docstrings=True,
-        arbitrary_types_allowed=True,
-    )
-
-    mode: Optional[Union[Literal["point"], Literal["edge"]]] = None
-    """Mode of message interception, either set this or blocks"""
-
-    max_violation_time: int = 3
-    """Maximum number of allowed violations"""
-
-    blocks: list[MessageBlockBase] = Field([])
-    """List of message blocks, either set this or mode"""
-
-    listener: Optional[type[MessageBlockListenerBase]] = None
-    """Listener for message interception"""
-
-    forward_strategy: Literal["outer_control", "inner_control"] = "inner_control"
-    """Forward strategy for message interception"""
-    
-    governance_func: Optional[Callable[[Any,Any], Awaitable[tuple[Any, Any, Any, Any]]]] = None
-    """Governance functions for message interception, the two arguments are the current_round_messages and the LLM"""
-
-    # When serialize to json, change blocks and listener to their class name
-
-    @field_serializer("blocks")
-    def serialize_blocks(self, blocks, info):
-        return [block.__class__.__name__ for block in blocks]
-
-    @field_serializer("listener")
-    def serialize_listener(self, listener, info):
-        return listener.__class__.__name__ if listener else None
-
-
 class ExpConfig(BaseModel):
     """Main configuration for the experiment."""
 
@@ -295,9 +253,6 @@ class ExpConfig(BaseModel):
 
     environment: EnvironmentConfig
     """Environment configuration"""
-
-    message_intercept: Optional[MessageInterceptConfig] = None
-    """Message interception configuration"""
 
     metric_extractors: Optional[list[MetricExtractorConfig]] = None
     """List of metric extractors"""

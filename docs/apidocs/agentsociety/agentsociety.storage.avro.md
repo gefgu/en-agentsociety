@@ -16,9 +16,7 @@
 :align: left
 
 * - {py:obj}`AvroConfig <agentsociety.storage.avro.AvroConfig>`
-  - ```{autodoc2-docstring} agentsociety.storage.avro.AvroConfig
-    :summary:
-    ```
+  -
 * - {py:obj}`AvroSaver <agentsociety.storage.avro.AvroSaver>`
   - ```{autodoc2-docstring} agentsociety.storage.avro.AvroSaver
     :summary:
@@ -72,6 +70,24 @@
 ```
 
 ````
+
+`````{py:class} AvroConfig(/, **data: typing.Any)
+:canonical: agentsociety.storage.avro.AvroConfig
+
+Bases: {py:obj}`pydantic.BaseModel`
+
+````{py:attribute} enabled
+:canonical: agentsociety.storage.avro.AvroConfig.enabled
+:type: bool
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.storage.avro.AvroConfig.enabled
+```
+
+````
+
+`````
 
 ````{py:data} PROFILE_SCHEMA
 :canonical: agentsociety.storage.avro.PROFILE_SCHEMA
@@ -133,53 +149,7 @@
 
 ````
 
-`````{py:class} AvroConfig(/, **data: typing.Any)
-:canonical: agentsociety.storage.avro.AvroConfig
-
-Bases: {py:obj}`pydantic.BaseModel`
-
-```{autodoc2-docstring} agentsociety.storage.avro.AvroConfig
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.storage.avro.AvroConfig.__init__
-```
-
-````{py:attribute} enabled
-:canonical: agentsociety.storage.avro.AvroConfig.enabled
-:type: bool
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.storage.avro.AvroConfig.enabled
-```
-
-````
-
-````{py:attribute} path
-:canonical: agentsociety.storage.avro.AvroConfig.path
-:type: str
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.storage.avro.AvroConfig.path
-```
-
-````
-
-````{py:method} validate_path()
-:canonical: agentsociety.storage.avro.AvroConfig.validate_path
-
-```{autodoc2-docstring} agentsociety.storage.avro.AvroConfig.validate_path
-```
-
-````
-
-`````
-
-`````{py:class} AvroSaver(config: agentsociety.storage.avro.AvroConfig, exp_id: str, group_id: typing.Optional[str])
+`````{py:class} AvroSaver(config: agentsociety.storage.avro.AvroConfig, home_dir: str, tenant_id: str, exp_id: str, group_id: typing.Optional[str])
 :canonical: agentsociety.storage.avro.AvroSaver
 
 ```{autodoc2-docstring} agentsociety.storage.avro.AvroSaver

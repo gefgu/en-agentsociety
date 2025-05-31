@@ -24,6 +24,7 @@ from .sharing_params import (
     SocietyAgentBlockOutput,
     SocietyAgentContext,
 )
+from ..message import Message
 
 ENVIRONMENT_REFLECTION_PROMPT = """
 You are a citizen of the city.
@@ -44,31 +45,138 @@ class SocietyAgent(CitizenAgentBase):
     Context = SocietyAgentContext
     StatusAttributes = [
         # Needs Model
-        StatusAttribute(name="hunger_satisfaction",type=float,default=0.9,description="agent's hunger satisfaction, 0-1"),
-        StatusAttribute(name="energy_satisfaction",type=float,default=0.9,description="agent's energy satisfaction, 0-1"),
-        StatusAttribute(name="safety_satisfaction",type=float,default=0.4,description="agent's safety satisfaction, 0-1"),
-        StatusAttribute(name="social_satisfaction",type=float,default=0.6,description="agent's social satisfaction, 0-1"),
-        StatusAttribute(name="current_need",type=str,default="none",description="agent's current need"),
+        StatusAttribute(
+            name="hunger_satisfaction",
+            type=float,
+            default=0.9,
+            description="agent's hunger satisfaction, 0-1",
+        ),
+        StatusAttribute(
+            name="energy_satisfaction",
+            type=float,
+            default=0.9,
+            description="agent's energy satisfaction, 0-1",
+        ),
+        StatusAttribute(
+            name="safety_satisfaction",
+            type=float,
+            default=0.4,
+            description="agent's safety satisfaction, 0-1",
+        ),
+        StatusAttribute(
+            name="social_satisfaction",
+            type=float,
+            default=0.6,
+            description="agent's social satisfaction, 0-1",
+        ),
+        StatusAttribute(
+            name="current_need",
+            type=str,
+            default="none",
+            description="agent's current need",
+        ),
         # cognition
-        StatusAttribute(name="emotion",type=dict,default={"sadness": 5, "joy": 5, "fear": 5, "disgust": 5, "anger": 5, "surprise": 5},description="agent's emotion, 0-10"),
-        StatusAttribute(name="thought",type=str,default="Currently nothing good or bad is happening",description="agent's thought",whether_embedding=True),
-        StatusAttribute(name="emotion_types",type=str,default="Relief",description="agent's emotion types",whether_embedding=True),
-        StatusAttribute(name="firm_id",type=int,default=0,description="agent's firm id"),
-        StatusAttribute(name="government_id",type=int,default=0,description="agent's government id"),
-        StatusAttribute(name="bank_id",type=int,default=0,description="agent's bank id"),
-        StatusAttribute(name="nbs_id",type=int,default=0,description="agent's nbs id"),
-        StatusAttribute(name="depression",type=float,default=0.0,description="agent's depression, 0-1"),
-        StatusAttribute(name="working_experience",type=list,default=[],description="agent's working experience"),
-        StatusAttribute(name="work_hour_month",type=float,default=160,description="agent's work hour per month"),
-        StatusAttribute(name="work_hour_finish",type=float,default=0,description="agent's work hour finished"),
+        StatusAttribute(
+            name="emotion",
+            type=dict,
+            default={
+                "sadness": 5,
+                "joy": 5,
+                "fear": 5,
+                "disgust": 5,
+                "anger": 5,
+                "surprise": 5,
+            },
+            description="agent's emotion, 0-10",
+        ),
+        StatusAttribute(
+            name="thought",
+            type=str,
+            default="Currently nothing good or bad is happening",
+            description="agent's thought",
+            whether_embedding=True,
+        ),
+        StatusAttribute(
+            name="emotion_types",
+            type=str,
+            default="Relief",
+            description="agent's emotion types",
+            whether_embedding=True,
+        ),
+        StatusAttribute(
+            name="firm_id", type=int, default=0, description="agent's firm id"
+        ),
+        StatusAttribute(
+            name="government_id",
+            type=int,
+            default=0,
+            description="agent's government id",
+        ),
+        StatusAttribute(
+            name="bank_id", type=int, default=0, description="agent's bank id"
+        ),
+        StatusAttribute(
+            name="nbs_id", type=int, default=0, description="agent's nbs id"
+        ),
+        StatusAttribute(
+            name="depression",
+            type=float,
+            default=0.0,
+            description="agent's depression, 0-1",
+        ),
+        StatusAttribute(
+            name="working_experience",
+            type=list,
+            default=[],
+            description="agent's working experience",
+        ),
+        StatusAttribute(
+            name="work_hour_month",
+            type=float,
+            default=160,
+            description="agent's work hour per month",
+        ),
+        StatusAttribute(
+            name="work_hour_finish",
+            type=float,
+            default=0,
+            description="agent's work hour finished",
+        ),
         # social
-        StatusAttribute(name="friends",type=list,default=[],description="agent's friends list"),
-        StatusAttribute(name="relationships",type=dict,default={},description="agent's relationship strength with each friend"),
-        StatusAttribute(name="relation_types",type=dict,default={},description="agent's relation types with each friend"),
-        StatusAttribute(name="chat_histories",type=dict,default={},description="all chat histories"),
-        StatusAttribute(name="interactions",type=dict,default={},description="all interaction records"),
+        StatusAttribute(
+            name="friends", type=list, default=[], description="agent's friends list"
+        ),
+        StatusAttribute(
+            name="relationships",
+            type=dict,
+            default={},
+            description="agent's relationship strength with each friend",
+        ),
+        StatusAttribute(
+            name="relation_types",
+            type=dict,
+            default={},
+            description="agent's relation types with each friend",
+        ),
+        StatusAttribute(
+            name="chat_histories",
+            type=dict,
+            default={},
+            description="all chat histories",
+        ),
+        StatusAttribute(
+            name="interactions",
+            type=dict,
+            default={},
+            description="all interaction records",
+        ),
         # mobility
-        StatusAttribute(name="number_poi_visited",type=int,default=1,description="agent's number of poi visited"),
+        StatusAttribute(
+            name="number_poi_visited",
+            type=int,
+            default=1,
+            description="agent's number of poi visited",
+        ),
     ]
     description: str = """
 A social agent that can interact with other agents and the environment.
@@ -138,7 +246,9 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         self.cognition_block = CognitionBlock(
             llm=self.llm, agent_memory=self.memory, environment=self.environment
         )
-        self.environment_reflection_prompt = FormatPrompt(ENVIRONMENT_REFLECTION_PROMPT, memory=self.memory)
+        self.environment_reflection_prompt = FormatPrompt(
+            ENVIRONMENT_REFLECTION_PROMPT, memory=self.memory
+        )
         self.step_count = -1
         self.cognition_update = -1
 
@@ -363,13 +473,14 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         # The previous step has not been completed
         return False
 
-    async def process_agent_chat_response(self, payload: dict) -> str:
+    async def do_chat(self, message: Message) -> str:
         """Process incoming social/economic messages and generate responses."""
-        if payload["type"] == "social":
+        payload = message.payload
+        if payload.get("type", "social") == "social":
             resp = f"Agent {self.id} received agent chat response: {payload}"
             try:
                 # Extract basic info
-                sender_id = payload.get("from")
+                sender_id = message.from_id
                 if not sender_id:
                     return ""
 
@@ -550,13 +661,9 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
             current_step["start_time"] = self.environment.get_tick()
             result = None
             if self.blocks and len(self.blocks) > 0:
-                selected_block = await self.dispatcher.dispatch(
-                    self.context
-                )
+                selected_block = await self.dispatcher.dispatch(self.context)
                 if selected_block:
-                    result = await selected_block.forward(
-                        self.context
-                    )
+                    result = await selected_block.forward(self.context)
                     result = result.model_dump()
                 else:
                     get_logger().warning(

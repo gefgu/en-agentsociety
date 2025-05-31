@@ -59,17 +59,6 @@ Bases: {py:obj}`pydantic.BaseModel`
 ```{autodoc2-docstring} agentsociety.configs.env.EnvConfig.__init__
 ```
 
-````{py:attribute} redis
-:canonical: agentsociety.configs.env.EnvConfig.redis
-:type: agentsociety.message.RedisConfig
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.configs.env.EnvConfig.redis
-```
-
-````
-
 ````{py:attribute} pgsql
 :canonical: agentsociety.configs.env.EnvConfig.pgsql
 :type: agentsociety.storage.PostgreSQLConfig
@@ -83,7 +72,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````{py:attribute} avro
 :canonical: agentsociety.configs.env.EnvConfig.avro
-:type: agentsociety.storage.AvroConfig
+:type: agentsociety.storage.avro.AvroConfig
 :value: >
    None
 
@@ -114,22 +103,30 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:attribute} webui_home_dir
-:canonical: agentsociety.configs.env.EnvConfig.webui_home_dir
+````{py:attribute} home_dir
+:canonical: agentsociety.configs.env.EnvConfig.home_dir
 :type: str
 :value: >
    'Field(...)'
 
-```{autodoc2-docstring} agentsociety.configs.env.EnvConfig.webui_home_dir
+```{autodoc2-docstring} agentsociety.configs.env.EnvConfig.home_dir
 ```
 
 ````
 
-````{py:property} webui_fs_client
-:canonical: agentsociety.configs.env.EnvConfig.webui_fs_client
+````{py:method} validate_storage_mutually_exclusive()
+:canonical: agentsociety.configs.env.EnvConfig.validate_storage_mutually_exclusive
+
+```{autodoc2-docstring} agentsociety.configs.env.EnvConfig.validate_storage_mutually_exclusive
+```
+
+````
+
+````{py:property} fs_client
+:canonical: agentsociety.configs.env.EnvConfig.fs_client
 :type: typing.Union[agentsociety.s3.S3Client, agentsociety.filesystem.FileSystemClient]
 
-```{autodoc2-docstring} agentsociety.configs.env.EnvConfig.webui_fs_client
+```{autodoc2-docstring} agentsociety.configs.env.EnvConfig.fs_client
 ```
 
 ````

@@ -1,4 +1,3 @@
-
 from typing import Optional
 
 from pydantic import Field
@@ -51,22 +50,34 @@ class SocietyAgentBlockOutput(BlockOutput):
 
 class SocietyAgentContext(AgentContext):
     # Normal Information
-    current_time: str = Field(default="Don't know", description="Current time, in HH:MM:SS format")
-    current_need: str = Field(default="Don't know", description="Current need")  # runtime
-    current_intention: str = Field(default="Don't know", description="Current intention")  # runtime
+    current_time: str = Field(
+        default="Don't know", description="Current time, in HH:MM:SS format"
+    )
+    current_need: str = Field(
+        default="Don't know", description="Current need"
+    )  # runtime
+    current_intention: str = Field(
+        default="Don't know", description="Current intention"
+    )  # runtime
     current_emotion: str = Field(default="Don't know", description="Current emotion")
     current_thought: str = Field(default="Don't know", description="Current thought")
     current_location: str = Field(default="Don't know", description="Current location")
-    
+
     # Environment Information
     area_information: str = Field(default="Don't know", description="Area information")
     weather: str = Field(default="Don't know", description="Weather information")
-    temperature: str = Field(default="Don't know", description="Temperature information")
-    other_information: str = Field(default="Don't know", description="Other information")
+    temperature: str = Field(
+        default="Don't know", description="Temperature information"
+    )
+    other_information: str = Field(
+        default="Don't know", description="Other information"
+    )
 
     # Plan Information
     plan_target: str = Field(default="Don't know", description="Plan target")
-    max_plan_steps: int = Field(default=6, description="Maximum number of steps in a plan")
+    max_plan_steps: int = Field(
+        default=6, description="Maximum number of steps in a plan"
+    )
 
     # Block Execution Information
     current_step: dict = Field(default={}, description="Current step")

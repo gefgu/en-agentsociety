@@ -65,7 +65,11 @@ export const RightPanel = observer(() => {
         const res = await fetchCustom(`/api/experiments/${store.expID}/agents/${agent?.id}/survey`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ survey_id: selectedSurveyID }),
+            body: JSON.stringify({
+                survey_id: selectedSurveyID,
+                day: store.currentTime?.day ?? 0,
+                t: store.currentTime?.t ?? 0,
+            }),
         });
         if (res.status !== 200) {
             console.error('Failed to send survey:', res);
@@ -137,7 +141,7 @@ export const RightPanel = observer(() => {
                     const res = await fetchCustom(`/api/experiments/${store.expID}/agents/${agent.id}/dialog`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ content: content }),
+                        body: JSON.stringify({ content: content, day: store.currentTime?.day ?? 0, t: store.currentTime?.t ?? 0 }),
                     });
                     if (res.status !== 200) {
                         console.error('Failed to send message:', res);
@@ -159,21 +163,25 @@ export const RightPanel = observer(() => {
                 console.log(store.id2surveys, s.survey_id);
                 const survey = store.id2surveys.get(s.survey_id);
                 if (survey === undefined) {
-                    return [{
+                    const results = [{
                         key: `${s.id}-${i}`,
                         loading: false,
                         role: "user",
                         content: `Survey ID: ${s.survey_id} (deleted)`,
                         header: <div>Survey Day {s.day} {parseT(s.t)}</div>
-                    }, {
-                        key: `${s.id}-${i}-1`,
-                        loading: false,
-                        role: "agent",
-                        content: JSON.stringify(s.result),
-                        header: <div>{agent?.name} Day {s.day} {parseT(s.t)}</div>
-                    }];
+                    }]
+                    if (s.result) {
+                        results.push({
+                            key: `${s.id}-${i}-1`,
+                            loading: false,
+                            role: "agent",
+                            content: JSON.stringify(s.result),
+                            header: <div>{agent?.name} Day {s.day} {parseT(s.t)}</div>
+                        })
+                    }
+                    return results;
                 } else {
-                    return [{
+                    const results = [{
                         key: `${s.id}-${i}`,
                         loading: false,
                         role: "user",
@@ -187,15 +195,19 @@ export const RightPanel = observer(() => {
                             {t('replay.chatbox.survey.preview')}
                         </Button></div>,
                         header: <div>Survey Day {s.day} {parseT(s.t)}</div>
-                    }, {
-                        key: `${s.id}-${i}-1`,
-                        loading: false,
-                        role: "agent",
-                        content: <div>{Object.entries(s.result).map(([k, v]) => (
-                            <><span>{k}: {JSON.stringify(v)}</span><br /></>
-                        ))}</div>,
-                        header: <div>{agent?.name} Day {s.day} {parseT(s.t)}</div>
-                    }];
+                    }]
+                    if (s.result) {
+                        results.push({
+                            key: `${s.id}-${i}-1`,
+                            loading: false,
+                            role: "agent",
+                            content: <div>{Object.entries(s.result).map(([k, v]) => (
+                                <><span>{k}: {JSON.stringify(v)}</span><br /></>
+                            ))}</div>,
+                            header: <div>{agent?.name} Day {s.day} {parseT(s.t)}</div>
+                        })
+                    }
+                    return results;
                 }
             }).flat()}
         />

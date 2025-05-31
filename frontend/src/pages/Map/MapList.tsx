@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Card, Space, Modal, message, Tooltip, Input, Popconfirm, Form } from 'antd';
+import { Table, Button, Card, Space, Modal, message, Tooltip, Input, Popconfirm, Form, Row, Col } from 'antd';
 import {
     PlusOutlined,
     EditOutlined,
@@ -106,35 +106,6 @@ const MapList: React.FC = () => {
         }
     };
 
-    // Handle duplicate map
-    const handleDuplicate = async (map: ConfigItem) => {
-        try {
-            const duplicateData = {
-                ...map,
-                name: `${map.name} (Copy)`,
-                id: undefined,
-            };
-
-            const res = await fetchCustom('/api/map-configs', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(duplicateData),
-            });
-
-            if (!res.ok) {
-                throw new Error(await res.text());
-            }
-
-            message.success('Map duplicated successfully');
-            loadMaps();
-        } catch (error) {
-            message.error(`Failed to duplicate map: ${JSON.stringify(error.message)}`, 3);
-            console.error(error);
-        }
-    };
-
     // Handle modal OK
     const handleModalOk = async () => {
         try {
@@ -207,9 +178,11 @@ const MapList: React.FC = () => {
             render: (_: any, record: ConfigItem) => (
                 <Space size="small">
                     {
-                        <Tooltip title={t('form.common.edit')}>
-                            <Button icon={<EditOutlined />} size="small" onClick={() => handleEdit(record)} />
-                        </Tooltip>
+                        (record.tenant_id ?? '') !== '' && (
+                            <Tooltip title={t('form.common.edit')}>
+                                <Button icon={<EditOutlined />} size="small" onClick={() => handleEdit(record)} />
+                            </Tooltip>
+                        )
                     }
                     <Tooltip title={t('form.common.view')}>
                         <Button icon={<EyeOutlined />} size="small" onClick={async () => {
@@ -255,16 +228,18 @@ const MapList: React.FC = () => {
                     </Tooltip>
 
                     {
-                        <Tooltip title={t('form.common.delete')}>
-                            <Popconfirm
-                                title={t('form.common.deleteConfirm')}
-                                onConfirm={() => handleDelete(record.id)}
-                                okText={t('form.common.submit')}
-                                cancelText={t('form.common.cancel')}
-                            >
-                                <Button icon={<DeleteOutlined />} size="small" danger />
-                            </Popconfirm>
-                        </Tooltip>
+                        (record.tenant_id ?? '') !== '' && (
+                            <Tooltip title={t('form.common.delete')}>
+                                <Popconfirm
+                                    title={t('form.common.deleteConfirm')}
+                                    onConfirm={() => handleDelete(record.id)}
+                                    okText={t('form.common.submit')}
+                                    cancelText={t('form.common.cancel')}
+                                >
+                                    <Button icon={<DeleteOutlined />} size="small" danger />
+                                </Popconfirm>
+                            </Tooltip>
+                        )
                     }
                 </Space>
             )
@@ -295,30 +270,36 @@ const MapList: React.FC = () => {
                 open={isModalVisible}
                 onOk={handleModalOk}
                 onCancel={handleModalCancel}
-                width={800}
+                width="80vw"
                 destroyOnHidden
             >
-                <Card title={t('form.common.metadataTitle')} style={{ marginBottom: 16 }}>
+                <Card title={t('form.common.metadataTitle')} style={{ marginBottom: 8 }}>
                     <Form
                         form={metaForm}
                         layout="vertical"
                     >
-                        <Form.Item
-                            name="name"
-                            label={t('form.common.name')}
-                            rules={[{ required: true, message: t('form.common.nameRequired') }]}
-                        >
-                            <Input placeholder={t('form.common.namePlaceholder')} />
-                        </Form.Item>
-                        <Form.Item
-                            name="description"
-                            label={t('form.common.description')}
-                        >
-                            <Input.TextArea
-                                rows={2}
-                                placeholder={t('form.common.descriptionPlaceholder')}
-                            />
-                        </Form.Item>
+                        <Row gutter={16}>
+                            <Col span={8}>
+                                <Form.Item
+                                    name="name"
+                                    label={t('form.common.name')}
+                                    rules={[{ required: true, message: t('form.common.nameRequired') }]}
+                                >
+                                    <Input placeholder={t('form.common.namePlaceholder')} />
+                                </Form.Item>
+                            </Col>
+                            <Col span={16}>
+                                <Form.Item
+                                    name="description"
+                                    label={t('form.common.description')}
+                                >
+                                    <Input.TextArea
+                                        rows={1}
+                                        placeholder={t('form.common.descriptionPlaceholder')}
+                                    />
+                                </Form.Item>
+                            </Col>
+                        </Row>
                     </Form>
                 </Card>
 

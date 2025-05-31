@@ -1,26 +1,24 @@
+from datetime import datetime, timedelta
 import os
 import uuid
-from typing import Any, List, Optional, cast
+from typing import List, cast
 
 from pydantic import BaseModel
-import redis.asyncio as aioredis
 from fastapi import (
     APIRouter,
     Body,
     HTTPException,
     Query,
     Request,
-    Response,
     status,
     File,
     UploadFile,
 )
-from fastapi.responses import FileResponse, StreamingResponse
-from sqlalchemy import delete, insert, or_, select, update
+from fastapi.responses import StreamingResponse
+from sqlalchemy import delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...configs import EnvConfig
-from ...s3 import S3Client
 from ..models import ApiResponseWrapper
 from ..models.config import (
     AgentConfig,
@@ -30,6 +28,7 @@ from ..models.config import (
     ApiWorkflowConfig,
     LLMConfig,
     MapConfig,
+    MapTempDownloadLink,
     RealMapConfig,
     WorkflowConfig,
 )
@@ -272,7 +271,7 @@ async def upload_map_file(
     path = f"maps/{tenant_id}/{map_id}.pb"
 
     # Upload to S3
-    fs_client = env.webui_fs_client
+    fs_client = env.fs_client
     content = await file.read()
     fs_client.upload(content, path)
 
@@ -397,7 +396,7 @@ async def export_map_config(
     # Get map file path from config
     map_path = config.file_path
 
-    fs_client = env.webui_fs_client
+    fs_client = env.fs_client
     # download map file from s3
     file_content = fs_client.download(map_path)
 
@@ -441,27 +440,17 @@ async def create_temp_download_link(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Map configuration not found",
             )
-    env: EnvConfig = request.app.state.env
-    client = aioredis.Redis(
-        host=env.redis.server,
-        port=env.redis.port,
-        db=env.redis.db,
-        password=env.redis.password,
-        socket_timeout=env.redis.timeout,
-        socket_keepalive=True,
-        health_check_interval=5,
-        single_connection_client=True,
-    )
-    # key: agentsociety:map:<config_id>:token:<token>
-    # value: "1"
-    # expire: expire_seconds
-    token = str(uuid.uuid4().hex)
-    await client.set(
-        f"agentsociety:map:{config_id}:token:{token}", "1", ex=body.expire_seconds
-    )
-    await client.close()
 
-    return ApiResponseWrapper(data=CreateTempDownloadLinkResponse(token=token))
+        link = MapTempDownloadLink(
+            map_config_id=config_id,
+            expire_at=datetime.now() + timedelta(seconds=body.expire_seconds),
+            token=str(uuid.uuid4().hex),
+        )
+        db.add(link)
+        await db.commit()
+        await db.refresh(link)
+
+        return ApiResponseWrapper(data=CreateTempDownloadLinkResponse(token=link.token))
 
 
 @router.get("/map-configs/{config_id}/temp-link")
@@ -471,28 +460,20 @@ async def download_map_by_token(
     token: str = Query(...),
 ):
     """Download map by token"""
-    env: EnvConfig = request.app.state.env
-    client = aioredis.Redis(
-        host=env.redis.server,
-        port=env.redis.port,
-        db=env.redis.db,
-        password=env.redis.password,
-        socket_timeout=env.redis.timeout,
-        socket_keepalive=True,
-        health_check_interval=5,
-        single_connection_client=True,
-    )
-    res = await client.get(f"agentsociety:map:{config_id}:token:{token}")
-    await client.close()
-
-    if res is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Download link expired or invalid",
-        )
-
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
+        stmt = select(MapTempDownloadLink).where(
+            MapTempDownloadLink.map_config_id == config_id,
+            MapTempDownloadLink.token == token,
+        )
+        result = await db.execute(stmt)
+        link = result.scalar_one_or_none()
+        if not link or link.expire_at < datetime.now():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Download link expired or invalid",
+            )
+
         stmt = select(MapConfig).where(MapConfig.id == config_id)
         result = await db.execute(stmt)
         row = result.scalar_one_or_none()
@@ -504,8 +485,8 @@ async def download_map_by_token(
 
     config = RealMapConfig.model_validate(row.config)
     map_path = config.file_path
-
-    fs_client = env.webui_fs_client
+    env: EnvConfig = request.app.state.env
+    fs_client = env.fs_client
     file_content = fs_client.download(map_path)
 
     return StreamingResponse(

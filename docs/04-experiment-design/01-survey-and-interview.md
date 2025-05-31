@@ -8,9 +8,8 @@ Our platform offers a Sociology Research Toolbox, focusing on interviews and sur
 ## Surveys
 
 We provide a comprehensive survey system for gathering structured feedback from agents using the `SurveyManager` class.
-
-Surveys and interviews communicate with agents via Redis (the same underlying mechanism for dialogues with agents). 
-Agents receive surveys or interviews from the message queue, generate responses, and send these responses to the sending message queue, where they are captured and saved by our framework.
+ 
+Agents receive surveys or interviews, generate responses, and send these responses to the sending message queue, where they are captured and saved by our framework.
 
 ### Create and Send A Survey
 
@@ -83,7 +82,6 @@ from agentsociety.configs.exp import (
 )
 from agentsociety.environment import EnvironmentConfig
 from agentsociety.llm import LLMProviderType
-from agentsociety.message import RedisConfig
 from agentsociety.metrics import MlflowConfig
 from agentsociety.simulation import AgentSociety
 from agentsociety.storage import AvroConfig, PostgreSQLConfig
@@ -101,18 +99,12 @@ config = Config(
         )
     ],
     env=EnvConfig(
-        redis=RedisConfig(
-            server="<SERVER-ADDRESS>",
-            port=6379,
-            password="<PASSWORD>",
-        ),  # type: ignore
         pgsql=PostgreSQLConfig(
             enabled=True,
             dsn="<PGSQL-DSN>",
             num_workers="auto",
         ),
         avro=AvroConfig(
-            path="<SAVE-PATH>",
             enabled=True,
         ),
         mlflow=MlflowConfig(
@@ -239,7 +231,6 @@ from agentsociety.configs.exp import (
 )
 from agentsociety.environment import EnvironmentConfig
 from agentsociety.llm import LLMProviderType
-from agentsociety.message import RedisConfig
 from agentsociety.metrics import MlflowConfig
 from agentsociety.simulation import AgentSociety
 from agentsociety.storage import AvroConfig, PostgreSQLConfig
@@ -257,18 +248,12 @@ config = Config(
         )
     ],
     env=EnvConfig(
-        redis=RedisConfig(
-            server="<SERVER-ADDRESS>",
-            port=6379,
-            password="<PASSWORD>",
-        ),  # type: ignore
         pgsql=PostgreSQLConfig(
             enabled=True,
             dsn="<PGSQL-DSN>",
             num_workers="auto",
         ),
         avro=AvroConfig(
-            path="<SAVE-PATH>",
             enabled=True,
         ),
         mlflow=MlflowConfig(

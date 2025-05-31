@@ -17,7 +17,7 @@ from openai.types.chat import (
     ChatCompletionToolParam,
     completion_create_params,
 )
-from pydantic import BaseModel, Field, field_serializer
+from pydantic import BaseModel, Field, field_serializer, model_validator
 
 from ..logger import get_logger
 from .utils import *
@@ -75,6 +75,12 @@ class LLMConfig(BaseModel):
     @field_serializer("provider")
     def serialize_provider(self, provider: LLMProviderType, info):
         return provider.value
+
+    @model_validator(mode="after")
+    def validate_configuration(self):
+        if self.provider != LLMProviderType.VLLM and self.base_url is not None:
+            raise ValueError("base_url is not supported for this provider")
+        return self
 
 
 def record_active_request(func: Callable):
@@ -429,6 +435,8 @@ class LLM:
                         ] += 1
                         log["input_tokens"] = response.usage.prompt_tokens
                         log["output_tokens"] = response.usage.completion_tokens
+                    else:
+                        get_logger().warning(f"No usage in response: {response}")
                     end_time = time.time()
                     log["consumption"] = end_time - start_time
                     self._log_list.append(log)

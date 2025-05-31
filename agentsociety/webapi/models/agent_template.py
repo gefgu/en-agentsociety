@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 from sqlalchemy import JSON
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -74,6 +74,8 @@ class AgentTemplateDB(Base):
     id: Mapped[str] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column()
     description: Mapped[Optional[str]] = mapped_column()
+    agent_type: Mapped[str] = mapped_column()
+    agent_class: Mapped[str] = mapped_column()
     profile: Mapped[Dict] = mapped_column(type_=JSONB)
     base: Mapped[Dict] = mapped_column(
         type_=JSONB,
@@ -94,18 +96,23 @@ class AgentTemplateDB(Base):
 
 
 class AgentParams(BaseModel):
-    """Agent parameters model"""
+    """Agent parameters model with dynamic fields"""
 
-    enable_cognition: bool = Field(default=True)
-    UBI: float = Field(default=0.0)
-    num_labor_hours: float = Field(default=8.0)
-    productivity_per_labor: float = Field(default=1.0)
-    time_diff: float = Field(default=1.0)
-    max_plan_steps: int = Field(default=5)
-    need_initialization_prompt: Optional[str] = None
-    need_evaluation_prompt: Optional[str] = None
-    need_reflection_prompt: Optional[str] = None
-    plan_generation_prompt: Optional[str] = None
+    class Config:
+        extra = "allow"  # 允许额外的字段
+        arbitrary_types_allowed = True  # 允许任意类型
+
+    def __init__(self, **data):
+        super().__init__(**data)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "AgentParams":
+        """从字典创建 AgentParams 实例"""
+        return cls(**data)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """将 AgentParams 实例转换为字典"""
+        return self.model_dump()
 
 
 class TemplateBlock(BaseModel):
@@ -145,6 +152,8 @@ class ApiAgentTemplate(BaseModel):
     id: Optional[str] = None
     name: str = Field(..., description="Template name")
     description: Optional[str] = Field(None, description="Template description")
+    agent_type: str = Field(..., description="Agent type (citizen or supervisor)")
+    agent_class: str = Field(..., description="Agent class name")
     memory_distributions: Dict[str, Union[Distribution, DistributionConfig]] = Field(
         ..., description="Memory distributions configuration"
     )
@@ -163,8 +172,8 @@ class ApiAgentTemplate(BaseModel):
     blocks: Dict[str, Dict[str, Any]] = Field(
         default_factory=dict, description="Block configurations with block type as key"
     )
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: Optional[AwareDatetime] = None
+    updated_at: Optional[AwareDatetime] = None
 
     class Config:
         from_attributes = True

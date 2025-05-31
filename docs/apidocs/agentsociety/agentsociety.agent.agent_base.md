@@ -205,6 +205,16 @@ Bases: {py:obj}`enum.Enum`
 
 ````
 
+````{py:attribute} Supervisor
+:canonical: agentsociety.agent.agent_base.AgentType.Supervisor
+:value: >
+   'Supervisor'
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.AgentType.Supervisor
+```
+
+````
+
 `````
 
 ````{py:function} extract_json(output_str)
@@ -230,6 +240,7 @@ Bases: {py:obj}`abc.ABC`
 
 ````{py:attribute} ParamsType
 :canonical: agentsociety.agent.agent_base.Agent.ParamsType
+:type: type[agentsociety.agent.agent_base.AgentParams]
 :value: >
    None
 
@@ -240,6 +251,7 @@ Bases: {py:obj}`abc.ABC`
 
 ````{py:attribute} Context
 :canonical: agentsociety.agent.agent_base.Agent.Context
+:type: type[agentsociety.agent.context.AgentContext]
 :value: >
    None
 
@@ -250,6 +262,7 @@ Bases: {py:obj}`abc.ABC`
 
 ````{py:attribute} BlockOutputType
 :canonical: agentsociety.agent.agent_base.Agent.BlockOutputType
+:type: type[agentsociety.agent.block.BlockOutput]
 :value: >
    None
 
@@ -279,7 +292,7 @@ Bases: {py:obj}`abc.ABC`
 
 ````
 
-````{py:method} default_params() -> ParamsType
+````{py:method} default_params()
 :canonical: agentsociety.agent.agent_base.Agent.default_params
 :classmethod:
 
@@ -288,7 +301,7 @@ Bases: {py:obj}`abc.ABC`
 
 ````
 
-````{py:method} default_context() -> Context
+````{py:method} default_context()
 :canonical: agentsociety.agent.agent_base.Agent.default_context
 :classmethod:
 
@@ -429,132 +442,6 @@ Bases: {py:obj}`abc.ABC`
 
 ````
 
-````{py:method} generate_user_survey_response(survey: agentsociety.survey.models.Survey) -> str
-:canonical: agentsociety.agent.agent_base.Agent.generate_user_survey_response
-:async:
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.generate_user_survey_response
-```
-
-````
-
-````{py:method} _process_survey(survey: agentsociety.survey.models.Survey)
-:canonical: agentsociety.agent.agent_base.Agent._process_survey
-:async:
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent._process_survey
-```
-
-````
-
-````{py:method} generate_user_chat_response(question: str) -> str
-:canonical: agentsociety.agent.agent_base.Agent.generate_user_chat_response
-:async:
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.generate_user_chat_response
-```
-
-````
-
-````{py:method} _process_interview(payload: dict)
-:canonical: agentsociety.agent.agent_base.Agent._process_interview
-:async:
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent._process_interview
-```
-
-````
-
-````{py:method} save_agent_thought(thought: str)
-:canonical: agentsociety.agent.agent_base.Agent.save_agent_thought
-:async:
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.save_agent_thought
-```
-
-````
-
-````{py:method} process_agent_chat_response(payload: dict) -> str
-:canonical: agentsociety.agent.agent_base.Agent.process_agent_chat_response
-:async:
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.process_agent_chat_response
-```
-
-````
-
-````{py:method} _process_agent_chat(payload: dict)
-:canonical: agentsociety.agent.agent_base.Agent._process_agent_chat
-:async:
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent._process_agent_chat
-```
-
-````
-
-````{py:method} handle_agent_chat_message(payload: dict)
-:canonical: agentsociety.agent.agent_base.Agent.handle_agent_chat_message
-:async:
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.handle_agent_chat_message
-```
-
-````
-
-````{py:method} handle_user_chat_message(payload: dict)
-:canonical: agentsociety.agent.agent_base.Agent.handle_user_chat_message
-:async:
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.handle_user_chat_message
-```
-
-````
-
-````{py:method} handle_user_survey_message(payload: dict)
-:canonical: agentsociety.agent.agent_base.Agent.handle_user_survey_message
-:async:
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.handle_user_survey_message
-```
-
-````
-
-````{py:method} handle_gather_message(payload: dict)
-:canonical: agentsociety.agent.agent_base.Agent.handle_gather_message
-:async:
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.handle_gather_message
-```
-
-````
-
-````{py:method} handle_gather_receive_message(payload: typing.Any)
-:canonical: agentsociety.agent.agent_base.Agent.handle_gather_receive_message
-:async:
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.handle_gather_receive_message
-```
-
-````
-
-````{py:method} gather_messages(agent_ids: list[int], target: typing.Union[str, list[str]]) -> list[typing.Any]
-:canonical: agentsociety.agent.agent_base.Agent.gather_messages
-:async:
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.gather_messages
-```
-
-````
-
-````{py:method} _send_message(to_agent_id: int, payload: dict, sub_topic: str)
-:canonical: agentsociety.agent.agent_base.Agent._send_message
-:async:
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent._send_message
-```
-
-````
-
 ````{py:method} send_message_to_agent(to_agent_id: int, content: str, type: str = 'social')
 :canonical: agentsociety.agent.agent_base.Agent.send_message_to_agent
 :async:
@@ -592,11 +479,11 @@ Bases: {py:obj}`abc.ABC`
 
 ````
 
-````{py:method} final()
-:canonical: agentsociety.agent.agent_base.Agent.final
+````{py:method} close()
+:canonical: agentsociety.agent.agent_base.Agent.close
 :async:
 
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.final
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.close
 ```
 
 ````

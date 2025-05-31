@@ -222,6 +222,14 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
+````{py:method} validate_configuration()
+:canonical: agentsociety.llm.llm.LLMConfig.validate_configuration
+
+```{autodoc2-docstring} agentsociety.llm.llm.LLMConfig.validate_configuration
+```
+
+````
+
 `````
 
 ````{py:function} record_active_request(func: collections.abc.Callable)

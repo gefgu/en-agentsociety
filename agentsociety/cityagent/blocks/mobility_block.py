@@ -484,7 +484,9 @@ class MobilityBlockParams(BlockParams):
 
 
 class MobilityBlockContext(BlockContext):
-    next_place: Optional[tuple[str, int]] = Field(default=None, description="The next place to go")
+    next_place: Optional[tuple[str, int]] = Field(
+        default=None, description="The next place to go"
+    )
 
 
 class MobilityBlock(Block):

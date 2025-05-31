@@ -187,6 +187,28 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
+````{py:attribute} day
+:canonical: agentsociety.webapi.api.agent.AgentChatMessage.day
+:type: int
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.api.agent.AgentChatMessage.day
+```
+
+````
+
+````{py:attribute} t
+:canonical: agentsociety.webapi.api.agent.AgentChatMessage.t
+:type: float
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.api.agent.AgentChatMessage.t
+```
+
+````
+
 `````
 
 ````{py:function} post_agent_dialog(request: fastapi.Request, exp_id: uuid.UUID, agent_id: int, message: agentsociety.webapi.api.agent.AgentChatMessage = Body(...)) -> agentsociety.webapi.models.ApiResponseWrapper[None]
@@ -209,6 +231,28 @@ Bases: {py:obj}`pydantic.BaseModel`
    None
 
 ```{autodoc2-docstring} agentsociety.webapi.api.agent.AgentSurveyMessage.survey_id
+```
+
+````
+
+````{py:attribute} day
+:canonical: agentsociety.webapi.api.agent.AgentSurveyMessage.day
+:type: int
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.api.agent.AgentSurveyMessage.day
+```
+
+````
+
+````{py:attribute} t
+:canonical: agentsociety.webapi.api.agent.AgentSurveyMessage.t
+:type: float
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.api.agent.AgentSurveyMessage.t
 ```
 
 ````

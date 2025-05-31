@@ -15,15 +15,13 @@ from agentsociety.configs import (
     LLMConfig,
     MapConfig,
 )
-from agentsociety.configs.agent import AgentClassType, AgentConfig
+from agentsociety.configs.agent import AgentConfig
 from agentsociety.configs.exp import (
-    MessageInterceptConfig,
     WorkflowStepConfig,
     WorkflowType,
 )
 from agentsociety.environment import EnvironmentConfig
 from agentsociety.llm import LLMProviderType
-from agentsociety.message import RedisConfig
 from agentsociety.metrics import MlflowConfig
 from agentsociety.simulation import AgentSociety
 from agentsociety.storage import AvroConfig, PostgreSQLConfig
@@ -78,18 +76,12 @@ config = Config(
         )
     ],
     env=EnvConfig(
-        redis=RedisConfig(
-            server="<SERVER-ADDRESS>",
-            port=6379,
-            password="<PASSWORD>",
-        ),  # type: ignore
         pgsql=PostgreSQLConfig(
             enabled=True,
             dsn="<PGSQL-DSN>",
             num_workers="auto",
         ),
         avro=AvroConfig(
-            path="<SAVE-PATH>",
             enabled=True,
         ),
         mlflow=MlflowConfig(
@@ -106,7 +98,7 @@ config = Config(
     agents=AgentsConfig(
         citizens=[
             AgentConfig(
-                agent_class=AgentClassType.CITIZEN,
+                agent_class="citizen",
                 number=100,
             )
         ]
@@ -127,9 +119,6 @@ config = Config(
                 func=gather_memory,
             ),
         ],
-        message_intercept=MessageInterceptConfig(
-            mode="point",
-        ),  # type: ignore
         environment=EnvironmentConfig(
             start_tick=6 * 60 * 60,
         ),

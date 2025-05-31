@@ -1,14 +1,19 @@
 from __future__ import annotations
 
-import asyncio
 import random
+from datetime import datetime, timezone
 from typing import Any, Optional
+
+import jsonc
 from pycityproto.city.person.v2 import person_pb2 as person_pb2
 
 from ..environment.sim.person_service import PersonService
 from ..logger import get_logger
 from ..memory import Memory
-from .agent_base import Agent, AgentToolbox, AgentType
+from ..message import Message
+from ..storage import StorageDialog, StorageDialogType, StorageSurvey
+from ..survey.models import Survey
+from .agent_base import Agent, AgentToolbox, AgentType, extract_json
 from .block import Block
 from .decorator import register_get
 
@@ -114,7 +119,7 @@ class CitizenAgentBase(Agent):
         """
         person_id = await self.status.get("id")
         currency = await self.status.get("currency")
-        skill = await self.status.get("work_skill")
+        skill = await self.status.get("work_skill", 0.0)
         consumption = 0.0
         income = 0.0
         await self.environment.economy_client.add_agents(
@@ -145,28 +150,321 @@ class CitizenAgentBase(Agent):
                 )
                 continue
 
-    async def handle_gather_message(self, payload: dict):
+    async def do_survey(self, survey: Survey) -> str:
         """
-        Handle a gather message received by the agent.
+        Generate a response to a user survey based on the agent's memory and current state.
 
         - **Args**:
-            - `payload` (`dict`): The message payload containing the target attribute and sender ID.
+            - `survey` (`Survey`): The survey that needs to be answered.
+
+        - **Returns**:
+            - `str`: The generated response from the agent.
 
         - **Description**:
-            - Extracts the target attribute and sender ID from the payload.
-            - Retrieves the content associated with the target attribute from the agent's status.
-            - Prepares a response payload with the retrieved content and sends it back to the sender using `_send_message`.
+            - Prepares a prompt for the Language Model (LLM) based on the provided survey.
+            - Constructs a dialog including system prompts, relevant memory context, and the survey question itself.
+            - Uses the LLM client to generate a response asynchronously.
+            - If the LLM client is not available, it returns a default message indicating unavailability.
+            - This method can be overridden by subclasses to customize survey response generation.
         """
-        # Process the received message, identify the sender
-        # Parse sender ID and message content from the message
-        target = payload["target"]
-        sender_id = payload["from"]
-        content = await self.status.get(f"{target}")
-        payload = {
-            "from": self.id,
-            "content": content,
-        }
-        await self._send_message(sender_id, payload, "gather_receive")
+        survey_prompt = survey.to_prompt()
+        dialog = []
+
+        # Add system prompt
+        system_prompt = "Please answer the survey question in first person. Follow the format requirements strictly and provide clear and specific answers (In JSON format)."
+        dialog.append({"role": "system", "content": system_prompt})
+
+        # Add memory context
+        if self.memory:
+            profile_and_states = await self.status.search(survey_prompt)
+            relevant_activities = await self.stream.search(survey_prompt)
+
+            dialog.append(
+                {
+                    "role": "system",
+                    "content": f"Answer based on following profile and states:\n{profile_and_states}\n Related activities:\n{relevant_activities}",
+                }
+            )
+
+        # Add survey question
+        dialog.append({"role": "user", "content": survey_prompt})
+
+        for retry in range(10):
+            try:
+                # Use LLM to generate a response
+                # print(f"dialog: {dialog}")
+                _response = await self.llm.atext_request(
+                    dialog, response_format={"type": "json_object"}
+                )
+                # print(f"response: {_response}")
+                json_str = extract_json(_response)
+                if json_str:
+                    json_dict = jsonc.loads(json_str)
+                    json_str = jsonc.dumps(json_dict, ensure_ascii=False)
+                    break
+            except:
+                pass
+        else:
+            import traceback
+
+            traceback.print_exc()
+            get_logger().error("Failed to generate survey response")
+            json_str = ""
+        return json_str
+
+    async def _handle_survey_with_storage(
+        self,
+        survey: Survey,
+        survey_day: Optional[int] = None,
+        survey_t: Optional[float] = None,
+        is_pending_survey: bool = False,
+        pending_survey_id: Optional[int] = None,
+    ) -> str:
+        """
+        Process a survey by generating a response and recording it in Avro format and PostgreSQL.
+
+        - **Args**:
+            - `survey` (`Survey`): The survey data that includes an ID and other relevant information.
+            - `survey_day` (`Optional[int]`): The day of the survey.
+            - `survey_t` (`Optional[float]`): The time of the survey.
+            - `is_pending_survey` (`bool`): Whether the survey is a pending survey.
+            - `pending_survey_id` (`Optional[int]`): The ID of the pending survey.
+
+        - **Description**:
+            - Generates a survey response using `generate_user_survey_response`.
+            - Records the response with metadata (such as timestamp, survey ID, etc.) in Avro format and appends it to an Avro file if `_avro_file` is set.
+            - Writes the response and metadata into a PostgreSQL database asynchronously through `_pgsql_writer`, ensuring any previous write operation has completed.
+            - Sends a message through the Messager indicating user feedback has been processed.
+            - Handles asynchronous tasks and ensures thread-safe operations when writing to PostgreSQL.
+        """
+        survey_response = await self.do_survey(survey)
+        date_time = datetime.now(timezone.utc)
+        # Avro
+        day, t = self.environment.get_datetime()
+        storage_survey = StorageSurvey(
+            id=self.id,
+            day=survey_day if survey_day is not None else day,
+            t=survey_t if survey_t is not None else t,
+            survey_id=str(survey.id),
+            result=survey_response,
+            created_at=date_time,
+        )
+        if self.avro_saver is not None:
+            self.avro_saver.append_surveys([storage_survey])
+        # Pg
+        if self.pgsql_writer is not None:
+            if self._last_asyncio_pg_task is not None:
+                await self._last_asyncio_pg_task
+                self._last_asyncio_pg_task = None
+            if is_pending_survey:
+                await self.pgsql_writer.write_surveys.remote(  # type:ignore
+                    [storage_survey]
+                )
+                self._last_asyncio_pg_task = (
+                    self.pgsql_writer.mark_surveys_as_processed.remote(  # type:ignore
+                        [pending_survey_id]
+                    )
+                )
+            else:
+                self._last_asyncio_pg_task = (
+                    self.pgsql_writer.write_surveys.remote(  # type:ignore
+                        [storage_survey]
+                    )
+                )
+        # status memory
+        old_survey_responses = await self.memory.status.get("survey_responses", [])
+        new_survey_responses = old_survey_responses + [survey_response]
+        await self.memory.status.update(
+            "survey_responses",
+            new_survey_responses,
+            protect_llm_read_only_fields=False,
+        )
+        return survey_response
+
+    async def do_interview(self, question: str) -> str:
+        """
+        Generate a response to a user's chat question based on the agent's memory and current state.
+
+        - **Args**:
+            - `question` (`str`): The question that needs to be answered.
+
+        - **Returns**:
+            - `str`: The generated response from the agent.
+
+        - **Description**:
+            - Prepares a prompt for the Language Model (LLM) with a system prompt to guide the response style.
+            - Constructs a dialog including relevant memory context and the user's question.
+            - Uses the LLM client to generate a concise and clear response asynchronously.
+            - If the LLM client is not available, it returns a default message indicating unavailability.
+            - This method can be overridden by subclasses to customize chat response generation.
+        """
+        dialog = []
+
+        # Add system prompt
+        system_prompt = "Please answer the question in first person and keep the response concise and clear."
+        dialog.append({"role": "system", "content": system_prompt})
+
+        # Add memory context
+        if self._memory:
+            profile_and_states = await self.status.search(question, top_k=10)
+            relevant_activities = await self.stream.search(question, top_k=10)
+
+            dialog.append(
+                {
+                    "role": "system",
+                    "content": f"Answer based on following profile and states:\n{profile_and_states}\n Related activities:\n{relevant_activities}",
+                }
+            )
+
+        # Add user question
+        dialog.append({"role": "user", "content": question})
+
+        # Use LLM to generate a response
+        response = await self.llm.atext_request(dialog)
+
+        return response
+
+    async def _handle_interview_with_storage(self, message: Message) -> str:
+        """
+        Process an interview interaction by generating a response and recording it in Avro format and PostgreSQL.
+
+        - **Args**:
+            - `question` (`str`): The interview data containing the content of the user's message.
+        """
+        question = message.payload["content"]
+        day, t = self.environment.get_datetime()
+        storage_dialog = StorageDialog(
+            id=self.id,
+            day=message.day,
+            t=message.t,
+            type=StorageDialogType.User,
+            speaker="user",
+            content=question,
+            created_at=datetime.now(timezone.utc),
+        )
+        if self.avro_saver is not None:
+            self.avro_saver.append_dialogs([storage_dialog])
+        if self.pgsql_writer is not None:
+            if self._last_asyncio_pg_task is not None:
+                await self._last_asyncio_pg_task
+            self._last_asyncio_pg_task = (
+                self.pgsql_writer.write_dialogs.remote(  # type:ignore
+                    [storage_dialog]
+                )
+            )
+        response = await self.do_interview(question)
+        storage_dialog = StorageDialog(
+            id=self.id,
+            day=day,
+            t=t,
+            type=StorageDialogType.User,
+            speaker="",
+            content=response,
+            created_at=datetime.now(timezone.utc),
+        )
+        # Avro
+        if self.avro_saver is not None:
+            self.avro_saver.append_dialogs([storage_dialog])
+        # Pg
+        if self.pgsql_writer is not None:
+            if self._last_asyncio_pg_task is not None:
+                await self._last_asyncio_pg_task
+                self._last_asyncio_pg_task = None
+            await self.pgsql_writer.write_dialogs.remote(  # type:ignore
+                [storage_dialog]
+            )
+            if message.extra is not None and "pending_dialog_id" in message.extra:
+                self._last_asyncio_pg_task = (
+                    self.pgsql_writer.mark_dialogs_as_processed.remote(  # type:ignore
+                        [message.extra["pending_dialog_id"]]
+                    )
+                )
+        return response
+
+    async def save_agent_thought(self, thought: str):
+        """
+        Save the agent's thought to the memory.
+
+        - **Args**:
+            - `thought` (`str`): The thought data to be saved.
+
+        - **Description**:
+            - Saves the thought data to the memory.
+        """
+        day, t = self.environment.get_datetime()
+        await self.memory.stream.add_cognition(thought)
+        storage_thought = StorageDialog(
+            id=self.id,
+            day=day,
+            t=t,
+            type=StorageDialogType.Thought,
+            speaker="",
+            content=thought,
+            created_at=datetime.now(timezone.utc),
+        )
+        # Avro
+        if self.avro_saver is not None:
+            self.avro_saver.append_dialogs([storage_thought])
+        # Pg
+        if self.pgsql_writer is not None:
+            if self._last_asyncio_pg_task is not None:
+                await self._last_asyncio_pg_task
+            self._last_asyncio_pg_task = (
+                self.pgsql_writer.write_dialogs.remote(  # type:ignore
+                    [storage_thought]
+                )
+            )
+
+    async def do_chat(self, message: Message) -> str:
+        """
+        Process a chat message received from another agent and record it.
+
+        - **Args**:
+            - `message` (`Message`): The chat message data received from another agent.
+        """
+        resp = f"Agent {self.id} received agent chat response: {message.payload}"
+        get_logger().debug(resp)
+        return resp
+
+    async def _handle_agent_chat_with_storage(self, message: Message):
+        """
+        Process a chat message received from another agent and record it.
+
+        - **Args**:
+            - `payload` (`dict`): The chat message data received from another agent.
+
+        - **Description**:
+            - Logs the incoming chat message from another agent.
+            - Prepares the chat message for storage in Avro format and PostgreSQL.
+            - Writes the chat message and metadata into an Avro file if `_avro_file` is set.
+            - Ensures thread-safe operations when writing to PostgreSQL by waiting for any previous write task to complete before starting a new one.
+        """
+        try:
+            content = jsonc.dumps(message.payload, ensure_ascii=False)
+        except:
+            content = str(message.payload)
+        storage_dialog = StorageDialog(
+            id=self.id,
+            day=message.day,
+            t=message.t,
+            type=StorageDialogType.Talk,
+            speaker=str(message.from_id),
+            content=content,
+            created_at=datetime.now(timezone.utc),
+        )
+        await self.do_chat(message)
+        # Avro
+        if self.avro_saver is not None:
+            self.avro_saver.append_dialogs([storage_dialog])
+        # Pg
+        if self.pgsql_writer is not None:
+            if self._last_asyncio_pg_task is not None:
+                await self._last_asyncio_pg_task
+            self._last_asyncio_pg_task = (
+                self.pgsql_writer.write_dialogs.remote(  # type:ignore
+                    [storage_dialog]
+                )
+            )
 
     async def get_aoi_info(self):
         """Get the surrounding environment information - aoi information"""
@@ -372,3 +670,69 @@ class GovernmentAgentBase(InstitutionAgentBase):
     """
 
     ...
+
+
+class SupervisorBase(Agent):
+    def __init__(
+        self,
+        id: int,
+        name: str,
+        toolbox: AgentToolbox,
+        memory: Memory,
+        agent_params: Optional[Any] = None,
+        blocks: Optional[list[Block]] = None,
+    ) -> None:
+        """
+        Initialize a new instance of the CitizenAgent.
+
+        - **Args**:
+            - `id` (`int`): The ID of the agent.
+            - `name` (`str`): The name or identifier of the agent.
+            - `toolbox` (`AgentToolbox`): The toolbox of the agent.
+            - `memory` (`Memory`): The memory of the agent.
+
+        - **Description**:
+            - Initializes the CitizenAgent with the provided parameters and sets up necessary internal states.
+        """
+        super().__init__(
+            id=id,
+            name=name,
+            type=AgentType.Supervisor,
+            toolbox=toolbox,
+            memory=memory,
+            agent_params=agent_params,
+            blocks=blocks,
+        )
+
+    async def reset(self):
+        """
+        Reset the agent.
+        """
+        pass
+
+    async def react_to_intervention(self, intervention_message: str):
+        """
+        React to an intervention.
+        """
+        pass
+
+    async def forward(
+        self,
+        current_round_messages: list[Message],
+    ) -> tuple[
+        dict[Message, bool],
+        list[Message],
+    ]:
+        """
+        Process and validate messages from the current round, performing validation and intervention
+
+        Args:
+            current_round_messages: List of messages for the current round, each element is a tuple of (sender_id, receiver_id, content)
+
+        Returns:
+            validation_dict: Dictionary of message validation results, key is message tuple, value is whether validation passed
+            persuasion_messages: List of persuasion messages
+        """
+        raise NotImplementedError(
+            "This method `forward` should be implemented by the subclass"
+        )

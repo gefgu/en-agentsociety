@@ -413,6 +413,28 @@ Bases: {py:obj}`agentsociety.webapi.models._base.Base`
 
 ````
 
+````{py:attribute} agent_type
+:canonical: agentsociety.webapi.models.agent_template.AgentTemplateDB.agent_type
+:type: sqlalchemy.orm.Mapped[str]
+:value: >
+   'mapped_column(...)'
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentTemplateDB.agent_type
+```
+
+````
+
+````{py:attribute} agent_class
+:canonical: agentsociety.webapi.models.agent_template.AgentTemplateDB.agent_class
+:type: sqlalchemy.orm.Mapped[str]
+:value: >
+   'mapped_column(...)'
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentTemplateDB.agent_class
+```
+
+````
+
 ````{py:attribute} profile
 :canonical: agentsociety.webapi.models.agent_template.AgentTemplateDB.profile
 :type: sqlalchemy.orm.Mapped[typing.Dict]
@@ -492,7 +514,7 @@ Bases: {py:obj}`agentsociety.webapi.models._base.Base`
 
 `````
 
-`````{py:class} AgentParams(/, **data: typing.Any)
+``````{py:class} AgentParams(**data)
 :canonical: agentsociety.webapi.models.agent_template.AgentParams
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -506,117 +528,52 @@ Bases: {py:obj}`pydantic.BaseModel`
 ```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentParams.__init__
 ```
 
-````{py:attribute} enable_cognition
-:canonical: agentsociety.webapi.models.agent_template.AgentParams.enable_cognition
-:type: bool
-:value: >
-   'Field(...)'
+`````{py:class} Config
+:canonical: agentsociety.webapi.models.agent_template.AgentParams.Config
 
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentParams.enable_cognition
+```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentParams.Config
+```
+
+````{py:attribute} extra
+:canonical: agentsociety.webapi.models.agent_template.AgentParams.Config.extra
+:value: >
+   'allow'
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentParams.Config.extra
 ```
 
 ````
 
-````{py:attribute} UBI
-:canonical: agentsociety.webapi.models.agent_template.AgentParams.UBI
-:type: float
+````{py:attribute} arbitrary_types_allowed
+:canonical: agentsociety.webapi.models.agent_template.AgentParams.Config.arbitrary_types_allowed
 :value: >
-   'Field(...)'
+   True
 
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentParams.UBI
-```
-
-````
-
-````{py:attribute} num_labor_hours
-:canonical: agentsociety.webapi.models.agent_template.AgentParams.num_labor_hours
-:type: float
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentParams.num_labor_hours
-```
-
-````
-
-````{py:attribute} productivity_per_labor
-:canonical: agentsociety.webapi.models.agent_template.AgentParams.productivity_per_labor
-:type: float
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentParams.productivity_per_labor
-```
-
-````
-
-````{py:attribute} time_diff
-:canonical: agentsociety.webapi.models.agent_template.AgentParams.time_diff
-:type: float
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentParams.time_diff
-```
-
-````
-
-````{py:attribute} max_plan_steps
-:canonical: agentsociety.webapi.models.agent_template.AgentParams.max_plan_steps
-:type: int
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentParams.max_plan_steps
-```
-
-````
-
-````{py:attribute} need_initialization_prompt
-:canonical: agentsociety.webapi.models.agent_template.AgentParams.need_initialization_prompt
-:type: typing.Optional[str]
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentParams.need_initialization_prompt
-```
-
-````
-
-````{py:attribute} need_evaluation_prompt
-:canonical: agentsociety.webapi.models.agent_template.AgentParams.need_evaluation_prompt
-:type: typing.Optional[str]
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentParams.need_evaluation_prompt
-```
-
-````
-
-````{py:attribute} need_reflection_prompt
-:canonical: agentsociety.webapi.models.agent_template.AgentParams.need_reflection_prompt
-:type: typing.Optional[str]
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentParams.need_reflection_prompt
-```
-
-````
-
-````{py:attribute} plan_generation_prompt
-:canonical: agentsociety.webapi.models.agent_template.AgentParams.plan_generation_prompt
-:type: typing.Optional[str]
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentParams.plan_generation_prompt
+```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentParams.Config.arbitrary_types_allowed
 ```
 
 ````
 
 `````
+
+````{py:method} from_dict(data: typing.Dict[str, typing.Any]) -> agentsociety.webapi.models.agent_template.AgentParams
+:canonical: agentsociety.webapi.models.agent_template.AgentParams.from_dict
+:classmethod:
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentParams.from_dict
+```
+
+````
+
+````{py:method} to_dict() -> typing.Dict[str, typing.Any]
+:canonical: agentsociety.webapi.models.agent_template.AgentParams.to_dict
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentParams.to_dict
+```
+
+````
+
+``````
 
 `````{py:class} TemplateBlock(/, **data: typing.Any)
 :canonical: agentsociety.webapi.models.agent_template.TemplateBlock
@@ -845,6 +802,28 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
+````{py:attribute} agent_type
+:canonical: agentsociety.webapi.models.agent_template.ApiAgentTemplate.agent_type
+:type: str
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent_template.ApiAgentTemplate.agent_type
+```
+
+````
+
+````{py:attribute} agent_class
+:canonical: agentsociety.webapi.models.agent_template.ApiAgentTemplate.agent_class
+:type: str
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent_template.ApiAgentTemplate.agent_class
+```
+
+````
+
 ````{py:attribute} memory_distributions
 :canonical: agentsociety.webapi.models.agent_template.ApiAgentTemplate.memory_distributions
 :type: typing.Dict[str, typing.Union[agentsociety.webapi.models.agent_template.Distribution, agentsociety.webapi.models.agent_template.DistributionConfig]]
@@ -902,7 +881,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````{py:attribute} created_at
 :canonical: agentsociety.webapi.models.agent_template.ApiAgentTemplate.created_at
-:type: typing.Optional[datetime.datetime]
+:type: typing.Optional[pydantic.AwareDatetime]
 :value: >
    None
 
@@ -913,7 +892,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````{py:attribute} updated_at
 :canonical: agentsociety.webapi.models.agent_template.ApiAgentTemplate.updated_at
-:type: typing.Optional[datetime.datetime]
+:type: typing.Optional[pydantic.AwareDatetime]
 :value: >
    None
 

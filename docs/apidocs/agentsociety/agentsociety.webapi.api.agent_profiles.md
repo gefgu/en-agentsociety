@@ -147,7 +147,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-````{py:function} list_agent_profiles(request: fastapi.Request) -> agentsociety.webapi.models.ApiResponseWrapper[typing.List[typing.Dict[str, typing.Any]]]
+````{py:function} list_agent_profiles(request: fastapi.Request) -> agentsociety.webapi.models.ApiResponseWrapper[typing.List[agentsociety.webapi.models.agent_profiles.ApiAgentProfile]]
 :canonical: agentsociety.webapi.api.agent_profiles.list_agent_profiles
 :async:
 
@@ -178,7 +178,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 ```
 ````
 
-````{py:function} upload_agent_profile(request: fastapi.Request, file: fastapi.UploadFile = File(...), name: typing.Optional[str] = Form(None), description: typing.Optional[str] = Form(None)) -> agentsociety.webapi.models.ApiResponseWrapper[typing.Dict[str, typing.Any]]
+````{py:function} upload_agent_profile(request: fastapi.Request, file: fastapi.UploadFile = File(...), name: typing.Optional[str] = Form(None), description: typing.Optional[str] = Form(None)) -> agentsociety.webapi.models.ApiResponseWrapper[agentsociety.webapi.models.agent_profiles.ApiAgentProfile]
 :canonical: agentsociety.webapi.api.agent_profiles.upload_agent_profile
 :async:
 

@@ -3,7 +3,6 @@ import json
 import uuid
 from typing import List, Optional, cast
 
-import redis.asyncio as aioredis
 from fastapi import APIRouter, Body, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -12,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...configs import EnvConfig
 from ..models import ApiResponseWrapper
 from ..models.agent import (
+    AgentDialogType,
     ApiAgentDialog,
     ApiAgentProfile,
     ApiAgentStatus,
@@ -22,6 +22,8 @@ from ..models.agent import (
     agent_status,
     agent_survey,
     global_prompt,
+    pending_dialog,
+    pending_survey,
 )
 from ..models.experiment import Experiment, ExperimentStatus
 from ..models.survey import Survey
@@ -77,6 +79,30 @@ async def get_agent_dialog_by_exp_id_and_agent_id(
         for row in rows:
             dialog = {columns[i]: row[i] for i in range(len(columns))}
             dialogs.append(ApiAgentDialog(**dialog))
+
+        # Get pending dialogs
+        table_name = experiment.pending_dialog_tablename
+        pending_table, pending_columns = pending_dialog(table_name)
+        pending_stmt = (
+            select(pending_table)
+            .where(pending_table.c.agent_id == agent_id)
+            .where(pending_table.c.processed == False)
+            .order_by(pending_table.c.created_at)
+        )
+        pending_rows = (await db.execute(pending_stmt)).all()
+        for row in pending_rows:
+            dialog = {pending_columns[i]: row[i] for i in range(len(pending_columns))}
+
+            dialogs.append(ApiAgentDialog(
+                id=agent_id,
+                day=dialog["day"],
+                t=dialog["t"],
+                type=AgentDialogType.User,
+                speaker="user",
+                content=dialog["content"],
+                created_at=dialog["created_at"],
+            ))
+        dialogs.sort(key=lambda x: (x.day, x.t))
 
         return ApiResponseWrapper(data=dialogs)
 
@@ -211,6 +237,29 @@ async def get_agent_survey_by_exp_id_and_agent_id(
             survey = {columns[i]: row[i] for i in range(len(columns))}
             surveys.append(ApiAgentSurvey(**survey))
 
+        # Get pending surveys
+
+        table_name = experiment.pending_survey_tablename
+        pending_table, pending_columns = pending_survey(table_name)
+        pending_stmt = (
+            select(pending_table)
+            .where(pending_table.c.agent_id == agent_id)
+            .where(pending_table.c.processed == False)
+            .order_by(pending_table.c.created_at)
+        )
+        pending_rows = (await db.execute(pending_stmt)).all()
+        for row in pending_rows:
+            survey = {pending_columns[i]: row[i] for i in range(len(pending_columns))}
+            surveys.append(ApiAgentSurvey(
+                id=agent_id,
+                day=survey["day"],
+                t=survey["t"],
+                survey_id=survey["survey_id"],
+                result=None,
+                created_at=survey["created_at"],
+            ))
+        surveys.sort(key=lambda x: (x.day, x.t))
+
         return ApiResponseWrapper(data=surveys)
 
 
@@ -245,6 +294,8 @@ async def get_global_prompt_by_day_t(
 
 class AgentChatMessage(BaseModel):
     content: str
+    day: int
+    t: float
 
 
 @router.post("/experiments/{exp_id}/agents/{agent_id}/dialog")
@@ -278,30 +329,27 @@ async def post_agent_dialog(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Experiment not running"
             )
 
-        env: EnvConfig = request.app.state.env
-
-        # Get Redis client from app state
-        redis_client = aioredis.Redis(
-            host=env.redis.server,
-            port=env.redis.port,
-            db=env.redis.db,
-            password=env.redis.password,
-            socket_timeout=env.redis.timeout,
-            socket_keepalive=True,
-            health_check_interval=5,
-            single_connection_client=True,
+        # Store the dialog request in pending_dialog table
+        table_name = experiment.pending_dialog_tablename
+        table, _ = pending_dialog(table_name)
+        stmt = table.insert().values(
+            agent_id=agent_id,
+            day=message.day,
+            t=message.t,
+            content=message.content,
+            created_at=datetime.now(timezone.utc),
+            processed=False,
         )
-
-        # Send message through Redis
-        channel = f"exps:{exp_id}:agents:{agent_id}:user-chat"
-        await redis_client.publish(channel, message.model_dump_json())
-        await redis_client.close()
+        await db.execute(stmt)
+        await db.commit()
 
         return ApiResponseWrapper(data=None)
 
 
 class AgentSurveyMessage(BaseModel):
     survey_id: uuid.UUID
+    day: int
+    t: float
 
 
 @router.post("/experiments/{exp_id}/agents/{agent_id}/survey")
@@ -346,31 +394,19 @@ async def post_agent_survey(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Survey not found"
             )
 
-        env: EnvConfig = request.app.state.env
-
-        # Get Redis client from app state
-        redis_client = aioredis.Redis(
-            host=env.redis.server,
-            port=env.redis.port,
-            db=env.redis.db,
-            password=env.redis.password,
-            socket_timeout=env.redis.timeout,
-            socket_keepalive=True,
-            health_check_interval=5,
-            single_connection_client=True,
+        # Store the survey request in pending_survey table
+        table_name = experiment.pending_survey_tablename
+        table, _ = pending_survey(table_name)
+        stmt = table.insert().values(
+            agent_id=agent_id,
+            day=message.day,
+            t=message.t,
+            survey_id=message.survey_id,
+            data=survey.data,
+            created_at=datetime.now(timezone.utc),
+            processed=False,
         )
-
-        # Send message through Redis
-        channel = f"exps:{exp_id}:agents:{agent_id}:user-survey"
-        survey_dict = survey.data
-        survey_dict["id"] = str(message.survey_id)
-        payload = {
-            "from": tenant_id,
-            "survey_id": str(message.survey_id),
-            "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
-            "data": survey_dict,
-        }
-        await redis_client.publish(channel, json.dumps(payload))
-        await redis_client.close()
+        await db.execute(stmt)
+        await db.commit()
 
         return ApiResponseWrapper(data=None)

@@ -15,28 +15,15 @@ __all__ = [
 ]
 
 
-# TODO: 同BlockClassType
-class AgentClassType(str, Enum):
+class InstitutionAgentClass(str, Enum):
     """
-    Defines the types of agent class types.
+    Defines the types of institution agent class types.
     """
 
-    CITIZEN = "citizen"
     FIRM = "firm"
     GOVERNMENT = "government"
     BANK = "bank"
     NBS = "nbs"
-
-
-class BlockClassType(str, Enum):
-    """
-    Defines the types of block class types.
-    """
-
-    MOBILITYBLOCK = "mobilityblock"
-    ECONOMYBLOCK = "economyblock"
-    SOCIALBLOCK = "socialblock"
-    OTHERBLOCK = "otherblock"
 
 
 class AgentConfig(BaseModel):
@@ -48,16 +35,16 @@ class AgentConfig(BaseModel):
         arbitrary_types_allowed=True,
     )
 
-    agent_class: Union[type[Agent], AgentClassType]
+    agent_class: Union[type[Agent], str]
     """The class of the agent"""
 
-    number: Optional[int] = Field(default=None, gt=0)
+    number: Optional[int] = Field(default=None, ge=0)
     """The number of agents. Required when using memory_distributions, ignored when using memory_from_file."""
 
     agent_params: Optional[Any] = None
     """Agent configuration"""
 
-    blocks: Optional[dict[Union[type[Block], BlockClassType], Any]] = None
+    blocks: Optional[dict[Union[type[Block], str], Any]] = None
     """Blocks configuration"""
 
     # Choose one of the following:
@@ -98,7 +85,7 @@ class AgentConfig(BaseModel):
 
     @field_serializer("agent_class")
     def serialize_agent_class(self, agent_class, info):
-        if isinstance(agent_class, (AgentClassType, str)):
+        if isinstance(agent_class, str):
             return agent_class
         else:
             return agent_class.__name__

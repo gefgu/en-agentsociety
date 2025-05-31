@@ -147,15 +147,6 @@ Bases: {py:obj}`agentsociety.agent.BankAgentBase`
 
 ````
 
-````{py:method} gather_messages(agent_ids: list[int], target: str) -> list[str]
-:canonical: agentsociety.cityagent.bankagent.BankAgent.gather_messages
-:async:
-
-```{autodoc2-docstring} agentsociety.cityagent.bankagent.BankAgent.gather_messages
-```
-
-````
-
 ````{py:method} forward()
 :canonical: agentsociety.cityagent.bankagent.BankAgent.forward
 :async:

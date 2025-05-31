@@ -37,7 +37,7 @@ agentsociety.storage.avro
 ````{py:data} __all__
 :canonical: agentsociety.storage.__all__
 :value: >
-   ['AvroSaver', 'PgWriter', 'StorageDialog', 'StorageSurvey', 'AvroConfig', 'PostgreSQLConfig']
+   ['AvroSaver', 'AvroConfig', 'PgWriter', 'StorageDialog', 'StorageSurvey', 'StorageDialogType', 'Post...
 
 ```{autodoc2-docstring} agentsociety.storage.__all__
 ```

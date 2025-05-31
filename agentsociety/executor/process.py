@@ -133,21 +133,6 @@ class ProcessExecutor:
         status_file = self._get_status_file(exp_id)
         log_file = self._get_log_file(exp_id)
 
-        # Initialize status file
-        status = {
-            "status": "Running",
-            "start_time": datetime.now().isoformat(),
-            "pid": None,
-        }
-
-        # Write initial status with lock
-        lock_fd = self._acquire_file_lock(status_file)
-        try:
-            with open(status_file, "w") as f:
-                json.dump(status, f)
-        finally:
-            self._release_file_lock(lock_fd)
-
         # Start the process
         cmd = [
             sys.executable,
@@ -168,6 +153,14 @@ class ProcessExecutor:
                 stderr=subprocess.STDOUT,
                 preexec_fn=os.setpgrp,  # Create new process group
             )
+
+        # Initialize status file
+        status = {
+            "command": " ".join(cmd),
+            "status": "Running",
+            "start_time": datetime.now().isoformat(),
+            "pid": process.pid,
+        }
 
         # Update status with PID
         lock_fd = self._acquire_file_lock(status_file)

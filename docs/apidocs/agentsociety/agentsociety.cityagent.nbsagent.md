@@ -150,15 +150,6 @@ Bases: {py:obj}`agentsociety.agent.NBSAgentBase`
 
 ````
 
-````{py:method} gather_messages(agent_ids: list[int], target: str) -> list[typing.Any]
-:canonical: agentsociety.cityagent.nbsagent.NBSAgent.gather_messages
-:async:
-
-```{autodoc2-docstring} agentsociety.cityagent.nbsagent.NBSAgent.gather_messages
-```
-
-````
-
 ````{py:method} forward()
 :canonical: agentsociety.cityagent.nbsagent.NBSAgent.forward
 :async:

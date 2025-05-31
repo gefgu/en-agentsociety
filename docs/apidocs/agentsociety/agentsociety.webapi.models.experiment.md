@@ -392,6 +392,22 @@ Bases: {py:obj}`agentsociety.webapi.models._base.Base`
 
 ````
 
+````{py:property} pending_dialog_tablename
+:canonical: agentsociety.webapi.models.experiment.Experiment.pending_dialog_tablename
+
+```{autodoc2-docstring} agentsociety.webapi.models.experiment.Experiment.pending_dialog_tablename
+```
+
+````
+
+````{py:property} pending_survey_tablename
+:canonical: agentsociety.webapi.models.experiment.Experiment.pending_survey_tablename
+
+```{autodoc2-docstring} agentsociety.webapi.models.experiment.Experiment.pending_survey_tablename
+```
+
+````
+
 ````{py:method} to_dict()
 :canonical: agentsociety.webapi.models.experiment.Experiment.to_dict
 

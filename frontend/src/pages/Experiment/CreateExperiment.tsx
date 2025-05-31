@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ExperimentOutlined, ApiOutlined, TeamOutlined, GlobalOutlined, RocketOutlined, NodeIndexOutlined } from '@ant-design/icons';
 import { ConfigItem } from '../../services/storageService';
 import { fetchCustom } from '../../components/fetch';
+import { useTranslation } from 'react-i18next';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -24,6 +25,7 @@ interface WorkflowConfig extends ConfigItem {
 }
 
 const CreateExperiment: React.FC = () => {
+    const { t } = useTranslation();
     // State declarations
     const [llms, setLLMs] = useState<ConfigItem[]>([]);
     const [agents, setAgents] = useState<ConfigItem[]>([]);
@@ -80,7 +82,7 @@ const CreateExperiment: React.FC = () => {
                 if (wkfs.length > 0) setSelectedWorkflow(wkfs[0].id);
                 if (mps.length > 0) setSelectedMap(mps[0].id);
             } catch (error) {
-                message.error('Failed to load configurations');
+                message.error(t('form.experiment.messages.loadFailed'));
                 console.error(error);
             } finally {
                 setLoading(false);
@@ -88,7 +90,7 @@ const CreateExperiment: React.FC = () => {
         };
 
         loadConfigurations();
-    }, []);
+    }, [t]);
 
     // Clean up interval timer
     useEffect(() => {
@@ -187,7 +189,7 @@ const CreateExperiment: React.FC = () => {
 
             setExperimentId(newExperimentId);
             setExperimentRunning(true);
-            message.success(`Experiment started successfully! ExperimentId: ${newExperimentId}`);
+            message.success(t('form.experiment.messages.startSuccess', { id: newExperimentId }));
 
             // Start polling for pod status
             const interval = setInterval(async () => {
@@ -223,7 +225,7 @@ const CreateExperiment: React.FC = () => {
                             // Check if experiment is fully initialized
                             if (experiment.status === 1) {
                                 clearInterval(interval);
-                                message.success('Experiment initialized successfully!');
+                                message.success(t('form.experiment.messages.initSuccess'));
                                 navigate('/console');
                             } else {
                                 setExperimentStatus('Initializing experiment data...');
@@ -238,14 +240,14 @@ const CreateExperiment: React.FC = () => {
                         }
                     } else if (status === 'Failed' || status === 'Error') {
                         clearInterval(interval);
-                        message.error('Experiment failed to start');
+                        message.error(t('form.experiment.messages.startFailed'));
                         setExperimentRunning(false);
                     }
                 } catch (error) {
                     // Only handle non-404 errors as failures
                     if (error.response?.status !== 404) {
                         console.error('Error checking experiment status:', error);
-                        message.error('Failed to check experiment status');
+                        message.error(t('form.experiment.messages.statusCheckFailed'));
                         clearInterval(interval);
                         setExperimentRunning(false);
                     }
@@ -254,7 +256,7 @@ const CreateExperiment: React.FC = () => {
 
             setStatusCheckInterval(interval);
         } catch (error) {
-            message.error(`Failed to start experiment: ${error.message}`, 3);
+            message.error(t('form.experiment.messages.startFailed', { error: error.message }), 3);
             console.error(error);
             setExperimentRunning(false);
         } finally {
@@ -271,45 +273,45 @@ const CreateExperiment: React.FC = () => {
                 experimentName: '',
             }}
         >
-            <Card title="Create New Experiment" extra={
+            <Card title={t('form.experiment.createTitle')} extra={
                 <Button
                     type="primary"
                     htmlType="submit"
                     loading={loading}
                     disabled={experimentRunning}
                 >
-                    Start Experiment
+                    {t('form.experiment.startButton')}
                 </Button>
             }>
                 <Form.Item
                     name="experimentName"
-                    label="Experiment Name"
-                    rules={[{ required: true, message: 'Please enter an experiment name' }]}
+                    label={t('form.experiment.nameLabel')}
+                    rules={[{ required: true, message: t('form.experiment.nameRequired') }]}
                 >
                     <Input
-                        placeholder="Enter experiment name"
+                        placeholder={t('form.experiment.namePlaceholder')}
                         onChange={(e) => setExperimentName(e.target.value)}
                         disabled={experimentRunning}
                     />
                 </Form.Item>
 
-                <Divider orientation="left">Configuration Components</Divider>
+                <Divider orientation="left">{t('form.experiment.componentsTitle')}</Divider>
 
                 <Row gutter={[16, 16]}>
                     <Col span={12}>
                         <Card
-                            title={<Space><ApiOutlined /> LLM</Space>}
-                            extra={<Button type="link" onClick={() => handleCreateNew('llm')}>Create New</Button>}
+                            title={<Space><ApiOutlined /> {t('form.experiment.llmTitle')}</Space>}
+                            extra={<Button type="link" onClick={() => handleCreateNew('llm')}>{t('form.experiment.createNew')}</Button>}
                         >
                             <Space direction="vertical" style={{ width: '100%' }}>
-                                <Text>Select a LLM configuration:</Text>
+                                <Text>{t('form.experiment.selectLLM')}</Text>
                                 <Form.Item
                                     name="llm"
-                                    rules={[{ required: true, message: 'Please select a LLM' }]}
+                                    rules={[{ required: true, message: t('form.experiment.llmRequired') }]}
                                     initialValue={selectedLLM}
                                 >
                                     <Select
-                                        placeholder="Select LLM"
+                                        placeholder={t('form.experiment.selectLLMPlaceholder')}
                                         style={{ width: '100%' }}
                                         loading={loading}
                                         value={selectedLLM || undefined}
@@ -330,18 +332,18 @@ const CreateExperiment: React.FC = () => {
 
                     <Col span={12}>
                         <Card
-                            title={<Space><GlobalOutlined /> Map</Space>}
-                            extra={<Button type="link" onClick={() => handleCreateNew('map')}>Create New</Button>}
+                            title={<Space><GlobalOutlined /> {t('form.experiment.mapTitle')}</Space>}
+                            extra={<Button type="link" onClick={() => handleCreateNew('map')}>{t('form.experiment.createNew')}</Button>}
                         >
                             <Space direction="vertical" style={{ width: '100%' }}>
-                                <Text>Select a map:</Text>
+                                <Text>{t('form.experiment.selectMap')}</Text>
                                 <Form.Item
                                     name="map"
-                                    rules={[{ required: true, message: 'Please select a map' }]}
+                                    rules={[{ required: true, message: t('form.experiment.mapRequired') }]}
                                     initialValue={selectedMap}
                                 >
                                     <Select
-                                        placeholder="Select map"
+                                        placeholder={t('form.experiment.selectMapPlaceholder')}
                                         style={{ width: '100%' }}
                                         loading={loading}
                                         value={selectedMap || undefined}
@@ -362,18 +364,18 @@ const CreateExperiment: React.FC = () => {
 
                     <Col span={12}>
                         <Card
-                            title={<Space><TeamOutlined /> Agent</Space>}
-                            extra={<Button type="link" onClick={() => handleCreateNew('agent')}>Create New</Button>}
+                            title={<Space><TeamOutlined /> {t('form.experiment.agentTitle')}</Space>}
+                            extra={<Button type="link" onClick={() => handleCreateNew('agent')}>{t('form.experiment.createNew')}</Button>}
                         >
                             <Space direction="vertical" style={{ width: '100%' }}>
-                                <Text>Select an agent configuration:</Text>
+                                <Text>{t('form.experiment.selectAgent')}</Text>
                                 <Form.Item
                                     name="agent"
-                                    rules={[{ required: true, message: 'Please select an agent configuration' }]}
+                                    rules={[{ required: true, message: t('form.experiment.agentRequired') }]}
                                     initialValue={selectedAgent}
                                 >
                                     <Select
-                                        placeholder="Select agent"
+                                        placeholder={t('form.experiment.selectAgentPlaceholder')}
                                         style={{ width: '100%' }}
                                         loading={loading}
                                         value={selectedAgent || undefined}
@@ -394,18 +396,18 @@ const CreateExperiment: React.FC = () => {
 
                     <Col span={12}>
                         <Card
-                            title={<Space><NodeIndexOutlined /> Workflow</Space>}
-                            extra={<Button type="link" onClick={() => handleCreateNew('workflow')}>Create New</Button>}
+                            title={<Space><NodeIndexOutlined /> {t('form.experiment.workflowTitle')}</Space>}
+                            extra={<Button type="link" onClick={() => handleCreateNew('workflow')}>{t('form.experiment.createNew')}</Button>}
                         >
                             <Space direction="vertical" style={{ width: '100%' }}>
-                                <Text>Select a workflow:</Text>
+                                <Text>{t('form.experiment.selectWorkflow')}</Text>
                                 <Form.Item
                                     name="workflow"
-                                    rules={[{ required: true, message: 'Please select a workflow' }]}
+                                    rules={[{ required: true, message: t('form.experiment.workflowRequired') }]}
                                     initialValue={selectedWorkflow}
                                 >
                                     <Select
-                                        placeholder="Select workflow"
+                                        placeholder={t('form.experiment.selectWorkflowPlaceholder')}
                                         style={{ width: '100%' }}
                                         loading={loading}
                                         value={selectedWorkflow || undefined}
@@ -432,26 +434,26 @@ const CreateExperiment: React.FC = () => {
                         <Spin size="large" />
                         <div style={{ marginTop: 16 }}>
                             <Text>
-                                Experiment Status: {' '}
+                                {t('form.experiment.statusLabel')}: {' '}
                                 <Text strong type={
                                     experimentStatus === 'Running' ? 'warning' :
                                     experimentStatus?.includes('Initializing') ? 'warning' :
                                     experimentStatus === 'Failed' || experimentStatus === 'Error' ? 'danger' :
                                     'warning'
                                 }>
-                                    {experimentStatus === 'Running' ? 'Starting Services...' :
-                                     experimentStatus === 'Failed' ? 'Start-up Failed' :
-                                     experimentStatus === 'Error' ? 'Error Occurred' :
-                                     experimentStatus || 'Preparing Environment...'}
+                                    {experimentStatus === 'Running' ? t('form.experiment.statusStarting') :
+                                     experimentStatus === 'Failed' ? t('form.experiment.statusFailed') :
+                                     experimentStatus === 'Error' ? t('form.experiment.statusError') :
+                                     experimentStatus || t('form.experiment.statusPreparing')}
                                 </Text>
                             </Text>
                         </div>
                         <div style={{ marginTop: 8 }}>
                             <Text type="secondary">
-                                {experimentStatus === 'Running' ? 'Services started, initializing experiment data...' :
-                                 experimentStatus?.includes('Initializing') ? 'Setting up experiment environment...' :
-                                 experimentStatus === 'Failed' || experimentStatus === 'Error' ? 'Please check your configuration and try again' :
-                                 'Starting experiment services. This may take a few minutes...'}
+                                {experimentStatus === 'Running' ? t('form.experiment.statusStartingDesc') :
+                                 experimentStatus?.includes('Initializing') ? t('form.experiment.statusInitializingDesc') :
+                                 experimentStatus === 'Failed' || experimentStatus === 'Error' ? t('form.experiment.statusFailedDesc') :
+                                 t('form.experiment.statusPreparingDesc')}
                             </Text>
                         </div>
                     </div>

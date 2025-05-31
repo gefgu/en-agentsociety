@@ -13,6 +13,8 @@ from .type import (
     StorageDialog,
     StorageExpInfo,
     StorageGlobalPrompt,
+    StoragePendingDialog,
+    StoragePendingSurvey,
     StorageProfile,
     StorageStatus,
     StorageSurvey,
@@ -115,6 +117,41 @@ PGSQL_DICT: dict[str, list[Any]] = {
 """,
         "CREATE INDEX {table_name}_id_idx ON {table_name} (id)",
         "CREATE INDEX {table_name}_day_t_idx ON {table_name} (day,t)",
+    ],
+    # Pending Dialog
+    "pending_dialog": [
+        """
+    CREATE TABLE IF NOT EXISTS {table_name} (
+        id SERIAL PRIMARY KEY,
+        agent_id INT,
+        day INT4,
+        t FLOAT,
+        content TEXT,
+        created_at TIMESTAMPTZ,
+        processed BOOLEAN DEFAULT FALSE
+    )
+""",
+        "CREATE INDEX {table_name}_day_t_idx ON {table_name} (day,t)",
+        "CREATE INDEX {table_name}_agent_id_idx ON {table_name} (agent_id)",
+        "CREATE INDEX {table_name}_processed_idx ON {table_name} (processed)",
+    ],
+    # Pending Survey
+    "pending_survey": [
+        """
+    CREATE TABLE IF NOT EXISTS {table_name} (
+        id SERIAL PRIMARY KEY,
+        agent_id INT,
+        day INT4,
+        t FLOAT,
+        survey_id UUID,
+        data JSONB,
+        created_at TIMESTAMPTZ,
+        processed BOOLEAN DEFAULT FALSE
+    )
+""",
+        "CREATE INDEX {table_name}_day_t_idx ON {table_name} (day,t)",
+        "CREATE INDEX {table_name}_agent_id_idx ON {table_name} (agent_id)",
+        "CREATE INDEX {table_name}_processed_idx ON {table_name} (processed)",
     ],
 }
 
@@ -383,3 +420,97 @@ class PgWriter:
 
                 await cur.execute(upsert_sql, params)
                 await aconn.commit()
+
+    async def fetch_pending_dialogs(self):
+        """
+        Fetch all unprocessed pending dialogs from the database.
+
+        - **Returns**:
+            - `list[StoragePendingDialog]`: A list of pending dialogs.
+        """
+        table_name = f"{TABLE_PREFIX}{self.exp_id.replace('-', '_')}_pending_dialog"
+        async with await psycopg.AsyncConnection.connect(self._dsn) as aconn:
+            async with aconn.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    psycopg.sql.SQL("SELECT * FROM {} WHERE processed = FALSE").format(
+                        psycopg.sql.Identifier(table_name)
+                    )
+                )
+                rows = await cur.fetchall()
+                return [StoragePendingDialog(**row) for row in rows]
+
+    @lock_decorator
+    async def mark_dialogs_as_processed(self, pending_ids: list[int]):
+        """
+        Mark specified dialogs as processed in the database.
+
+        - **Args**:
+            - `pending_ids` (list[int]): List of pending dialog IDs to mark as processed.
+        """
+        if not pending_ids:
+            return
+
+        table_name = f"{TABLE_PREFIX}{self.exp_id.replace('-', '_')}_pending_dialog"
+        async with await psycopg.AsyncConnection.connect(self._dsn) as aconn:
+            async with aconn.cursor(row_factory=dict_row) as cur:
+                await cur.execute("BEGIN")
+                try:
+                    await cur.execute(
+                        psycopg.sql.SQL(
+                            "UPDATE {} SET processed = TRUE WHERE id = ANY(%s)"
+                        ).format(psycopg.sql.Identifier(table_name)),
+                        (pending_ids,),
+                    )
+                    await aconn.commit()
+                except Exception as e:
+                    await aconn.rollback()
+                    raise e
+
+    async def fetch_pending_surveys(self):
+        """
+        Fetch all unprocessed pending surveys from the database.
+
+        - **Returns**:
+            - `list[StoragePendingSurvey]`: A list of pending surveys.
+        """
+        table_name = f"{TABLE_PREFIX}{self.exp_id.replace('-', '_')}_pending_survey"
+        async with await psycopg.AsyncConnection.connect(self._dsn) as aconn:
+            async with aconn.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    psycopg.sql.SQL("SELECT * FROM {} WHERE processed = FALSE").format(
+                        psycopg.sql.Identifier(table_name)
+                    )
+                )
+                rows = await cur.fetchall()
+                results = []
+                for row in rows:
+                    row["survey_id"] = str(row["survey_id"])
+                    results.append(StoragePendingSurvey(**row))
+                return results
+
+    @lock_decorator
+    async def mark_surveys_as_processed(self, pending_ids: list[int]):
+        """
+        Mark specified surveys as processed in the database.
+
+        - **Args**:
+            - `pending_ids` (list[int]): List of pending survey IDs to mark as processed.
+        """
+        if not pending_ids:
+            return
+
+        table_name = f"{TABLE_PREFIX}{self.exp_id.replace('-', '_')}_pending_survey"
+        async with await psycopg.AsyncConnection.connect(self._dsn) as aconn:
+            async with aconn.cursor(row_factory=dict_row) as cur:
+                await cur.execute("BEGIN")
+                try:
+                    await cur.execute(
+                        psycopg.sql.SQL(
+                            "UPDATE {} SET processed = TRUE WHERE id = ANY(%s)"
+                        ).format(psycopg.sql.Identifier(table_name)),
+                        (pending_ids,),
+                    )
+                    await aconn.commit()
+                except Exception as e:
+                    await aconn.rollback()
+                    raise e

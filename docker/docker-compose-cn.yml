@@ -29,23 +29,6 @@ services:
     environment:
       POSTGRESQL_PASSWORD: CHANGE_ME
 
-  redis-svc:
-    image: swr.cn-north-4.myhuaweicloud.com/tsinghua-fib-lab/redis:7.2
-    container_name: redis
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "CHANGE_ME", "ping"]
-      interval: 5s
-      timeout: 30s
-      retries: 3
-    restart: always
-    environment:
-      REDIS_PASSWORD: CHANGE_ME
-      REDIS_AOF_ENABLED: no
-    ports:
-      - 6379:6379 # TCP Listener for Redis
-      # - 26379:26379 # TCP Listener for Redis Sentinel
-      # - 6380:6380 # TCP Listener for Redis (Cluster)
-
 volumes:
   mlflow:
   postgresql:

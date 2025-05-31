@@ -8,7 +8,7 @@ import React from "react";
 import { Experiment } from "../../components/type";
 import { ProColumns, ProDescriptions, ProTable } from "@ant-design/pro-components";
 import { ActionType } from "@ant-design/pro-table";
-import { EllipsisOutlined, ReloadOutlined } from "@ant-design/icons";
+import { EllipsisOutlined, ReloadOutlined, PlusOutlined } from "@ant-design/icons";
 import { fetchCustom } from "../../components/fetch";
 import { useTranslation } from "react-i18next";
 
@@ -151,6 +151,20 @@ const Page = () => {
                                     }
                                 },
                                 {
+                                    key: 'exportArtifacts',
+                                    label: t('console.buttons.exportArtifacts'),
+                                    onClick: () => {
+                                        const url = `/api/experiments/${record.id}/artifacts`
+                                        const form = document.createElement('form');
+                                        form.action = url;
+                                        form.method = 'POST';
+                                        form.target = '_blank';
+                                        document.body.appendChild(form);
+                                        form.submit();
+                                        document.body.removeChild(form);
+                                    }
+                                },
+                                {
                                     key: 'export',
                                     label: t('console.buttons.export'),
                                     onClick: () => {
@@ -230,6 +244,19 @@ const Page = () => {
                         }}
                         rowKey="id"
                         columnEmptyText="-"
+                        search={{
+                            optionRender: ({ searchText, resetText }, { form }, dom) => [
+                                ...dom,
+                                <Button
+                                    key="create"
+                                    type="primary"
+                                    icon={<PlusOutlined />}
+                                    onClick={() => navigate('/create-experiment')}
+                                >
+                                    {t('console.buttons.createExperiment')}
+                                </Button>
+                            ]
+                        }}
                     />
                 </Col>
             </Row>

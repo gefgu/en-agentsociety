@@ -61,9 +61,9 @@ class Survey(BaseModel):
 
     id: uuid.UUID
     """Unique identifier for the survey"""
-    title: str
+    title: str = ""
     """Title of the survey"""
-    description: str
+    description: str = ""
     """Description of the survey"""
     pages: List[Page]
     """List of pages in the survey"""

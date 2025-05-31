@@ -145,6 +145,17 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
+````{py:attribute} supervisor
+:canonical: agentsociety.configs.AgentsConfig.supervisor
+:type: typing.Optional[agentsociety.configs.agent.AgentConfig]
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.configs.AgentsConfig.supervisor
+```
+
+````
+
 ````{py:attribute} init_funcs
 :canonical: agentsociety.configs.AgentsConfig.init_funcs
 :type: list[typing.Callable[[typing.Any], typing.Union[None, typing.Awaitable[None]]]]

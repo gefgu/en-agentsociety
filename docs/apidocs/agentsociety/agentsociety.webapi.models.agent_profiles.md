@@ -19,6 +19,10 @@
   - ```{autodoc2-docstring} agentsociety.webapi.models.agent_profiles.AgentProfile
     :summary:
     ```
+* - {py:obj}`ApiAgentProfile <agentsociety.webapi.models.agent_profiles.ApiAgentProfile>`
+  - ```{autodoc2-docstring} agentsociety.webapi.models.agent_profiles.ApiAgentProfile
+    :summary:
+    ```
 ````
 
 ### Data
@@ -38,7 +42,7 @@
 ````{py:data} __all__
 :canonical: agentsociety.webapi.models.agent_profiles.__all__
 :value: >
-   ['AgentProfile']
+   ['AgentProfile', 'ApiAgentProfile']
 
 ```{autodoc2-docstring} agentsociety.webapi.models.agent_profiles.__all__
 ```
@@ -163,3 +167,136 @@ Bases: {py:obj}`agentsociety.webapi.models._base.Base`
 ````
 
 `````
+
+``````{py:class} ApiAgentProfile(/, **data: typing.Any)
+:canonical: agentsociety.webapi.models.agent_profiles.ApiAgentProfile
+
+Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent_profiles.ApiAgentProfile
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent_profiles.ApiAgentProfile.__init__
+```
+
+````{py:attribute} tenant_id
+:canonical: agentsociety.webapi.models.agent_profiles.ApiAgentProfile.tenant_id
+:type: typing.Optional[str]
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent_profiles.ApiAgentProfile.tenant_id
+```
+
+````
+
+````{py:attribute} id
+:canonical: agentsociety.webapi.models.agent_profiles.ApiAgentProfile.id
+:type: typing.Optional[uuid.UUID]
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent_profiles.ApiAgentProfile.id
+```
+
+````
+
+````{py:attribute} name
+:canonical: agentsociety.webapi.models.agent_profiles.ApiAgentProfile.name
+:type: str
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent_profiles.ApiAgentProfile.name
+```
+
+````
+
+````{py:attribute} description
+:canonical: agentsociety.webapi.models.agent_profiles.ApiAgentProfile.description
+:type: typing.Optional[str]
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent_profiles.ApiAgentProfile.description
+```
+
+````
+
+````{py:attribute} agent_type
+:canonical: agentsociety.webapi.models.agent_profiles.ApiAgentProfile.agent_type
+:type: str
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent_profiles.ApiAgentProfile.agent_type
+```
+
+````
+
+````{py:attribute} file_path
+:canonical: agentsociety.webapi.models.agent_profiles.ApiAgentProfile.file_path
+:type: str
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent_profiles.ApiAgentProfile.file_path
+```
+
+````
+
+````{py:attribute} record_count
+:canonical: agentsociety.webapi.models.agent_profiles.ApiAgentProfile.record_count
+:type: int
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent_profiles.ApiAgentProfile.record_count
+```
+
+````
+
+````{py:attribute} created_at
+:canonical: agentsociety.webapi.models.agent_profiles.ApiAgentProfile.created_at
+:type: typing.Optional[pydantic.AwareDatetime]
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent_profiles.ApiAgentProfile.created_at
+```
+
+````
+
+````{py:attribute} updated_at
+:canonical: agentsociety.webapi.models.agent_profiles.ApiAgentProfile.updated_at
+:type: typing.Optional[pydantic.AwareDatetime]
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent_profiles.ApiAgentProfile.updated_at
+```
+
+````
+
+`````{py:class} Config
+:canonical: agentsociety.webapi.models.agent_profiles.ApiAgentProfile.Config
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent_profiles.ApiAgentProfile.Config
+```
+
+````{py:attribute} from_attributes
+:canonical: agentsociety.webapi.models.agent_profiles.ApiAgentProfile.Config.from_attributes
+:value: >
+   True
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent_profiles.ApiAgentProfile.Config.from_attributes
+```
+
+````
+
+`````
+
+``````

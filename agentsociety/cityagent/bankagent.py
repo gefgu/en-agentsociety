@@ -131,20 +131,6 @@ The central banking agent that manages monetary policy in the simulation.
             return True
         return False
 
-    async def gather_messages(self, agent_ids: list[int], target: str) -> list[str]:
-        """
-        Collect messages from other agents.
-
-        - **Args**:
-            - `agent_ids` (`list[int]`): A list of IDs for the target agents.
-            - `target` (`str`): The type of information to collect from each agent.
-
-        - **Returns**:
-            - `list[str]`: A list of collected responses.
-        """
-        infos = await super().gather_messages(agent_ids, target)
-        return [info["content"] for info in infos]
-
     async def forward(self):
         """
         Execute monthly policy update cycle.

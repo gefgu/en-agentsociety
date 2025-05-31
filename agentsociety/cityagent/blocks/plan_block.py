@@ -135,7 +135,9 @@ class PlanBlock(Block):
         self.set_agent(agent)
         self.context = agent_context
         self.guidance_prompt = FormatPrompt(template=GUIDANCE_SELECTION_PROMPT)
-        self.detail_prompt = FormatPrompt(template=detailed_plan_prompt, memory=agent_memory)
+        self.detail_prompt = FormatPrompt(
+            template=detailed_plan_prompt, memory=agent_memory
+        )
         self.trigger_time = 0
         self.token_consumption = 0
         self.guidance_options = {

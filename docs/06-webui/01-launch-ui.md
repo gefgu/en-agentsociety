@@ -1,6 +1,6 @@
 # Launching the Web UI
 
-To launch the Web UI, you first need to set up the environment as described in [Prerequisites](../01-quick-start/01-prerequisites.md), including PostgreSQL, MLflow, and Redis.
+To launch the Web UI, you first need to set up the environment as described in [Prerequisites](../01-quick-start/01-prerequisites.md), including PostgreSQL and MLflow.
 
 Then, create a configuration file (e.g., `config.yaml`) with the required environment information. The configuration include:
 
@@ -35,7 +35,6 @@ Once the configuration is ready, start the backend service using the following c
     env: # Required
       avro:
         enabled: true    # Enable avro data storage
-        path: avro       # Path to store avro files
       mlflow:
         enabled: true    # Enable MLflow integration
         mlflow_uri: http://localhost:59000  # MLflow server address
@@ -43,10 +42,6 @@ Once the configuration is ready, start the backend service using the following c
         username: YOUR_USERNAME  # MLflow username
       pgsql:
         dsn: postgresql://USERNAME:PASSWORD@HOST:PORT/DATABASE  # PostgreSQL connection string
-      redis:
-        password: PASSWORD  # Redis password
-        port: 6379         # Redis port
-        server: localhost  # Redis server address
     ```
 
 The UI service will be available at `http://localhost:8080` or the address specified in your configuration file.

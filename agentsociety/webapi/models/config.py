@@ -22,6 +22,7 @@ __all__ = [
     "LLMConfig",
     "ApiLLMConfig",
     "MapConfig",
+    "MapTempDownloadLink",
     "ApiMapConfig",
     "AgentConfig",
     "ApiAgentConfig",
@@ -87,6 +88,16 @@ class MapConfig(Base):
         default=datetime.now, onupdate=datetime.now
     )
 
+class MapTempDownloadLink(Base):
+    """Map temp download link model"""
+
+    __tablename__ = f"{TABLE_PREFIX}map_temp_download_link"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    map_config_id: Mapped[uuid.UUID] = mapped_column()
+    token: Mapped[str] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(default=datetime.now)
+    expire_at: Mapped[datetime] = mapped_column()
 
 class ApiMapConfig(BaseModel):
     """Map model for API"""

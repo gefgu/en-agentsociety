@@ -5,12 +5,11 @@ from pydantic import BaseModel, Field, field_serializer
 import psutil
 from ..environment import MapConfig, SimulatorConfig
 from ..llm import LLMConfig
-from .agent import AgentClassType, AgentConfig
+from .agent import InstitutionAgentClass, AgentConfig
 from .env import EnvConfig
 from .exp import (
     EnvironmentConfig,
     ExpConfig,
-    MessageInterceptConfig,
     MetricExtractorConfig,
     MetricType,
     WorkflowStepConfig,
@@ -26,10 +25,9 @@ __all__ = [
     "ExpConfig",
     "MetricExtractorConfig",
     "EnvironmentConfig",
-    "MessageInterceptConfig",
     "Config",
     "load_config_from_file",
-    "AgentClassType",
+    "InstitutionAgentClass",
     "MetricType",
     "WorkflowType",
     "AgentFilterConfig",
@@ -42,52 +40,23 @@ class AgentsConfig(BaseModel):
     citizens: list[AgentConfig] = Field(..., min_length=1)
     """Citizen Agent configuration"""
 
-    firms: list[AgentConfig] = Field(
-        [
-            AgentConfig(
-                agent_class=AgentClassType.FIRM,
-                number=1,
-            ),
-        ],
-        min_length=1,
-    )
+    firms: list[AgentConfig] = Field(default=[])
     """Firm Agent configuration"""
 
-    banks: list[AgentConfig] = Field(
-        [
-            AgentConfig(
-                agent_class=AgentClassType.BANK,
-                number=1,
-            ),
-        ],
-        min_length=1,
-    )
+    banks: list[AgentConfig] = Field(default=[])
     """Bank Agent configuration"""
 
-    nbs: list[AgentConfig] = Field(
-        [
-            AgentConfig(
-                agent_class=AgentClassType.NBS,
-                number=1,
-            ),
-        ],
-        min_length=1,
-    )
+    nbs: list[AgentConfig] = Field(default=[])
     """NBS Agent configuration"""
 
-    governments: list[AgentConfig] = Field(
-        [
-            AgentConfig(
-                agent_class=AgentClassType.GOVERNMENT,
-                number=1,
-            ),
-        ],
-        min_length=1,
-    )
+    governments: list[AgentConfig] = Field(default=[])
     """Government Agent configuration"""
 
     others: list[AgentConfig] = Field([])
     """Other Agent configuration"""
+
+    supervisor: Optional[AgentConfig] = Field(None)
+    """Supervisor Agent configuration"""
 
     init_funcs: list[Callable[[Any], Union[None, Awaitable[None]]]] = Field([])
     """Initialization functions for simulation, the only one argument is the AgentSociety object"""
@@ -147,9 +116,6 @@ class Config(BaseModel):
         2. CPU: Number of groups should not exceed CPU count
         3. Minimum group size is 100 agents
         """
-        if self.advanced.group_size != "auto":
-            return
-
         num_agents = 0
         for agents in [
             self.agents.citizens,
@@ -162,19 +128,20 @@ class Config(BaseModel):
                 agent.number for agent in agents if agent.number is not None
             )
 
-        cpu_count = psutil.cpu_count()
-        memory_gb = psutil.virtual_memory().available / (1024 * 1024 * 1024)
-        available_memory_gb = memory_gb - 8  # for simulator
-        available_memory_gb -= 1  # for message interceptor
-        available_memory_gb -= 1  # for pgsql
-        mem_per_group = 2
-        if available_memory_gb < mem_per_group:
-            raise ValueError(
-                f"Not enough memory ({memory_gb:.2f}GB) to run the simulation, at least 12GB available memory is required"
-            )
-        max_groups_by_memory = int(available_memory_gb / mem_per_group)
-        max_groups = min(cpu_count, max_groups_by_memory)
-        self.advanced.group_size = max(100, math.ceil(num_agents / max_groups))
+        if self.advanced.group_size == "auto":
+            cpu_count = psutil.cpu_count()
+            memory_gb = psutil.virtual_memory().available / (1024 * 1024 * 1024)
+            available_memory_gb = memory_gb - 8  # for simulator
+            available_memory_gb -= 1  # for message interceptor
+            available_memory_gb -= 1  # for pgsql
+            mem_per_group = 2
+            if available_memory_gb < mem_per_group:
+                raise ValueError(
+                    f"Not enough memory ({memory_gb:.2f}GB) to run the simulation, at least 12GB available memory is required"
+                )
+            max_groups_by_memory = int(available_memory_gb / mem_per_group)
+            max_groups = min(cpu_count, max_groups_by_memory)
+            self.advanced.group_size = max(100, math.ceil(num_agents / max_groups))
         num_groups = math.ceil(num_agents / self.advanced.group_size)
         if self.env.pgsql.enabled:
             if self.env.pgsql.num_workers == "auto":

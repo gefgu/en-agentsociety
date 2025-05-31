@@ -1,6 +1,6 @@
 # Dependencies installed by Docker
 
-The folder contains the docker-compose.yml and related files for running the dependencies (PostgreSQL, Redis, mlflow) for the project quickly.
+The folder contains the docker-compose.yml and related files for running the dependencies (PostgreSQL, mlflow) for the project quickly.
 
 ## Prerequisites
 
@@ -68,10 +68,9 @@ docker compose -f ./docker-compose-cn.yml down # if you are in China
   - The default username and password are `postgres` and `CHANGE_ME`, respectively.
   - The default database is `postgres`.
   - You can use some GUI tools to access the database, e.g., [DBeaver](https://dbeaver.io/).
-- Redis Server: localhost:6379
 
 ## Attention
 
 SECURITY WARNING:
-- CHANGE THE PASSWORD OF POSTGRESQL, REDIS AND MLFLOW IN THE docker-compose.yml FILE and `basic_auth.ini`.
+- CHANGE THE PASSWORD OF POSTGRESQL AND MLFLOW IN THE docker-compose.yml FILE and `basic_auth.ini`.
 - SET FIREWALL RULES ACCORDINGLY.

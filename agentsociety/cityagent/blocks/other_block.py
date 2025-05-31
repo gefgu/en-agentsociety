@@ -13,6 +13,7 @@ from ...agent.dispatcher import BlockDispatcher
 from .utils import TIME_ESTIMATE_PROMPT, clean_json_response
 from ..sharing_params import SocietyAgentBlockOutput
 
+
 class SleepBlock(Block):
     """Block implementation for handling sleep-related actions in an agent's workflow.
 

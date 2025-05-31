@@ -20,7 +20,6 @@ llm:
 env:
   avro:
     enabled: false # Whether to enable Avro
-    path: <AVRO-OUTPUT-PATH> # Path to the Avro output file
   mlflow:
     enabled: false # Whether to enable MLflow
     mlflow_uri: http://localhost:59000 # MLflow server URI``
@@ -29,10 +28,6 @@ env:
   pgsql:
     enabled: true # Whether to enable PostgreSQL
     dsn: postgresql://postgres:CHANGE_ME@localhost:5432/postgres # PostgreSQL connection string
-  redis:
-    server: <REDIS-SERVER> # Redis server address
-    port: 6379 # Redis port
-    password: <CHANGE_ME> # Redis password
 map:
   file_path: <MAP-FILE-PATH> # Path to the map file
   cache_path: <CACHE-FILE-PATH> # Cache path for accelerating map file loading
@@ -89,7 +84,6 @@ from agentsociety.configs.agent import AgentClassType, AgentConfig
 from agentsociety.configs.exp import (WorkflowStepConfig, WorkflowType)
 from agentsociety.environment import EnvironmentConfig
 from agentsociety.llm import LLMProviderType
-from agentsociety.message import RedisConfig
 from agentsociety.simulation import AgentSociety
 from agentsociety.storage import AvroConfig, PostgreSQLConfig
 
@@ -132,18 +126,12 @@ config = Config(
         )
     ],
     env=EnvConfig(
-        redis=RedisConfig(
-            server="<SERVER-ADDRESS>",
-            port=6379,
-            password="<PASSWORD>",
-        ),  # type: ignore
         pgsql=PostgreSQLConfig(
             enabled=True,
             dsn="<PGSQL-DSN>",
             num_workers="auto",
         ),
         avro=AvroConfig(
-            path="<SAVE-PATH>",
             enabled=True,
         ),
         mlflow=MlflowConfig(

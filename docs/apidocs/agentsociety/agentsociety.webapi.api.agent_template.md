@@ -55,6 +55,14 @@
   - ```{autodoc2-docstring} agentsociety.webapi.api.agent_template.get_block_param
     :summary:
     ```
+* - {py:obj}`get_agent_classes <agentsociety.webapi.api.agent_template.get_agent_classes>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.agent_template.get_agent_classes
+    :summary:
+    ```
+* - {py:obj}`get_workflow_functions <agentsociety.webapi.api.agent_template.get_workflow_functions>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.agent_template.get_workflow_functions
+    :summary:
+    ```
 ````
 
 ### Data
@@ -135,7 +143,7 @@
 ```
 ````
 
-````{py:function} get_agent_blocks(request: fastapi.Request) -> agentsociety.webapi.models.ApiResponseWrapper[typing.List[typing.Dict[str, typing.Any]]]
+````{py:function} get_agent_blocks(request: fastapi.Request) -> agentsociety.webapi.models.ApiResponseWrapper[typing.List[str]]
 :canonical: agentsociety.webapi.api.agent_template.get_agent_blocks
 :async:
 
@@ -157,7 +165,7 @@
 ```
 ````
 
-````{py:function} get_agent_param(request: fastapi.Request) -> agentsociety.webapi.models.ApiResponseWrapper[typing.Dict[str, typing.Any]]
+````{py:function} get_agent_param(request: fastapi.Request, agent_type: str, agent_class: str) -> agentsociety.webapi.models.ApiResponseWrapper[typing.Dict[str, typing.Any]]
 :canonical: agentsociety.webapi.api.agent_template.get_agent_param
 :async:
 
@@ -170,5 +178,21 @@
 :async:
 
 ```{autodoc2-docstring} agentsociety.webapi.api.agent_template.get_block_param
+```
+````
+
+````{py:function} get_agent_classes(request: fastapi.Request, agent_type: str) -> agentsociety.webapi.models.ApiResponseWrapper[typing.List[typing.Dict[str, str]]]
+:canonical: agentsociety.webapi.api.agent_template.get_agent_classes
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.agent_template.get_agent_classes
+```
+````
+
+````{py:function} get_workflow_functions(request: fastapi.Request) -> agentsociety.webapi.models.ApiResponseWrapper[typing.List[str]]
+:canonical: agentsociety.webapi.api.agent_template.get_workflow_functions
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.agent_template.get_workflow_functions
 ```
 ````

@@ -11,37 +11,11 @@ The structure is as follows:
 
 ```yaml
 env:
-  redis:
   pgsql:
   avro:
   mlflow:
   s3:
 ```
-
-### Redis Configuration
-
-An example of the `redis` section is as follows:
-
-```yaml
-redis:
-  server: <CHANGE_ME>
-  port: 6379
-  password: <CHANGE_ME>
-```
-
-Redis serves as the message broker and temporary storage solution. The `redis` section configures:
-- Connection parameters
-- Message queue settings
-- Caching configurations
-
-The `RedisConfig` class contains the following fields:
-
-- `server` (str, required): The Redis server address
-- `port` (int, optional): Port number for Redis connection, defaults to 6379 (must be between 0-65535)
-- `password` (str, optional): Password for Redis connection authentication
-- `db` (int, optional): Database number for Redis connection, defaults to 0
-- `timeout` (float, optional): Connection timeout in seconds, defaults to 60
-
 
 ### PostgreSQL Configuration 
 
@@ -149,16 +123,11 @@ An example of the `env` section in `config.yaml` is as follows:
 
 ```yaml
 env:
-  redis:
-    server: <REDIS-SERVER> # Redis server address
-    port: 6379 # Redis port
-    password: <CHANGE_ME> # Redis password
   pgsql:
     enabled: true # Whether to enable PostgreSQL
     dsn: postgresql://postgres:CHANGE_ME@localhost:5432/postgres # PostgreSQL connection string
   avro:
     enabled: false # Whether to enable Avro
-    path: <AVRO-OUTPUT-PATH> # Path to the Avro output file
   mlflow:
     enabled: false # Whether to enable MLflow
     mlflow_uri: http://localhost:59000 # MLflow server URI``

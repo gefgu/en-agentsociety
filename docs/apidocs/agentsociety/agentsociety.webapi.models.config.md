@@ -27,6 +27,10 @@
   - ```{autodoc2-docstring} agentsociety.webapi.models.config.MapConfig
     :summary:
     ```
+* - {py:obj}`MapTempDownloadLink <agentsociety.webapi.models.config.MapTempDownloadLink>`
+  - ```{autodoc2-docstring} agentsociety.webapi.models.config.MapTempDownloadLink
+    :summary:
+    ```
 * - {py:obj}`ApiMapConfig <agentsociety.webapi.models.config.ApiMapConfig>`
   - ```{autodoc2-docstring} agentsociety.webapi.models.config.ApiMapConfig
     :summary:
@@ -380,6 +384,81 @@ Bases: {py:obj}`agentsociety.webapi.models._base.Base`
    'mapped_column(...)'
 
 ```{autodoc2-docstring} agentsociety.webapi.models.config.MapConfig.updated_at
+```
+
+````
+
+`````
+
+`````{py:class} MapTempDownloadLink
+:canonical: agentsociety.webapi.models.config.MapTempDownloadLink
+
+Bases: {py:obj}`agentsociety.webapi.models._base.Base`
+
+```{autodoc2-docstring} agentsociety.webapi.models.config.MapTempDownloadLink
+```
+
+````{py:attribute} __tablename__
+:canonical: agentsociety.webapi.models.config.MapTempDownloadLink.__tablename__
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.webapi.models.config.MapTempDownloadLink.__tablename__
+```
+
+````
+
+````{py:attribute} id
+:canonical: agentsociety.webapi.models.config.MapTempDownloadLink.id
+:type: sqlalchemy.orm.Mapped[int]
+:value: >
+   'mapped_column(...)'
+
+```{autodoc2-docstring} agentsociety.webapi.models.config.MapTempDownloadLink.id
+```
+
+````
+
+````{py:attribute} map_config_id
+:canonical: agentsociety.webapi.models.config.MapTempDownloadLink.map_config_id
+:type: sqlalchemy.orm.Mapped[uuid.UUID]
+:value: >
+   'mapped_column(...)'
+
+```{autodoc2-docstring} agentsociety.webapi.models.config.MapTempDownloadLink.map_config_id
+```
+
+````
+
+````{py:attribute} token
+:canonical: agentsociety.webapi.models.config.MapTempDownloadLink.token
+:type: sqlalchemy.orm.Mapped[str]
+:value: >
+   'mapped_column(...)'
+
+```{autodoc2-docstring} agentsociety.webapi.models.config.MapTempDownloadLink.token
+```
+
+````
+
+````{py:attribute} created_at
+:canonical: agentsociety.webapi.models.config.MapTempDownloadLink.created_at
+:type: sqlalchemy.orm.Mapped[datetime.datetime]
+:value: >
+   'mapped_column(...)'
+
+```{autodoc2-docstring} agentsociety.webapi.models.config.MapTempDownloadLink.created_at
+```
+
+````
+
+````{py:attribute} expire_at
+:canonical: agentsociety.webapi.models.config.MapTempDownloadLink.expire_at
+:type: sqlalchemy.orm.Mapped[datetime.datetime]
+:value: >
+   'mapped_column(...)'
+
+```{autodoc2-docstring} agentsociety.webapi.models.config.MapTempDownloadLink.expire_at
 ```
 
 ````

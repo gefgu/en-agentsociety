@@ -101,7 +101,7 @@ class AgreeAgent(CitizenAgentBase):
             await asyncio.gather(*send_tasks)
             print("AgreeAgent forward end")
 
-    async def process_agent_chat_response(self, payload: dict) -> str:
+    async def do_chat(self, payload: dict) -> str:
         try:
             # Extract basic info
             sender_id = payload.get("from")
@@ -200,7 +200,7 @@ class DisagreeAgent(CitizenAgentBase):
             await asyncio.gather(*send_tasks)
             print("DisagreeAgent forward end")
 
-    async def process_agent_chat_response(self, payload: dict) -> str:
+    async def do_chat(self, payload: dict) -> str:
         try:
             # Extract basic info
             sender_id = payload.get("from")

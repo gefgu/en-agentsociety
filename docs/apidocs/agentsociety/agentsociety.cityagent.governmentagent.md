@@ -128,15 +128,6 @@ Bases: {py:obj}`agentsociety.agent.GovernmentAgentBase`
 
 ````
 
-````{py:method} gather_messages(agent_ids: list[int], target: str) -> list[typing.Any]
-:canonical: agentsociety.cityagent.governmentagent.GovernmentAgent.gather_messages
-:async:
-
-```{autodoc2-docstring} agentsociety.cityagent.governmentagent.GovernmentAgent.gather_messages
-```
-
-````
-
 ````{py:method} forward()
 :canonical: agentsociety.cityagent.governmentagent.GovernmentAgent.forward
 :async:

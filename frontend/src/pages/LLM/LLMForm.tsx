@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Select, Card, Button } from 'antd';
+import { Form, Input, Select, Card, Button, Row, Col } from 'antd';
 import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { Config, LLMConfig } from '../../types/config';
 import { LLMProviderType } from '../../utils/enums';
@@ -102,120 +102,132 @@ const LLMForm: React.FC<LLMFormProps> = ({ value, onChange }) => {
             onValuesChange={handleValuesChange}
             initialValues={value}
         >
-            <Card title={t('form.llm.settingsTitle')}>
-                <Form.List name="llm_configs">
-                    {(fields, { add, remove }) => (
-                        <>
-                            {fields.map(({ key, name, ...restField }) => (
-                                <Card
-                                    key={key}
-                                    title={`${t('form.llm.providerTitle')} ${name + 1}`}
-                                    style={{ marginBottom: 16 }}
-                                    extra={
-                                        fields.length > 1 ? (
-                                            <MinusCircleOutlined onClick={() => remove(name)} />
-                                        ) : null
-                                    }
-                                >
-                                    <Form.Item
-                                        {...restField}
-                                        name={[name, 'provider']}
-                                        label={t('form.llm.providerLabel')}
-                                        rules={[{ required: true, message: t('form.llm.providerPlaceholder') }]}
-                                    >
-                                        <Select
-                                            placeholder={t('form.llm.providerPlaceholder')}
-                                            options={[
-                                                { value: LLMProviderType.OPENAI, label: 'OpenAI' },
-                                                { value: LLMProviderType.DEEPSEEK, label: 'DeepSeek' },
-                                                { value: LLMProviderType.QWEN, label: 'Qwen' },
-                                                { value: LLMProviderType.ZHIPUAI, label: 'ZhipuAI' },
-                                                { value: LLMProviderType.SILICONFLOW, label: 'SiliconFlow' },
-                                                { value: LLMProviderType.VLLM, label: 'vLLM' },
-                                            ]}
-                                            onChange={(value) => {
-                                                // Directly update the selectedProviders state when provider changes
-                                                setSelectedProviders(prev => ({
-                                                    ...prev,
-                                                    [name]: value
-                                                }));
-
-                                                // Force re-render by updating a form field
-                                                // This ensures the conditional rendering is triggered
-                                                const currentConfigs = form.getFieldValue('llm_configs');
-                                                if (currentConfigs && currentConfigs[name]) {
-                                                    // Clear the model field when switching providers
-                                                    const updatedConfig = { ...currentConfigs[name], model: undefined };
-                                                    const newConfigs = [...currentConfigs];
-                                                    newConfigs[name] = updatedConfig;
-                                                    form.setFieldsValue({ llm_configs: newConfigs });
-                                                    onChange({ llm_configs: newConfigs });
-                                                }
-                                            }}
-                                        />
-                                    </Form.Item>
-
-                                    <Form.Item
-                                        {...restField}
-                                        name={[name, 'base_url']}
-                                        label={t('form.llm.baseUrl')}
-                                    >
-                                        <Input placeholder={t('form.llm.baseUrlPlaceholder')} />
-                                    </Form.Item>
-
-                                    <Form.Item
-                                        {...restField}
-                                        name={[name, 'api_key']}
-                                        label={t('form.llm.apiKey')}
-                                        rules={[{ required: true, message: t('form.llm.apiKeyPlaceholder') }]}
-                                    >
-                                        <Input.Password placeholder={t('form.llm.apiKeyPlaceholder')} />
-                                    </Form.Item>
-
-                                    {/* Model selection based on provider */}
-                                    {typeof selectedProviders[name] !== 'undefined' &&
-                                        selectedProviders[name].toString() === LLMProviderType.VLLM.toString() ? (
+            <Form.List name="llm_configs">
+                {(fields, { add, remove }) => (
+                    <>
+                        {fields.map(({ key, name, ...restField }) => (
+                            <Card
+                                key={key}
+                                title={`${t('form.llm.providerTitle')} ${name + 1}`}
+                                style={{ marginBottom: 8 }}
+                                extra={
+                                    fields.length > 1 ? (
+                                        <MinusCircleOutlined onClick={() => remove(name)} />
+                                    ) : null
+                                }
+                            >
+                                <Row gutter={16}>
+                                    <Col span={8}>
                                         <Form.Item
                                             {...restField}
-                                            name={[name, 'model']}
-                                            label={t('form.llm.model')}
-                                            rules={[{ required: true, message: t('form.llm.vllmModelPlaceholder') }]}
-                                        >
-                                            <Input placeholder={t('form.llm.vllmModelPlaceholder')} />
-                                        </Form.Item>
-                                    ) : (
-                                        <Form.Item
-                                            {...restField}
-                                            name={[name, 'model']}
-                                            label={t('form.llm.model')}
-                                            rules={[{ required: true, message: t('form.llm.modelPlaceholder') }]}
+                                            name={[name, 'provider']}
+                                            label={t('form.llm.providerLabel')}
+                                            rules={[{ required: true, message: t('form.llm.providerPlaceholder') }]}
                                         >
                                             <Select
-                                                placeholder={t('form.llm.modelPlaceholder')}
-                                                options={
-                                                    selectedProviders[name] && providerModels[selectedProviders[name]]
-                                                        ? providerModels[selectedProviders[name]]
-                                                        : []
-                                                }
+                                                placeholder={t('form.llm.providerPlaceholder')}
+                                                options={[
+                                                    { value: LLMProviderType.OPENAI, label: 'OpenAI' },
+                                                    { value: LLMProviderType.DEEPSEEK, label: 'DeepSeek' },
+                                                    { value: LLMProviderType.QWEN, label: 'Qwen' },
+                                                    { value: LLMProviderType.ZHIPUAI, label: 'ZhipuAI' },
+                                                    { value: LLMProviderType.SILICONFLOW, label: 'SiliconFlow' },
+                                                    { value: LLMProviderType.VLLM, label: 'vLLM' },
+                                                ]}
+                                                onChange={(value) => {
+                                                    setSelectedProviders(prev => ({
+                                                        ...prev,
+                                                        [name]: value
+                                                    }));
+
+                                                    const currentConfigs = form.getFieldValue('llm_configs');
+                                                    if (currentConfigs && currentConfigs[name]) {
+                                                        const updatedConfig = { ...currentConfigs[name], model: undefined };
+                                                        const newConfigs = [...currentConfigs];
+                                                        newConfigs[name] = updatedConfig;
+                                                        form.setFieldsValue({ llm_configs: newConfigs });
+                                                        onChange({ llm_configs: newConfigs });
+                                                    }
+                                                }}
                                             />
                                         </Form.Item>
-                                    )}
-                                </Card>
-                            ))}
-                            <Form.Item>
-                                <Button
-                                    type="dashed"
-                                    onClick={() => add({})}
-                                    block
-                                    icon={<PlusOutlined />}
-                                >
-                                    {t('form.llm.addProvider')}
-                                </Button>
-                            </Form.Item>
-                        </>
-                    )}
-                </Form.List>
-            </Card>
+                                    </Col>
+
+                                    <Col span={8}>
+                                        <Form.Item
+                                            {...restField}
+                                            name={[name, 'api_key']}
+                                            label={t('form.llm.apiKey')}
+                                            rules={[{ required: true, message: t('form.llm.apiKeyPlaceholder') }]}
+                                        >
+                                            <Input.Password placeholder={t('form.llm.apiKeyPlaceholder')} />
+                                        </Form.Item>
+                                    </Col>
+
+                                    <Col span={8}>
+                                        {typeof selectedProviders[name] !== 'undefined' &&
+                                            selectedProviders[name].toString() === LLMProviderType.VLLM.toString() ? (
+                                            <>
+                                                <Form.Item
+                                                    {...restField}
+                                                    name={[name, 'model']}
+                                                    label={t('form.llm.model')}
+                                                    rules={[{ required: true, message: t('form.llm.vllmModelPlaceholder') }]}
+                                                >
+                                                    <Input placeholder={t('form.llm.vllmModelPlaceholder')} />
+                                                </Form.Item>
+                                            </>
+                                        ) : (
+                                            <Form.Item
+                                                {...restField}
+                                                name={[name, 'model']}
+                                                label={t('form.llm.model')}
+                                                rules={[{ required: true, message: t('form.llm.modelPlaceholder') }]}
+                                            >
+                                                <Select
+                                                    placeholder={t('form.llm.modelPlaceholder')}
+                                                    options={
+                                                        selectedProviders[name] && providerModels[selectedProviders[name]]
+                                                            ? providerModels[selectedProviders[name]]
+                                                            : []
+                                                    }
+                                                />
+                                            </Form.Item>
+                                        )}
+                                    </Col>
+                                </Row>
+                                {
+                                    typeof selectedProviders[name] !== 'undefined' &&
+                                        selectedProviders[name].toString() === LLMProviderType.VLLM.toString() ?
+                                        (
+                                            <Row>
+                                                <Col span={24}>
+                                                    <Form.Item
+                                                        {...restField}
+                                                        name={[name, 'base_url']}
+                                                        label={t('form.llm.baseUrl')}
+                                                    >
+                                                        <Input placeholder={t('form.llm.baseUrlPlaceholder')} />
+                                                    </Form.Item>
+                                                </Col>
+                                            </Row>
+                                        ) : <></>
+                                }
+                            </Card>
+                        ))}
+                        <Form.Item>
+                            <Button
+                                type="dashed"
+                                onClick={() => add({})}
+                                block
+                                icon={<PlusOutlined />}
+                            >
+                                {t('form.llm.addProvider')}
+                            </Button>
+                        </Form.Item>
+                    </>
+                )}
+            </Form.List>
         </Form>
     );
 };

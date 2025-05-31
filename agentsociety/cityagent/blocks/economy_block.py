@@ -8,7 +8,14 @@ import jsonc
 import numpy as np
 from pydantic import Field
 
-from ...agent import Block, FormatPrompt, BlockParams, BlockDispatcher, DotDict, BlockContext
+from ...agent import (
+    Block,
+    FormatPrompt,
+    BlockParams,
+    BlockDispatcher,
+    DotDict,
+    BlockContext,
+)
 from ...environment import EconomyClient, Environment
 from ...llm import LLM
 from ...logger import get_logger
@@ -266,8 +273,8 @@ class EconomyBlockParams(BlockParams):
         default=WORKTIME_ESTIMATE_PROMPT, description="Used to determine the worktime"
     )
 
-class EconomyBlockContext(BlockContext):
-    ...
+
+class EconomyBlockContext(BlockContext): ...
 
 
 class EconomyBlock(Block):

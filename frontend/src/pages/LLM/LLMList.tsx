@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Card, Space, Modal, message, Tooltip, Input, Popconfirm, Form } from 'antd';
+import { Table, Button, Card, Space, Modal, message, Tooltip, Input, Popconfirm, Form, Col, Row } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, ExportOutlined } from '@ant-design/icons';
 import LLMForm from './LLMForm';
 import { ConfigItem } from '../../services/storageService';
@@ -193,9 +193,11 @@ const LLMList: React.FC = () => {
             render: (_: any, record: ConfigItem) => (
                 <Space size="small">
                     {
-                        <Tooltip title={t('form.common.edit')}>
-                            <Button icon={<EditOutlined />} size="small" onClick={() => handleEdit(record)} />
-                        </Tooltip>
+                        (record.tenant_id ?? '') !== '' && (
+                            <Tooltip title={t('form.common.edit')}>
+                                <Button icon={<EditOutlined />} size="small" onClick={() => handleEdit(record)} />
+                            </Tooltip>
+                        )
                     }
                     <Tooltip title={t('form.common.duplicate')}>
                         <Button icon={<CopyOutlined />} size="small" onClick={() => handleDuplicate(record)} />
@@ -204,16 +206,18 @@ const LLMList: React.FC = () => {
                         <Button icon={<ExportOutlined />} size="small" onClick={() => handleExport(record)} />
                     </Tooltip>
                     {
-                        <Tooltip title={t('form.common.delete')}>
-                            <Popconfirm
-                                title={t('form.common.deleteConfirm')}
-                                onConfirm={() => handleDelete(record.id)}
-                                okText={t('form.common.submit')}
-                                cancelText={t('form.common.cancel')}
-                            >
-                                <Button icon={<DeleteOutlined />} size="small" danger />
-                            </Popconfirm>
-                        </Tooltip>
+                        (record.tenant_id ?? '') !== '' && (
+                            <Tooltip title={t('form.common.delete')}>
+                                <Popconfirm
+                                    title={t('form.common.deleteConfirm')}
+                                    onConfirm={() => handleDelete(record.id)}
+                                    okText={t('form.common.submit')}
+                                    cancelText={t('form.common.cancel')}
+                                >
+                                    <Button icon={<DeleteOutlined />} size="small" danger />
+                                </Popconfirm>
+                            </Tooltip>
+                        )
                     }
                 </Space>
             )
@@ -244,30 +248,36 @@ const LLMList: React.FC = () => {
                 open={isModalVisible}
                 onOk={handleModalOk}
                 onCancel={handleModalCancel}
-                width={800}
+                width="80vw"
                 destroyOnHidden
             >
-                <Card title={t('form.common.metadataTitle')} style={{ marginBottom: 16 }}>
+                <Card title={t('form.common.metadataTitle')} style={{ marginBottom: 8 }}>
                     <Form
                         form={metaForm}
                         layout="vertical"
                     >
-                        <Form.Item
-                            name="name"
-                            label={t('form.common.name')}
-                            rules={[{ required: true, message: t('form.common.nameRequired') }]}
-                        >
-                            <Input placeholder={t('form.common.namePlaceholder')} />
-                        </Form.Item>
-                        <Form.Item
-                            name="description"
-                            label={t('form.common.description')}
-                        >
-                            <Input.TextArea
-                                rows={2}
-                                placeholder={t('form.common.descriptionPlaceholder')}
-                            />
-                        </Form.Item>
+                        <Row gutter={16}>
+                            <Col span={8}>
+                                <Form.Item
+                                    name="name"
+                                    label={t('form.common.name')}
+                                    rules={[{ required: true, message: t('form.common.nameRequired') }]}
+                                >
+                                    <Input placeholder={t('form.common.namePlaceholder')} />
+                                </Form.Item>
+                            </Col>
+                            <Col span={16}>
+                                <Form.Item
+                                    name="description"
+                                    label={t('form.common.description')}
+                                >
+                                    <Input.TextArea
+                                        rows={1}
+                                        placeholder={t('form.common.descriptionPlaceholder')}
+                                    />
+                                </Form.Item>
+                            </Col>
+                        </Row>
                     </Form>
                 </Card>
 

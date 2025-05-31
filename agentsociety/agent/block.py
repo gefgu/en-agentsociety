@@ -13,6 +13,7 @@ from ..memory import Memory
 from ..memory.state import StateMemory
 from ..utils.decorators import record_call_aio
 from .context import DotDict, BlockContext, context_to_dot_dict, auto_deepcopy_dotdict
+
 TRIGGER_INTERVAL = 1
 
 __all__ = [
@@ -26,8 +27,8 @@ __all__ = [
 class BlockParams(BaseModel):
     block_memory: Optional[dict[str, Any]] = None
 
-class BlockOutput(BaseModel):
-    ...
+
+class BlockOutput(BaseModel): ...
 
 
 def log_and_check_with_memory(
@@ -171,7 +172,9 @@ class Block:
     ParamsType = BlockParams
     Context = BlockContext
     OutputType = None
-    NeedAgent: bool = False  # Whether the block needs an agent, if True, the associated agent will be set automatically
+    NeedAgent: bool = (
+        False  # Whether the block needs an agent, if True, the associated agent will be set automatically
+    )
     name: str = ""
     description: str = ""
     actions: dict[str, str] = {}
@@ -216,7 +219,7 @@ class Block:
     @classmethod
     def default_params(cls) -> ParamsType:
         return cls.ParamsType()
-    
+
     @classmethod
     def default_context(cls) -> Context:
         return cls.Context()
@@ -263,11 +266,13 @@ class Block:
         else:
             result = func_info["original_method"](self, *args, **kwargs)
         return result
-    
+
     @property
     def agent(self) -> Any:
         if self._agent is None:
-            raise RuntimeError(f"Agent access before assignment, please `set_agent` first!")
+            raise RuntimeError(
+                f"Agent access before assignment, please `set_agent` first!"
+            )
         return self._agent
 
     @property

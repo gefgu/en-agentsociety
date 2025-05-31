@@ -151,11 +151,11 @@ Bases: {py:obj}`agentsociety.agent.CitizenAgentBase`
 
 ````
 
-````{py:method} process_agent_chat_response(payload: dict) -> str
-:canonical: agentsociety.cityagent.societyagent.SocietyAgent.process_agent_chat_response
+````{py:method} do_chat(message: agentsociety.message.Message) -> str
+:canonical: agentsociety.cityagent.societyagent.SocietyAgent.do_chat
 :async:
 
-```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.process_agent_chat_response
+```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.do_chat
 ```
 
 ````

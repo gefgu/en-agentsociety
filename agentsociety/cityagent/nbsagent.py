@@ -89,19 +89,6 @@ The National Bureau of Statistics Agent simulating economic data collection and 
             return True
         return False
 
-    async def gather_messages(self, agent_ids: list[int], target: str) -> list[Any]:
-        """Collect messages from specified agents and extract content.
-
-        Args:
-            agent_ids: List of agent identifiers to query
-            target: Message content field to retrieve
-
-        Returns:
-            List of message contents from target agents
-        """
-        infos = await super().gather_messages(agent_ids, target)
-        return [info["content"] for info in infos]
-
     async def forward(self):
         """Execute monthly economic data collection and update cycle.
 
@@ -119,6 +106,7 @@ The National Bureau of Statistics Agent simulating economic data collection and 
             nbs_id = self.id
             await self.environment.economy_client.calculate_real_gdp(nbs_id)
             citizens_ids = await self.memory.status.get("citizen_ids")
+            # TODO: move gather_messages to simulator
             work_propensity = await self.gather_messages(
                 citizens_ids, "work_propensity"
             )
@@ -135,6 +123,7 @@ The National Bureau of Statistics Agent simulating economic data collection and 
             await self.environment.economy_client.update(
                 nbs_id, "prices", {t_now: float(np.mean(prices))}, mode="merge"
             )
+            # TODO: move gather_messages to simulator
             depression = await self.gather_messages(citizens_ids, "depression")
             if sum(depression) == 0.0:
                 depression = 0.0

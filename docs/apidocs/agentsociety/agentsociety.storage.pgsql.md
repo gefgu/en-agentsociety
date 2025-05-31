@@ -231,4 +231,40 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
+````{py:method} fetch_pending_dialogs()
+:canonical: agentsociety.storage.pgsql.PgWriter.fetch_pending_dialogs
+:async:
+
+```{autodoc2-docstring} agentsociety.storage.pgsql.PgWriter.fetch_pending_dialogs
+```
+
+````
+
+````{py:method} mark_dialogs_as_processed(pending_ids: list[int])
+:canonical: agentsociety.storage.pgsql.PgWriter.mark_dialogs_as_processed
+:async:
+
+```{autodoc2-docstring} agentsociety.storage.pgsql.PgWriter.mark_dialogs_as_processed
+```
+
+````
+
+````{py:method} fetch_pending_surveys()
+:canonical: agentsociety.storage.pgsql.PgWriter.fetch_pending_surveys
+:async:
+
+```{autodoc2-docstring} agentsociety.storage.pgsql.PgWriter.fetch_pending_surveys
+```
+
+````
+
+````{py:method} mark_surveys_as_processed(pending_ids: list[int])
+:canonical: agentsociety.storage.pgsql.PgWriter.mark_surveys_as_processed
+:async:
+
+```{autodoc2-docstring} agentsociety.storage.pgsql.PgWriter.mark_surveys_as_processed
+```
+
+````
+
 `````

@@ -17,12 +17,10 @@ class ExperimentStatus(enum.IntEnum):
 @dataclass
 class Logs:
     llm_log: list[Any]
-    redis_log: list[Any]
     simulator_log: list[Any]
     agent_time_log: list[Any]
 
     def append(self, other: "Logs"):
         self.llm_log += other.llm_log
-        self.redis_log += other.redis_log
         self.simulator_log += other.simulator_log
         self.agent_time_log += other.agent_time_log

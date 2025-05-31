@@ -85,6 +85,16 @@ class Experiment(Base):
         """Get global prompt table name"""
         return f"{TABLE_PREFIX}{str(self.id).replace('-', '_')}_global_prompt"
 
+    @property
+    def pending_dialog_tablename(self):
+        """Get pending dialog table name"""
+        return f"{TABLE_PREFIX}{str(self.id).replace('-', '_')}_pending_dialog"
+
+    @property
+    def pending_survey_tablename(self):
+        """Get pending survey table name"""
+        return f"{TABLE_PREFIX}{str(self.id).replace('-', '_')}_pending_survey"
+
     def to_dict(self):
         return {
             "id": str(self.id),

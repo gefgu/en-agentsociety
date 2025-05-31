@@ -27,6 +27,10 @@
 :class: autosummary longtable
 :align: left
 
+* - {py:obj}`_set_default_agent_config <agentsociety.simulation.agentsociety._set_default_agent_config>`
+  - ```{autodoc2-docstring} agentsociety.simulation.agentsociety._set_default_agent_config
+    :summary:
+    ```
 * - {py:obj}`_init_agent_class <agentsociety.simulation.agentsociety._init_agent_class>`
   - ```{autodoc2-docstring} agentsociety.simulation.agentsociety._init_agent_class
     :summary:
@@ -85,6 +89,13 @@
 
 ````
 
+````{py:function} _set_default_agent_config(self: agentsociety.configs.Config)
+:canonical: agentsociety.simulation.agentsociety._set_default_agent_config
+
+```{autodoc2-docstring} agentsociety.simulation.agentsociety._set_default_agent_config
+```
+````
+
 ````{py:function} _init_agent_class(agent_config: agentsociety.configs.AgentConfig, s3config: agentsociety.s3.S3Config)
 :canonical: agentsociety.simulation.agentsociety._init_agent_class
 
@@ -92,7 +103,7 @@
 ```
 ````
 
-`````{py:class} AgentSociety(config: agentsociety.configs.Config, tenant_id: str = '')
+`````{py:class} AgentSociety(config: agentsociety.configs.Config, tenant_id: str = 'local')
 :canonical: agentsociety.simulation.agentsociety.AgentSociety
 
 ```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety
@@ -232,7 +243,7 @@
 
 ````
 
-````{py:method} send_survey(survey: agentsociety.survey.models.Survey, agent_ids: list[int] = [], poll_interval: float = 3, timeout: float = -1)
+````{py:method} send_survey(survey: agentsociety.survey.models.Survey, agent_ids: list[int] = [], survey_day: typing.Optional[int] = None, survey_t: typing.Optional[float] = None, is_pending_survey: bool = False, pending_survey_id: typing.Optional[int] = None) -> dict[int, str]
 :canonical: agentsociety.simulation.agentsociety.AgentSociety.send_survey
 :async:
 
@@ -241,7 +252,7 @@
 
 ````
 
-````{py:method} send_interview_message(content: str, agent_ids: list[int], poll_interval: float = 3, timeout: float = -1)
+````{py:method} send_interview_message(question: str, agent_ids: list[int])
 :canonical: agentsociety.simulation.agentsociety.AgentSociety.send_interview_message
 :async:
 
@@ -282,6 +293,14 @@
 :async:
 
 ```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety._save_global_prompt
+```
+
+````
+
+````{py:method} _save_context()
+:canonical: agentsociety.simulation.agentsociety.AgentSociety._save_context
+
+```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety._save_context
 ```
 
 ````

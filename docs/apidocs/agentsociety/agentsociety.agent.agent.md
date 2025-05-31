@@ -39,6 +39,8 @@
   - ```{autodoc2-docstring} agentsociety.agent.agent.GovernmentAgentBase
     :summary:
     ```
+* - {py:obj}`SupervisorBase <agentsociety.agent.agent.SupervisorBase>`
+  -
 ````
 
 ### Data
@@ -115,11 +117,65 @@ Bases: {py:obj}`agentsociety.agent.agent_base.Agent`
 
 ````
 
-````{py:method} handle_gather_message(payload: dict)
-:canonical: agentsociety.agent.agent.CitizenAgentBase.handle_gather_message
+````{py:method} do_survey(survey: agentsociety.survey.models.Survey) -> str
+:canonical: agentsociety.agent.agent.CitizenAgentBase.do_survey
 :async:
 
-```{autodoc2-docstring} agentsociety.agent.agent.CitizenAgentBase.handle_gather_message
+```{autodoc2-docstring} agentsociety.agent.agent.CitizenAgentBase.do_survey
+```
+
+````
+
+````{py:method} _handle_survey_with_storage(survey: agentsociety.survey.models.Survey, survey_day: typing.Optional[int] = None, survey_t: typing.Optional[float] = None, is_pending_survey: bool = False, pending_survey_id: typing.Optional[int] = None) -> str
+:canonical: agentsociety.agent.agent.CitizenAgentBase._handle_survey_with_storage
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent.CitizenAgentBase._handle_survey_with_storage
+```
+
+````
+
+````{py:method} do_interview(question: str) -> str
+:canonical: agentsociety.agent.agent.CitizenAgentBase.do_interview
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent.CitizenAgentBase.do_interview
+```
+
+````
+
+````{py:method} _handle_interview_with_storage(message: agentsociety.message.Message) -> str
+:canonical: agentsociety.agent.agent.CitizenAgentBase._handle_interview_with_storage
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent.CitizenAgentBase._handle_interview_with_storage
+```
+
+````
+
+````{py:method} save_agent_thought(thought: str)
+:canonical: agentsociety.agent.agent.CitizenAgentBase.save_agent_thought
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent.CitizenAgentBase.save_agent_thought
+```
+
+````
+
+````{py:method} do_chat(message: agentsociety.message.Message) -> str
+:canonical: agentsociety.agent.agent.CitizenAgentBase.do_chat
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent.CitizenAgentBase.do_chat
+```
+
+````
+
+````{py:method} _handle_agent_chat_with_storage(message: agentsociety.message.Message)
+:canonical: agentsociety.agent.agent.CitizenAgentBase._handle_agent_chat_with_storage
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent.CitizenAgentBase._handle_agent_chat_with_storage
 ```
 
 ````
@@ -259,3 +315,38 @@ Bases: {py:obj}`agentsociety.agent.agent.InstitutionAgentBase`
 ```
 
 ````
+
+`````{py:class} SupervisorBase(id: int, name: str, toolbox: agentsociety.agent.agent_base.AgentToolbox, memory: agentsociety.memory.Memory, agent_params: typing.Optional[typing.Any] = None, blocks: typing.Optional[list[agentsociety.agent.block.Block]] = None)
+:canonical: agentsociety.agent.agent.SupervisorBase
+
+Bases: {py:obj}`agentsociety.agent.agent_base.Agent`
+
+````{py:method} reset()
+:canonical: agentsociety.agent.agent.SupervisorBase.reset
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent.SupervisorBase.reset
+```
+
+````
+
+````{py:method} react_to_intervention(intervention_message: str)
+:canonical: agentsociety.agent.agent.SupervisorBase.react_to_intervention
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent.SupervisorBase.react_to_intervention
+```
+
+````
+
+````{py:method} forward(current_round_messages: list[agentsociety.message.Message]) -> tuple[dict[agentsociety.message.Message, bool], list[agentsociety.message.Message]]
+:canonical: agentsociety.agent.agent.SupervisorBase.forward
+:abstractmethod:
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent.SupervisorBase.forward
+```
+
+````
+
+`````

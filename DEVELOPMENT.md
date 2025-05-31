@@ -43,10 +43,6 @@ env:
     username: admin
   pgsql:
     dsn: postgresql://postgres:CHANGE_ME@localhost:5432/postgres
-  redis:
-    password: CHANGE_ME
-    port: 6379
-    server: localhost
 ```
 
 2. Run the backend:

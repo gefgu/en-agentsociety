@@ -7,6 +7,7 @@ from openai.types.chat import ChatCompletionMessageParam
 from ..logger import get_logger
 from ..memory import Memory
 
+
 class FormatPrompt:
     """
     A class to handle the formatting of prompts based on a template,
@@ -21,7 +22,11 @@ class FormatPrompt:
     """
 
     def __init__(
-        self, template: str, format_prompt: Optional[str] = None, system_prompt: Optional[str] = None, memory: Optional[Memory] = None
+        self,
+        template: str,
+        format_prompt: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        memory: Optional[Memory] = None,
     ) -> None:
         """
         - **Description**:
@@ -86,30 +91,32 @@ class FormatPrompt:
         """
         # Create evaluation context
         eval_context = {
-            'profile': self.memory.status if self.memory else {},
-            'status': self.memory.status if self.memory else {},
-            'context': context or {}
+            "profile": self.memory.status if self.memory else {},
+            "status": self.memory.status if self.memory else {},
+            "context": context or {},
         }
-        
+
         # Add safety check for the expression
         if not self._is_safe_expression(expr):
             raise ValueError(f"Unsafe expression: {expr}")
-        
+
         try:
             # Parse the expression to handle profile and status differently
-            if expr.startswith(('profile.', 'status.')):
+            if expr.startswith(("profile.", "status.")):
                 # Get the base value using async get method
-                base_key = expr.split('.', 1)[1].split('[')[0]
-                base_value = await self.memory.status.get(base_key) if self.memory else None
-                
+                base_key = expr.split(".", 1)[1].split("[")[0]
+                base_value = (
+                    await self.memory.status.get(base_key) if self.memory else None
+                )
+
                 # If there's no square bracket notation, return the base value
-                if '[' not in expr:
+                if "[" not in expr:
                     return base_value
-                
+
                 # Extract the square bracket expression
-                bracket_expr = expr[expr.find('['):]
+                bracket_expr = expr[expr.find("[") :]
                 # Create a safe evaluation context with the base value
-                safe_context = {'value': base_value}
+                safe_context = {"value": base_value}
                 # Evaluate the bracket expression
                 return eval(f"value{bracket_expr}", {"__builtins__": {}}, safe_context)
             else:
@@ -161,7 +168,7 @@ class FormatPrompt:
         # First, protect all ${...} expressions with a temporary marker
         protected_expressions = {}
         counter = 0
-        
+
         def protect_expression(match):
             nonlocal counter
             placeholder = f"__EXPR_{counter}__"
@@ -185,7 +192,9 @@ class FormatPrompt:
             expr = original_expr[2:-1].strip()  # Remove ${ and }
             try:
                 eval_result = await self._eval_expr(expr, eval_context)
-                result = result.replace(placeholder, str(eval_result) if eval_result is not None else "")
+                result = result.replace(
+                    placeholder, str(eval_result) if eval_result is not None else ""
+                )
             except Exception as e:
                 print(f"Error evaluating expression '{expr}': {str(e)}")
                 result = result.replace(placeholder, original_expr)
@@ -208,7 +217,10 @@ class FormatPrompt:
             )  # Add system prompt if it exists
         if self.format_prompt:
             dialog.append(
-                {"role": "user", "content": self.formatted_string + "\n" + self.format_prompt}
+                {
+                    "role": "user",
+                    "content": self.formatted_string + "\n" + self.format_prompt,
+                }
             )
         else:
             dialog.append(

@@ -278,6 +278,16 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 ````
 
+````{py:attribute} NeedAgent
+:canonical: agentsociety.cityagent.blocks.social_block.SocialBlock.NeedAgent
+:value: >
+   True
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialBlock.NeedAgent
+```
+
+````
+
 ````{py:attribute} name
 :canonical: agentsociety.cityagent.blocks.social_block.SocialBlock.name
 :value: >

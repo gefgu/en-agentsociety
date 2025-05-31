@@ -86,7 +86,6 @@ map:
 env:
   avro:
     enabled: false # Whether to enable Avro
-    path: <AVRO-OUTPUT-PATH> # Path to the Avro output file
   mlflow:
     enabled: false # Whether to enable MLflow
     mlflow_uri: http://localhost:59000 # MLflow server URI``
@@ -95,10 +94,6 @@ env:
   pgsql:
     enabled: true # Whether to enable PostgreSQL
     dsn: postgresql://postgres:CHANGE_ME@localhost:5432/postgres # PostgreSQL connection string
-  redis:
-    server: <REDIS-SERVER> # Redis server address
-    port: 6379 # Redis port
-    password: <CHANGE_ME> # Redis password
 agents:
   citizens:
   - agent_class: citizen # The class of the agent

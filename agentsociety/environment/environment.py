@@ -42,9 +42,6 @@ __all__ = [
 class SimulatorConfig(BaseModel):
     """Advanced Simulator configuration class."""
 
-    log_dir: str = Field("./log")
-    """Directory path for saving logs"""
-
     primary_node_ip: str = Field("localhost")
     """Primary node IP address for distributed simulation. 
     If you want to run the simulation on a single machine, you can set it to "localhost".
@@ -603,6 +600,7 @@ class EnvironmentStarter(Environment):
         simulator_config: SimulatorConfig,
         environment_config: EnvironmentConfig,
         s3config: S3Config,
+        log_dir: str,
     ):
         """
         Environment config
@@ -616,6 +614,7 @@ class EnvironmentStarter(Environment):
         self._environment_config = environment_config
         self._sim_config = simulator_config
         self._s3config = s3config
+        self._log_dir = log_dir
         mapdata = MapData(map_config, s3config)
 
         super().__init__(mapdata, None, environment_config)
@@ -682,7 +681,7 @@ class EnvironmentStarter(Environment):
                 "-syncer",
                 "http://" + syncer_addr,
                 "-output",
-                self._sim_config.log_dir,
+                self._log_dir,
                 "-cache",
                 "",
                 "-log.level",

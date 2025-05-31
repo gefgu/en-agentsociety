@@ -4,9 +4,13 @@ A clear version of the simulation.
 
 import asyncio
 import inspect
+import itertools
+import json
+import os
 import time
 import traceback
 import uuid
+from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any, Callable, Literal, Optional, Union, cast
 
@@ -14,22 +18,32 @@ import ray
 import ray.util.queue
 import yaml
 
-from ..agent import Agent, StatusAttribute
-from ..agent.distribution import (Distribution, DistributionConfig,
-                                  DistributionType)
-from ..agent.memory_config_generator import MemoryConfigGenerator, MemoryT
-from ..configs import (AgentConfig, AgentFilterConfig, Config,
-                       MetricExtractorConfig, MetricType, WorkflowType)
+from ..agent import Agent, AgentToolbox, StatusAttribute, SupervisorBase
+from ..agent.distribution import Distribution, DistributionConfig, DistributionType
+from ..agent.memory_config_generator import (
+    MemoryConfigGenerator,
+    default_memory_config_citizen,
+    default_memory_config_supervisor,
+)
+from ..configs import (
+    AgentConfig,
+    AgentFilterConfig,
+    Config,
+    MetricExtractorConfig,
+    MetricType,
+    WorkflowType,
+)
 from ..environment import EnvironmentStarter
 from ..llm import LLM, monitor_requests
+from ..llm.embeddings import init_embedding
 from ..logger import get_logger, set_logger_level
-from ..message import MessageInterceptor, Messager
-from ..message.message_interceptor import MessageBlockListenerBase
+from ..memory import FaissQuery, Memory
+from ..message import Message, MessageInterceptor, MessageKind, Messager
 from ..metrics import MlflowClient
 from ..s3 import S3Config
 from ..storage import AvroSaver
 from ..storage.pgsql import PgWriter
-from ..storage.type import StorageExpInfo, StorageGlobalPrompt
+from ..storage.type import StorageExpInfo, StorageGlobalPrompt, StoragePendingSurvey
 from ..survey.models import Survey
 from ..utils import NONE_SENDER_ID
 from .agentgroup import AgentGroup
@@ -39,6 +53,29 @@ __all__ = ["AgentSociety"]
 
 MIN_ID = 1
 MAX_ID = 100000000
+
+
+def _set_default_agent_config(self: Config):
+    """
+    Validates configuration options to ensure the user selects the correct combination.
+    - **Description**:
+        - If citizens contains at least one CITIZEN type agent, automatically fills
+            empty institution agent lists with default configurations.
+        - Sets default memory_config_func for citizen agents if not specified.
+
+    - **Returns**:
+        - `AgentsConfig`: The validated configuration instance.
+    """
+    # Set default memory config function for citizens
+    for agent_config in self.agents.citizens:
+        if agent_config.memory_config_func is None:
+            agent_config.memory_config_func = default_memory_config_citizen
+
+    if self.agents.supervisor is not None:
+        if self.agents.supervisor.memory_config_func is None:
+            self.agents.supervisor.memory_config_func = default_memory_config_supervisor
+
+    return self
 
 
 def _init_agent_class(agent_config: AgentConfig, s3config: S3Config):
@@ -84,10 +121,10 @@ class AgentSociety:
     def __init__(
         self,
         config: Config,
-        tenant_id: str = "",
+        tenant_id: str = "local",
     ) -> None:
         config.set_auto_workers()
-        self._config = config
+        self._config = _set_default_agent_config(config)
         self.tenant_id = tenant_id
 
         # ====================
@@ -102,9 +139,7 @@ class AgentSociety:
 
         # typing definition
         self._environment: Optional[EnvironmentStarter] = None
-        self._message_interceptor: Optional[ray.ObjectRef] = None
-        self._message_interceptor_listener: Optional[MessageBlockListenerBase] = None
-        self._messager: Optional[Messager] = None
+        self._message_interceptor: Optional[MessageInterceptor] = None
         self._avro_saver: Optional[AvroSaver] = None
         self._mlflow: Optional[MlflowClient] = None
         self._pgsql_writers: list[ray.ObjectRef] = []
@@ -120,7 +155,6 @@ class AgentSociety:
                         "__all__": {"api_key": True},
                     },
                     "env": {
-                        "redis": True,
                         "pgsql": {"dsn": True},
                         "mlflow": {
                             "username": True,
@@ -150,6 +184,9 @@ class AgentSociety:
         )
         self._total_steps: int = 0
 
+        # simulation context - for information dump
+        self.context = {}
+
     async def init(self):
         """Initialize all the components"""
         # ====================
@@ -169,6 +206,7 @@ class AgentSociety:
             self._config.advanced.simulator,
             self._config.exp.environment,
             self._config.env.s3,
+            os.path.join(self._config.env.home_dir, "simulator_log"),
         )
         await self._environment.init()
         get_logger().info(f"Environment initialized")
@@ -177,34 +215,13 @@ class AgentSociety:
         # Initialize the messager
         # ====================
         get_logger().info(f"Initializing messager...")
-        if self._config.exp.message_intercept is not None:
-            queue = ray.util.queue.Queue()
-            self._message_interceptor = MessageInterceptor.remote(
-                blocks=self._config.exp.message_intercept.blocks,  # type: ignore
-                llm_config=self._config.llm,
-                queue=queue,
-                black_set=set(),
+        if self._config.agents.supervisor is not None:
+            self._message_interceptor = MessageInterceptor(
+                self._config.llm,
             )
-            await self._message_interceptor.init.remote()  # type: ignore
-            if self._config.exp.message_intercept.forward_strategy == "inner_control":
-                assert (
-                    self._config.exp.message_intercept.listener is not None
-                ), "listener is not set"
-                self._message_interceptor_listener = (
-                    self._config.exp.message_intercept.listener(
-                        queue=queue,
-                    )
-                )
-                self._message_interceptor_listener.init()
-        self._messager = Messager(
-            config=self._config.env.redis,
-            exp_id=self.exp_id,
-            message_interceptor=self._message_interceptor,
-        )
+            await self._message_interceptor.init()
+        self._messager = Messager(exp_id=self.exp_id)
         await self._messager.init()
-        await self._messager.subscribe_and_start_listening(
-            [self._messager.get_user_payback_channel()]
-        )
         get_logger().info(f"Messager initialized")
 
         # ====================
@@ -214,6 +231,8 @@ class AgentSociety:
             get_logger().info(f"Initializing avro saver...")
             self._avro_saver = AvroSaver(
                 config=self._config.env.avro,
+                home_dir=self._config.env.home_dir,
+                tenant_id=self.tenant_id,
                 exp_id=self.exp_id,
                 group_id=None,
             )
@@ -254,6 +273,7 @@ class AgentSociety:
         agents = []  # (id, agent_class, generator, memory_index)
         next_id = 1
         defined_ids = set()  # used to check if the id is already defined
+
         def _find_next_id():
             nonlocal next_id  # Declare that we want to modify the outer variable
             while next_id in defined_ids:
@@ -262,7 +282,7 @@ class AgentSociety:
                 raise ValueError(f"Agent ID {next_id} is greater than MAX_ID {MAX_ID}")
             defined_ids.add(next_id)
             return next_id
-        
+
         group_size = self._config.advanced.group_size
         get_logger().info(f"Initializing agent groups (size={group_size})...")
         citizen_ids = set()
@@ -270,7 +290,13 @@ class AgentSociety:
         nbs_ids = set()
         government_ids = set()
         firm_ids = set()
+        supervisor_ids = set()
         aoi_ids = self._environment.get_aoi_ids()
+
+        self._embedding_model = init_embedding(self._config.advanced.embedding_model)
+        get_logger().debug(f"Embedding model initialized")
+        self._faiss_query = FaissQuery(self._embedding_model)
+        get_logger().debug(f"FAISS query initialized")
 
         # Check if any agent config uses memory_from_file
         agent_configs_normal = {
@@ -279,6 +305,7 @@ class AgentSociety:
             "nbs": [],
             "governments": [],
             "citizens": [],
+            "supervisor": [],
         }
         agent_configs_from_file = {
             "firms": [],
@@ -286,6 +313,7 @@ class AgentSociety:
             "nbs": [],
             "governments": [],
             "citizens": [],
+            "supervisor": [],
         }
         for agent_config in self._config.agents.firms:
             if agent_config.memory_from_file is None:
@@ -312,6 +340,12 @@ class AgentSociety:
                 agent_configs_normal["citizens"].append(agent_config)
             else:
                 agent_configs_from_file["citizens"].append(agent_config)
+        if self._config.agents.supervisor is not None:
+            agent_config = self._config.agents.supervisor
+            if agent_config.memory_from_file is None:
+                agent_configs_normal["supervisor"] = [agent_config]
+            else:
+                agent_configs_from_file["supervisor"] = [agent_config]
 
         citizen_generators = []
         # Step 1: Process all agents with memory_from_file
@@ -336,7 +370,9 @@ class AgentSociety:
                 agent_id = agent_datum.get("id")
                 assert agent_id is not None, "id is required in memory_from_file[Firms]"
                 assert agent_id >= MIN_ID, f"id {agent_id} is less than MIN_ID {MIN_ID}"
-                assert agent_id <= MAX_ID, f"id {agent_id} is greater than MAX_ID {MAX_ID}"
+                assert (
+                    agent_id <= MAX_ID
+                ), f"id {agent_id} is greater than MAX_ID {MAX_ID}"
                 assert agent_id not in defined_ids, f"id {agent_id} is already defined"
                 defined_ids.add(agent_id)
                 firm_ids.add(agent_id)
@@ -369,7 +405,9 @@ class AgentSociety:
                 agent_id = agent_datum.get("id")
                 assert agent_id is not None, "id is required in memory_from_file[Banks]"
                 assert agent_id >= MIN_ID, f"id {agent_id} is less than MIN_ID {MIN_ID}"
-                assert agent_id <= MAX_ID, f"id {agent_id} is greater than MAX_ID {MAX_ID}"
+                assert (
+                    agent_id <= MAX_ID
+                ), f"id {agent_id} is greater than MAX_ID {MAX_ID}"
                 assert agent_id not in defined_ids, f"id {agent_id} is already defined"
                 defined_ids.add(agent_id)
                 bank_ids.add(agent_id)
@@ -402,7 +440,9 @@ class AgentSociety:
                 agent_id = agent_datum.get("id")
                 assert agent_id is not None, "id is required in memory_from_file[NBS]"
                 assert agent_id >= MIN_ID, f"id {agent_id} is less than MIN_ID {MIN_ID}"
-                assert agent_id <= MAX_ID, f"id {agent_id} is greater than MAX_ID {MAX_ID}"
+                assert (
+                    agent_id <= MAX_ID
+                ), f"id {agent_id} is greater than MAX_ID {MAX_ID}"
                 assert agent_id not in defined_ids, f"id {agent_id} is already defined"
                 defined_ids.add(agent_id)
                 nbs_ids.add(agent_id)
@@ -433,9 +473,13 @@ class AgentSociety:
             agent_data = generator.get_agent_data_from_file()
             for agent_datum in agent_data:
                 agent_id = agent_datum.get("id")
-                assert agent_id is not None, "id is required in memory_from_file[Governments]"
+                assert (
+                    agent_id is not None
+                ), "id is required in memory_from_file[Governments]"
                 assert agent_id >= MIN_ID, f"id {agent_id} is less than MIN_ID {MIN_ID}"
-                assert agent_id <= MAX_ID, f"id {agent_id} is greater than MAX_ID {MAX_ID}"
+                assert (
+                    agent_id <= MAX_ID
+                ), f"id {agent_id} is greater than MAX_ID {MAX_ID}"
                 assert agent_id not in defined_ids, f"id {agent_id} is already defined"
                 defined_ids.add(agent_id)
                 government_ids.add(agent_id)
@@ -467,9 +511,13 @@ class AgentSociety:
             agent_data = generator.get_agent_data_from_file()
             for agent_datum in agent_data:
                 agent_id = agent_datum.get("id")
-                assert agent_id is not None, "id is required in memory_from_file[Citizens]"
+                assert (
+                    agent_id is not None
+                ), "id is required in memory_from_file[Citizens]"
                 assert agent_id >= MIN_ID, f"id {agent_id} is less than MIN_ID {MIN_ID}"
-                assert agent_id <= MAX_ID, f"id {agent_id} is greater than MAX_ID {MAX_ID}"
+                assert (
+                    agent_id <= MAX_ID
+                ), f"id {agent_id} is greater than MAX_ID {MAX_ID}"
                 assert agent_id not in defined_ids, f"id {agent_id} is already defined"
                 defined_ids.add(agent_id)
                 citizen_ids.add(agent_id)
@@ -484,7 +532,89 @@ class AgentSociety:
                     )
                 )
 
-        get_logger().info(f"{len(defined_ids)} defined ids found in memory_config_files")
+        # Supervisor
+        # ATTENTION: will not be initialized in AgentGroup
+        assert (
+            len(agent_configs_from_file["supervisor"]) <= 1
+        ), "only one or zero supervisor is allowed"
+        supervisor: Optional[SupervisorBase] = None
+        for agent_config in agent_configs_from_file["supervisor"]:
+            generator = MemoryConfigGenerator(
+                agent_config.memory_config_func,  # type: ignore
+                agent_config.agent_class.StatusAttributes,  # type: ignore
+                agent_config.memory_from_file,
+                (
+                    agent_config.memory_distributions
+                    if agent_config.memory_distributions is not None
+                    else {}
+                ),
+                self._config.env.s3,
+            )
+            agent_data = generator.get_agent_data_from_file()
+            for agent_datum in agent_data:
+                agent_id = agent_datum.get("id")
+                assert (
+                    agent_id is not None
+                ), "id is required in memory_from_file[Supervisor]"
+                assert agent_id >= MIN_ID, f"id {agent_id} is less than MIN_ID {MIN_ID}"
+                assert (
+                    agent_id <= MAX_ID
+                ), f"id {agent_id} is greater than MAX_ID {MAX_ID}"
+                assert agent_id not in defined_ids, f"id {agent_id} is already defined"
+                defined_ids.add(agent_id)
+                supervisor_ids.add(agent_id)
+                memory_dict = generator.generate(i=0)
+                extra_attributes = memory_dict.get("extra_attributes", {})
+                profile = memory_dict.get("profile", {})
+                base = memory_dict.get("base", {})
+                memory_init = Memory(
+                    agent_id=agent_id,
+                    environment=self.environment,
+                    faiss_query=self._faiss_query,
+                    embedding_model=self._embedding_model,
+                    config=extra_attributes,
+                    profile=profile,
+                    base=base,
+                )
+                # build blocks
+                if agent_config.blocks is not None:
+                    blocks = [
+                        block_type(
+                            llm=self._llm,
+                            environment=self.environment,
+                            agent_memory=memory_init,
+                            block_params=block_params,
+                        )
+                        for block_type, block_params in agent_config.blocks.items()
+                    ]
+                else:
+                    blocks = None
+                # build agent
+                supervisor = agent_config.agent_class(
+                    id=agent_id,
+                    name=f"{agent_config.agent_class.__name__}_{agent_id}",
+                    toolbox=AgentToolbox(
+                        self._llm,
+                        self.environment,
+                        self.messager,
+                        self._avro_saver,
+                        self._pgsql_writers[0] if self._pgsql_writers else None,
+                        self._mlflow,
+                    ),
+                    memory=memory_init,
+                    agent_params=agent_config.agent_params,
+                    blocks=blocks,
+                )
+                # set supervisor
+                assert (
+                    self._message_interceptor is not None
+                ), "message interceptor is not set"
+                await self._message_interceptor.set_supervisor(supervisor)
+                break
+
+        get_logger().info(
+            f"{len(defined_ids)} defined ids found in memory_config_files"
+        )
 
         # Step 2: Process all agents without memory_from_file
         for agent_config in agent_configs_normal["firms"]:
@@ -518,16 +648,13 @@ class AgentSociety:
         for agent_config in agent_configs_normal["nbs"]:
             nbs_classes, _ = _init_agent_class(agent_config, self._config.env.s3)
             nbs = [
-                (_find_next_id(), *nbs_class)
-                for i, nbs_class in enumerate(nbs_classes)
+                (_find_next_id(), *nbs_class) for i, nbs_class in enumerate(nbs_classes)
             ]
             nbs_ids.update([nbs[0] for nbs in nbs])
             agents += nbs
 
         for agent_config in agent_configs_normal["governments"]:
-            government_classes, _ = _init_agent_class(
-                agent_config, self._config.env.s3
-            )
+            government_classes, _ = _init_agent_class(agent_config, self._config.env.s3)
             governments = [
                 (_find_next_id(), *government_class)
                 for i, government_class in enumerate(government_classes)
@@ -547,20 +674,28 @@ class AgentSociety:
             citizen_ids.update([citizen[0] for citizen in citizens])
             agents += citizens
 
+        for agent_config in agent_configs_normal["supervisor"]:
+            supervisor_classes, _ = _init_agent_class(agent_config, self._config.env.s3)
+            supervisors = [
+                (_find_next_id(), *supervisor_class)
+                for i, supervisor_class in enumerate(supervisor_classes)
+            ]
+            supervisor_ids.update([supervisor[0] for supervisor in supervisors])
+
         # Step 3: Insert essential distributions for citizens
         memory_distributions = {}
         for key, ids in [
-                ("firm_id", firm_ids),
-                ("bank_id", bank_ids),
-                ("nbs_id", nbs_ids),
-                ("government_id", government_ids),
-                ("home_aoi_id", aoi_ids),
-                ("work_aoi_id", aoi_ids),
-            ]:
-                memory_distributions[key] = DistributionConfig(
-                    dist_type=DistributionType.CHOICE,
-                    choices=list(ids),
-                )
+            ("firm_id", firm_ids),
+            ("bank_id", bank_ids),
+            ("nbs_id", nbs_ids),
+            ("government_id", government_ids),
+            ("home_aoi_id", aoi_ids),
+            ("work_aoi_id", aoi_ids),
+        ]:
+            memory_distributions[key] = DistributionConfig(
+                dist_type=DistributionType.CHOICE,
+                choices=list(ids),
+            )
         for generator in citizen_generators:
             generator.merge_distributions(memory_distributions)
 
@@ -588,7 +723,6 @@ class AgentSociety:
                 config=self._config,
                 agent_inits=group_agents,
                 environment_init=environment_init,
-                message_interceptor=self._messager.message_interceptor,
                 pgsql_writer=(
                     self._pgsql_writers[i % len(self._pgsql_writers)]
                     if len(self._pgsql_writers) > 0
@@ -613,6 +747,7 @@ class AgentSociety:
         # save the experiment info
         # ===================================
         await self._save_exp_info()
+        self._save_context()
         get_logger().info(f"Experiment info saved")
 
         # ===================================
@@ -655,15 +790,9 @@ class AgentSociety:
 
         if self._message_interceptor is not None:
             get_logger().info(f"Closing message interceptor...")
-            await self._message_interceptor.close.remote()  # type: ignore
+            await self._message_interceptor.close()
             self._message_interceptor = None
             get_logger().info(f"Message interceptor closed")
-
-        if self._message_interceptor_listener is not None:
-            get_logger().info(f"Closing message interceptor listener...")
-            await self._message_interceptor_listener.close()
-            self._message_interceptor_listener = None
-            get_logger().info(f"Message interceptor listener closed")
 
         if self._messager is not None:
             get_logger().info(f"Closing messager...")
@@ -851,93 +980,78 @@ class AgentSociety:
         self,
         survey: Survey,
         agent_ids: list[int] = [],
-        poll_interval: float = 3,
-        timeout: float = -1,
-    ):
+        survey_day: Optional[int] = None,
+        survey_t: Optional[float] = None,
+        is_pending_survey: bool = False,
+        pending_survey_id: Optional[int] = None,
+    ) -> dict[int, str]:
         """
         Send a survey to specified agents.
 
         - **Args**:
             - `survey` (Survey): The survey object to send.
             - `agent_ids` (List[int], optional): List of agent IDs to receive the survey. Defaults to an empty list.
-            - `poll_interval` (float, optional): The interval to poll for messages. Defaults to 3 seconds.
-            - `timeout` (float, optional): The timeout for the survey. Defaults to -1 (no timeout).
+            - `survey_day` (int, optional): The day of the survey. Defaults to None.
+            - `survey_t` (float, optional): The time of the survey. Defaults to None.
+            - `is_pending_survey` (bool, optional): Whether the survey is a pending survey. Defaults to False.
+            - `pending_survey_id` (int, optional): The ID of the pending survey. Defaults to None.
 
         - **Returns**:
-            - None
+            - `dict[int, str]`: A dictionary mapping agent IDs to their survey responses.
         """
-        survey_dict = survey.model_dump()
-        _date_time = datetime.now(timezone.utc)
-        payload = {
-            "from": NONE_SENDER_ID,
-            "survey_id": survey_dict["id"],
-            "timestamp": int(_date_time.timestamp() * 1000),
-            "data": survey_dict,
-            "_date_time": _date_time,
-        }
+        group_to_agent_ids = defaultdict(list)
+        for agent_id in agent_ids:
+            if agent_id not in self._agent_id2group:
+                continue
+            group_to_agent_ids[self._agent_id2group[agent_id]].append(agent_id)
         tasks = []
-        for id in agent_ids:
-            channel = self.messager.get_user_survey_channel(id)
-            tasks.append(self.messager.send_message(channel, payload))
-        await asyncio.gather(*tasks)
-        remain_payback = len(agent_ids)
-        start_t = time.time()
-        while True:
-            messages = await self.messager.fetch_messages()
-            get_logger().info(f"Received {len(messages)} payback messages [survey]")
-            remain_payback -= len(messages)
-            if remain_payback <= 0:
-                break
-            await asyncio.sleep(poll_interval)
-            if timeout > 0:
-                if time.time() - start_t > timeout:
-                    get_logger().warning(f"Survey timeout after {timeout} seconds")
-                    break
+        for group, agent_ids in group_to_agent_ids.items():
+            tasks.append(
+                group.handle_survey.remote(
+                    survey,
+                    agent_ids,
+                    survey_day,
+                    survey_t,
+                    is_pending_survey,
+                    pending_survey_id,
+                )  # type:ignore
+            )
+        results = await asyncio.gather(*tasks)
+        all_responses = {}
+        for result in results:
+            all_responses.update(result)
+        return all_responses
 
     async def send_interview_message(
         self,
-        content: str,
+        question: str,
         agent_ids: list[int],
-        poll_interval: float = 3,
-        timeout: float = -1,
     ):
         """
         Send an interview message to specified agents.
 
         - **Args**:
-            - `content` (str): The content of the message to send.
+            - `question` (str): The content of the message to send.
             - `agent_ids` (list[int]): A list of IDs for the agents to receive the message.
-            - `poll_interval` (float, optional): The interval to poll for messages. Defaults to 3 seconds.
-            - `timeout` (float, optional): The timeout for the survey. Defaults to -1 (no timeout).
 
         - **Returns**:
             - None
         """
-        _date_time = datetime.now(timezone.utc)
-        payload = {
-            "from": NONE_SENDER_ID,
-            "content": content,
-            "timestamp": int(_date_time.timestamp() * 1000),
-            "_date_time": _date_time,
-        }
+        group_to_agent_ids = defaultdict(list)
+        for agent_id in agent_ids:
+            if agent_id not in self._agent_id2group:
+                continue
+            group_to_agent_ids[self._agent_id2group[agent_id]].append(agent_id)
         tasks = []
-        for id in agent_ids:
-            channel = self.messager.get_user_chat_channel(id)
-            tasks.append(self.messager.send_message(channel, payload))
-        await asyncio.gather(*tasks)
-        remain_payback = len(agent_ids)
-        start_t = time.time()
-        while True:
-            messages = await self.messager.fetch_messages()
-            get_logger().info(f"Received {len(messages)} payback messages [interview]")
-            remain_payback -= len(messages)
-            if remain_payback <= 0:
-                break
-            await asyncio.sleep(poll_interval)
-            if timeout > 0:
-                if time.time() - start_t > timeout:
-                    get_logger().warning(f"Interview timeout after {timeout} seconds")
-                    break
+        for group, agent_ids in group_to_agent_ids.items():
+            tasks.append(
+                group.handle_interview.remote(question, agent_ids)
+            )  # type:ignore
+        results = await asyncio.gather(*tasks)
+        all_responses = {}
+        for result in results:
+            all_responses.update(result)
+        return all_responses
 
     async def send_intervention_message(
         self, intervention_message: str, agent_ids: list[int]
@@ -952,12 +1066,17 @@ class AgentSociety:
             - `intervention_message` (str): The content of the intervention message to send.
             - `agent_ids` (list[int]): A list of agent IDs to receive the intervention message.
         """
+        group_to_agent_ids = defaultdict(list)
+        for agent_id in agent_ids:
+            if agent_id not in self._agent_id2group:
+                continue
+            group_to_agent_ids[self._agent_id2group[agent_id]].append(agent_id)
         tasks = []
-        for group in self._groups.values():
+        for group, agent_ids in group_to_agent_ids.items():
             tasks.append(
-                group.react_to_intervention.remote(  # type:ignore
+                group.react_to_intervention.remote(
                     intervention_message, agent_ids
-                )
+                )  # type:ignore
             )
         await asyncio.gather(*tasks)
 
@@ -1047,6 +1166,16 @@ class AgentSociety:
             worker: ray.ObjectRef = self._pgsql_writers[0]
             await worker.write_global_prompt.remote(prompt_info)  # type:ignore
 
+    def _save_context(self):
+        fs_client = self._config.env.fs_client
+        json_bytes = json.dumps(self.context, indent=2, ensure_ascii=False).encode(
+            "utf-8"
+        )
+        fs_client.upload(
+            data=json_bytes,
+            remote_path=f"exps/{self.tenant_id}/{self.exp_id}/artifacts.json",
+        )
+
     async def delete_agents(self, target_agent_ids: list[int]):
         """
         Delete the specified agents.
@@ -1118,7 +1247,6 @@ class AgentSociety:
             # ======================
             all_logs = Logs(
                 llm_log=[],
-                redis_log=[],
                 simulator_log=[],
                 agent_time_log=[],
             )
@@ -1131,9 +1259,10 @@ class AgentSociety:
             self._exp_info.cur_day = day
             self._exp_info.cur_t = t
             for log in all_logs.llm_log:
-                self._exp_info.input_tokens += log["input_tokens"]
-                self._exp_info.output_tokens += log["output_tokens"]
+                self._exp_info.input_tokens += log.get("input_tokens", 0)
+                self._exp_info.output_tokens += log.get("output_tokens", 0)
             await self._save_exp_info()
+            self._save_context()
             # ======================
             # save the simulation results
             # ======================
@@ -1167,51 +1296,77 @@ class AgentSociety:
             # ======================
             # forward message
             # ======================
-            message_intercept_config = self.config.exp.message_intercept
-            if message_intercept_config is not None:
-                if message_intercept_config.forward_strategy == "outer_control":
-                    interceptor = self._message_interceptor
-                    assert (
-                        interceptor is not None
-                    ), "Message interceptor must be set when using `outer_control` strategy"
-                    governance_func = message_intercept_config.governance_func
-                    assert (
-                        governance_func is not None
-                    ), "Governance function must be set when using `outer_control` strategy"
-                    # the logic of outer control
-                    current_round_dict = await interceptor.get_validation_dict.remote()  # type: ignore
-                    (
-                        validation_dict,
-                        blocked_agent_ids,
-                        blocked_social_edges,
-                        persuasion_messages,
-                    ) = await governance_func(
-                        list(current_round_dict.keys()), self._llm
-                    )
-                    interceptor.update_blocked_agent_ids.remote(blocked_agent_ids)  # type: ignore
-                    interceptor.update_blocked_social_edges.remote(blocked_social_edges)  # type: ignore
-                    # modify validation_dict based on blocked_agent_ids and blocked_social_edges
-                    validation_dict = await interceptor.modify_validation_dict.remote(validation_dict)  # type: ignore
-                    message_tasks = [
-                        self.messager.forward(validation_dict, persuasion_messages)
-                    ]
-                    message_tasks.extend(
-                        [
-                            group.forward_message.remote(validation_dict)  # type: ignore
-                            for group in self._groups.values()
-                        ]
-                    )
-                    await asyncio.gather(*message_tasks)
-                    await interceptor.clear_validation_dict.remote()  # type: ignore
-            else:
-                message_tasks = [self.messager.forward()]
-                message_tasks.extend(
-                    [
-                        group.forward_message.remote(None)  # type: ignore
-                        for group in self._groups.values()
-                    ]
+            tasks = []
+            for group in self._groups.values():
+                tasks.append(group.fetch_pending_messages.remote())  # type: ignore
+            all_messages = list(itertools.chain(*await asyncio.gather(*tasks)))
+            get_logger().info(
+                f"({day}-{t}) Finished fetching pending messages. {len(all_messages)} messages fetched."
+            )
+
+            if self._message_interceptor is not None:
+                all_messages = await self._message_interceptor.forward(all_messages)
+            # ======================
+            # fetch pending dialogs from USER
+            # ======================
+            if self.enable_pgsql:
+                pending_dialogs = await self._pgsql_writers[0].fetch_pending_dialogs.remote()  # type: ignore
+                get_logger().info(
+                    f"({day}-{t}) Finished fetching pending dialogs. {len(pending_dialogs)} dialogs fetched."
                 )
-                await asyncio.gather(*message_tasks)
+                user_messages = []
+                for pending_dialog in pending_dialogs:
+                    user_messages.append(
+                        Message(
+                            from_id=None,
+                            to_id=pending_dialog.agent_id,
+                            payload={"content": pending_dialog.content},
+                            created_at=pending_dialog.created_at,
+                            kind=MessageKind.USER_CHAT,
+                            day=pending_dialog.day,
+                            t=pending_dialog.t,
+                            extra={"pending_dialog_id": pending_dialog.id},
+                        )
+                    )
+                all_messages += user_messages
+            # dispatch messages to each agent group based on their to_id
+            group_to_messages = defaultdict(list)
+            for message in all_messages:
+                if message.to_id is not None and message.to_id in self._agent_id2group:
+                    group_actor = self._agent_id2group[message.to_id]
+                    group_to_messages[group_actor].append(message)
+            get_logger().info(f"({day}:{t}) Finished grouping messages.")
+            tasks = []
+            for group_actor, messages in group_to_messages.items():
+                tasks.append(group_actor.set_received_messages.remote(messages))  # type: ignore
+            await asyncio.gather(*tasks)
+            get_logger().info(f"({day}-{t}) Finished setting received messages")
+            # ======================
+            # handle pending surveys
+            # ======================
+            if self.enable_pgsql:
+                pending_surveys = await self._pgsql_writers[0].fetch_pending_surveys.remote()  # type: ignore
+                get_logger().info(
+                    f"({day}-{t}) Finished fetching pending surveys. {len(pending_surveys)} surveys fetched."
+                )
+                pending_surveys = cast(list[StoragePendingSurvey], pending_surveys)
+                for pending_survey in pending_surveys:
+                    try:
+                        pending_survey.data["id"] = pending_survey.survey_id
+                        survey = Survey.model_validate(pending_survey.data)
+                    except Exception as e:
+                        get_logger().error(
+                            f"Error validating survey data: {str(e)}\n{traceback.format_exc()}"
+                        )
+                        continue
+                    await self.send_survey(
+                        survey,
+                        [pending_survey.agent_id],
+                        pending_survey.day,
+                        pending_survey.t,
+                        is_pending_survey=True,
+                        pending_survey_id=pending_survey.id,
+                    )
             # ======================
             # go to next step
             # ======================
@@ -1246,7 +1401,6 @@ class AgentSociety:
         """
         logs = Logs(
             llm_log=[],
-            redis_log=[],
             simulator_log=[],
             agent_time_log=[],
         )
@@ -1265,7 +1419,6 @@ class AgentSociety:
         """
         logs = Logs(
             llm_log=[],
-            redis_log=[],
             simulator_log=[],
             agent_time_log=[],
         )
@@ -1353,19 +1506,22 @@ class AgentSociety:
                     await step.func(self)
                 else:
                     raise ValueError(f"Unknown workflow type: {step.type}")
+                self._save_context()
             # Finalize the agents
             tasks = []
             for group in self._groups.values():
-                tasks.append(group.final.remote())  # type:ignore
+                tasks.append(group.close.remote())  # type:ignore
             await asyncio.gather(*tasks)
 
         except Exception as e:
             get_logger().error(f"Simulation error: {str(e)}\n{traceback.format_exc()}")
             self._exp_info.status = ExperimentStatus.ERROR.value
             self._exp_info.error = str(e)
+            self._save_context()
             await self._save_exp_info()
 
             raise RuntimeError(str(e)) from e
         self._exp_info.status = ExperimentStatus.FINISHED.value
+        self._save_context()
         await self._save_exp_info()
         return logs

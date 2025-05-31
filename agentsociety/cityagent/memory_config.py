@@ -175,9 +175,18 @@ def memory_config_societyagent(
             if attr.name in EXTRA_ATTRIBUTES:
                 continue
             if attr.embedding_template:
-                EXTRA_ATTRIBUTES[attr.name] = (attr.type, attr.default, attr.whether_embedding, attr.embedding_template)
+                EXTRA_ATTRIBUTES[attr.name] = (
+                    attr.type,
+                    attr.default,
+                    attr.whether_embedding,
+                    attr.embedding_template,
+                )
             else:
-                EXTRA_ATTRIBUTES[attr.name] = (attr.type, attr.default, attr.whether_embedding)
+                EXTRA_ATTRIBUTES[attr.name] = (
+                    attr.type,
+                    attr.default,
+                    attr.whether_embedding,
+                )
 
     PROFILE = {
         "name": (str, sample_field_value(distributions, "name"), True),
@@ -195,7 +204,11 @@ def memory_config_societyagent(
         "city": (str, "unknown", True),
         "race": (str, "unknown", True),
         "religion": (str, "unknown", True),
-        "marriage_status": (str, sample_field_value(distributions, "marriage_status"), True),
+        "marriage_status": (
+            str,
+            sample_field_value(distributions, "marriage_status"),
+            True,
+        ),
         "background_story": (str, "No background story", True),
     }
 

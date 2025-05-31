@@ -1,6 +1,7 @@
 import asyncio
+from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Any, Optional, Union, cast
+from typing import Any, Optional, Union
 
 import jsonc
 import ray
@@ -17,13 +18,14 @@ from ..agent import (
     GovernmentAgentBase,
     NBSAgentBase,
 )
+from ..survey import Survey
 from ..agent.memory_config_generator import MemoryConfigGenerator
 from ..configs import Config
 from ..environment import Environment
 from ..llm import LLM, init_embedding, monitor_requests
 from ..logger import get_logger, set_logger_level
 from ..memory import FaissQuery, Memory
-from ..message import Messager, MessageIdentifier
+from ..message import Messager, Message, MessageKind
 from ..metrics import MlflowClient
 from ..storage import AvroSaver
 from ..storage.type import StorageProfile, StorageStatus
@@ -62,8 +64,6 @@ class AgentGroup:
         environment_init: dict,
         # PostgreSQL
         pgsql_writer: Optional[ray.ObjectRef],
-        # Message Interceptor
-        message_interceptor: ray.ObjectRef,
         # MLflow
         mlflow_run_id: Optional[str],
         # Others
@@ -93,8 +93,6 @@ class AgentGroup:
             get_logger().debug(f"Environment init loaded")
             self._pgsql_writer = pgsql_writer
             get_logger().debug(f"PGSQL writer reference set")
-            self._message_interceptor = message_interceptor
-            get_logger().debug(f"Message interceptor reference set")
             self._mlflow_run_id = mlflow_run_id
             get_logger().debug(f"MLflow run ID set: {mlflow_run_id}")
             self._agent_config_file = agent_config_file
@@ -115,7 +113,6 @@ class AgentGroup:
 
             self._agents = []
             self._id2agent = {}
-            self._message_dispatch_task = None
             self._last_asyncio_pg_task = None
             get_logger().info("AgentGroup initialization completed successfully")
         except Exception as e:
@@ -189,9 +186,7 @@ class AgentGroup:
         # Initialize messager
         # ====================
         get_logger().info(f"Initializing messager...")
-        self._messager = Messager(
-            self._config.env.redis, self._exp_id, self._message_interceptor
-        )
+        self._messager = Messager(self._exp_id)
         await self._messager.init()
         get_logger().info(f"Messager initialized")
 
@@ -201,7 +196,11 @@ class AgentGroup:
         if self._config.env.avro.enabled:
             get_logger().info(f"Initializing the avro saver...")
             self._avro_saver = AvroSaver(
-                self._config.env.avro, self._exp_id, self._group_id
+                self._config.env.avro,
+                self._config.env.home_dir,
+                self._tenant_id,
+                self._exp_id,
+                self._group_id,
             )
             get_logger().info(f"Avro saver initialized")
 
@@ -266,6 +265,10 @@ class AgentGroup:
             else:
                 blocks = None
             # build agent
+            if agent_params is None:
+                agent_params = agent_class.ParamsType()
+            else:
+                agent_params = agent_class.ParamsType.model_validate(agent_params)
             agent = agent_class(
                 id=id,
                 name=f"{agent_class.__name__}_{id}",
@@ -285,8 +288,6 @@ class AgentGroup:
             tasks.append(agent.init())
             channels.append(f"exps:{self._exp_id}:agents:{agent.id}:*")
         await asyncio.gather(*tasks)
-        await self.messager.subscribe_and_start_listening(channels)
-        self._message_dispatch_task = asyncio.create_task(self._message_dispatch())
         get_logger().info(
             f"-----Initializing by exporting profiles in AgentGroup {self._group_id} ..."
         )
@@ -300,7 +301,11 @@ class AgentGroup:
                     id=agent.id,
                     name=profile.get("name", ""),
                     profile=jsonc.dumps(
-                        {k: v for k, v in profile.items() if k not in {"id", "name"}},
+                        {
+                            k: v
+                            for k, v in profile.items()
+                            if k not in {"id", "name", "social_network"}
+                        },
                         ensure_ascii=False,
                     ),
                 )
@@ -321,14 +326,10 @@ class AgentGroup:
 
     async def close(self):
         """Close the AgentGroupV2."""
-
-        if self._message_dispatch_task is not None:
-            self._message_dispatch_task.cancel()
-            try:
-                await self._message_dispatch_task
-            except asyncio.CancelledError:
-                pass
-            self._message_dispatch_task = None
+        tasks = []
+        for agent in self._agents:
+            tasks.append(agent.close())
+        await asyncio.gather(*tasks)
 
         if self._mlflow_client is not None:
             self._mlflow_client.close()
@@ -376,6 +377,7 @@ class AgentGroup:
         """
         self.environment.set_tick(tick)
         try:
+            await self._message_dispatch()
             tasks = [agent.run() for agent in self._agents]
             agent_time_log = await asyncio.gather(*tasks)
             simulator_log = (
@@ -384,12 +386,10 @@ class AgentGroup:
             )
             group_logs = Logs(
                 llm_log=self.llm.get_log_list(),
-                redis_log=self.messager.get_log_list(),
                 simulator_log=simulator_log,
                 agent_time_log=agent_time_log,
             )
             self.llm.clear_log_list()
-            self.messager.clear_log_list()
             self.environment.clear_log_list()
             self.environment.economy_client.clear_log_list()
 
@@ -407,9 +407,14 @@ class AgentGroup:
         React to an intervention.
         """
         react_tasks = []
-        for agent in self._agents:
-            if agent.id in agent_ids:
+        for agent_id in agent_ids:
+            agent = self._id2agent[agent_id]
+            if isinstance(agent, CitizenAgentBase):
                 react_tasks.append(agent.react_to_intervention(intervention_message))
+            else:
+                get_logger().error(
+                    f"Agent {agent_id} is not in the group, so skip the intervention"
+                )
         await asyncio.gather(*react_tasks)
 
     # ====================
@@ -417,70 +422,139 @@ class AgentGroup:
     # ====================
     async def _message_dispatch(self):
         """
-        Dispatches messages received via Redis to the appropriate agents.
-
-        - **Description**:
-            - Continuously listens for incoming Redis messages and dispatches them to the relevant agents based on the topic.
-            - Messages are expected to have a topic formatted as "exps:{exp_id}:agents:{agent.id}:{topic_type}".
-            - The payload is decoded from bytes to string and then parsed as JSON.
-            - Depending on the `topic_type`, different handler methods on the agent are called to process the message.
+        Dispatches messages received via Message to the appropriate agents.
         """
-        get_logger().info(f"-----Starting message dispatch for group {self._group_id}")
-        while True:
-            # Step 1: Fetch messages
-            messages = await self.messager.fetch_messages()
-            if len(messages) > 0:
-                get_logger().info(
-                    f"Group {self._group_id} received {len(messages)} messages"
+        # Step 1: Fetch messages
+        messages = await self.messager.fetch_received_messages()
+        if len(messages) > 0:
+            get_logger().info(
+                f"Group {self._group_id} received {len(messages)} messages"
+            )
+        else:
+            get_logger().debug(
+                f"Group {self._group_id} received no messages in this step"
+            )
+
+        try:
+            # Step 2: Distribute messages to corresponding Agents
+            # Separate messages into agent messages and aoi messages
+            agent_messages = defaultdict(list)  # Dict[agent_id, list[Message]]
+            aoi_messages = []  # List[Message]
+
+            for message in messages:
+                if message.kind in [MessageKind.AGENT_CHAT, MessageKind.USER_CHAT]:
+                    agent_id = message.to_id
+                    if agent_id in self._id2agent:
+                        agent_messages[agent_id].append(message)
+                elif message.kind in [
+                    MessageKind.AOI_MESSAGE_REGISTER,
+                    MessageKind.AOI_MESSAGE_CANCEL,
+                ]:
+                    aoi_messages.append(message)
+
+            # Process agent messages in parallel for different agents
+            async def process_agent_messages(agent_id: int, messages: list[Message]):
+                agent = self._id2agent[agent_id]
+                if isinstance(agent, CitizenAgentBase):
+                    for message in messages:
+                        if message.kind == MessageKind.AGENT_CHAT:
+                            await agent._handle_agent_chat_with_storage(message)
+                        elif message.kind == MessageKind.USER_CHAT:
+                            await agent._handle_interview_with_storage(message)
+                else:
+                    get_logger().error(
+                        f"Agent {agent_id} is not a citizen agent, so skip the message dispatch"
+                    )
+
+            # Process agent messages in parallel
+            agent_tasks = [
+                process_agent_messages(agent_id, msgs)
+                for agent_id, msgs in agent_messages.items()
+            ]
+            await asyncio.gather(*agent_tasks)
+
+            # Process aoi messages
+            for message in aoi_messages:
+                agent_id = message.from_id
+                if message.kind == MessageKind.AOI_MESSAGE_REGISTER:
+                    self.environment.register_aoi_message(
+                        agent_id, message.to_id, message.payload["content"]
+                    )
+                elif message.kind == MessageKind.AOI_MESSAGE_CANCEL:
+                    self.environment.cancel_aoi_message(agent_id, message.to_id)
+        except Exception as e:
+            get_logger().error(f"Error dispatching message: {e}")
+            import traceback
+
+            get_logger().error(f"Error dispatching message: {traceback.format_exc()}")
+
+    async def handle_survey(
+        self,
+        survey: Survey,
+        agent_ids: list[int],
+        survey_day: Optional[int] = None,
+        survey_t: Optional[float] = None,
+        is_pending_survey: bool = False,
+        pending_survey_id: Optional[int] = None,
+    ) -> dict[int, str]:
+        """
+        Handle a user survey.
+        """
+        survey_tasks = []
+        for agent_id in agent_ids:
+            agent = self._id2agent[agent_id]
+            if isinstance(agent, CitizenAgentBase):
+                survey_tasks.append(
+                    agent._handle_survey_with_storage(
+                        survey,
+                        survey_day,
+                        survey_t,
+                        is_pending_survey,
+                        pending_survey_id,
+                    )
                 )
             else:
-                get_logger().debug(
-                    f"Group {self._group_id} received no messages, waiting..."
-                )
-
-            try:
-                # Step 2: Distribute messages to corresponding Agents
-                for message in messages:
-                    channel = cast(bytes, message["channel"]).decode("utf-8")
-                    payload = cast(bytes, message["data"])
-                    payload = jsonc.loads(payload.decode("utf-8"))
-
-                    if "agents" in channel:
-                        # Extract agent_id (channel format is "exps:{exp_id}:agents:{agent_id}:{topic_type}")
-                        _, _, _, agent_id, topic_type = channel.strip(":").split(":")
-                        agent_id = int(agent_id)
-                        if agent_id in self._id2agent:
-                            agent = self._id2agent[agent_id]
-                            # topic_type: agent-chat, user-chat, user-survey, gather
-                            if topic_type == "agent-chat":
-                                await agent.handle_agent_chat_message(payload)
-                            elif topic_type == "user-chat":
-                                await agent.handle_user_chat_message(payload)
-                            elif topic_type == "user-survey":
-                                await agent.handle_user_survey_message(payload)
-                            elif topic_type == "gather":
-                                await agent.handle_gather_message(payload)
-                            elif topic_type == "gather_receive":
-                                await agent.handle_gather_receive_message(payload)
-                    elif "aoi" in channel:
-                        _, _, _, aoi_id = channel.strip(":").split(":")
-                        aoi_id = int(aoi_id)
-                        agent_id = payload["agent_id"]
-                        operation = payload["type"]
-                        if operation == "aoi_message_register":
-                            self.environment.register_aoi_message(
-                                agent_id, aoi_id, payload
-                            )
-                        elif operation == "aoi_message_cancel":
-                            self.environment.cancel_aoi_message(agent_id, aoi_id)
-            except Exception as e:
-                get_logger().error(f"Error dispatching message: {e}")
-                import traceback
-
                 get_logger().error(
-                    f"Error dispatching message: {traceback.format_exc()}"
+                    f"Agent {agent_id} is not a citizen agent, so skip the survey"
                 )
-            await asyncio.sleep(3)
+        survey_responses = await asyncio.gather(*survey_tasks)
+        return {
+            agent_id: response
+            for agent_id, response in zip(agent_ids, survey_responses)
+        }
+
+    async def handle_interview(
+        self, question: str, agent_ids: list[int]
+    ) -> dict[int, str]:
+        """
+        Handle a user interview.
+        """
+        day, t = self.environment.get_datetime()
+        interview_tasks = []
+        for agent_id in agent_ids:
+            agent = self._id2agent[agent_id]
+            if isinstance(agent, CitizenAgentBase):
+                interview_tasks.append(
+                    agent._handle_interview_with_storage(
+                        Message(
+                            from_id=None,
+                            to_id=agent_id,
+                            payload={"content": question},
+                            kind=MessageKind.USER_CHAT,
+                            day=day,
+                            t=t,
+                        )
+                    )
+                )
+            else:
+                get_logger().error(
+                    f"Agent {agent_id} is not a citizen agent, so skip the interview"
+                )
+        interview_responses = await asyncio.gather(*interview_tasks)
+        return {
+            agent_id: response
+            for agent_id, response in zip(agent_ids, interview_responses)
+        }
 
     # ====================
     # Status Management Methods
@@ -533,12 +607,12 @@ class AgentGroup:
                     parent_id = position["lane_position"]["lane_id"]
                 else:
                     parent_id = None
-                hunger_satisfaction = await agent.status.get("hunger_satisfaction")
-                energy_satisfaction = await agent.status.get("energy_satisfaction")
-                safety_satisfaction = await agent.status.get("safety_satisfaction")
-                social_satisfaction = await agent.status.get("social_satisfaction")
+                hunger_satisfaction = await agent.status.get("hunger_satisfaction", 0)
+                energy_satisfaction = await agent.status.get("energy_satisfaction", 0)
+                safety_satisfaction = await agent.status.get("safety_satisfaction", 0)
+                social_satisfaction = await agent.status.get("social_satisfaction", 0)
                 current_need = await agent.status.get("current_need", "None")
-                current_plan = await agent.status.get("current_plan")
+                current_plan = await agent.status.get("current_plan", {})
                 if current_plan is not None and current_plan:
                     intention = current_plan.get("target", "Other")
                     step_index = current_plan.get("index", 0)
@@ -732,15 +806,6 @@ class AgentGroup:
                         filtered_ids.append(agent.id)
         return filtered_ids
 
-    async def final(self):
-        """
-        Finalize the agent group.
-        """
-        tasks = []
-        for agent in self._agents:
-            tasks.append(agent.final())
-        await asyncio.gather(*tasks)
-
     async def gather(self, content: str, target_agent_ids: Optional[list[int]] = None):
         """
         Gathers specific content from all or targeted agents within the group.
@@ -788,7 +853,7 @@ class AgentGroup:
         ]
         final_tasks = []
         for agent in agents_to_delete:
-            final_tasks.append(agent.final())
+            final_tasks.append(agent.close())
         await asyncio.gather(*final_tasks)
 
         # Create a new list with agents that should be kept
@@ -805,8 +870,14 @@ class AgentGroup:
                     f"Attempted to delete non-existent agent with ID {agent_id}"
                 )
 
-    async def forward_message(self, validation_dict: MessageIdentifier):
+    async def fetch_pending_messages(self):
         """
-        Forward the message to the channel if the message is valid.
+        Fetch the pending messages from the messager.
         """
-        await self.messager.forward(validation_dict)
+        return await self.messager.fetch_pending_messages()
+
+    async def set_received_messages(self, messages: list[Message]):
+        """
+        Set the received messages.
+        """
+        await self.messager.set_received_messages(messages)

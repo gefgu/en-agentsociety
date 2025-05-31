@@ -49,8 +49,7 @@ if __name__ == "__main__":
 
 ```{admonition} Caution
 :class: caution
-- redis server should be accessible for all nodes.
-- mlflow server should be accessible for all nodes. 
-- primary node ip should be accessible for all nodes. 
+- mlflow server should be accessible for all nodes.
+- primary node ip should be accessible for all nodes.
 - map file path should be accessible for main node.
 ```

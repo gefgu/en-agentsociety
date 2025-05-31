@@ -108,7 +108,7 @@ def ui(config: str, config_base64: str):
         pg_dsn = c.env.pgsql.dsn
         if pg_dsn.startswith("postgresql://"):
             pg_dsn = pg_dsn.replace("postgresql://", "postgresql+asyncpg://", 1)
-        executor = ProcessExecutor(c.env.webui_home_dir)
+        executor = ProcessExecutor(c.env.home_dir)
         get_tenant_id = empty_get_tenant_id
         more_state: Dict[str, Any] = {
             "executor": executor,
@@ -146,6 +146,8 @@ def ui(config: str, config_base64: str):
 @cli.command()
 @common_options
 def check(config: str, config_base64: str):
+    import os
+
     """Pre-check the config"""
     config_dict = load_config(config, config_base64)
 
@@ -153,43 +155,6 @@ def check(config: str, config_base64: str):
 
     c = Config.model_validate(config_dict)
     click.echo(f"Config format check. {click.style('Passed.', fg='green')}")
-
-    # =================
-    # check the connection to the redis server
-    # =================
-    from redis import Redis
-    from redis.exceptions import AuthenticationError, ConnectionError
-
-    try:
-        redis = Redis(
-            host=c.env.redis.server,
-            port=c.env.redis.port,
-            db=c.env.redis.db,
-            password=c.env.redis.password,
-        )
-        redis.ping()
-        click.echo(f"Redis connection check. {click.style('Passed.', fg='green')}")
-    except AuthenticationError as e:
-        click.echo(f"Redis connection check. {click.style('Failed:', fg='red')} {e}")
-        click.echo(
-            f"Explanation: Please check the password of the redis server. Current password: {c.env.redis.password}"
-        )
-    except ConnectionError as e:
-        click.echo(f"Redis connection check. {click.style('Failed:', fg='red')} {e}")
-        error_msg = str(e)
-        if (
-            "Temporary failure in name resolution" in error_msg
-            or "Name or service not known" in error_msg
-        ):
-            click.echo(
-                f"Explanation: The `server` (value={c.env.redis.server}) in the config is an invalid hostname. Please check the config. Maybe you should use `localhost` or `127.0.0.1` instead if you are running the simulation on a single machine (used to run docker compose)."
-            )
-        else:
-            click.echo(
-                f"Explanation: Please check the `server` (value={c.env.redis.server}) and `port` (value={c.env.redis.port}) of the redis server."
-            )
-    except Exception as e:
-        click.echo(f"Redis connection check. {click.style('Failed:', fg='red')} {e}")
 
     # =================
     # check the connection to the pgsql server
@@ -233,8 +198,6 @@ def check(config: str, config_base64: str):
 
     if c.env.mlflow.enabled:
         try:
-            import os
-
             if c.env.mlflow.username is not None:
                 os.environ["MLFLOW_TRACKING_USERNAME"] = c.env.mlflow.username
             if c.env.mlflow.password is not None:
@@ -300,6 +263,83 @@ def run(
     from ..cityagent import default
 
     c = Config.model_validate(config_dict)
+
+    # Check if we need to import community modules
+    need_community = False
+    if c.agents.citizens:
+        for citizen in c.agents.citizens:
+            if isinstance(citizen.agent_class, str):
+                need_community = True
+                break
+            # go to check blocks
+            if citizen.blocks is not None:
+                for block in citizen.blocks.keys():
+                    if isinstance(block, str):
+                        need_community = True
+                        break
+
+    if c.agents.supervisor is not None and isinstance(
+        c.agents.supervisor.agent_class, str
+    ):
+        need_community = True
+
+    if c.exp.workflow:
+        for step in c.exp.workflow:
+            if step.func is not None and isinstance(step.func, str):
+                need_community = True
+                break
+
+    if need_community:
+        try:
+            from agentsociety_community.agents import citizens, supervisors
+            from agentsociety_community.blocks import citizens as citizen_blocks
+            from agentsociety_community.workflows import functions as workflow_functions
+
+            # get the mapping of the agent class
+            workflow_function_map = workflow_functions.get_type_to_cls_dict()
+            citizens_class_map = citizens.get_type_to_cls_dict()
+            citizen_blocks_class_map = citizen_blocks.get_type_to_cls_dict()
+            supervisors_class_map = supervisors.get_type_to_cls_dict()
+
+            # process the agent_class in citizens
+            for citizen in c.agents.citizens:
+                if isinstance(citizen.agent_class, str):
+                    if citizen.agent_class == "citizen":
+                        # Skip mapping if it's just a citizen
+                        continue
+                    citizen.agent_class = citizens_class_map[citizen.agent_class]()
+                if citizen.blocks is not None:
+                    new_blocks = {}
+                    for block_name, block_params in citizen.blocks.items():
+                        if isinstance(block_name, str):
+                            new_blocks[block_name] = citizen_blocks_class_map[block_name]()
+                        else:
+                            new_blocks[block_name] = block_params
+                    citizen.blocks = new_blocks
+
+            # process the agent_class in supervisor
+            if c.agents.supervisor is not None and isinstance(
+                c.agents.supervisor.agent_class, str
+            ):
+                c.agents.supervisor.agent_class = supervisors_class_map[
+                    c.agents.supervisor.agent_class
+                ]()
+
+            # process the func in workflow
+            for step in c.exp.workflow:
+                if step.func is not None and isinstance(step.func, str):
+                    # if func is a string, try to get the corresponding function from function_map
+                    imported_func = workflow_function_map[step.func]()
+                    step.func = imported_func
+        except ImportError as e:
+            import traceback
+
+            print(traceback.format_exc())
+            print(
+                "agentsociety_community is not installed. Please install it with `pip install agentsociety-community`"
+            )
+            raise e
+
     c = default(c)
     society = AgentSociety(c)
 

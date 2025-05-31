@@ -14,6 +14,8 @@ from ...agent.dispatcher import BlockDispatcher
 from .utils import TIME_ESTIMATE_PROMPT, clean_json_response
 from ..sharing_params import SocietyAgentBlockOutput
 from pydantic import Field
+
+
 class MessagePromptManager:
     """
     Manages the creation of message prompts by dynamically formatting templates with agent-specific data.
@@ -177,9 +179,7 @@ class FindPersonBlock(Block):
         ['offline', 2] - means meet the third friend offline
         """
 
-    async def forward(
-        self, context: DotDict
-    ):
+    async def forward(self, context: DotDict):
         """Identifies a target agent and interaction mode (online/offline).
 
         Args:
@@ -341,9 +341,7 @@ class MessageBlock(Block):
             get_logger().warning(f"Error serializing message: {e}")
             return message
 
-    async def forward(
-        self, context: DotDict
-    ):
+    async def forward(self, context: DotDict):
         """Generates a message, sends it to the target, and updates chat history.
 
         Args:
@@ -369,7 +367,10 @@ class MessageBlock(Block):
 
             # Get formatted prompt using prompt manager
             formatted_prompt = await self.prompt_manager.get_prompt(
-                self.memory, context["current_step"], target, self.default_message_template
+                self.memory,
+                context["current_step"],
+                target,
+                self.default_message_template,
             )
 
             # Generate message
@@ -417,8 +418,11 @@ class MessageBlock(Block):
 class SocialBlockParams(BlockParams): ...
 
 
-class SocialBlockContext(BlockContext): 
-    target: Optional[int] = Field(default=None, description="The target agent id that the agent is going to socialize with")
+class SocialBlockContext(BlockContext):
+    target: Optional[int] = Field(
+        default=None,
+        description="The target agent id that the agent is going to socialize with",
+    )
 
 
 class SocialBlock(Block):
@@ -429,6 +433,7 @@ class SocialBlock(Block):
     ParamsType = SocialBlockParams
     OutputType = SocietyAgentBlockOutput
     ContextType = SocialBlockContext
+    NeedAgent = True
     name = "SocialBlock"
     description = "Responsible for all kinds of social interactions"
     actions = {
@@ -462,9 +467,7 @@ class SocialBlock(Block):
             [self.find_person_block, self.message_block, self.noneblock]
         )
 
-    async def forward(
-        self, agent_context: DotDict
-    ) -> SocietyAgentBlockOutput:
+    async def forward(self, agent_context: DotDict) -> SocietyAgentBlockOutput:
         """Main entry point for social interactions. Dispatches to sub-blocks based on context.
 
         Args:

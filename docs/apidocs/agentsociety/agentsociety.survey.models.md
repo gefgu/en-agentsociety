@@ -268,8 +268,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 ````{py:attribute} title
 :canonical: agentsociety.survey.models.Survey.title
 :type: str
-:value: >
-   None
+:value: <Multiline-String>
 
 ```{autodoc2-docstring} agentsociety.survey.models.Survey.title
 ```
@@ -279,8 +278,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 ````{py:attribute} description
 :canonical: agentsociety.survey.models.Survey.description
 :type: str
-:value: >
-   None
+:value: <Multiline-String>
 
 ```{autodoc2-docstring} agentsociety.survey.models.Survey.description
 ```

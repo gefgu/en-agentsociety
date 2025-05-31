@@ -26,16 +26,6 @@ const RootMenu = ({ selectedKey, style }: {
 
     // Experiment submenu items
     const experimentItems: MenuProps['items'] = [
-        {
-            key: '/workflows',
-            label: <Link to="/workflows">{t('menu.workflows')}</Link>,
-            icon: <NodeIndexOutlined />,
-        },
-        {
-            key: '/create-experiment',
-            label: <Link to="/create-experiment">{t('menu.create')}</Link>,
-            icon: <PlusOutlined />,
-        },
     ];
 
     const agentItems: MenuProps['items'] = [
@@ -74,14 +64,14 @@ const RootMenu = ({ selectedKey, style }: {
 
         },
         {
+            key: '/workflows',
+            label: <Link to="/workflows">{t('menu.workflows')}</Link>,
+            icon: <NodeIndexOutlined />,
+        },
+        {
             key: "/console",
-            label: (
-                <Dropdown menu={{ items: experimentItems }} placement="bottomLeft" arrow>
-                    <div>
-                        <Link to="/console"><Space><ExperimentOutlined />{t('menu.experiments')}</Space></Link>
-                    </div>
-                </Dropdown>
-            ),
+            label: <Link to="/console">{t('menu.experiments')}</Link>,
+            icon: <ExperimentOutlined />,
         },
         { key: "/survey", label: <Link to="/survey">{t('menu.survey')}</Link> },
     ];

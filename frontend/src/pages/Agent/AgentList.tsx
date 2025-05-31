@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Card, Space, Modal, message, Tooltip, Input, Popconfirm, Form } from 'antd';
+import { Table, Button, Card, Space, Modal, message, Tooltip, Input, Popconfirm, Form, Row, Col } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, ExportOutlined } from '@ant-design/icons';
 import AgentForm from './AgentForm';
 import { ConfigItem } from '../../services/storageService';
@@ -7,8 +7,10 @@ import { AgentsConfig } from '../../types/config';
 import { fetchCustom } from '../../components/fetch';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
 const AgentList: React.FC = () => {
+    const navigate = useNavigate();
     const { t } = useTranslation();
     const [agents, setAgents] = useState<ConfigItem[]>([]);
     const [loading, setLoading] = useState(false);
@@ -29,7 +31,7 @@ const AgentList: React.FC = () => {
             const data = (await res.json()).data;
             setAgents(data);
         } catch (error) {
-            message.error(`Failed to load agents: ${JSON.stringify(error.message)}`, 3);
+            message.error(t('form.agent.messages.loadFailed') + `: ${JSON.stringify(error.message)}`, 3);
             console.error(error);
         } finally {
             setLoading(false);
@@ -139,10 +141,10 @@ const AgentList: React.FC = () => {
             if (!res.ok) {
                 throw new Error(await res.text());
             }
-            message.success('Agent deleted successfully');
+            message.success(t('form.agent.messages.deleteSuccess'));
             loadAgents();
         } catch (error) {
-            message.error(`Failed to delete agent: ${JSON.stringify(error.message)}`, 3);
+            message.error(t('form.agent.messages.deleteFailed') + `: ${JSON.stringify(error.message)}`, 3);
             console.error(error);
         }
     };
@@ -192,11 +194,11 @@ const AgentList: React.FC = () => {
             if (!res.ok) {
                 throw new Error(await res.text());
             }
-            message.success(`Agent ${currentAgent ? 'updated' : 'created'} successfully`);
+            message.success(currentAgent ? t('form.agent.messages.updateSuccess') : t('form.agent.messages.createSuccess'));
             setIsModalVisible(false);
             loadAgents();
         } catch (error) {
-            message.error(`Agent ${currentAgent ? 'update' : 'create'} failed: ${JSON.stringify(error.message)}`, 3);
+            message.error((currentAgent ? t('form.agent.messages.updateFailed') : t('form.agent.messages.createFailed')) + `: ${JSON.stringify(error.message)}`, 3);
             console.error('Validation failed:', error);
         }
     };
@@ -233,9 +235,11 @@ const AgentList: React.FC = () => {
             render: (_: any, record: ConfigItem) => (
                 <Space size="small">
                     {
-                        <Tooltip title={t('form.common.edit')}>
-                            <Button icon={<EditOutlined />} size="small" onClick={() => handleEdit(record)} />
-                        </Tooltip>
+                        (record.tenant_id ?? '') !== '' && (
+                            <Tooltip title={t('form.common.edit')}>
+                                <Button icon={<EditOutlined />} size="small" onClick={() => handleEdit(record)} />
+                            </Tooltip>
+                        )
                     }
                     <Tooltip title={t('form.common.duplicate')}>
                         <Button icon={<CopyOutlined />} size="small" onClick={() => handleDuplicate(record)} />
@@ -244,16 +248,18 @@ const AgentList: React.FC = () => {
                         <Button icon={<ExportOutlined />} size="small" onClick={() => handleExport(record)} />
                     </Tooltip>
                     {
-                        <Tooltip title={t('form.common.delete')}>
-                            <Popconfirm
-                                title={t('form.common.deleteConfirm')}
-                                onConfirm={() => handleDelete(record.id)}
-                                okText={t('form.common.submit')}
-                                cancelText={t('form.common.cancel')}
-                            >
-                                <Button icon={<DeleteOutlined />} size="small" danger />
-                            </Popconfirm>
-                        </Tooltip>
+                        (record.tenant_id ?? '') !== '' && (
+                            <Tooltip title={t('form.common.delete')}>
+                                <Popconfirm
+                                    title={t('form.common.deleteConfirm')}
+                                    onConfirm={() => handleDelete(record.id)}
+                                    okText={t('form.common.submit')}
+                                    cancelText={t('form.common.cancel')}
+                                >
+                                    <Button icon={<DeleteOutlined />} size="small" danger />
+                                </Popconfirm>
+                            </Tooltip>
+                        )
                     }
                 </Space>
             )
@@ -263,7 +269,13 @@ const AgentList: React.FC = () => {
     return (
         <Card
             title={t('form.agent.title')}
-            extra={<Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>{t('form.agent.createNew')}</Button>}
+            extra={
+                <Space>
+                    <Button onClick={() => navigate('/agent-templates')}>{t('form.agent.templates')}</Button>
+                    <Button onClick={() => navigate('/profiles')}>{t('form.agent.profiles')}</Button>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>{t('form.agent.createNew')}</Button>
+                </Space>
+            }
         >
             <Input.Search
                 placeholder={t('form.agent.searchPlaceholder')}
@@ -284,34 +296,42 @@ const AgentList: React.FC = () => {
                 open={isModalVisible}
                 onOk={handleModalOk}
                 onCancel={handleModalCancel}
-                width={800}
+                width="80vw"
                 destroyOnHidden
             >
-                <Card title={t('form.common.metadataTitle')} style={{ marginBottom: 16 }}>
+                <Card title={t('form.common.metadataTitle')} style={{ marginBottom: 8 }}>
                     <Form
                         form={metaForm}
                         layout="vertical"
                     >
-                        <Form.Item
-                            name="name"
-                            label={t('form.common.name')}
-                            rules={[{ required: true, message: t('form.common.nameRequired') }]}
-                        >
-                            <Input placeholder={t('form.common.namePlaceholder')} />
-                        </Form.Item>
-                        <Form.Item
-                            name="description"
-                            label={t('form.common.description')}
-                        >
-                            <Input.TextArea
-                                rows={2}
-                                placeholder={t('form.common.descriptionPlaceholder')}
-                            />
-                        </Form.Item>
+                        <Row gutter={16}>
+                            <Col span={8}>
+                                <Form.Item
+                                    name="name"
+                                    label={t('form.common.name')}
+                                    rules={[{ required: true, message: t('form.common.nameRequired') }]}
+                                    style={{ marginBottom: 8 }}
+                                >
+                                    <Input placeholder={t('form.common.namePlaceholder')} />
+                                </Form.Item>
+                            </Col>
+                            <Col span={16}>
+                                <Form.Item
+                                    name="description"
+                                    label={t('form.common.description')}
+                                    style={{ marginBottom: 0 }}
+                                >
+                                    <Input.TextArea
+                                        rows={1}
+                                        placeholder={t('form.common.descriptionPlaceholder')}
+                                    />
+                                </Form.Item>
+                            </Col>
+                        </Row>
                     </Form>
                 </Card>
 
-                <Card title="Agent Settings">
+                <Card title={t('form.agent.settingsTitle')}>
                     <AgentForm
                         value={formValues}
                         onChange={(newValues) => setFormValues(newValues)}

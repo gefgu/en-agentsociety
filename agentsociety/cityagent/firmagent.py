@@ -93,18 +93,6 @@ The firm agent that manages economic activities including price adjustments, wag
             return True
         return False
 
-    async def gather_messages(self, agent_ids: list[int], target: str) -> list[str]:
-        """Collect messages from specified agents.
-
-        Args:
-            agent_ids: List of agent identifiers to gather from
-            target: Message content template
-        Returns:
-            List of message contents from target agents
-        """
-        infos = await super().gather_messages(agent_ids, target)
-        return [info["content"] for info in infos]
-
     async def forward(self):
         """Execute monthly economic adjustments.
 

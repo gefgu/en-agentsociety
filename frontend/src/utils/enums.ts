@@ -14,13 +14,13 @@ export enum LLMProviderType {
 export enum WorkflowType {
   STEP = "step",
   RUN = "run",
-  INTERVIEW = "interview",
-  SURVEY = "survey",
+  // INTERVIEW = "interview",
+  // SURVEY = "survey",
   ENVIRONMENT_INTERVENE = "environment",
-  UPDATE_STATE_INTERVENE = "update_state",
-  MESSAGE_INTERVENE = "message",
+  // UPDATE_STATE_INTERVENE = "update_state",
+  // MESSAGE_INTERVENE = "message",
   NEXT_ROUND = "next_round",
-  INTERVENE = "other",
+  // INTERVENE = "other",
   FUNCTION = "function"
 }
 

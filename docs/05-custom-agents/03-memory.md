@@ -55,7 +55,6 @@ from agentsociety.configs.exp import WorkflowStepConfig, WorkflowType
 from agentsociety.environment import EnvironmentConfig
 from agentsociety.llm import LLMProviderType
 from agentsociety.memory import Memory
-from agentsociety.message import MessageBlockListenerBase, RedisConfig
 from agentsociety.metrics import MlflowConfig
 from agentsociety.simulation import AgentSociety
 from agentsociety.storage import AvroConfig, PostgreSQLConfig
@@ -108,18 +107,12 @@ config = Config(
         )
     ],
     env=EnvConfig(
-        redis=RedisConfig(
-            server="<SERVER-ADDRESS>",
-            port=6379,
-            password="<PASSWORD>",
-        ),  # type: ignore
         pgsql=PostgreSQLConfig(
             enabled=True,
             dsn="<PGSQL-DSN>",
             num_workers="auto",
         ),
         avro=AvroConfig(
-            path="<SAVE-PATH>",
             enabled=True,
         ),
         mlflow=MlflowConfig(
@@ -216,7 +209,6 @@ from agentsociety.configs.exp import WorkflowStepConfig, WorkflowType
 from agentsociety.environment import EnvironmentConfig
 from agentsociety.llm import LLMProviderType
 from agentsociety.memory import Memory
-from agentsociety.message import MessageBlockListenerBase, RedisConfig
 from agentsociety.metrics import MlflowConfig
 from agentsociety.simulation import AgentSociety
 from agentsociety.storage import AvroConfig, PostgreSQLConfig
@@ -279,18 +271,12 @@ config = Config(
         )
     ],
     env=EnvConfig(
-        redis=RedisConfig(
-            server="<SERVER-ADDRESS>",
-            port=6379,
-            password="<PASSWORD>",
-        ),  # type: ignore
         pgsql=PostgreSQLConfig(
             enabled=True,
             dsn="<PGSQL-DSN>",
             num_workers="auto",
         ),
         avro=AvroConfig(
-            path="<SAVE-PATH>",
             enabled=True,
         ),
         mlflow=MlflowConfig(

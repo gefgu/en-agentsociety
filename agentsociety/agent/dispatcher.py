@@ -30,7 +30,9 @@ class BlockDispatcher:
         prompt: Formatted prompt template for LLM instructions
     """
 
-    def __init__(self, llm: LLM, memory: Memory, selection_prompt: str = DISPATCHER_PROMPT):
+    def __init__(
+        self, llm: LLM, memory: Memory, selection_prompt: str = DISPATCHER_PROMPT
+    ):
         """Initialize dispatcher with LLM interface.
 
         Args:

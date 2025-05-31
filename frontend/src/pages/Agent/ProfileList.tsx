@@ -1,18 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Card, Space, Modal, message, Tooltip, Input, Popconfirm, Upload } from 'antd';
-import { PlusOutlined, EyeOutlined, DeleteOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
-import { Spin } from 'antd';
+import { DeleteOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import { fetchCustom } from '../../components/fetch';
+import dayjs from 'dayjs';
+import { useTranslation } from 'react-i18next';
 
 const ProfileList: React.FC = () => {
+    const { t } = useTranslation();
     const [profiles, setProfiles] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchText, setSearchText] = useState('');
-    const [previewVisible, setPreviewVisible] = useState(false);
-    const [previewLoading, setPreviewLoading] = useState(false);
-    const [previewData, setPreviewData] = useState([]);
-    const [previewColumns, setPreviewColumns] = useState([]);
-    const [currentProfileId, setCurrentProfileId] = useState(null);
     const [uploadModalVisible, setUploadModalVisible] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [fileList, setFileList] = useState([]);
@@ -27,7 +24,7 @@ const ProfileList: React.FC = () => {
             setProfiles(data.data || []);
         } catch (error) {
             console.error('Failed to fetch profiles:', error);
-            message.error('Failed to fetch agent profiles');
+            message.error(t('form.profile.messages.loadFailed'));
         } finally {
             setLoading(false);
         }
@@ -114,36 +111,13 @@ const ProfileList: React.FC = () => {
                 document.body.removeChild(link);
                 URL.revokeObjectURL(url); // 清理创建的 URL
             } else {
-                message.warning('No data available for download');
+                message.warning(t('form.profile.messages.noData'));
             }
         } catch (error) {
             console.error('Failed to download profile:', error);
-            message.error('Failed to download profile');
+            message.error(t('form.profile.messages.loadFailed'));
         }
     };
-
-    // Convert JSON to CSV
-    // const convertToCSV = (data) => {
-    //     if (!data || data.length === 0) return '';
-        
-    //     const headers = Object.keys(data[0]);
-    //     const csvRows = [];
-        
-    //     // Add header row
-    //     csvRows.push(headers.join(','));
-        
-    //     // Add data rows
-    //     for (const row of data) {
-    //         const values = headers.map(header => {
-    //             const value = row[header];
-    //             // Handle values that contain commas, quotes, etc.
-    //             return typeof value === 'string' ? `"${value.replace(/"/g, '""')}"` : value;
-    //         });
-    //         csvRows.push(values.join(','));
-    //     }
-        
-    //     return csvRows.join('\n');
-    // };
 
     // Handle profile delete
     const handleDelete = async (profileId) => {
@@ -156,25 +130,27 @@ const ProfileList: React.FC = () => {
                 throw new Error(`Failed to delete profile: ${response.statusText}`);
             }
             
-            message.success('Profile deleted successfully');
+            message.success(t('form.profile.messages.deleteSuccess'));
             loadProfiles(); // Refresh the list
         } catch (error) {
             console.error('Failed to delete profile:', error);
-            message.error('Failed to delete profile');
+            message.error(t('form.profile.messages.deleteFailed'));
         }
     };
 
     // Handle file upload
     const handleUpload = async () => {
         if (fileList.length === 0) {
-            message.warning('Please select a file to upload');
+            message.warning(t('form.profile.pleaseSelectFile'));
             return;
         }
 
         const formData = new FormData();
         formData.append('file', fileList[0].originFileObj as File);
         formData.append('name', fileList[0].name);
-        formData.append('description', description);
+        if (description) {
+            formData.append('description', description);
+        }
 
         setUploading(true);
 
@@ -192,11 +168,11 @@ const ProfileList: React.FC = () => {
             setFileList([]);
             setDescription('');
             setUploadModalVisible(false);
-            message.success('Profile uploaded successfully');
+            message.success(t('form.profile.messages.uploadSuccess'));
             loadProfiles(); // Refresh the list
         } catch (error) {
             console.error('Failed to upload profile:', error);
-            message.error(error instanceof Error ? error.message : 'Failed to upload profile');
+            message.error(error instanceof Error ? error.message : t('form.profile.messages.uploadFailed'));
         } finally {
             setUploading(false);
         }
@@ -210,53 +186,45 @@ const ProfileList: React.FC = () => {
     // Define table columns
     const columns = [
         {
-            title: 'Name',
+            title: t('form.profile.table.name'),
             dataIndex: 'name',
             key: 'name',
         },
         {
-            title: 'Description',
+            title: t('form.profile.table.description'),
             dataIndex: 'description',
             key: 'description',
             ellipsis: true,
         },
         {
-            title: 'Count',
+            title: t('form.profile.table.count'),
             dataIndex: 'count',
             key: 'count',
         },
         {
-            title: 'Created At',
+            title: t('form.profile.table.createdAt'),
             dataIndex: 'created_at',
             key: 'created_at',
+            render: (date: string) => date ? dayjs(date).format('YYYY-MM-DD HH:mm:ss') : '',
         },
         {
-            title: 'Actions',
+            title: t('form.common.actions'),
             key: 'actions',
             render: (_, record) => (
                 <Space>
-                    {/* 注释掉预览按钮
-                    <Tooltip title="Preview">
-                        <Button 
-                            icon={<EyeOutlined />} 
-                            size="small" 
-                            onClick={() => handlePreview(record.id)}
-                        />
-                    </Tooltip>
-                    */}
-                    <Tooltip title="Download">
+                    <Tooltip title={t('form.profile.table.download')}>
                         <Button 
                             icon={<DownloadOutlined />} 
                             size="small" 
                             onClick={() => handleDownload(record.id, record.name)}
                         />
                     </Tooltip>
-                    <Tooltip title="Delete">
+                    <Tooltip title={t('form.profile.table.delete')}>
                         <Popconfirm
-                            title="Are you sure you want to delete this profile?"
+                            title={t('form.profile.messages.deleteConfirm')}
                             onConfirm={() => handleDelete(record.id)}
-                            okText="Yes"
-                            cancelText="No"
+                            okText={t('form.common.submit')}
+                            cancelText={t('form.common.cancel')}
                         >
                             <Button icon={<DeleteOutlined />} size="small" danger />
                         </Popconfirm>
@@ -268,7 +236,7 @@ const ProfileList: React.FC = () => {
 
     return (
         <Card
-            title="Agent Profiles"
+            title={t('form.profile.title')}
             extra={
                 <Space>
                     <Button 
@@ -276,13 +244,13 @@ const ProfileList: React.FC = () => {
                         icon={<UploadOutlined />}
                         onClick={() => setUploadModalVisible(true)}
                     >
-                        Upload Profile
+                        {t('form.profile.uploadProfile')}
                     </Button>
                 </Space>
             }
         >
             <Input.Search
-                placeholder="Search profiles"
+                placeholder={t('form.profile.searchPlaceholder')}
                 onChange={handleSearch}
                 style={{ marginBottom: 16 }}
             />
@@ -327,7 +295,7 @@ const ProfileList: React.FC = () => {
 
             {/* Upload Modal */}
             <Modal
-                title="Upload Profile"
+                title={t('form.profile.uploadTitle')}
                 open={uploadModalVisible}
                 onCancel={() => {
                     setUploadModalVisible(false);
@@ -340,7 +308,7 @@ const ProfileList: React.FC = () => {
                         setFileList([]);
                         setDescription('');
                     }}>
-                        Cancel
+                        {t('form.profile.cancel')}
                     </Button>,
                     <Button 
                         key="upload" 
@@ -349,7 +317,7 @@ const ProfileList: React.FC = () => {
                         loading={uploading}
                         disabled={fileList.length === 0}
                     >
-                        Upload
+                        {t('form.profile.upload')}
                     </Button>
                 ]}
             >
@@ -365,13 +333,13 @@ const ProfileList: React.FC = () => {
                         <p className="ant-upload-drag-icon">
                             <UploadOutlined />
                         </p>
-                        <p className="ant-upload-text">Click or drag file to this area to upload</p>
+                        <p className="ant-upload-text">{t('form.profile.uploadHint')}</p>
                         <p className="ant-upload-hint">
-                            Support for JSON files. The file should contain agent profile data.
+                            {t('form.profile.uploadDescription')}
                         </p>
                     </Upload.Dragger>
                     <Input.TextArea
-                        placeholder="Enter description for this profile"
+                        placeholder={t('form.profile.enterDescription')}
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         rows={4}

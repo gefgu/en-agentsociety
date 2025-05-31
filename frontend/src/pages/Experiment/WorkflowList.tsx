@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Card, Space, Modal, message, Tooltip, Input, Popconfirm, Form } from 'antd';
+import { Table, Button, Card, Space, Modal, message, Tooltip, Input, Popconfirm, Form, Col, Row } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, ExportOutlined } from '@ant-design/icons';
 import WorkflowForm from './WorkflowForm';
 import { ConfigItem } from '../../services/storageService';
 import { WorkflowStepConfig } from '../../types/config';
 import { fetchCustom } from '../../components/fetch';
 import dayjs from 'dayjs';
+import { useTranslation } from 'react-i18next';
 
 const WorkflowList: React.FC = () => {
+    const { t } = useTranslation();
     const [workflows, setWorkflows] = useState<ConfigItem[]>([]);
     const [loading, setLoading] = useState(false);
     const [searchText, setSearchText] = useState('');
@@ -27,7 +29,7 @@ const WorkflowList: React.FC = () => {
             const data = (await res.json()).data;
             setWorkflows(data);
         } catch (error) {
-            message.error(`Failed to load workflows: ${JSON.stringify(error.message)}`, 3);
+            message.error(t('form.workflow.messages.loadFailed') + `: ${JSON.stringify(error.message)}`, 3);
             console.error(error);
         } finally {
             setLoading(false);
@@ -99,10 +101,10 @@ const WorkflowList: React.FC = () => {
             if (!res.ok) {
                 throw new Error(await res.text());
             }
-            message.success('Workflow deleted successfully');
+            message.success(t('form.workflow.messages.deleteSuccess'));
             loadWorkflows();
         } catch (error) {
-            message.error(`Failed to delete workflow: ${JSON.stringify(error.message)}`, 3);
+            message.error(t('form.workflow.messages.deleteFailed') + `: ${JSON.stringify(error.message)}`, 3);
             console.error(error);
         }
     };
@@ -152,11 +154,11 @@ const WorkflowList: React.FC = () => {
             if (!res.ok) {
                 throw new Error(await res.text());
             }
-            message.success(`Workflow ${currentWorkflow ? 'updated' : 'created'} successfully`);
+            message.success(currentWorkflow ? t('form.workflow.messages.updateSuccess') : t('form.workflow.messages.createSuccess'));
             setIsModalVisible(false);
             loadWorkflows();
         } catch (error) {
-            message.error(`Workflow ${currentWorkflow ? 'update' : 'create'} failed: ${JSON.stringify(error.message)}`, 3);
+            message.error((currentWorkflow ? t('form.workflow.messages.updateFailed') : t('form.workflow.messages.createFailed')) + `: ${JSON.stringify(error.message)}`, 3);
             console.error('Validation failed:', error);
         }
     };
@@ -169,51 +171,55 @@ const WorkflowList: React.FC = () => {
     // Table columns
     const columns = [
         {
-            title: 'Name',
+            title: t('form.common.name'),
             dataIndex: 'name',
             key: 'name',
             sorter: (a: ConfigItem, b: ConfigItem) => a.name.localeCompare(b.name)
         },
         {
-            title: 'Description',
+            title: t('form.common.description'),
             dataIndex: 'description',
             key: 'description',
             ellipsis: true
         },
         {
-            title: 'Last Updated',
+            title: t('form.common.lastUpdated'),
             dataIndex: 'updated_at',
             key: 'updated_at',
             render: (text: string) => dayjs(text).format('YYYY-MM-DD HH:mm:ss'),
             sorter: (a: ConfigItem, b: ConfigItem) => dayjs(a.updated_at).valueOf() - dayjs(b.updated_at).valueOf()
         },
         {
-            title: 'Actions',
+            title: t('form.common.actions'),
             key: 'actions',
             render: (_: any, record: ConfigItem) => (
                 <Space size="small">
                     {
-                        <Tooltip title="Edit">
-                            <Button icon={<EditOutlined />} size="small" onClick={() => handleEdit(record)} />
-                        </Tooltip>
+                        (record.tenant_id ?? '') !== '' && (
+                            <Tooltip title={t('form.common.edit')}>
+                                <Button icon={<EditOutlined />} size="small" onClick={() => handleEdit(record)} />
+                            </Tooltip>
+                        )
                     }
-                    <Tooltip title="Duplicate">
+                    <Tooltip title={t('form.common.duplicate')}>
                         <Button icon={<CopyOutlined />} size="small" onClick={() => handleDuplicate(record)} />
                     </Tooltip>
-                    <Tooltip title="Export">
+                    <Tooltip title={t('form.common.export')}>
                         <Button icon={<ExportOutlined />} size="small" onClick={() => handleExport(record)} />
                     </Tooltip>
                     {
-                        <Tooltip title="Delete">
-                            <Popconfirm
-                                title="Are you sure you want to delete this workflow?"
-                                onConfirm={() => handleDelete(record.id)}
-                                okText="Yes"
-                                cancelText="No"
-                            >
-                                <Button icon={<DeleteOutlined />} size="small" danger />
-                            </Popconfirm>
-                        </Tooltip>
+                        (record.tenant_id ?? '') !== '' && (
+                            <Tooltip title={t('form.common.delete')}>
+                                <Popconfirm
+                                    title={t('form.workflow.deleteConfirm')}
+                                    onConfirm={() => handleDelete(record.id)}
+                                    okText={t('form.common.submit')}
+                                    cancelText={t('form.common.cancel')}
+                                >
+                                    <Button icon={<DeleteOutlined />} size="small" danger />
+                                </Popconfirm>
+                            </Tooltip>
+                        )
                     }
                 </Space>
             )
@@ -222,11 +228,11 @@ const WorkflowList: React.FC = () => {
 
     return (
         <Card
-            title="Workflow Configurations"
-            extra={<Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>Create New</Button>}
+            title={t('form.workflow.title')}
+            extra={<Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>{t('form.workflow.createNew')}</Button>}
         >
             <Input.Search
-                placeholder="Search workflows"
+                placeholder={t('form.workflow.searchPlaceholder')}
                 onChange={handleSearch}
                 style={{ marginBottom: 16 }}
             />
@@ -240,38 +246,44 @@ const WorkflowList: React.FC = () => {
             />
 
             <Modal
-                title={currentWorkflow ? "Edit Workflow" : "Create Workflow"}
+                title={currentWorkflow ? t('form.workflow.editTitle') : t('form.workflow.createTitle')}
                 open={isModalVisible}
                 onOk={handleModalOk}
                 onCancel={handleModalCancel}
-                width={800}
+                width="80vw"
                 destroyOnHidden
             >
-                <Card title="Configuration Metadata" style={{ marginBottom: 16 }}>
+                <Card title={t('form.common.metadataTitle')} style={{ marginBottom: 8 }}>
                     <Form
                         form={metaForm}
                         layout="vertical"
                     >
-                        <Form.Item
-                            name="name"
-                            label="Name"
-                            rules={[{ required: true, message: 'Please enter a name for this configuration' }]}
-                        >
-                            <Input placeholder="Enter configuration name" />
-                        </Form.Item>
-                        <Form.Item
-                            name="description"
-                            label="Description"
-                        >
-                            <Input.TextArea
-                                rows={2}
-                                placeholder="Enter a description for this configuration"
-                            />
-                        </Form.Item>
+                        <Row gutter={16}>
+                            <Col span={8}>
+                                <Form.Item
+                                    name="name"
+                                    label={t('form.common.name')}
+                                    rules={[{ required: true, message: t('form.common.nameRequired') }]}
+                                >
+                                    <Input placeholder={t('form.common.namePlaceholder')} />
+                                </Form.Item>
+                            </Col>
+                            <Col span={16}>
+                                <Form.Item
+                                    name="description"
+                                    label={t('form.common.description')}
+                                >
+                                    <Input.TextArea
+                                        rows={1}
+                                        placeholder={t('form.common.descriptionPlaceholder')}
+                                    />
+                                </Form.Item>
+                            </Col>
+                        </Row>
                     </Form>
                 </Card>
 
-                <Card title="Workflow Settings">
+                <Card title={t('form.workflow.settingsTitle')}>
                     <WorkflowForm
                         value={formValues}
                         onChange={setFormValues}

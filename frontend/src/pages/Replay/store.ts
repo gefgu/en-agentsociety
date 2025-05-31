@@ -328,6 +328,10 @@ export class ReplayStore {
         await this._fetchClickedAgent()
     }
 
+    get currentTime() {
+        return this._currentTime
+    }
+
     get id2surveys() {
         return this._id2surveys
     }

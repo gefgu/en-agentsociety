@@ -87,17 +87,6 @@ Bases: {py:obj}`pydantic.BaseModel`
 ```{autodoc2-docstring} agentsociety.environment.environment.SimulatorConfig.__init__
 ```
 
-````{py:attribute} log_dir
-:canonical: agentsociety.environment.environment.SimulatorConfig.log_dir
-:type: str
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.environment.environment.SimulatorConfig.log_dir
-```
-
-````
-
 ````{py:attribute} primary_node_ip
 :canonical: agentsociety.environment.environment.SimulatorConfig.primary_node_ip
 :type: str
@@ -526,7 +515,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} EnvironmentStarter(map_config: agentsociety.environment.mapdata.MapConfig, simulator_config: agentsociety.environment.environment.SimulatorConfig, environment_config: agentsociety.environment.environment.EnvironmentConfig, s3config: agentsociety.s3.S3Config)
+`````{py:class} EnvironmentStarter(map_config: agentsociety.environment.mapdata.MapConfig, simulator_config: agentsociety.environment.environment.SimulatorConfig, environment_config: agentsociety.environment.environment.EnvironmentConfig, s3config: agentsociety.s3.S3Config, log_dir: str)
 :canonical: agentsociety.environment.environment.EnvironmentStarter
 
 Bases: {py:obj}`agentsociety.environment.environment.Environment`
