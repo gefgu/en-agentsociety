@@ -1,21 +1,9 @@
 import asyncio
 import logging
-from abc import ABC, abstractmethod
-from collections import defaultdict
-from copy import deepcopy
-from typing import Any, Optional, Set, TypeVar, Union
-
-import networkx as nx
-import ray
 
 from ..llm import LLM, LLMConfig, monitor_requests
-from ..logger import get_logger
 from ..utils.decorators import lock_decorator
 from .messager import Message, MessageKind
-
-DEFAULT_ERROR_STRING = """
-From `{from_id}` To `{to_id}` abort due to block `{block_name}`
-"""
 
 logger = logging.getLogger("message_interceptor")
 
@@ -39,7 +27,6 @@ class MessageInterceptor:
         - **Args**:
             - `llm_config` (LLMConfig): Configuration dictionary for initializing the LLM instance. Defaults to None.
         """
-        self._violation_counts: dict[int, int] = defaultdict(int)
         self._llm = LLM(llm_config)
         # round related
         self.validation_dict: dict[Message, bool] = {}
@@ -81,19 +68,6 @@ class MessageInterceptor:
         return self._llm
 
     # Message forwarding related methods
-    @lock_decorator
-    async def violation_counts(self) -> dict[int, int]:
-        """
-        Retrieve the violation counts.
-
-        - **Description**:
-            - Returns a deep copy of the violation counts to prevent external modification of the original data.
-
-        - **Returns**:
-            - `dict[str, int]`: The dictionary of violation counts.
-        """
-        return deepcopy(self._violation_counts)
-
     @lock_decorator
     async def forward(self, messages: list[Message]) -> list[Message]:
         # reset round related variables

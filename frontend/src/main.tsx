@@ -7,19 +7,19 @@ import RootLayout from './Layout'
 import Console from './pages/Console/index'
 import Replay from './pages/Replay/index'
 import Survey from './pages/Survey/index'
-import LLMList from './pages/LLM/LLMList'
-import AgentList from './pages/Agent/AgentList'
-import WorkflowList from './pages/Experiment/WorkflowList'
-import MapList from './pages/Map/MapList'
+import LLM from './pages/LLM'
+import AgentList from './pages/Agent/'
+import WorkflowList from './pages/Workflow'
+import Map from './pages/Map'
 import CreateExperiment from './pages/Experiment/CreateExperiment'
-import ProfileList from './pages/Agent/ProfileList'
-import AgentTemplate from './pages/Agent/AgentTemplateList'
+import ProfileList from './pages/AgentProfile'
+import AgentTemplate from './pages/AgentTemplate/AgentTemplateList'
 import Home from './pages/Home'
 import zhCN from 'antd/locale/zh_CN'
 import enUS from 'antd/locale/en_US'
 import './i18n'
 import { useTranslation } from 'react-i18next'
-import AgentTemplateForm from './pages/Agent/AgentTemplateForm'
+import AgentTemplateForm from './pages/AgentTemplate/AgentTemplateForm'
 
 const router = createBrowserRouter([
     {
@@ -53,7 +53,7 @@ const router = createBrowserRouter([
     {
         path: "/llms",
         element: (
-            <RootLayout selectedKey='/llms'><LLMList /></RootLayout>
+            <RootLayout selectedKey='/llms'><LLM /></RootLayout>
         ),
     },
     {
@@ -77,7 +77,7 @@ const router = createBrowserRouter([
     {
         path: "/maps",
         element: (
-            <RootLayout selectedKey='/maps'><MapList /></RootLayout>
+            <RootLayout selectedKey='/maps'><Map /></RootLayout>
         ),
     },
     {

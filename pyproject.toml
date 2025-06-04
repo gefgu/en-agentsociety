@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentsociety"
-version = "1.5.0a2" # change it for each release
+version = "1.5.0a3" # change it for each release
 description = "LLM-based city environment agent building library"
 authors = [
     { name = "Yuwei Yan", email = "pinkgranite86@gmail.com" },
@@ -25,7 +25,6 @@ dependencies = [
     "asyncpg>=0.30.0",
     "boto3>=1.37",
     "click>=8.0.0",
-    "cramjam>=2.9.0",
     "faiss-cpu>=1.9.0.post1",
     "fastapi>=0.103.1",
     "fastavro>=1.10.0",

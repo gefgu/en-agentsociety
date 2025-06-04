@@ -1,0 +1,30 @@
+export default {
+    createSurvey: "创建问卷",
+    editSurvey: "编辑问卷",
+    surveyName: "问卷名称",
+    surveyJsonData: "问卷JSON数据",
+    onlineVisualEditor: "在线可视化编辑器",
+    submit: "提交",
+    delete: "删除",
+    deleteConfirm: "确定要删除这个问卷吗？",
+    createSuccess: "创建成功！",
+    updateSuccess: "更新成功！",
+    deleteSuccess: "删除成功！",
+    createFailed: "创建失败：",
+    updateFailed: "更新失败：",
+    deleteFailed: "删除失败：",
+    fetchFailed: "获取问卷失败：",
+    invalidJson: "JSON格式无效",
+    pleaseInputName: "请输入名称",
+    pleaseInputData: "请输入JSON数据",
+    table: {
+        id: "ID",
+        name: "名称",
+        data: "数据",
+        createdAt: "创建时间",
+        updatedAt: "更新时间",
+        action: "操作",
+        edit: "编辑",
+        delete: "删除"
+    }
+}; 

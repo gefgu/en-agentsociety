@@ -8,12 +8,9 @@ from pydantic import Field
 from ..agent import (
     AgentToolbox,
     Block,
-    BlockOutput,
     CitizenAgentBase,
-    AgentParams,
     FormatPrompt,
     StatusAttribute,
-    register_get,
 )
 from ..logger import get_logger
 from ..memory import Memory
@@ -249,6 +246,10 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         self.environment_reflection_prompt = FormatPrompt(
             ENVIRONMENT_REFLECTION_PROMPT, memory=self.memory
         )
+
+        # register blocks
+        self.dispatcher.register_dispatcher_prompt(self.params.block_dispatch_prompt)
+
         self.step_count = -1
         self.cognition_update = -1
 

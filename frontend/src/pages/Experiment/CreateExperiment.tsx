@@ -2,35 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { Card, Button, Select, Space, Typography, Divider, message, Row, Col, Spin, Form, Input } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { ExperimentOutlined, ApiOutlined, TeamOutlined, GlobalOutlined, RocketOutlined, NodeIndexOutlined } from '@ant-design/icons';
-import { ConfigItem } from '../../services/storageService';
 import { fetchCustom } from '../../components/fetch';
 import { useTranslation } from 'react-i18next';
+import { ConfigWrapper, LLMConfig, MapConfig, AgentsConfig, ExpConfig } from '../../types/config';
 
 const { Text } = Typography;
 const { Option } = Select;
 
 // Add these interfaces at the top of the file
-interface LLMConfig {
-    provider?: string;
-    model?: string;
-    api_key?: string;
-    base_url?: string;
-}
-
-interface WorkflowConfig extends ConfigItem {
-    config: {
-        llm?: LLMConfig;
-        [key: string]: any;
-    }
-}
+interface WorkflowConfig extends ConfigWrapper<ExpConfig> {}
 
 const CreateExperiment: React.FC = () => {
     const { t } = useTranslation();
     // State declarations
-    const [llms, setLLMs] = useState<ConfigItem[]>([]);
-    const [agents, setAgents] = useState<ConfigItem[]>([]);
-    const [workflows, setWorkflows] = useState<ConfigItem[]>([]);
-    const [maps, setMaps] = useState<ConfigItem[]>([]);
+    const [llms, setLLMs] = useState<ConfigWrapper<LLMConfig[]>[]>([]);
+    const [agents, setAgents] = useState<ConfigWrapper<AgentsConfig>[]>([]);
+    const [workflows, setWorkflows] = useState<ConfigWrapper<ExpConfig>[]>([]);
+    const [maps, setMaps] = useState<ConfigWrapper<MapConfig>[]>([]);
     const [loading, setLoading] = useState(false);
     const [selectedLLM, setSelectedLLM] = useState<string>('');
     const [selectedAgent, setSelectedAgent] = useState<string>('');
@@ -82,7 +70,7 @@ const CreateExperiment: React.FC = () => {
                 if (wkfs.length > 0) setSelectedWorkflow(wkfs[0].id);
                 if (mps.length > 0) setSelectedMap(mps[0].id);
             } catch (error) {
-                message.error(t('form.experiment.messages.loadFailed'));
+                message.error(t('experiment.messages.loadFailed'));
                 console.error(error);
             } finally {
                 setLoading(false);
@@ -120,7 +108,7 @@ const CreateExperiment: React.FC = () => {
     };
 
     // Render option content with name and description
-    const renderOptionContent = (item: ConfigItem) => (
+    const renderOptionContent = (item: ConfigWrapper<any>) => (
         <div>
             <div>{item.name}</div>
             {item.description && <Text type="secondary">{item.description}</Text>}
@@ -189,7 +177,7 @@ const CreateExperiment: React.FC = () => {
 
             setExperimentId(newExperimentId);
             setExperimentRunning(true);
-            message.success(t('form.experiment.messages.startSuccess', { id: newExperimentId }));
+            message.success(t('experiment.messages.startSuccess', { id: newExperimentId }));
 
             // Start polling for pod status
             const interval = setInterval(async () => {
@@ -225,7 +213,7 @@ const CreateExperiment: React.FC = () => {
                             // Check if experiment is fully initialized
                             if (experiment.status === 1) {
                                 clearInterval(interval);
-                                message.success(t('form.experiment.messages.initSuccess'));
+                                message.success(t('experiment.messages.initSuccess'));
                                 navigate('/console');
                             } else {
                                 setExperimentStatus('Initializing experiment data...');
@@ -240,14 +228,14 @@ const CreateExperiment: React.FC = () => {
                         }
                     } else if (status === 'Failed' || status === 'Error') {
                         clearInterval(interval);
-                        message.error(t('form.experiment.messages.startFailed'));
+                        message.error(t('experiment.messages.startFailed'));
                         setExperimentRunning(false);
                     }
                 } catch (error) {
                     // Only handle non-404 errors as failures
                     if (error.response?.status !== 404) {
                         console.error('Error checking experiment status:', error);
-                        message.error(t('form.experiment.messages.statusCheckFailed'));
+                        message.error(t('experiment.messages.statusCheckFailed'));
                         clearInterval(interval);
                         setExperimentRunning(false);
                     }
@@ -256,7 +244,7 @@ const CreateExperiment: React.FC = () => {
 
             setStatusCheckInterval(interval);
         } catch (error) {
-            message.error(t('form.experiment.messages.startFailed', { error: error.message }), 3);
+            message.error(t('experiment.messages.startFailed', { error: error.message }), 3);
             console.error(error);
             setExperimentRunning(false);
         } finally {
@@ -273,45 +261,45 @@ const CreateExperiment: React.FC = () => {
                 experimentName: '',
             }}
         >
-            <Card title={t('form.experiment.createTitle')} extra={
+            <Card title={t('experiment.createTitle')} extra={
                 <Button
                     type="primary"
                     htmlType="submit"
                     loading={loading}
                     disabled={experimentRunning}
                 >
-                    {t('form.experiment.startButton')}
+                    {t('experiment.startButton')}
                 </Button>
             }>
                 <Form.Item
                     name="experimentName"
-                    label={t('form.experiment.nameLabel')}
-                    rules={[{ required: true, message: t('form.experiment.nameRequired') }]}
+                    label={t('experiment.nameLabel')}
+                    rules={[{ required: true, message: t('experiment.nameRequired') }]}
                 >
                     <Input
-                        placeholder={t('form.experiment.namePlaceholder')}
+                        placeholder={t('experiment.namePlaceholder')}
                         onChange={(e) => setExperimentName(e.target.value)}
                         disabled={experimentRunning}
                     />
                 </Form.Item>
 
-                <Divider orientation="left">{t('form.experiment.componentsTitle')}</Divider>
+                <Divider orientation="left">{t('experiment.componentsTitle')}</Divider>
 
                 <Row gutter={[16, 16]}>
                     <Col span={12}>
                         <Card
-                            title={<Space><ApiOutlined /> {t('form.experiment.llmTitle')}</Space>}
-                            extra={<Button type="link" onClick={() => handleCreateNew('llm')}>{t('form.experiment.createNew')}</Button>}
+                            title={<Space><ApiOutlined /> {t('experiment.llmTitle')}</Space>}
+                            extra={<Button type="link" onClick={() => handleCreateNew('llm')}>{t('experiment.createNew')}</Button>}
                         >
                             <Space direction="vertical" style={{ width: '100%' }}>
-                                <Text>{t('form.experiment.selectLLM')}</Text>
+                                <Text>{t('experiment.selectLLM')}</Text>
                                 <Form.Item
                                     name="llm"
-                                    rules={[{ required: true, message: t('form.experiment.llmRequired') }]}
+                                    rules={[{ required: true, message: t('experiment.llmRequired') }]}
                                     initialValue={selectedLLM}
                                 >
                                     <Select
-                                        placeholder={t('form.experiment.selectLLMPlaceholder')}
+                                        placeholder={t('experiment.selectLLMPlaceholder')}
                                         style={{ width: '100%' }}
                                         loading={loading}
                                         value={selectedLLM || undefined}
@@ -332,18 +320,18 @@ const CreateExperiment: React.FC = () => {
 
                     <Col span={12}>
                         <Card
-                            title={<Space><GlobalOutlined /> {t('form.experiment.mapTitle')}</Space>}
-                            extra={<Button type="link" onClick={() => handleCreateNew('map')}>{t('form.experiment.createNew')}</Button>}
+                            title={<Space><GlobalOutlined /> {t('experiment.mapTitle')}</Space>}
+                            extra={<Button type="link" onClick={() => handleCreateNew('map')}>{t('experiment.createNew')}</Button>}
                         >
                             <Space direction="vertical" style={{ width: '100%' }}>
-                                <Text>{t('form.experiment.selectMap')}</Text>
+                                <Text>{t('experiment.selectMap')}</Text>
                                 <Form.Item
                                     name="map"
-                                    rules={[{ required: true, message: t('form.experiment.mapRequired') }]}
+                                    rules={[{ required: true, message: t('experiment.mapRequired') }]}
                                     initialValue={selectedMap}
                                 >
                                     <Select
-                                        placeholder={t('form.experiment.selectMapPlaceholder')}
+                                        placeholder={t('experiment.selectMapPlaceholder')}
                                         style={{ width: '100%' }}
                                         loading={loading}
                                         value={selectedMap || undefined}
@@ -364,18 +352,18 @@ const CreateExperiment: React.FC = () => {
 
                     <Col span={12}>
                         <Card
-                            title={<Space><TeamOutlined /> {t('form.experiment.agentTitle')}</Space>}
-                            extra={<Button type="link" onClick={() => handleCreateNew('agent')}>{t('form.experiment.createNew')}</Button>}
+                            title={<Space><TeamOutlined /> {t('experiment.agentTitle')}</Space>}
+                            extra={<Button type="link" onClick={() => handleCreateNew('agent')}>{t('experiment.createNew')}</Button>}
                         >
                             <Space direction="vertical" style={{ width: '100%' }}>
-                                <Text>{t('form.experiment.selectAgent')}</Text>
+                                <Text>{t('experiment.selectAgent')}</Text>
                                 <Form.Item
                                     name="agent"
-                                    rules={[{ required: true, message: t('form.experiment.agentRequired') }]}
+                                    rules={[{ required: true, message: t('experiment.agentRequired') }]}
                                     initialValue={selectedAgent}
                                 >
                                     <Select
-                                        placeholder={t('form.experiment.selectAgentPlaceholder')}
+                                        placeholder={t('experiment.selectAgentPlaceholder')}
                                         style={{ width: '100%' }}
                                         loading={loading}
                                         value={selectedAgent || undefined}
@@ -396,18 +384,18 @@ const CreateExperiment: React.FC = () => {
 
                     <Col span={12}>
                         <Card
-                            title={<Space><NodeIndexOutlined /> {t('form.experiment.workflowTitle')}</Space>}
-                            extra={<Button type="link" onClick={() => handleCreateNew('workflow')}>{t('form.experiment.createNew')}</Button>}
+                            title={<Space><NodeIndexOutlined /> {t('experiment.workflowTitle')}</Space>}
+                            extra={<Button type="link" onClick={() => handleCreateNew('workflow')}>{t('experiment.createNew')}</Button>}
                         >
                             <Space direction="vertical" style={{ width: '100%' }}>
-                                <Text>{t('form.experiment.selectWorkflow')}</Text>
+                                <Text>{t('experiment.selectWorkflow')}</Text>
                                 <Form.Item
                                     name="workflow"
-                                    rules={[{ required: true, message: t('form.experiment.workflowRequired') }]}
+                                    rules={[{ required: true, message: t('experiment.workflowRequired') }]}
                                     initialValue={selectedWorkflow}
                                 >
                                     <Select
-                                        placeholder={t('form.experiment.selectWorkflowPlaceholder')}
+                                        placeholder={t('experiment.selectWorkflowPlaceholder')}
                                         style={{ width: '100%' }}
                                         loading={loading}
                                         value={selectedWorkflow || undefined}
@@ -434,26 +422,26 @@ const CreateExperiment: React.FC = () => {
                         <Spin size="large" />
                         <div style={{ marginTop: 16 }}>
                             <Text>
-                                {t('form.experiment.statusLabel')}: {' '}
+                                {t('experiment.statusLabel')}: {' '}
                                 <Text strong type={
                                     experimentStatus === 'Running' ? 'warning' :
                                     experimentStatus?.includes('Initializing') ? 'warning' :
                                     experimentStatus === 'Failed' || experimentStatus === 'Error' ? 'danger' :
                                     'warning'
                                 }>
-                                    {experimentStatus === 'Running' ? t('form.experiment.statusStarting') :
-                                     experimentStatus === 'Failed' ? t('form.experiment.statusFailed') :
-                                     experimentStatus === 'Error' ? t('form.experiment.statusError') :
-                                     experimentStatus || t('form.experiment.statusPreparing')}
+                                    {experimentStatus === 'Running' ? t('experiment.statusStarting') :
+                                     experimentStatus === 'Failed' ? t('experiment.statusFailed') :
+                                     experimentStatus === 'Error' ? t('experiment.statusError') :
+                                     experimentStatus || t('experiment.statusPreparing')}
                                 </Text>
                             </Text>
                         </div>
                         <div style={{ marginTop: 8 }}>
                             <Text type="secondary">
-                                {experimentStatus === 'Running' ? t('form.experiment.statusStartingDesc') :
-                                 experimentStatus?.includes('Initializing') ? t('form.experiment.statusInitializingDesc') :
-                                 experimentStatus === 'Failed' || experimentStatus === 'Error' ? t('form.experiment.statusFailedDesc') :
-                                 t('form.experiment.statusPreparingDesc')}
+                                {experimentStatus === 'Running' ? t('experiment.statusStartingDesc') :
+                                 experimentStatus?.includes('Initializing') ? t('experiment.statusInitializingDesc') :
+                                 experimentStatus === 'Failed' || experimentStatus === 'Error' ? t('experiment.statusFailedDesc') :
+                                 t('experiment.statusPreparingDesc')}
                             </Text>
                         </div>
                     </div>

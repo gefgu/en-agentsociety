@@ -23,14 +23,14 @@
 
 ### API
 
-```{py:class} StateMemoryUnit(content: typing.Optional[dict] = None, activate_timestamp: bool = False)
+```{py:class} StateMemoryUnit(content: agentsociety.memory.const.Optional[dict] = None, activate_timestamp: bool = False)
 :canonical: agentsociety.memory.state.StateMemoryUnit
 
 Bases: {py:obj}`agentsociety.memory.memory_base.MemoryUnit`
 
 ```
 
-`````{py:class} StateMemory(msg: typing.Optional[typing.Union[agentsociety.memory.memory_base.MemoryUnit, collections.abc.Sequence[agentsociety.memory.memory_base.MemoryUnit], dict, collections.abc.Sequence[dict]]] = None, activate_timestamp: bool = False)
+`````{py:class} StateMemory(msg: agentsociety.memory.const.Optional[typing.Union[agentsociety.memory.memory_base.MemoryUnit, collections.abc.Sequence[agentsociety.memory.memory_base.MemoryUnit], dict, collections.abc.Sequence[dict]]] = None, activate_timestamp: bool = False)
 :canonical: agentsociety.memory.state.StateMemory
 
 Bases: {py:obj}`agentsociety.memory.memory_base.MemoryBase`

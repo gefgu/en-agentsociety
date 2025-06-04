@@ -23,7 +23,7 @@
 
 ### API
 
-```{py:class} DynamicMemoryUnit(content: typing.Optional[dict] = None, required_attributes: typing.Optional[dict] = None, activate_timestamp: bool = False)
+```{py:class} DynamicMemoryUnit(content: agentsociety.memory.const.Optional[dict] = None, required_attributes: agentsociety.memory.const.Optional[dict] = None, activate_timestamp: bool = False)
 :canonical: agentsociety.memory.self_define.DynamicMemoryUnit
 
 Bases: {py:obj}`agentsociety.memory.memory_base.MemoryUnit`

@@ -53,7 +53,7 @@ async def list_agent_profiles(
         # Query profiles from database
         stmt = (
             select(AgentProfile)
-            .where(AgentProfile.tenant_id == tenant_id)
+            .where(AgentProfile.tenant_id.in_([tenant_id, ""]))
             .order_by(AgentProfile.created_at.desc())
         )
 
@@ -79,7 +79,7 @@ async def get_agent_profile(
 
         # Find the profile
         stmt = select(AgentProfile).where(
-            AgentProfile.tenant_id == tenant_id, AgentProfile.id == profile_id
+            AgentProfile.tenant_id.in_([tenant_id, ""]), AgentProfile.id == profile_id
         )
         result = await db.execute(stmt)
         profile = result.scalar_one_or_none()
@@ -247,70 +247,60 @@ async def upload_agent_profile(
         )
     file_ext = filename.split(".")[-1].lower()
 
-    try:
-        # Validate and parse the file
-        if file_ext == "json":
-            data = json.loads(content)
-            if not isinstance(data, list):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="JSON data must be a list of objects",
-                )
-            data = validate_and_process_ids(data)
-            record_count = len(data)
-        elif file_ext == "csv":
-            # Parse CSV
-            csv_content = content.decode("utf-8")
-            csv_reader = csv.DictReader(io.StringIO(csv_content))
-            data = list(csv_reader)
-            data = validate_and_process_ids(data)
-            record_count = len(data)
-        else:
+    # Validate and parse the file
+    if file_ext == "json":
+        data = json.loads(content)
+        if not isinstance(data, list):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Unsupported file format. Please upload a CSV or JSON file.",
+                detail="JSON data must be a list of objects",
             )
-
-        # Generate a unique ID for the file
-        file_id = str(uuid.uuid4())
-        s3_path = f"agent_profiles/{tenant_id}/{file_id}.json"
-
-        # Convert to JSON and upload to S3
-        data_json = json.dumps(data)
-        fs_client.upload(data_json.encode("utf-8"), s3_path)
-
-        # Use provided name or filename
-        profile_name = name if name else os.path.splitext(filename)[0]
-        profile_description = description if description else None
-
-        # Save metadata to database
-        async with request.app.state.get_db() as db:
-            db = cast(AsyncSession, db)
-            # Create new profile data entry
-            profile_id = uuid.uuid4()
-            new_profile = AgentProfile(
-                tenant_id=tenant_id,
-                id=profile_id,
-                name=profile_name,
-                description=profile_description,
-                agent_type="citizen",  # Default value
-                file_path=s3_path,
-                record_count=record_count,
-            )
-
-            db.add(new_profile)
-            await db.commit()
-            await db.refresh(new_profile)  # Refresh to get database-generated values
-
-            # Convert to ApiAgentProfile
-            api_profile = ApiAgentProfile.model_validate(new_profile)
-            return ApiResponseWrapper(data=api_profile)
-    except json.JSONDecodeError:
+        data = validate_and_process_ids(data)
+        record_count = len(data)
+    elif file_ext == "csv":
+        # Parse CSV
+        csv_content = content.decode("utf-8")
+        csv_reader = csv.DictReader(io.StringIO(csv_content))
+        data = list(csv_reader)
+        data = validate_and_process_ids(data)
+        record_count = len(data)
+    else:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON format"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported file format. Please upload a CSV or JSON file.",
         )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error processing file: {str(e)}",
+
+    # Generate a unique ID for the file
+    file_id = str(uuid.uuid4())
+    s3_path = f"agent_profiles/{tenant_id}/{file_id}.json"
+
+    # Convert to JSON and upload to S3
+    data_json = json.dumps(data)
+    fs_client.upload(data_json.encode("utf-8"), s3_path)
+
+    # Use provided name or filename
+    profile_name = name if name else os.path.splitext(filename)[0]
+    profile_description = description if description else None
+
+    # Save metadata to database
+    async with request.app.state.get_db() as db:
+        db = cast(AsyncSession, db)
+        # Create new profile data entry
+        profile_id = uuid.uuid4()
+        new_profile = AgentProfile(
+            tenant_id=tenant_id,
+            id=profile_id,
+            name=profile_name,
+            description=profile_description,
+            agent_type="",  # Default value
+            file_path=s3_path,
+            record_count=record_count,
         )
+
+        db.add(new_profile)
+        await db.commit()
+        await db.refresh(new_profile)  # Refresh to get database-generated values
+
+        # Convert to ApiAgentProfile
+        api_profile = ApiAgentProfile.model_validate(new_profile)
+        return ApiResponseWrapper(data=api_profile)

@@ -35,6 +35,10 @@
   - ```{autodoc2-docstring} agentsociety.simulation.agentsociety._init_agent_class
     :summary:
     ```
+* - {py:obj}`evaluate_filter <agentsociety.simulation.agentsociety.evaluate_filter>`
+  - ```{autodoc2-docstring} agentsociety.simulation.agentsociety.evaluate_filter
+    :summary:
+    ```
 ````
 
 ### Data
@@ -100,6 +104,13 @@
 :canonical: agentsociety.simulation.agentsociety._init_agent_class
 
 ```{autodoc2-docstring} agentsociety.simulation.agentsociety._init_agent_class
+```
+````
+
+````{py:function} evaluate_filter(filter_str: str, profile: dict) -> bool
+:canonical: agentsociety.simulation.agentsociety.evaluate_filter
+
+```{autodoc2-docstring} agentsociety.simulation.agentsociety.evaluate_filter
 ```
 ````
 
@@ -207,7 +218,7 @@
 
 ````
 
-````{py:method} filter(types: typing.Optional[tuple[type[agentsociety.agent.Agent]]] = None, memory_kv: typing.Optional[dict[str, typing.Any]] = None) -> list[int]
+````{py:method} filter(types: typing.Optional[tuple[type[agentsociety.agent.Agent]]] = None, filter_str: typing.Optional[str] = None) -> list[int]
 :canonical: agentsociety.simulation.agentsociety.AgentSociety.filter
 :async:
 

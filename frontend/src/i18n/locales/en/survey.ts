@@ -1,0 +1,30 @@
+export default {
+    createSurvey: "Create Survey",
+    editSurvey: "Edit Survey",
+    surveyName: "Survey Name",
+    surveyJsonData: "Survey JSON Data",
+    onlineVisualEditor: "Online Visual Editor",
+    submit: "Submit",
+    delete: "Delete",
+    deleteConfirm: "Are you sure to delete this survey?",
+    createSuccess: "Create success!",
+    updateSuccess: "Update success!",
+    deleteSuccess: "Delete success!",
+    createFailed: "Create failed:",
+    updateFailed: "Update failed:",
+    deleteFailed: "Delete failed:",
+    fetchFailed: "Fetch surveys failed:",
+    invalidJson: "Invalid JSON format",
+    pleaseInputName: "Please input name",
+    pleaseInputData: "Please input data JSON",
+    table: {
+        id: "ID",
+        name: "Name",
+        data: "Data",
+        createdAt: "Created At",
+        updatedAt: "Updated At",
+        action: "Action",
+        edit: "Edit",
+        delete: "Delete"
+    }
+}; 

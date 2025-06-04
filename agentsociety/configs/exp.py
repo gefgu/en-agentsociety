@@ -61,14 +61,14 @@ class AgentFilterConfig(BaseModel):
     agent_class: Optional[tuple[type[Agent]]] = None
     """The class of the agent to filter"""
 
-    memory_kv: Optional[dict[str, Any]] = None
-    """The key-value pairs of the agent to filter"""
+    filter_str: Optional[str] = None
+    """The filter string of the agent to filter"""
 
     @model_validator(mode="after")
     def validate_func(self):
-        if self.agent_class is None and self.memory_kv is None:
+        if self.agent_class is None and self.filter_str is None:
             raise ValueError(
-                "Please provide at least one of agent_class or memory_kv for AgentFilterConfig"
+                "Please provide at least one of agent_class or filter_str for AgentFilterConfig"
             )
         return self
 
@@ -81,8 +81,8 @@ class WorkflowStepConfig(BaseModel):
     type: WorkflowType = Field(...)
     """The type of the workflow step"""
 
-    func: Optional[Callable] = None
-    """Optional function to be executed during this step - used for [FUNCTION, INTERVENE] type"""
+    func: Optional[Union[Callable, str]] = None
+    """The function that extracts the metric - used for [FUNCTION] type"""
 
     days: float = 1
     """Duration (in days) for which this step lasts - used for [RUN] type"""

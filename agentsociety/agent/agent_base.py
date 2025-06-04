@@ -7,7 +7,7 @@ import time
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, NamedTuple, Optional, Union
+from typing import Any, NamedTuple, Optional, Self, Union
 
 import jsonc
 import ray
@@ -33,10 +33,10 @@ __all__ = [
 
 
 class AgentParams(BaseModel):
-    block_dispatch_prompt: str = Field(
-        default=DISPATCHER_PROMPT,
-        description="The prompt used for the block dispatcher, there is a variable 'intention' in the prompt, which is the intention of the task, used to select the most appropriate block",
-    )
+    """
+    Agent parameters
+    """
+    ...
 
 
 class AgentToolbox(NamedTuple):
@@ -141,16 +141,9 @@ class Agent(ABC):
             agent_params = self.default_params()
         self.params = agent_params
 
-        # initialize context
-        context = self.default_context()
-        self.context = context_to_dot_dict(context)
-
-        # register blocks
-        self.dispatcher = BlockDispatcher(
-            self.llm, self.memory, self.params.block_dispatch_prompt
-        )
+        # parse blocks
+        self.dispatcher = BlockDispatcher(self.llm, self.memory)
         if blocks is not None:
-            # Block output type checking
             for block in blocks:
                 if block.OutputType != self.BlockOutputType:
                     raise ValueError(
@@ -162,6 +155,10 @@ class Agent(ABC):
             self.dispatcher.register_blocks(self.blocks)
         else:
             self.blocks = []
+
+        # initialize context
+        context = self.default_context()
+        self.context = context_to_dot_dict(context)
 
     @classmethod
     def default_params(cls):
@@ -448,6 +445,8 @@ class Agent(ABC):
         """
         Before blocks
         """
+        if self.blocks is None:
+            return
         for block in self.blocks:
             await block.before_forward()
 
@@ -455,6 +454,8 @@ class Agent(ABC):
         """
         After blocks
         """
+        if self.blocks is None:
+            return
         for block in self.blocks:
             await block.after_forward()
 

@@ -16,7 +16,9 @@
 :align: left
 
 * - {py:obj}`AgentParams <agentsociety.agent.agent_base.AgentParams>`
-  -
+  - ```{autodoc2-docstring} agentsociety.agent.agent_base.AgentParams
+    :summary:
+    ```
 * - {py:obj}`AgentToolbox <agentsociety.agent.agent_base.AgentToolbox>`
   - ```{autodoc2-docstring} agentsociety.agent.agent_base.AgentToolbox
     :summary:
@@ -67,23 +69,21 @@
 
 ````
 
-`````{py:class} AgentParams(/, **data: typing.Any)
+````{py:class} AgentParams(/, **data: typing.Any)
 :canonical: agentsociety.agent.agent_base.AgentParams
 
 Bases: {py:obj}`pydantic.BaseModel`
 
-````{py:attribute} block_dispatch_prompt
-:canonical: agentsociety.agent.agent_base.AgentParams.block_dispatch_prompt
-:type: str
-:value: >
-   'Field(...)'
+```{autodoc2-docstring} agentsociety.agent.agent_base.AgentParams
+```
 
-```{autodoc2-docstring} agentsociety.agent.agent_base.AgentParams.block_dispatch_prompt
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.AgentParams.__init__
 ```
 
 ````
-
-`````
 
 `````{py:class} AgentToolbox
 :canonical: agentsociety.agent.agent_base.AgentToolbox

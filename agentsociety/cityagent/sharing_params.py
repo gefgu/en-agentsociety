@@ -6,12 +6,17 @@ from ..agent import (
     AgentParams,
     AgentContext,
 )
+from ..agent.dispatcher import DISPATCHER_PROMPT
 from .blocks.needs_block import INITIAL_NEEDS_PROMPT
 from .blocks.plan_block import DETAILED_PLAN_PROMPT
 
 
 class SocietyAgentConfig(AgentParams):
     """Configuration for society agent."""
+    block_dispatch_prompt: str = Field(
+        default=DISPATCHER_PROMPT,
+        description="The prompt used for the block dispatcher, there is a variable 'intention' in the prompt, which is the intention of the task, used to select the most appropriate block",
+    )
 
     enable_cognition: bool = Field(
         default=True, description="Whether to enable cognition"

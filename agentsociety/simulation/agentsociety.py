@@ -117,6 +117,55 @@ def _init_agent_class(agent_config: AgentConfig, s3config: S3Config):
     return agents, generator
 
 
+def evaluate_filter(filter_str: str, profile: dict) -> bool:
+    """
+    Evaluate a filter string against a profile dictionary.
+
+    - **Args**:
+        - `filter_str` (str): The filter string to evaluate, e.g. "${profile.age} > 0"
+        - `profile` (dict): The profile dictionary to evaluate against
+
+    - **Returns**:
+        - `bool`: True if the filter matches, False otherwise
+
+    - **Note**:
+        - Returns False if profile is empty
+        - Returns False if any key in filter_str is not in profile
+    """
+    # if profile is empty, return False
+    if not profile:
+        return False
+
+    # check if all keys in filter_str are in profile
+    import re
+
+    pattern = r"\${profile\.([^}]+)}"
+    required_keys = set(re.findall(pattern, filter_str))
+
+    # if any required key is not in profile, return False
+    for key in required_keys:
+        # Handle nested keys
+        current = profile
+        for part in key.split("."):
+            if not isinstance(current, dict) or part not in current:
+                return False
+            current = current[part]
+
+    # replace all ${profile.xxx} with actual values
+    for key in required_keys:
+        # Get the value by traversing the nested dictionary
+        current = profile
+        for part in key.split("."):
+            current = current[part]
+        filter_str = filter_str.replace(f"${{profile.{key}}}", repr(current))
+
+    # use eval to execute the expression
+    try:
+        return eval(filter_str)
+    except Exception:
+        return False
+
+
 class AgentSociety:
     def __init__(
         self,
@@ -186,6 +235,9 @@ class AgentSociety:
 
         # simulation context - for information dump
         self.context = {}
+
+        # filter base
+        self._filter_base = {}
 
     async def init(self):
         """Initialize all the components"""
@@ -590,6 +642,9 @@ class AgentSociety:
                 else:
                     blocks = None
                 # build agent
+                agent_params = agent_config.agent_class.ParamsType.model_validate(
+                    agent_config.agent_params
+                )
                 supervisor = agent_config.agent_class(
                     id=agent_id,
                     name=f"{agent_config.agent_class.__name__}_{agent_id}",
@@ -602,7 +657,7 @@ class AgentSociety:
                         self._mlflow,
                     ),
                     memory=memory_init,
-                    agent_params=agent_config.agent_params,
+                    agent_params=agent_params,
                     blocks=blocks,
                 )
                 # set supervisor
@@ -735,9 +790,13 @@ class AgentSociety:
         get_logger().info(
             f"groups: len(self._groups)={len(self._groups)}, waiting for groups to init..."
         )
-        await asyncio.gather(
+        filter_base_tasks = await asyncio.gather(
             *[group.init.remote() for group in self._groups.values()]  # type:ignore
         )
+        for group_filter_base in filter_base_tasks:
+            for agent_id, (agent_class, profile) in group_filter_base.items():
+                self._filter_base[agent_id] = (agent_class, profile)
+
         get_logger().info(f"Agent groups initialized")
         # step 1 tick to make the initialization complete
         await self.environment.step(1)
@@ -845,7 +904,7 @@ class AgentSociety:
         elif isinstance(target_agent, list):
             return target_agent
         elif isinstance(target_agent, AgentFilterConfig):
-            return await self.filter(target_agent.agent_class, target_agent.memory_kv)
+            return await self.filter(target_agent.agent_class, target_agent.filter_str)
         else:
             raise ValueError("target_agent must be a list of int or AgentFilterConfig")
 
@@ -896,34 +955,43 @@ class AgentSociety:
     async def filter(
         self,
         types: Optional[tuple[type[Agent]]] = None,
-        memory_kv: Optional[dict[str, Any]] = None,
+        filter_str: Optional[str] = None,
     ) -> list[int]:
         """
         Filter out agents of specified types or with matching key-value pairs.
 
         - **Args**:
             - `types` (Optional[Tuple[Type[Agent]]], optional): Types of agents to filter for. Defaults to None.
-            - `memory_kv` (Optional[Dict[str, Any]], optional): Key-value pairs to match in agent attributes. Defaults to None.
+            - `filter_str` (Optional[str], optional): Filter string to match in agent attributes. Defaults to None.
 
         - **Raises**:
-            - `ValueError`: If neither types nor memory_kv are provided.
+            - `ValueError`: If neither types nor filter_str are provided.
 
         - **Returns**:
             - `List[int]`: A list of filtered agent UUIDs.
         """
-        if not types and not memory_kv:
+        if not types and not filter_str:
             return list(self._agent_ids)
-        filtered_ids = []
-        if memory_kv:
-            for group in self._groups.values():
-                filtered_ids.extend(
-                    await group.filter.remote(types, memory_kv)  # type:ignore
-                )
-            return filtered_ids
+
+        # filter by types first
+        if types:
+            filtered_ids = [
+                agent_id
+                for agent_id, (agent_class, _) in self._filter_base.items()
+                if agent_class in types
+            ]
         else:
-            for group in self._groups.values():
-                filtered_ids.extend(await group.filter.remote(types))  # type:ignore
-            return filtered_ids
+            filtered_ids = list(self._agent_ids)
+
+        # filter by filter_str
+        if filter_str:
+            filtered_ids = [
+                agent_id
+                for agent_id in filtered_ids
+                if evaluate_filter(filter_str, self._filter_base[agent_id][1])
+            ]
+
+        return filtered_ids
 
     async def update_environment(self, key: str, value: str):
         """
@@ -1503,6 +1571,7 @@ class AgentSociety:
                     )
                 elif step.type == WorkflowType.FUNCTION:
                     assert step.func is not None
+                    assert not isinstance(step.func, str)
                     await step.func(self)
                 else:
                     raise ValueError(f"Unknown workflow type: {step.type}")

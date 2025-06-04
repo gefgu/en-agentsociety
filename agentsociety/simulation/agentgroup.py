@@ -229,6 +229,7 @@ class AgentGroup:
             self._pgsql_writer,
             self._mlflow_client,
         )
+        to_return = {}
         for agent_init in self._agent_inits:
             (
                 id,
@@ -242,6 +243,10 @@ class AgentGroup:
             extra_attributes = memory_dict.get("extra_attributes", {})
             profile = memory_dict.get("profile", {})
             base = memory_dict.get("base", {})
+            profile_ = {}
+            for k, v in profile.items():
+                profile_[k] = v[1]
+            to_return[id] = (agent_class, profile_)
             memory_init = Memory(
                 agent_id=id,
                 environment=self.environment,
@@ -323,6 +328,7 @@ class AgentGroup:
         await asyncio.gather(*embedding_tasks)
 
         get_logger().info(f"Agents initialized")
+        return to_return
 
     async def close(self):
         """Close the AgentGroupV2."""
@@ -758,53 +764,6 @@ class AgentGroup:
         Retrieves the error statistics from the LLM client.
         """
         return self.llm.get_error_statistics()
-
-    async def filter(
-        self,
-        types: Optional[tuple[type[Agent]]] = None,
-        memory_kv: Optional[dict[str, Any]] = None,
-    ) -> list[int]:
-        """
-        Filters agents based on type and/or key-value pairs in their status.
-
-        - **Args**:
-            - `types` (Optional[List[Type[Agent]]]): A list of agent types to filter by.
-            - `memory_kv` (Optional[Dict[str, Any]]): A dictionary of key-value pairs to check in the agent's status.
-
-        - **Returns**:
-            - `List[int]`: A list of agent IDs for agents that match the filter criteria.
-        """
-        filtered_ids = []
-        for agent in self._agents:
-            add = True
-            if types:
-                if isinstance(agent, types):
-                    if memory_kv:
-                        for key in memory_kv:
-                            if isinstance(memory_kv[key], list):
-                                if agent.status.get(key) not in memory_kv[key]:
-                                    add = False
-                                    break
-                            else:
-                                if agent.status.get(key) != memory_kv[key]:
-                                    add = False
-                                    break
-                    if add:
-                        filtered_ids.append(agent.id)
-            else:
-                if memory_kv:
-                    for key in memory_kv:
-                        if isinstance(memory_kv[key], list):
-                            if agent.status.get(key) not in memory_kv[key]:
-                                add = False
-                                break
-                        else:
-                            if agent.status.get(key) != memory_kv[key]:
-                                add = False
-                                break
-                    if add:
-                        filtered_ids.append(agent.id)
-        return filtered_ids
 
     async def gather(self, content: str, target_agent_ids: Optional[list[int]] = None):
         """

@@ -43,6 +43,14 @@ class BlockDispatcher:
         self.blocks: dict[str, Block] = {}
         self.dispatcher_prompt = FormatPrompt(selection_prompt, memory=memory)
 
+    def register_dispatcher_prompt(self, dispatcher_prompt: str) -> None:
+        """Register a dispatcher prompt.
+        
+        Args:
+            dispatcher_prompt: Dispatcher prompt
+        """
+        self.dispatcher_prompt = FormatPrompt(dispatcher_prompt, memory=self.memory)
+
     def register_blocks(self, blocks: list[Block]) -> None:
         """Register multiple processing blocks for dispatching.
 

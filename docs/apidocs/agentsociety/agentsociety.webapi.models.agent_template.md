@@ -17,12 +17,6 @@
 
 * - {py:obj}`DistributionType <agentsociety.webapi.models.agent_template.DistributionType>`
   -
-* - {py:obj}`ChoiceDistribution <agentsociety.webapi.models.agent_template.ChoiceDistribution>`
-  -
-* - {py:obj}`UniformIntDistribution <agentsociety.webapi.models.agent_template.UniformIntDistribution>`
-  -
-* - {py:obj}`NormalDistribution <agentsociety.webapi.models.agent_template.NormalDistribution>`
-  -
 * - {py:obj}`ChoiceDistributionConfig <agentsociety.webapi.models.agent_template.ChoiceDistributionConfig>`
   -
 * - {py:obj}`UniformIntDistributionConfig <agentsociety.webapi.models.agent_template.UniformIntDistributionConfig>`
@@ -35,18 +29,6 @@
     ```
 * - {py:obj}`AgentParams <agentsociety.webapi.models.agent_template.AgentParams>`
   - ```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentParams
-    :summary:
-    ```
-* - {py:obj}`TemplateBlock <agentsociety.webapi.models.agent_template.TemplateBlock>`
-  - ```{autodoc2-docstring} agentsociety.webapi.models.agent_template.TemplateBlock
-    :summary:
-    ```
-* - {py:obj}`BaseConfig <agentsociety.webapi.models.agent_template.BaseConfig>`
-  - ```{autodoc2-docstring} agentsociety.webapi.models.agent_template.BaseConfig
-    :summary:
-    ```
-* - {py:obj}`StatesConfig <agentsociety.webapi.models.agent_template.StatesConfig>`
-  - ```{autodoc2-docstring} agentsociety.webapi.models.agent_template.StatesConfig
     :summary:
     ```
 * - {py:obj}`ApiAgentTemplate <agentsociety.webapi.models.agent_template.ApiAgentTemplate>`
@@ -65,10 +47,6 @@
   - ```{autodoc2-docstring} agentsociety.webapi.models.agent_template.__all__
     :summary:
     ```
-* - {py:obj}`Distribution <agentsociety.webapi.models.agent_template.Distribution>`
-  - ```{autodoc2-docstring} agentsociety.webapi.models.agent_template.Distribution
-    :summary:
-    ```
 * - {py:obj}`DistributionConfig <agentsociety.webapi.models.agent_template.DistributionConfig>`
   - ```{autodoc2-docstring} agentsociety.webapi.models.agent_template.DistributionConfig
     :summary:
@@ -80,7 +58,7 @@
 ````{py:data} __all__
 :canonical: agentsociety.webapi.models.agent_template.__all__
 :value: >
-   ['AgentTemplateDB', 'TemplateBlock', 'ApiAgentTemplate']
+   ['AgentTemplateDB', 'ApiAgentTemplate']
 
 ```{autodoc2-docstring} agentsociety.webapi.models.agent_template.__all__
 ```
@@ -118,93 +96,6 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
    'normal'
 
 ```{autodoc2-docstring} agentsociety.webapi.models.agent_template.DistributionType.NORMAL
-```
-
-````
-
-`````
-
-`````{py:class} ChoiceDistribution(/, **data: typing.Any)
-:canonical: agentsociety.webapi.models.agent_template.ChoiceDistribution
-
-Bases: {py:obj}`pydantic.BaseModel`
-
-````{py:attribute} type
-:canonical: agentsociety.webapi.models.agent_template.ChoiceDistribution.type
-:type: agentsociety.webapi.models.agent_template.DistributionType
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.ChoiceDistribution.type
-```
-
-````
-
-````{py:attribute} params
-:canonical: agentsociety.webapi.models.agent_template.ChoiceDistribution.params
-:type: typing.Dict[str, typing.Union[typing.List[str], typing.List[float]]]
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.ChoiceDistribution.params
-```
-
-````
-
-`````
-
-`````{py:class} UniformIntDistribution(/, **data: typing.Any)
-:canonical: agentsociety.webapi.models.agent_template.UniformIntDistribution
-
-Bases: {py:obj}`pydantic.BaseModel`
-
-````{py:attribute} type
-:canonical: agentsociety.webapi.models.agent_template.UniformIntDistribution.type
-:type: agentsociety.webapi.models.agent_template.DistributionType
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.UniformIntDistribution.type
-```
-
-````
-
-````{py:attribute} params
-:canonical: agentsociety.webapi.models.agent_template.UniformIntDistribution.params
-:type: typing.Dict[str, int]
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.UniformIntDistribution.params
-```
-
-````
-
-`````
-
-`````{py:class} NormalDistribution(/, **data: typing.Any)
-:canonical: agentsociety.webapi.models.agent_template.NormalDistribution
-
-Bases: {py:obj}`pydantic.BaseModel`
-
-````{py:attribute} type
-:canonical: agentsociety.webapi.models.agent_template.NormalDistribution.type
-:type: agentsociety.webapi.models.agent_template.DistributionType
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.NormalDistribution.type
-```
-
-````
-
-````{py:attribute} params
-:canonical: agentsociety.webapi.models.agent_template.NormalDistribution.params
-:type: typing.Dict[str, float]
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.NormalDistribution.params
 ```
 
 ````
@@ -331,16 +222,6 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-````{py:data} Distribution
-:canonical: agentsociety.webapi.models.agent_template.Distribution
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.Distribution
-```
-
-````
-
 ````{py:data} DistributionConfig
 :canonical: agentsociety.webapi.models.agent_template.DistributionConfig
 :value: >
@@ -442,28 +323,6 @@ Bases: {py:obj}`agentsociety.webapi.models._base.Base`
    'mapped_column(...)'
 
 ```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentTemplateDB.profile
-```
-
-````
-
-````{py:attribute} base
-:canonical: agentsociety.webapi.models.agent_template.AgentTemplateDB.base
-:type: sqlalchemy.orm.Mapped[typing.Dict]
-:value: >
-   'mapped_column(...)'
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentTemplateDB.base
-```
-
-````
-
-````{py:attribute} states
-:canonical: agentsociety.webapi.models.agent_template.AgentTemplateDB.states
-:type: sqlalchemy.orm.Mapped[typing.Dict]
-:value: >
-   'mapped_column(...)'
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentTemplateDB.states
 ```
 
 ````
@@ -575,175 +434,6 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ``````
 
-`````{py:class} TemplateBlock(/, **data: typing.Any)
-:canonical: agentsociety.webapi.models.agent_template.TemplateBlock
-
-Bases: {py:obj}`pydantic.BaseModel`
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.TemplateBlock
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.TemplateBlock.__init__
-```
-
-````{py:attribute} id
-:canonical: agentsociety.webapi.models.agent_template.TemplateBlock.id
-:type: str
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.TemplateBlock.id
-```
-
-````
-
-````{py:attribute} name
-:canonical: agentsociety.webapi.models.agent_template.TemplateBlock.name
-:type: str
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.TemplateBlock.name
-```
-
-````
-
-````{py:attribute} type
-:canonical: agentsociety.webapi.models.agent_template.TemplateBlock.type
-:type: str
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.TemplateBlock.type
-```
-
-````
-
-````{py:attribute} description
-:canonical: agentsociety.webapi.models.agent_template.TemplateBlock.description
-:type: str
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.TemplateBlock.description
-```
-
-````
-
-````{py:attribute} dependencies
-:canonical: agentsociety.webapi.models.agent_template.TemplateBlock.dependencies
-:type: typing.Dict[str, str]
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.TemplateBlock.dependencies
-```
-
-````
-
-````{py:attribute} params
-:canonical: agentsociety.webapi.models.agent_template.TemplateBlock.params
-:type: typing.Dict[str, typing.Any]
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.TemplateBlock.params
-```
-
-````
-
-`````
-
-`````{py:class} BaseConfig(/, **data: typing.Any)
-:canonical: agentsociety.webapi.models.agent_template.BaseConfig
-
-Bases: {py:obj}`pydantic.BaseModel`
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.BaseConfig
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.BaseConfig.__init__
-```
-
-````{py:attribute} home
-:canonical: agentsociety.webapi.models.agent_template.BaseConfig.home
-:type: typing.Dict[str, typing.Any]
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.BaseConfig.home
-```
-
-````
-
-````{py:attribute} work
-:canonical: agentsociety.webapi.models.agent_template.BaseConfig.work
-:type: typing.Dict[str, typing.Any]
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.BaseConfig.work
-```
-
-````
-
-`````
-
-`````{py:class} StatesConfig(/, **data: typing.Any)
-:canonical: agentsociety.webapi.models.agent_template.StatesConfig
-
-Bases: {py:obj}`pydantic.BaseModel`
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.StatesConfig
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.StatesConfig.__init__
-```
-
-````{py:attribute} needs
-:canonical: agentsociety.webapi.models.agent_template.StatesConfig.needs
-:type: str
-:value: >
-   'str'
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.StatesConfig.needs
-```
-
-````
-
-````{py:attribute} plan
-:canonical: agentsociety.webapi.models.agent_template.StatesConfig.plan
-:type: str
-:value: >
-   'dict'
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.StatesConfig.plan
-```
-
-````
-
-````{py:attribute} selfDefine
-:canonical: agentsociety.webapi.models.agent_template.StatesConfig.selfDefine
-:type: typing.Optional[str]
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.StatesConfig.selfDefine
-```
-
-````
-
-`````
-
 ``````{py:class} ApiAgentTemplate(/, **data: typing.Any)
 :canonical: agentsociety.webapi.models.agent_template.ApiAgentTemplate
 
@@ -826,33 +516,11 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````{py:attribute} memory_distributions
 :canonical: agentsociety.webapi.models.agent_template.ApiAgentTemplate.memory_distributions
-:type: typing.Dict[str, typing.Union[agentsociety.webapi.models.agent_template.Distribution, agentsociety.webapi.models.agent_template.DistributionConfig]]
+:type: typing.Dict[str, agentsociety.webapi.models.agent_template.DistributionConfig]
 :value: >
    'Field(...)'
 
 ```{autodoc2-docstring} agentsociety.webapi.models.agent_template.ApiAgentTemplate.memory_distributions
-```
-
-````
-
-````{py:attribute} base
-:canonical: agentsociety.webapi.models.agent_template.ApiAgentTemplate.base
-:type: typing.Dict[str, typing.Dict[str, typing.Any]]
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.ApiAgentTemplate.base
-```
-
-````
-
-````{py:attribute} states
-:canonical: agentsociety.webapi.models.agent_template.ApiAgentTemplate.states
-:type: typing.Dict[str, str]
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.ApiAgentTemplate.states
 ```
 
 ````

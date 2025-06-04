@@ -1,7 +1,20 @@
 import uuid
-from typing import Dict, List, cast, Any, Type
+from typing import (
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Union,
+    cast,
+    Any,
+    Type,
+    get_args,
+    get_origin,
+)
 
 from fastapi import APIRouter, Body, HTTPException, Request, status
+from pydantic import BaseModel
+from pydantic_core import PydanticUndefined
 from sqlalchemy import delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,9 +22,6 @@ from ..models import ApiResponseWrapper
 from ..models.agent_template import (
     AgentTemplateDB,
     ApiAgentTemplate,
-    ChoiceDistribution,
-    UniformIntDistribution,
-    NormalDistribution,
     ChoiceDistributionConfig,
     UniformIntDistributionConfig,
     NormalDistributionConfig,
@@ -61,77 +71,7 @@ async def list_agent_templates(
 
             api_templates = []
             for template in templates:
-                # Convert distribution configuration from database to corresponding distribution objects
-                memory_distributions_dict = {}
-                for key, value in template.profile.items():
-                    if isinstance(value, dict):
-                        dist_type = value.get("type")
-                        if dist_type == "choice":
-                            if "params" in value:
-                                memory_distributions_dict[key] = ChoiceDistribution(
-                                    type=DistributionType.CHOICE,
-                                    params={
-                                        "choices": value["params"]["choices"],
-                                        "weights": value["params"]["weights"],
-                                    },
-                                )
-                            else:
-                                memory_distributions_dict[key] = (
-                                    ChoiceDistributionConfig(
-                                        type=DistributionType.CHOICE,
-                                        choices=value["choices"],
-                                        weights=value["weights"],
-                                    )
-                                )
-                        elif dist_type == "uniform_int":
-                            if "params" in value:
-                                memory_distributions_dict[key] = UniformIntDistribution(
-                                    type=DistributionType.UNIFORM_INT,
-                                    params={
-                                        "min_value": value["params"]["min_value"],
-                                        "max_value": value["params"]["max_value"],
-                                    },
-                                )
-                            else:
-                                memory_distributions_dict[key] = (
-                                    UniformIntDistributionConfig(
-                                        type=DistributionType.UNIFORM_INT,
-                                        min_value=value["min_value"],
-                                        max_value=value["max_value"],
-                                    )
-                                )
-                        elif dist_type == "normal":
-                            if "params" in value:
-                                memory_distributions_dict[key] = NormalDistribution(
-                                    type=DistributionType.NORMAL,
-                                    params={
-                                        "mean": value["params"]["mean"],
-                                        "std": value["params"]["std"],
-                                    },
-                                )
-                            else:
-                                memory_distributions_dict[key] = (
-                                    NormalDistributionConfig(
-                                        type=DistributionType.NORMAL,
-                                        mean=value["mean"],
-                                        std=value["std"],
-                                    )
-                                )
-
-                api_template = ApiAgentTemplate(
-                    tenant_id=template.tenant_id,
-                    id=template.id,
-                    name=template.name,
-                    description=template.description,
-                    agent_type=template.agent_type,
-                    agent_class=template.agent_class,
-                    memory_distributions=memory_distributions_dict,
-                    agent_params=AgentParams(**template.agent_params),
-                    blocks=template.blocks,
-                    created_at=template.created_at,
-                    updated_at=template.updated_at,
-                )
-                api_templates.append(api_template)
+                api_templates.append(convert_agent_template_from_db_to_api(template))
 
             return ApiResponseWrapper(data=api_templates)
 
@@ -149,99 +89,66 @@ async def get_agent_template(
     template_id: str,
 ) -> ApiResponseWrapper[ApiAgentTemplate]:
     """Get agent template by ID"""
-    try:
-        tenant_id = await request.app.state.get_tenant_id(request)
+    tenant_id = await request.app.state.get_tenant_id(request)
 
-        async with request.app.state.get_db() as db:
-            db = cast(AsyncSession, db)
-            stmt = select(AgentTemplateDB).where(
-                AgentTemplateDB.tenant_id.in_([tenant_id, ""]),
-                AgentTemplateDB.id == template_id,
-            )
-
-            result = await db.execute(stmt)
-            template = result.scalar_one_or_none()
-
-            if not template:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="Template not found"
-                )
-
-            # Convert distribution configuration from database to corresponding distribution objects
-            memory_distributions_dict = {}
-            for key, value in template.profile.items():
-                if isinstance(value, dict):
-                    dist_type = value.get("type")
-                    if dist_type == "choice":
-                        if "params" in value:
-                            memory_distributions_dict[key] = ChoiceDistribution(
-                                type=DistributionType.CHOICE,
-                                params={
-                                    "choices": value["params"]["choices"],
-                                    "weights": value["params"]["weights"],
-                                },
-                            )
-                        else:
-                            memory_distributions_dict[key] = ChoiceDistributionConfig(
-                                type=DistributionType.CHOICE,
-                                choices=value["choices"],
-                                weights=value["weights"],
-                            )
-                    elif dist_type == "uniform_int":
-                        if "params" in value:
-                            memory_distributions_dict[key] = UniformIntDistribution(
-                                type=DistributionType.UNIFORM_INT,
-                                params={
-                                    "min_value": value["params"]["min_value"],
-                                    "max_value": value["params"]["max_value"],
-                                },
-                            )
-                        else:
-                            memory_distributions_dict[key] = (
-                                UniformIntDistributionConfig(
-                                    type=DistributionType.UNIFORM_INT,
-                                    min_value=value["min_value"],
-                                    max_value=value["max_value"],
-                                )
-                            )
-                    elif dist_type == "normal":
-                        if "params" in value:
-                            memory_distributions_dict[key] = NormalDistribution(
-                                type=DistributionType.NORMAL,
-                                params={
-                                    "mean": value["params"]["mean"],
-                                    "std": value["params"]["std"],
-                                },
-                            )
-                        else:
-                            memory_distributions_dict[key] = NormalDistributionConfig(
-                                type=DistributionType.NORMAL, mean=value["mean"], std=value["std"]
-                            )
-
-            api_template = ApiAgentTemplate(
-                tenant_id=template.tenant_id,
-                id=template.id,
-                name=template.name,
-                description=template.description,
-                agent_type=template.agent_type,
-                agent_class=template.agent_class,
-                memory_distributions=memory_distributions_dict,
-                agent_params=AgentParams(**template.agent_params),
-                blocks=template.blocks,
-                created_at=template.created_at,
-                updated_at=template.updated_at,
-            )
-
-            return ApiResponseWrapper(data=api_template)
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Error in get_agent_template: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get template: {str(e)}",
+    async with request.app.state.get_db() as db:
+        db = cast(AsyncSession, db)
+        stmt = select(AgentTemplateDB).where(
+            AgentTemplateDB.tenant_id.in_([tenant_id, ""]),
+            AgentTemplateDB.id == template_id,
         )
+
+        result = await db.execute(stmt)
+        template = result.scalar_one_or_none()
+
+        if not template:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Template not found"
+            )
+        api_template = convert_agent_template_from_db_to_api(template)
+        return ApiResponseWrapper(data=api_template)
+
+
+def convert_agent_template_from_db_to_api(
+    template: AgentTemplateDB,
+) -> ApiAgentTemplate:
+    """Convert agent template from database to API model"""
+    # Convert distribution configuration from database to corresponding distribution objects
+    memory_distributions_dict = {}
+    for key, value in template.profile.items():
+        dist_type = value.get("type")
+        if dist_type == "choice":
+            memory_distributions_dict[key] = ChoiceDistributionConfig.model_validate(
+                value
+            )
+        elif dist_type == "uniform_int":
+            memory_distributions_dict[key] = (
+                UniformIntDistributionConfig.model_validate(value)
+            )
+        elif dist_type == "normal":
+            memory_distributions_dict[key] = NormalDistributionConfig.model_validate(
+                value
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Invalid distribution type: {dist_type}",
+            )
+
+    api_template = ApiAgentTemplate(
+        tenant_id=template.tenant_id,
+        id=template.id,
+        name=template.name,
+        description=template.description,
+        agent_type=template.agent_type,
+        agent_class=template.agent_class,
+        memory_distributions=memory_distributions_dict,
+        agent_params=AgentParams(**template.agent_params),
+        blocks=template.blocks,
+        created_at=template.created_at,
+        updated_at=template.updated_at,
+    )
+    return api_template
 
 
 @router.post("/agent-templates")
@@ -262,33 +169,8 @@ async def create_agent_template(
         # Convert memory_distributions to serializable dictionary format
         profile_dict = {}
         for key, value in template.memory_distributions.items():
-            if isinstance(
-                value,
-                (
-                    ChoiceDistributionConfig,
-                    UniformIntDistributionConfig,
-                    NormalDistributionConfig,
-                ),
-            ):
-                # 如果是Config类型，直接转换为字典
-                profile_dict[key] = value.model_dump()
-            elif isinstance(
-                value, (ChoiceDistribution, UniformIntDistribution, NormalDistribution)
-            ):
-                # 如果是Distribution类型，保持params结构
-                profile_dict[key] = value.model_dump()
-            else:
-                # 如果已经是字典格式，直接使用
-                profile_dict[key] = value
-
-        # Create default base configuration
-        base_config = {
-            "home": {"aoi_position": {"aoi_id": 0}},
-            "work": {"aoi_position": {"aoi_id": 0}},
-        }
-
-        # Create default states configuration
-        states_config = {"needs": "str", "plan": "dict"}
+            # 如果是Config类型，直接转换为字典
+            profile_dict[key] = value.model_dump()
 
         async with request.app.state.get_db() as db:
             db = cast(AsyncSession, db)
@@ -301,9 +183,7 @@ async def create_agent_template(
                 agent_type=template.agent_type,
                 agent_class=template.agent_class,
                 profile=profile_dict,
-                base=base_config,
-                states=states_config,
-                agent_params=template.agent_params.dict(),
+                agent_params=template.agent_params.model_dump(),
                 blocks=template.blocks,
             )
 
@@ -320,8 +200,6 @@ async def create_agent_template(
                 agent_type=new_template.agent_type,
                 agent_class=new_template.agent_class,
                 memory_distributions=new_template.profile,
-                base=new_template.base,
-                states=new_template.states,
                 agent_params=AgentParams(**new_template.agent_params),
                 blocks=new_template.blocks,
                 created_at=new_template.created_at,
@@ -417,7 +295,7 @@ async def get_agent_blocks(
     """Get available block types"""
     try:
         blocks = []
-        
+
         # 获取citizen blocks
         if citizen_blocks is not None:
             # for block_name, block_class in citizen_blocks.get_type_to_cls_dict().items():
@@ -437,8 +315,36 @@ async def get_agent_blocks(
         )
 
 
+class ParamOption(BaseModel):
+    label: str
+    value: Any
+
+
+class Param(BaseModel):
+    """
+    Parameter edited at frontend
+    """
+
+    name: str
+    required: bool
+    default: Optional[Any] = None
+    description: Optional[str] = None
+    type: Literal["str", "int", "float", "bool", "select", "select_multiple"]
+    options: List[ParamOption] = []
+
+
+class NameTypeDescription(BaseModel):
+    """
+    Name, type and description of agent to describe context / status attribute
+    """
+
+    name: str
+    type: str
+    description: Optional[str] = None
+
+
 def simplify_type(type_annotation):
-    """Convert type annotation to a simplified string format"""
+    """Convert type annotation to a simplified string format for human readable"""
     type_str = str(type_annotation)
 
     # Handle class format
@@ -472,25 +378,172 @@ def simplify_type(type_annotation):
     return type_str.replace("typing.", "")
 
 
-def get_field_info(field):
-    """Helper function to safely get field information"""
-    try:
-        default_value = None
-        if hasattr(field, "default") and field.default is not None:
-            # Handle Pydantic Undefined type
-            if str(field.default.__class__).endswith("PydanticUndefinedType'>"):
-                default_value = None
-            else:
-                default_value = field.default
+def parse_pydantic_to_table(
+    model_class: type[BaseModel], exclude_fields: list[str] = []
+) -> list[NameTypeDescription]:
+    """
+    解析pydantic model为适合前端表格呈现的JSON格式
 
-        return {
-            "type": simplify_type(field.annotation),
-            "description": field.description if hasattr(field, "description") else None,
-            "default": default_value,
+    Args:
+        model_class: Pydantic BaseModel子类
+
+    Returns:
+        list: 包含表格配置的列表
+    """
+
+    if not issubclass(model_class, BaseModel):
+        import warnings
+
+        warnings.warn(
+            f"model_class {model_class} is not a subclass of BaseModel, return empty list"
+        )
+
+    table_items = []
+    for field_name, field_info in model_class.model_fields.items():
+        if field_name in exclude_fields:
+            continue
+        table_items.append(
+            NameTypeDescription(
+                name=field_name,
+                type=simplify_type(field_info.annotation),
+                description=field_info.description or "",
+            )
+        )
+    return table_items
+
+
+def parse_pydantic_to_antd_form(
+    model_class: type[BaseModel], exclude_fields: list[str] = []
+) -> list[Param]:
+    """
+    解析pydantic model为适合AntDesign表单的JSON格式
+
+    Args:
+        model_class: Pydantic BaseModel子类
+
+    Returns:
+        list: 包含表格配置的列表
+    """
+
+    if not issubclass(model_class, BaseModel):
+        import warnings
+
+        warnings.warn(
+            f"model_class {model_class} is not a subclass of BaseModel, return empty list"
+        )
+        return []
+
+    def get_field_type_info(field_annotation, field_info):
+        """解析字段类型信息"""
+        origin = get_origin(field_annotation)
+        args = get_args(field_annotation)
+
+        # 处理Literal类型 - 下拉选择
+        if origin is Literal:
+            return {
+                "type": "select",
+                "options": [{"label": str(arg), "value": arg} for arg in args],
+            }
+
+        # 处理list类型
+        if origin is list:
+            if args and get_origin(args[0]) is Literal:
+                # list[Literal[...]] - 多选
+                literal_args = get_args(args[0])
+                return {
+                    "type": "select_multiple",
+                    "options": [
+                        {"label": str(arg), "value": arg} for arg in literal_args
+                    ],
+                }
+            else:
+                # TODO: 暂时不支持list[str]类型
+                import warnings
+                warnings.warn(f"Unsupported field type: {field_annotation}, field_info: {field_info}")
+                # raise ValueError(
+                #     f"Unsupported field type: {field_annotation}, field_info: {field_info}"
+                # )
+
+        # 处理Union类型
+        if origin is Union:
+            # 简化处理：取第一个非None类型的基本类型（int, float, str, bool, Literal）
+            good_types = []
+            for arg in args:
+                if arg in (int, float, str, bool):
+                    good_types.append(arg)
+                elif get_origin(arg) in (int, float, str, bool, Literal, Optional):
+                    good_types.append(arg)
+                elif get_origin(arg) is Union:
+                    good_types.extend(get_args(arg))
+            print(f"good_types: {good_types}")
+            if good_types:
+                return get_field_type_info(good_types[0], field_info)
+            else:
+                raise ValueError(
+                    f"Unsupported field type: {field_annotation}, field_info: {field_info}"
+                )
+
+        # 处理基础类型
+        if field_annotation is str:
+            return {"type": "str"}
+        elif field_annotation is int:
+            return {"type": "int"}
+        elif field_annotation is float:
+            return {"type": "float"}
+        elif field_annotation is bool:
+            return {"type": "bool"}
+
+        raise ValueError(
+            f"Unsupported field type: {field_annotation}, field_info: {field_info}"
+        )
+
+    # 解析模型字段
+    form_items = []
+
+    for field_name, field_info in model_class.model_fields.items():
+        if field_name in exclude_fields:
+            continue
+
+        # 获取字段类型信息
+        type_info = get_field_type_info(field_info.annotation, field_info)
+
+        # 构建表单项配置
+        form_item = {
+            "name": field_name,
+            "required": field_info.is_required(),
+            "description": field_info.description,
+            **type_info,
         }
-    except Exception as e:
-        print(f"Error processing field: {str(e)}")
-        return {"type": "unknown", "description": None, "default": None}
+
+        # 添加默认值
+        if (
+            field_info.default is not None
+            and field_info.default != ...
+            and field_info.default != PydanticUndefined
+        ):  # ... 表示无默认值
+            form_item["default"] = field_info.default
+        elif (
+            hasattr(field_info, "default_factory")
+            and field_info.default_factory is not None
+        ):
+            form_item["default"] = field_info.default_factory()  # type: ignore
+
+        form_items.append(form_item)
+
+    params = [Param(**item) for item in form_items]
+
+    return params
+
+
+class AgentParam(BaseModel):
+    """
+    Agent parameter
+    """
+
+    params_type: List[Param]
+    # block_output_type: List[Param]
+    context: List[NameTypeDescription]
+    status_attributes: List[NameTypeDescription]
 
 
 @router.get("/agent-param")
@@ -498,146 +551,117 @@ async def get_agent_param(
     request: Request,
     agent_type: str,
     agent_class: str,
-) -> ApiResponseWrapper[Dict[str, Any]]:
+) -> ApiResponseWrapper[AgentParam]:
     """Get agent's parameters including ParamsType, BlockOutputType, Context and StatusAttributes based on agent type and class"""
-    try:
-        # Get the appropriate agent class based on agent_type and agent_class
-        if agent_type == "citizen":
-            if citizens is None:
-                type_dict = {}
-            else:
-                type_dict = citizens.get_type_to_cls_dict()
-        elif agent_type == "supervisor":
-            if supervisors is None:
-                type_dict = {}
-            else:
-                type_dict = supervisors.get_type_to_cls_dict()
+    # Get the appropriate agent class based on agent_type and agent_class
+    if agent_type == "citizen":
+        if citizens is None:
+            type_dict = {}
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid agent_type. Must be 'citizen' or 'supervisor', got: {agent_type}",
-            )
-
-        if agent_class not in type_dict:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid agent_class '{agent_class}' for agent_type '{agent_type}'. Available classes: {list(type_dict.keys())}",
-            )
-
-        # Get the agent class
-        agent_cls_factory = type_dict[agent_class]
-        agent_cls = agent_cls_factory()
-
-        # Get agent parameters information
-        param_data = {
-            "params_type": {},
-            "block_output_type": {},
-            "context": {},
-            "status_attributes": [],
-        }
-
-        # Process ParamsType
-        if hasattr(agent_cls.ParamsType, "model_fields"):
-            param_data["params_type"] = {
-                field_name: get_field_info(field)
-                for field_name, field in agent_cls.ParamsType.model_fields.items()
-            }
-
-        # Process BlockOutputType
-        if hasattr(agent_cls.BlockOutputType, "model_fields"):
-            param_data["block_output_type"] = {
-                field_name: get_field_info(field)
-                for field_name, field in agent_cls.BlockOutputType.model_fields.items()
-            }
-
-        # Process Context
-        if hasattr(agent_cls.Context, "model_fields"):
-            param_data["context"] = {
-                field_name: get_field_info(field)
-                for field_name, field in agent_cls.Context.model_fields.items()
-            }
-
-        # Process StatusAttributes
-        param_data["status_attributes"] = [
-            {
-                "name": attr.name,
-                "type": simplify_type(attr.type),
-                "default": (
-                    None
-                    if str(attr.default.__class__).endswith("PydanticUndefinedType'>")
-                    else attr.default
-                ),
-                "description": attr.description,
-                # "whether_embedding": attr.whether_embedding if hasattr(attr, "whether_embedding") else False
-            }
-            for attr in agent_cls.StatusAttributes
-        ]
-
-        return ApiResponseWrapper(data=param_data)
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Error in get_agent_param: {str(e)}")
+            type_dict = citizens.get_type_to_cls_dict()
+    elif agent_type == "supervisor":
+        if supervisors is None:
+            type_dict = {}
+        else:
+            type_dict = supervisors.get_type_to_cls_dict()
+    else:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get agent parameters: {str(e)}",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid agent_type. Must be 'citizen' or 'supervisor', got: {agent_type}",
         )
 
+    if agent_class not in type_dict:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid agent_class '{agent_class}' for agent_type '{agent_type}'. Available classes: {list(type_dict.keys())}",
+        )
+
+    # Get the agent class
+    agent_cls_factory = type_dict[agent_class]
+    agent_cls = agent_cls_factory()
+
+    # Get agent parameters information
+    param_data = AgentParam(
+        params_type=[],
+        # block_output_type=[],
+        context=[],
+        status_attributes=[],
+    )
+
+    # Process ParamsType
+    param_data.params_type = parse_pydantic_to_antd_form(agent_cls.ParamsType)
+
+    # Process BlockOutputType
+    # if agent_cls.BlockOutputType is not None:
+    #     param_data["block_output_type"] = parse_pydantic_to_antd_form(
+    #         agent_cls.BlockOutputType
+    #     )
+
+    # Process Context
+    param_data.context = parse_pydantic_to_table(agent_cls.Context)
+
+    # Process StatusAttributes
+    param_data.status_attributes = [
+        NameTypeDescription(
+            name=attr.name,
+            type=simplify_type(attr.type),
+            # default=(
+            #     None
+            #     if str(attr.default.__class__).endswith("PydanticUndefinedType'>")
+            #     else attr.default
+            # ),
+            description=attr.description,
+            # "whether_embedding": attr.whether_embedding if hasattr(attr, "whether_embedding") else False
+        )
+        for attr in agent_cls.StatusAttributes
+    ]
+
+    return ApiResponseWrapper(data=param_data)
+
+class BlockParam(BaseModel):
+    """
+    Block parameter
+    """
+
+    params_type: List[Param]
+    context: List[NameTypeDescription]
 
 @router.get("/block-param/{block_type}")
 async def get_block_param(
     request: Request,
     block_type: str,
-) -> ApiResponseWrapper[Dict[str, Any]]:
+) -> ApiResponseWrapper[BlockParam]:
     """Get Block's parameters including ParamsType and Context for specified block type"""
-    try:
-        # 在citizen blocks中查找
-        if citizen_blocks is not None:
-            block_map = citizen_blocks.get_type_to_cls_dict()
-            if block_type in block_map:
-                block_class_factory = block_map[block_type]
-                block_class = block_class_factory()
+    # 在citizen blocks中查找
+    if citizen_blocks is not None:
+        block_map = citizen_blocks.get_type_to_cls_dict()
+        if block_type in block_map:
+            block_class_factory = block_map[block_type]
+            block_class = block_class_factory()
 
-        if block_class is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid block type: {block_type}",
-            )
-
-        # Get Block parameters information
-        param_data = {
-            "params_type": {},
-            "context": {},
-        }
-
-        # Process ParamsType
-        if hasattr(block_class, "ParamsType") and hasattr(
-            block_class.ParamsType, "model_fields"
-        ):
-            param_data["params_type"] = {
-                field_name: get_field_info(field)
-                for field_name, field in block_class.ParamsType.model_fields.items()
-                if field_name != "block_memory"  # 排除 block_memory 字段
-            }
-
-        # Process Context
-        if hasattr(block_class, "ContextType") and hasattr(
-            block_class.ContextType, "model_fields"
-        ):
-            param_data["context"] = {
-                field_name: get_field_info(field)
-                for field_name, field in block_class.ContextType.model_fields.items()
-            }
-
-        return ApiResponseWrapper(data=param_data)
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Error in get_block_param: {str(e)}")
+    if block_class is None:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get block parameters: {str(e)}",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid block type: {block_type}",
         )
+
+    # Get Block parameters information
+    param_data = BlockParam(
+        params_type=[],
+        context=[],
+    )
+
+    # Process ParamsType
+    if hasattr(block_class, "ParamsType"):
+        param_data.params_type = parse_pydantic_to_antd_form(
+            block_class.ParamsType, exclude_fields=["block_memory"]
+        )
+
+    # Process Context
+    if hasattr(block_class, "Context"):
+        param_data.context = parse_pydantic_to_table(block_class.Context)
+
+    return ApiResponseWrapper(data=param_data)
 
 
 @router.get("/agent-classes")

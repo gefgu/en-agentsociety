@@ -246,15 +246,6 @@
 
 ````
 
-````{py:method} filter(types: typing.Optional[tuple[type[agentsociety.agent.Agent]]] = None, memory_kv: typing.Optional[dict[str, typing.Any]] = None) -> list[int]
-:canonical: agentsociety.simulation.agentgroup.AgentGroup.filter
-:async:
-
-```{autodoc2-docstring} agentsociety.simulation.agentgroup.AgentGroup.filter
-```
-
-````
-
 ````{py:method} gather(content: str, target_agent_ids: typing.Optional[list[int]] = None)
 :canonical: agentsociety.simulation.agentgroup.AgentGroup.gather
 :async:

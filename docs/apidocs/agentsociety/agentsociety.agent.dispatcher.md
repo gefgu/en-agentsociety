@@ -56,6 +56,14 @@
 ```{autodoc2-docstring} agentsociety.agent.dispatcher.BlockDispatcher.__init__
 ```
 
+````{py:method} register_dispatcher_prompt(dispatcher_prompt: str) -> None
+:canonical: agentsociety.agent.dispatcher.BlockDispatcher.register_dispatcher_prompt
+
+```{autodoc2-docstring} agentsociety.agent.dispatcher.BlockDispatcher.register_dispatcher_prompt
+```
+
+````
+
 ````{py:method} register_blocks(blocks: list[agentsociety.agent.block.Block]) -> None
 :canonical: agentsociety.agent.dispatcher.BlockDispatcher.register_blocks
 

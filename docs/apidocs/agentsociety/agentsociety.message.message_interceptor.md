@@ -27,10 +27,6 @@
 :class: autosummary longtable
 :align: left
 
-* - {py:obj}`DEFAULT_ERROR_STRING <agentsociety.message.message_interceptor.DEFAULT_ERROR_STRING>`
-  - ```{autodoc2-docstring} agentsociety.message.message_interceptor.DEFAULT_ERROR_STRING
-    :summary:
-    ```
 * - {py:obj}`logger <agentsociety.message.message_interceptor.logger>`
   - ```{autodoc2-docstring} agentsociety.message.message_interceptor.logger
     :summary:
@@ -42,15 +38,6 @@
 ````
 
 ### API
-
-````{py:data} DEFAULT_ERROR_STRING
-:canonical: agentsociety.message.message_interceptor.DEFAULT_ERROR_STRING
-:value: <Multiline-String>
-
-```{autodoc2-docstring} agentsociety.message.message_interceptor.DEFAULT_ERROR_STRING
-```
-
-````
 
 ````{py:data} logger
 :canonical: agentsociety.message.message_interceptor.logger
@@ -124,15 +111,6 @@
 :type: agentsociety.llm.LLM
 
 ```{autodoc2-docstring} agentsociety.message.message_interceptor.MessageInterceptor.llm
-```
-
-````
-
-````{py:method} violation_counts() -> dict[int, int]
-:canonical: agentsociety.message.message_interceptor.MessageInterceptor.violation_counts
-:async:
-
-```{autodoc2-docstring} agentsociety.message.message_interceptor.MessageInterceptor.violation_counts
 ```
 
 ````

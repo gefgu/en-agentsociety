@@ -36,23 +36,23 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
       providerRef.current.dispose();
       providerRef.current = null;
     }
-    
+
     // Use unique language ID
     const uniqueLanguageId = `markdown-${editorId}`;
-    
+
     // Register custom language
     if (!monaco.languages.getLanguages().some((lang: any) => lang.id === uniqueLanguageId)) {
-      monaco.languages.register({ 
+      monaco.languages.register({
         id: uniqueLanguageId,
         extensions: ['.md'],
         aliases: ['Markdown', uniqueLanguageId],
         mimetypes: ['text/markdown']
       });
     }
-    
+
     // Register new provider
     providerRef.current = monaco.languages.registerCompletionItemProvider(uniqueLanguageId, {
-      triggerCharacters: ['$', '.'],
+      triggerCharacters: ['$', '.', '{'],
       provideCompletionItems: (model: any, position: any) => {
         const textUntilPosition = model.getValueInRange({
           startLineNumber: position.lineNumber,
@@ -60,11 +60,12 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
           endLineNumber: position.lineNumber,
           endColumn: position.column
         });
-        
+
         const hasDollar = textUntilPosition.endsWith('$');
+        const hasBrace = textUntilPosition.endsWith('{');
         const hasDot = textUntilPosition.endsWith('.');
         const word = model.getWordUntilPosition(position);
-        
+
         const range = {
           startLineNumber: position.lineNumber,
           endLineNumber: position.lineNumber,
@@ -79,11 +80,11 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
         return {
           suggestions: currentSuggestions.map((item, index) => {
             let insertText = item.label;
-            
+
             // Check if it's the last level (no children or empty children)
             const isLastLevel = !item.children || item.children.length === 0;
             const hasChildren = item.children && item.children.length > 0;
-            
+
             // If triggered by dot
             if (hasDot) {
               if (hasChildren) {
@@ -92,6 +93,13 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
               } else {
                 // If it's the last level, add closing brace
                 insertText = `${insertText}}`;
+              }
+            } else if (hasBrace) {
+              // If triggered by {
+              if (isLastLevel) {
+                insertText = `${insertText}}`;
+              } else {
+                insertText = `${insertText}.`;
               }
             } else {
               // If triggered by $ or other
@@ -103,7 +111,7 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
                 insertText = `{${insertText}.`;
               }
             }
-            
+
             return {
               label: item.label,
               kind: monaco.languages.CompletionItemKind.Field,
@@ -119,15 +127,15 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
       }
     });
   };
-  
+
   // Handle editor mount
   const handleEditorDidMount = (editor: any, monaco: any) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
-    
+
     // Register completion provider
     registerCompletionProvider(monaco);
-    
+
     // Configure editor options
     editor.updateOptions({
       fontSize: 14,
@@ -172,14 +180,14 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
     });
     monaco.editor.setTheme('vs-gray');
   };
-  
+
   // Re-register provider when suggestions change
   useEffect(() => {
     if (monacoRef.current) {
       registerCompletionProvider(monacoRef.current);
     }
   }, [suggestions]);
-  
+
   // Cleanup when component unmounts
   useEffect(() => {
     return () => {

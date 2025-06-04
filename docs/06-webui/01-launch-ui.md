@@ -1,5 +1,10 @@
 # Launching the Web UI
 
+```{admonition} Hint
+:class: hint
+If you want to deploy the service locally, you can follow the instructions in this section. If you prefer not to deploy it yourself and would rather use our online platform directly, you can skip this section.
+```
+
 To launch the Web UI, you first need to set up the environment as described in [Prerequisites](../01-quick-start/01-prerequisites.md), including PostgreSQL and MLflow.
 
 Then, create a configuration file (e.g., `config.yaml`) with the required environment information. The configuration include:

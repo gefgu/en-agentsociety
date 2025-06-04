@@ -41,6 +41,17 @@ Bases: {py:obj}`agentsociety.agent.AgentParams`
 ```{autodoc2-docstring} agentsociety.cityagent.sharing_params.SocietyAgentConfig.__init__
 ```
 
+````{py:attribute} block_dispatch_prompt
+:canonical: agentsociety.cityagent.sharing_params.SocietyAgentConfig.block_dispatch_prompt
+:type: str
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.cityagent.sharing_params.SocietyAgentConfig.block_dispatch_prompt
+```
+
+````
+
 ````{py:attribute} enable_cognition
 :canonical: agentsociety.cityagent.sharing_params.SocietyAgentConfig.enable_cognition
 :type: bool

@@ -468,10 +468,15 @@ async def download_map_by_token(
         )
         result = await db.execute(stmt)
         link = result.scalar_one_or_none()
-        if not link or link.expire_at < datetime.now():
+        if not link:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Download link expired or invalid",
+                detail=f"Download link not found",
+            )
+        if link.expire_at < datetime.now(link.expire_at.tzinfo):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Download link expired. {link.expire_at} < {datetime.now()}",
             )
 
         stmt = select(MapConfig).where(MapConfig.id == config_id)

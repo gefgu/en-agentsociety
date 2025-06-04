@@ -23,14 +23,14 @@
 
 ### API
 
-```{py:class} ProfileMemoryUnit(content: typing.Optional[dict] = None, activate_timestamp: bool = False)
+```{py:class} ProfileMemoryUnit(content: agentsociety.memory.const.Optional[dict] = None, activate_timestamp: bool = False)
 :canonical: agentsociety.memory.profile.ProfileMemoryUnit
 
 Bases: {py:obj}`agentsociety.memory.memory_base.MemoryUnit`
 
 ```
 
-`````{py:class} ProfileMemory(msg: typing.Optional[typing.Union[agentsociety.memory.profile.ProfileMemoryUnit, collections.abc.Sequence[agentsociety.memory.profile.ProfileMemoryUnit], dict, collections.abc.Sequence[dict]]] = None, activate_timestamp: bool = False)
+`````{py:class} ProfileMemory(msg: agentsociety.memory.const.Optional[typing.Union[agentsociety.memory.profile.ProfileMemoryUnit, collections.abc.Sequence[agentsociety.memory.profile.ProfileMemoryUnit], dict, collections.abc.Sequence[dict]]] = None, activate_timestamp: bool = False)
 :canonical: agentsociety.memory.profile.ProfileMemory
 
 Bases: {py:obj}`agentsociety.memory.memory_base.MemoryBase`

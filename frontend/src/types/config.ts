@@ -39,8 +39,9 @@ export interface MemoryConfig {
 
 export interface AgentConfig {
   agent_class: string;
-  number: number;
-  agent_config?: Record<string, any>;
+  number?: number;
+  agent_params?: Record<string, any>;
+  blocks?: Record<string, any>;
   memory_config_func?: string;
   memory_from_file?: string;
   memory_distributions?: Record<string, DistributionConfig>;
@@ -52,7 +53,7 @@ export interface AgentsConfig {
   banks?: AgentConfig[];
   nbs?: AgentConfig[];
   governments?: AgentConfig[];
-  init_funcs?: string[];
+  supervisor?: AgentConfig;
 }
 
 // Experiment Configuration
@@ -75,6 +76,7 @@ export interface MessageInterceptConfig {
 export interface WorkflowStepConfig {
   type: WorkflowType;
   func?: string;
+  days?: number;
   steps?: number;
   ticks_per_step?: number;
   target_agent?: number[];
@@ -112,4 +114,14 @@ export interface Config {
   map: MapConfig;
   agents: AgentsConfig;
   exp: ExpConfig;
-} 
+}
+
+export interface ConfigWrapper<T> {
+  tenant_id?: string;
+  id?: string;
+  name: string;
+  description?: string;
+  created_at?: string;
+  updated_at?: string;
+  config: T;
+}
