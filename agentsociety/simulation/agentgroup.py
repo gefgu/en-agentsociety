@@ -245,7 +245,10 @@ class AgentGroup:
             base = memory_dict.get("base", {})
             profile_ = {}
             for k, v in profile.items():
-                profile_[k] = v[1]
+                if isinstance(v, tuple):
+                    profile_[k] = v[1]
+                else:
+                    profile_[k] = v
             to_return[id] = (agent_class, profile_)
             memory_init = Memory(
                 agent_id=id,
