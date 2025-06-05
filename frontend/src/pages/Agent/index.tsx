@@ -236,7 +236,6 @@ const AgentList: React.FC = () => {
 
                     config.supervisor = {
                         agent_class: template.agent_class || 'supervisor',
-                        number: 1, // supervisor 固定为1
                         memory_from_file: formValues.supervisor.memory_from_file,
                         agent_params: template.agent_params,
                         blocks: convertedBlocks

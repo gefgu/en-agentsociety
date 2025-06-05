@@ -6,7 +6,10 @@ import random
 
 import ray
 
-from agentsociety.cityagent import SocietyAgent, default
+from agentsociety.cityagent import (
+    SocietyAgent,
+    default,
+)
 from agentsociety.configs import (
     AgentsConfig,
     Config,
@@ -17,8 +20,7 @@ from agentsociety.configs import (
 )
 from agentsociety.configs.agent import AgentConfig
 from agentsociety.configs.exp import (
-    WorkflowStepConfig,
-    WorkflowType,
+    WorkflowStepConfig, WorkflowType
 )
 from agentsociety.environment import EnvironmentConfig
 from agentsociety.llm import LLMProviderType
@@ -32,14 +34,12 @@ ray.init(logging_level=logging.INFO)
 async def gather_memory(simulation: AgentSociety):
     print("gather memory")
     citizen_uuids = await simulation.filter(types=(SocietyAgent,))
-    group_chat_histories: list[dict[int, dict[str, str]]] = await simulation.gather(
-        "chat_histories", citizen_uuids
+    chat_histories = await simulation.gather(
+        "chat_histories", citizen_uuids, flatten=True, keep_id=True
     )
-    chat_histories: dict[int, dict[str, str]] = {}
-    for group_history in group_chat_histories:
-        for agent_id in group_history.keys():
-            chat_histories[agent_id] = group_history[agent_id]
-    memories = await simulation.gather("stream_memory", citizen_uuids)
+    memories = await simulation.gather(
+        "stream_memory", citizen_uuids, flatten=True, keep_id=True
+    )
     with open(f"chat_histories.json", "w", encoding="utf-8") as f:
         json.dump(chat_histories, f, ensure_ascii=False, indent=2)
     with open(f"memories.json", "w", encoding="utf-8") as f:
@@ -49,13 +49,9 @@ async def gather_memory(simulation: AgentSociety):
 async def update_chat_histories(simulation: AgentSociety):
     citizen_ids = await simulation.filter(types=(SocietyAgent,))
     selected_citizen_ids = random.sample(citizen_ids, k=3)
-    group_chat_histories: list[dict[int, dict[str, str]]] = await simulation.gather(
-        "chat_histories", selected_citizen_ids
+    chat_histories = await simulation.gather(
+        "chat_histories", selected_citizen_ids, flatten=True, keep_id=True
     )
-    chat_histories: dict[int, dict[str, str]] = {}
-    for group_history in group_chat_histories:
-        for agent_id in group_history.keys():
-            chat_histories[agent_id] = group_history[agent_id]
     for agent in selected_citizen_ids:
         chat_history = copy.deepcopy(chat_histories[agent])
         for chat in chat_history.keys():
@@ -101,7 +97,7 @@ config = Config(
                 agent_class="citizen",
                 number=100,
             )
-        ]
+        ],
     ),  # type: ignore
     exp=ExpConfig(
         name="social_edge_intercept",

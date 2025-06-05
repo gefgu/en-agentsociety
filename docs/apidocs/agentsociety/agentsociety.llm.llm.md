@@ -133,6 +133,16 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ````
 
+````{py:attribute} VolcEngine
+:canonical: agentsociety.llm.llm.LLMProviderType.VolcEngine
+:value: >
+   'volcengine'
+
+```{autodoc2-docstring} agentsociety.llm.llm.LLMProviderType.VolcEngine
+```
+
+````
+
 ````{py:attribute} VLLM
 :canonical: agentsociety.llm.llm.LLMProviderType.VLLM
 :value: >

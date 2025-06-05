@@ -354,7 +354,7 @@ Bases: {py:obj}`agentsociety.agent.Block`
 ````{py:attribute} description
 :canonical: agentsociety.cityagent.blocks.mobility_block.MobilityBlock.description
 :value: >
-   'Responsible for all kinds of mobility-related operations'
+   'Responsible for all kinds of mobility-related operations, for example, go to work, go to home, go to...'
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MobilityBlock.description
 ```

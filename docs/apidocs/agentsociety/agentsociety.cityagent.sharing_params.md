@@ -63,50 +63,6 @@ Bases: {py:obj}`agentsociety.agent.AgentParams`
 
 ````
 
-````{py:attribute} UBI
-:canonical: agentsociety.cityagent.sharing_params.SocietyAgentConfig.UBI
-:type: float
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.cityagent.sharing_params.SocietyAgentConfig.UBI
-```
-
-````
-
-````{py:attribute} num_labor_hours
-:canonical: agentsociety.cityagent.sharing_params.SocietyAgentConfig.num_labor_hours
-:type: int
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.cityagent.sharing_params.SocietyAgentConfig.num_labor_hours
-```
-
-````
-
-````{py:attribute} productivity_per_labor
-:canonical: agentsociety.cityagent.sharing_params.SocietyAgentConfig.productivity_per_labor
-:type: float
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.cityagent.sharing_params.SocietyAgentConfig.productivity_per_labor
-```
-
-````
-
-````{py:attribute} time_diff
-:canonical: agentsociety.cityagent.sharing_params.SocietyAgentConfig.time_diff
-:type: int
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.cityagent.sharing_params.SocietyAgentConfig.time_diff
-```
-
-````
-
 ````{py:attribute} need_initialization_prompt
 :canonical: agentsociety.cityagent.sharing_params.SocietyAgentConfig.need_initialization_prompt
 :type: str

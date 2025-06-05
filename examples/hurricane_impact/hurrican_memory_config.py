@@ -4,7 +4,11 @@ from collections import deque
 
 import numpy as np
 from typing import Any, Optional
-from agentsociety.agent.memory_config_generator import Distribution, MemoryT
+from agentsociety.agent.memory_config_generator import (
+    Distribution,
+    MemoryT,
+    StatusAttribute,
+)
 
 pareto_param = 8
 payment_max_skill_multiplier_base = 950
@@ -22,7 +26,7 @@ index_lock = threading.Lock()
 
 def memory_config_societyagent_hurrican(
     distributions: dict[str, Distribution],
-    class_config: Optional[dict[str, MemoryT]] = None,
+    class_config: Optional[list[StatusAttribute]] = None,
 ) -> tuple[dict[str, MemoryT], dict[str, MemoryT], dict[str, Any]]:
     if not hasattr(memory_config_societyagent_hurrican, "profile_list"):
         with open("profiles_with_aoi.json", "r") as f:

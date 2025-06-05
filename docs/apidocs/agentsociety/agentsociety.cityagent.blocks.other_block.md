@@ -193,7 +193,7 @@ Bases: {py:obj}`agentsociety.agent.Block`
 ````{py:attribute} description
 :canonical: agentsociety.cityagent.blocks.other_block.OtherBlock.description
 :value: >
-   'Responsible for all kinds of intentions/actions except mobility, economy, and social'
+   'Responsible for all kinds of intentions/actions except mobility, economy, and social, for example, s...'
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherBlock.description
 ```

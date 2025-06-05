@@ -138,14 +138,10 @@ def memory_config_societyagent(
         "work_propensity": (float, 0.0, False),
         "consumption_propensity": (float, 0.0, False),
         "to_consumption_currency": (float, 0.0, False),
-        "firm_id": (int, sample_field_value(distributions, "firm_id"), False),
-        "government_id": (
-            int,
-            sample_field_value(distributions, "government_id"),
-            False,
-        ),
-        "bank_id": (int, sample_field_value(distributions, "bank_id"), False),
-        "nbs_id": (int, sample_field_value(distributions, "nbs_id"), False),
+        "firm_id": (int, 0, False),
+        "government_id": (int, 0, False),
+        "bank_id": (int, 0, False),
+        "nbs_id": (int, 0, False),
         "dialog_queue": (deque(maxlen=3), [], False),  # type: ignore
         "firm_forward": (int, 0, False),
         "bank_forward": (int, 0, False),

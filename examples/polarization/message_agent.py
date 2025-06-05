@@ -120,7 +120,7 @@ class AgreeAgent(CitizenAgentBase):
                 return ""
             if propagation_count > 5:
                 return ""
-            self.response_prompt.format(message=content)
+            await self.response_prompt.format(message=content)
             response = await self.llm.atext_request(self.response_prompt.to_dialog())
             if response:
                 # Send response
@@ -219,7 +219,7 @@ class DisagreeAgent(CitizenAgentBase):
                 return ""
             if propagation_count > 5:
                 return ""
-            self.response_prompt.format(message=content)
+            await self.response_prompt.format(message=content)
             response = await self.llm.atext_request(self.response_prompt.to_dialog())
             if response:
                 # Send response

@@ -234,6 +234,50 @@ Bases: {py:obj}`agentsociety.agent.BlockParams`
 
 ````
 
+````{py:attribute} UBI
+:canonical: agentsociety.cityagent.blocks.economy_block.EconomyBlockParams.UBI
+:type: float
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.economy_block.EconomyBlockParams.UBI
+```
+
+````
+
+````{py:attribute} num_labor_hours
+:canonical: agentsociety.cityagent.blocks.economy_block.EconomyBlockParams.num_labor_hours
+:type: int
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.economy_block.EconomyBlockParams.num_labor_hours
+```
+
+````
+
+````{py:attribute} productivity_per_labor
+:canonical: agentsociety.cityagent.blocks.economy_block.EconomyBlockParams.productivity_per_labor
+:type: float
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.economy_block.EconomyBlockParams.productivity_per_labor
+```
+
+````
+
+````{py:attribute} time_diff
+:canonical: agentsociety.cityagent.blocks.economy_block.EconomyBlockParams.time_diff
+:type: int
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.economy_block.EconomyBlockParams.time_diff
+```
+
+````
+
 `````
 
 ```{py:class} EconomyBlockContext(/, **data: typing.Any)
@@ -310,7 +354,7 @@ Bases: {py:obj}`agentsociety.agent.Block`
 ````{py:attribute} description
 :canonical: agentsociety.cityagent.blocks.economy_block.EconomyBlock.description
 :value: >
-   'Responsible for all kinds of economic-related operations'
+   'Responsible for all kinds of economic-related operations, for example, work, shopping, consume, etc.'
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.economy_block.EconomyBlock.description
 ```
@@ -324,6 +368,12 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.economy_block.EconomyBlock.actions
 ```
+
+````
+
+````{py:method} before_forward()
+:canonical: agentsociety.cityagent.blocks.economy_block.EconomyBlock.before_forward
+:async:
 
 ````
 

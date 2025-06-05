@@ -52,7 +52,7 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
 
     // Register new provider
     providerRef.current = monaco.languages.registerCompletionItemProvider(uniqueLanguageId, {
-      triggerCharacters: ['$', '.', '{'],
+      triggerCharacters: ['$', '.', '{', ' '],
       provideCompletionItems: (model: any, position: any) => {
         const textUntilPosition = model.getValueInRange({
           startLineNumber: position.lineNumber,
@@ -64,12 +64,13 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
         const hasDollar = textUntilPosition.endsWith('$');
         const hasBrace = textUntilPosition.endsWith('{');
         const hasDot = textUntilPosition.endsWith('.');
+        const hasSpace = textUntilPosition.endsWith(' ');
         const word = model.getWordUntilPosition(position);
 
         const range = {
           startLineNumber: position.lineNumber,
           endLineNumber: position.lineNumber,
-          startColumn: hasDollar || hasDot ? position.column : word.startColumn,
+          startColumn: hasDollar || hasDot || hasSpace ? position.column : word.startColumn,
           endColumn: position.column
         };
 
@@ -84,6 +85,17 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
             // Check if it's the last level (no children or empty children)
             const isLastLevel = !item.children || item.children.length === 0;
             const hasChildren = item.children && item.children.length > 0;
+
+            // 检查是否是运算符建议（通过检查是否有 detail 属性且包含特定关键词）
+            const isOperator = item.detail && (
+              item.detail.includes('Equal to') ||
+              item.detail.includes('Not equal to') ||
+              item.detail.includes('Greater than') ||
+              item.detail.includes('Less than') ||
+              item.detail.includes('Logical') ||
+              item.detail.includes('Value in list') ||
+              item.detail.includes('Identity comparison')
+            );
 
             // If triggered by dot
             if (hasDot) {
@@ -104,8 +116,8 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
             } else {
               // If triggered by $ or other
               if (isLastLevel) {
-                // Always wrap with braces for last level
-                insertText = `{${insertText}}`;
+                // 只有非运算符建议才添加 ${}
+                insertText = isOperator ? insertText : `{${insertText}}`;
               } else {
                 // Not last level, add dot
                 insertText = `{${insertText}.`;

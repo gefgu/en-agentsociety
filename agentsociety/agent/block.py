@@ -239,34 +239,6 @@ class Block:
     def set_agent(self, agent: Any):
         self._agent = agent
 
-    async def _getx(self, function_name: str, *args, **kwargs):
-        """
-        Calls a registered function by name.
-
-        - **Description**:
-            - Calls a registered function by its function_name.
-
-        - **Args**:
-            - `function_name` (str): The name of the function to call.
-            - `*args`: Variable length argument list to pass to the function.
-            - `**kwargs`: Arbitrary keyword arguments to pass to the function.
-
-        - **Returns**:
-            - The result of the called function.
-
-        - **Raises**:
-            - `ValueError`: If the function_name is not registered.
-        """
-        if function_name not in self.__class__.get_functions:
-            raise ValueError(f"GET function '{function_name}' is not registered")
-
-        func_info = self.__class__.get_functions[function_name]
-        if func_info.get("is_async", False):
-            result = await func_info["original_method"](self, *args, **kwargs)
-        else:
-            result = func_info["original_method"](self, *args, **kwargs)
-        return result
-
     @property
     def agent(self) -> Any:
         if self._agent is None:

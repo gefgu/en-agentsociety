@@ -7,7 +7,9 @@ from typing import Literal, Union
 import ray
 from hurrican_memory_config import memory_config_societyagent_hurrican
 
-from agentsociety.cityagent import default
+from agentsociety.cityagent import (
+    default,
+)
 from agentsociety.configs import (
     AgentsConfig,
     Config,
@@ -78,7 +80,7 @@ config = Config(
                 number=1000,
                 memory_config_func=memory_config_societyagent_hurrican,
             )
-        ]
+        ],
     ),  # type: ignore
     exp=ExpConfig(
         name="hurricane_impact",

@@ -21,16 +21,6 @@ class SocietyAgentConfig(AgentParams):
     enable_cognition: bool = Field(
         default=True, description="Whether to enable cognition"
     )
-    UBI: float = Field(default=0, description="Universal Basic Income")
-    num_labor_hours: int = Field(
-        default=168, description="Number of labor hours per month"
-    )
-    productivity_per_labor: float = Field(
-        default=1, description="Productivity per labor hour"
-    )
-    time_diff: int = Field(
-        default=30 * 24 * 60 * 60, description="Time difference between two triggers"
-    )
 
     # Maxlow's Needs
     need_initialization_prompt: str = Field(

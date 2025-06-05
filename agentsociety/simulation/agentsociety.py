@@ -740,10 +740,6 @@ class AgentSociety:
         # Step 3: Insert essential distributions for citizens
         memory_distributions = {}
         for key, ids in [
-            ("firm_id", firm_ids),
-            ("bank_id", bank_ids),
-            ("nbs_id", nbs_ids),
-            ("government_id", government_ids),
             ("home_aoi_id", aoi_ids),
             ("work_aoi_id", aoi_ids),
         ]:
@@ -978,7 +974,7 @@ class AgentSociety:
             filtered_ids = [
                 agent_id
                 for agent_id, (agent_class, _) in self._filter_base.items()
-                if agent_class in types
+                if any(issubclass(agent_class, t) for t in types)
             ]
         else:
             filtered_ids = list(self._agent_ids)

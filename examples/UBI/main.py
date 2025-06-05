@@ -1,11 +1,13 @@
 import asyncio
-import json
 import logging
 import pickle as pkl
 
 import ray
 
-from agentsociety.cityagent import SocietyAgent, default
+from agentsociety.cityagent import (
+    SocietyAgent,
+    default,
+)
 from agentsociety.cityagent.metrics import economy_metric
 from agentsociety.configs import (
     AgentsConfig,
@@ -15,7 +17,7 @@ from agentsociety.configs import (
     LLMConfig,
     MapConfig,
 )
-from agentsociety.configs.agent import InstitutionAgentClass, AgentConfig
+from agentsociety.configs.agent import AgentConfig, InstitutionAgentClass
 from agentsociety.configs.exp import (
     MetricExtractorConfig,
     MetricType,
@@ -24,17 +26,18 @@ from agentsociety.configs.exp import (
 )
 from agentsociety.environment import EnvironmentConfig
 from agentsociety.llm import LLMProviderType
-from agentsociety.metrics import MlflowConfig
+from agentsociety.metrics import MlflowConfig, MlflowConfig
 from agentsociety.simulation import AgentSociety
 from agentsociety.storage import AvroConfig, PostgreSQLConfig
-from agentsociety.cityagent import SocietyAgentConfig
 
 ray.init(logging_level=logging.INFO)
 
 
 async def gather_ubi_opinions(simulation: AgentSociety):
     citizen_ids = await simulation.filter(types=(SocietyAgent,))
-    opinions = await simulation.gather("ubi_opinion", citizen_ids)
+    opinions = await simulation.gather(
+        "ubi_opinion", citizen_ids, flatten=True, keep_id=True
+    )
     with open("opinions.pkl", "wb") as f:
         pkl.dump(opinions, f)
 
@@ -74,18 +77,7 @@ config = Config(
             AgentConfig(
                 agent_class="citizen",
                 number=1,
-                agent_params=SocietyAgentConfig(
-                    UBI=1000,
-                    num_labor_hours=168,
-                    productivity_per_labor=1,
-                ),
-            )
-        ],
-        firms=[
-            AgentConfig(
-                agent_class=InstitutionAgentClass.FIRM,
-                number=1,
-            )
+            ),
         ],
     ),  # type: ignore
     exp=ExpConfig(

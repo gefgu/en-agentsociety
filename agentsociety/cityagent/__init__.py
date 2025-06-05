@@ -120,6 +120,38 @@ def default(config: Config) -> Config:
     Use the default values in cityagent to fill in the config.
     """
     # =====================
+    # fill orgnizations
+    # =====================
+    if any(citizen_config.agent_class == "citizen" for citizen_config in config.agents.citizens):
+        if len(config.agents.firms) == 0:
+            config.agents.firms = [
+                AgentConfig(
+                    agent_class="firm",
+                    number=1,
+                )
+            ]
+        if len(config.agents.governments) == 0:
+            config.agents.governments = [
+                AgentConfig(
+                    agent_class="government",
+                    number=1,
+                )
+            ]
+        if len(config.agents.banks) == 0:
+            config.agents.banks = [
+                AgentConfig(
+                    agent_class="bank",
+                    number=1,
+                )
+            ]
+        if len(config.agents.nbs) == 0:
+            config.agents.nbs = [
+                AgentConfig(
+                    agent_class="nbs",
+                    number=1,
+                )
+            ]
+    # =====================
     # agent config
     # =====================
     config.agents.citizens = [

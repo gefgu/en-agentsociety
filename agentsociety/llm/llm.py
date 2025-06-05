@@ -51,6 +51,7 @@ class LLMProviderType(str, Enum):
     Qwen = "qwen"
     ZhipuAI = "zhipuai"
     SiliconFlow = "siliconflow"
+    VolcEngine = "volcengine"
     VLLM = "vllm"
 
 
@@ -179,6 +180,8 @@ class LLM:
                 ...
             elif config.provider == LLMProviderType.ZhipuAI:
                 base_url = "https://open.bigmodel.cn/api/paas/v4/"
+            elif config.provider == LLMProviderType.VolcEngine:
+                base_url = "https://ark.cn-beijing.volces.com/api/v3/"
             else:
                 raise ValueError(f"Unsupported `provider` {config.provider}!")
 

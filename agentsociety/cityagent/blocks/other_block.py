@@ -143,7 +143,7 @@ class OtherBlock(Block):
     OutputType = SocietyAgentBlockOutput
     ContextType = OtherBlockContext
     name = "OtherBlock"
-    description = "Responsible for all kinds of intentions/actions except mobility, economy, and social"
+    description = "Responsible for all kinds of intentions/actions except mobility, economy, and social, for example, sleep, other actions, etc."
     actions = {
         "sleep": "Support the sleep action",
         "other": "Support other actions",

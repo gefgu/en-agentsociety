@@ -152,7 +152,9 @@ async def bind_agent_info(simulation: AgentSociety):
         nbs_ids = await simulation.filter(types=(NBSAgent,))
     except Exception as e:
         nbs_ids = []
-
+    if len(firm_ids) == 0 or len(government_ids) == 0 or len(bank_ids) == 0 or len(nbs_ids) == 0:
+        get_logger().warning("No firm, government, bank or NBS found, skipping economy binding")
+        return
     random.shuffle(citizen_ids)
     employee_sizes = zipf_distribution(len(citizen_ids), len(firm_ids))
 

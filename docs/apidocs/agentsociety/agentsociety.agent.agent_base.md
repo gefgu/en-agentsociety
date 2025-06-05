@@ -319,15 +319,6 @@ Bases: {py:obj}`abc.ABC`
 
 ````
 
-````{py:method} _getx(function_name: str, *args, **kwargs)
-:canonical: agentsociety.agent.agent_base.Agent._getx
-:async:
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent._getx
-```
-
-````
-
 ````{py:method} init()
 :canonical: agentsociety.agent.agent_base.Agent.init
 :async:

@@ -248,15 +248,6 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:method} _getx(function_name: str, *args, **kwargs)
-:canonical: agentsociety.agent.block.Block._getx
-:async:
-
-```{autodoc2-docstring} agentsociety.agent.block.Block._getx
-```
-
-````
-
 ````{py:property} agent
 :canonical: agentsociety.agent.block.Block.agent
 :type: typing.Any

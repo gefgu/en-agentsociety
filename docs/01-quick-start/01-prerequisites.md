@@ -24,6 +24,7 @@ To use this framework, you **need access to LLM APIs**. We support multiple prov
 - [Qwen](https://tongyi.aliyun.com/)
 - [SiliconFlow](https://siliconflow.cn/)
 - [ZhipuAI](https://chatglm.cn/)
+- [VolcEngine](https://www.volcengine.com/)
 - [vLLM](https://docs.vllm.ai/en/stable/)
 
 Actually, the `vLLM` means any LLM inference engine with the [OpenAI API](https://platform.openai.com/docs/api-reference/introduction)-compatible interface.

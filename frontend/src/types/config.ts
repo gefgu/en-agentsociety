@@ -79,7 +79,7 @@ export interface WorkflowStepConfig {
   days?: number;
   steps?: number;
   ticks_per_step?: number;
-  target_agent?: number[];
+  target_agent?: number[] | string;
   interview_message?: string;
   survey?: any;
   key?: string;

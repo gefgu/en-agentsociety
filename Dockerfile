@@ -35,4 +35,4 @@ COPY setup.py /app/setup.py
 COPY --from=builder /app/dist /app/agentsociety/_dist
 RUN pip install . --no-cache-dir \
     && rm -rf /app
-RUN pip install agentsociety-community==0.2.8 --no-cache-dir
+RUN pip install agentsociety-community==0.2.9 --no-cache-dir

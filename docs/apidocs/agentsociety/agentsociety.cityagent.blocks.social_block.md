@@ -301,7 +301,7 @@ Bases: {py:obj}`agentsociety.agent.Block`
 ````{py:attribute} description
 :canonical: agentsociety.cityagent.blocks.social_block.SocialBlock.description
 :value: >
-   'Responsible for all kinds of social interactions'
+   'Responsible for all kinds of social interactions, for example, find a friend, send a message, etc.'
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialBlock.description
 ```
