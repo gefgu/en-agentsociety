@@ -45,6 +45,10 @@ jobs:
       - name: Build frontend
         run: |
           bash scripts/rebuild_frontend.sh
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
       - name: Build wheels for macOS
         uses: pypa/cibuildwheel@v3.0.0
         with:
