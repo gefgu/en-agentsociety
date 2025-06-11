@@ -1,6 +1,6 @@
 import { Button, Col, Divider, Flex, GetProp, message, Modal, Row, Select, Tabs } from 'antd';
 import { AndroidOutlined, ArrowUpOutlined, CommentOutlined, ProfileOutlined, SmileOutlined, UpOutlined, UserOutlined, LineChartOutlined } from '@ant-design/icons';
-import { AgentDialog, AgentProfile, AgentSurvey, ApiMLflowMetric } from './components/type';
+import { AgentDialog, AgentProfile, AgentSurvey, ApiMetric } from './components/type';
 import { Bubble, Sender } from '@ant-design/x';
 import { parseT } from '../../components/util';
 import React, { useContext, useState } from 'react';

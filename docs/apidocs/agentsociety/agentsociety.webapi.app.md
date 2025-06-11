@@ -85,7 +85,7 @@
 ```
 ````
 
-````{py:function} create_app(pg_dsn: str, mlflow_url: str, read_only: bool, env: agentsociety.configs.EnvConfig, get_tenant_id: typing.Callable[[fastapi.Request], typing.Awaitable[str]] = empty_get_tenant_id, more_router: typing.Optional[fastapi.APIRouter] = None, more_state: typing.Dict[str, typing.Any] = {}, session_secret_key: str = 'agentsociety-session')
+````{py:function} create_app(db_dsn: str, read_only: bool, env: agentsociety.configs.EnvConfig, get_tenant_id: typing.Callable[[fastapi.Request], typing.Awaitable[str]] = empty_get_tenant_id, more_router: typing.Optional[fastapi.APIRouter] = None, more_state: typing.Dict[str, typing.Any] = {}, session_secret_key: str = 'agentsociety-session')
 :canonical: agentsociety.webapi.app.create_app
 
 ```{autodoc2-docstring} agentsociety.webapi.app.create_app

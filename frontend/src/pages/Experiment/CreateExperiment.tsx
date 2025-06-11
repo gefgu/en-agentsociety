@@ -211,7 +211,7 @@ const CreateExperiment: React.FC = () => {
                             const experiment = experimentData.data;
 
                             // Check if experiment is fully initialized
-                            if (experiment.status === 1) {
+                            if (experiment.status !== 0) {
                                 clearInterval(interval);
                                 message.success(t('experiment.messages.initSuccess'));
                                 navigate('/console');
@@ -228,7 +228,7 @@ const CreateExperiment: React.FC = () => {
                         }
                     } else if (status === 'Failed' || status === 'Error') {
                         clearInterval(interval);
-                        message.error(t('experiment.messages.startFailed'));
+                        message.error(t('experiment.messages.startFailed', { error: status }));
                         setExperimentRunning(false);
                     }
                 } catch (error) {

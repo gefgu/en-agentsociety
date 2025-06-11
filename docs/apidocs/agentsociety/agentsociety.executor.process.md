@@ -57,7 +57,7 @@
 ```{autodoc2-docstring} agentsociety.executor.process.ProcessExecutor.__init__
 ```
 
-````{py:method} _get_status_file(exp_id: str) -> pathlib.Path
+````{py:method} _get_status_file(exp_id: str, tenant_id: str) -> pathlib.Path
 :canonical: agentsociety.executor.process.ProcessExecutor._get_status_file
 
 ```{autodoc2-docstring} agentsociety.executor.process.ProcessExecutor._get_status_file
@@ -65,7 +65,7 @@
 
 ````
 
-````{py:method} _get_log_file(exp_id: str) -> pathlib.Path
+````{py:method} _get_log_file(exp_id: str, tenant_id: str) -> pathlib.Path
 :canonical: agentsociety.executor.process.ProcessExecutor._get_log_file
 
 ```{autodoc2-docstring} agentsociety.executor.process.ProcessExecutor._get_log_file
@@ -89,7 +89,7 @@
 
 ````
 
-````{py:method} create(config_base64: typing.Optional[str] = None, config_path: typing.Optional[str] = None)
+````{py:method} create(config_base64: typing.Optional[str] = None, config_path: typing.Optional[str] = None, callback_url: str = '', callback_auth_token: str = '', tenant_id: str = '')
 :canonical: agentsociety.executor.process.ProcessExecutor.create
 :async:
 

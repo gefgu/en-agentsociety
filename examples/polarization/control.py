@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 import os
 import random
@@ -20,14 +19,14 @@ from agentsociety.configs import (
 )
 from agentsociety.configs.agent import AgentConfig
 from agentsociety.configs.exp import (
+    AgentFilterConfig,
     WorkflowStepConfig,
     WorkflowType,
 )
 from agentsociety.environment import EnvironmentConfig
 from agentsociety.llm import LLMProviderType
-from agentsociety.metrics import MlflowConfig
 from agentsociety.simulation import AgentSociety
-from agentsociety.storage import AvroConfig, PostgreSQLConfig
+from agentsociety.storage import DatabaseConfig
 
 ray.init(logging_level=logging.INFO)
 
@@ -43,26 +42,6 @@ async def update_attitude(simulation: AgentSociety):
             await simulation.update(
                 [agent_id], "attitude", {"Whether to support stronger gun control?": 7}
             )
-    attitudes = await simulation.gather("attitude", citizen_ids)
-    with open(f"exp1/attitudes_initial.json", "w", encoding="utf-8") as f:
-        json.dump(attitudes, f, ensure_ascii=False, indent=2)
-
-
-async def gather_attitude(simulation: AgentSociety):
-    print("gather attitude")
-    citizen_ids = await simulation.filter(types=(SocietyAgent,))
-    attitudes = await simulation.gather(
-        "attitude", citizen_ids, flatten=True, keep_id=True
-    )
-
-    with open(f"exp1/attitudes_final.json", "w", encoding="utf-8") as f:
-        json.dump(attitudes, f, ensure_ascii=False, indent=2)
-
-    chat_histories = await simulation.gather(
-        "chat_histories", citizen_ids, flatten=True, keep_id=True
-    )
-    with open(f"exp1/chat_histories.json", "w", encoding="utf-8") as f:
-        json.dump(chat_histories, f, ensure_ascii=False, indent=2)
 
 
 config = Config(
@@ -76,24 +55,14 @@ config = Config(
         )
     ],
     env=EnvConfig(
-        pgsql=PostgreSQLConfig(
+        db=DatabaseConfig(
             enabled=True,
-            dsn="<PGSQL-DSN>",
-            num_workers="auto",
-        ),
-        avro=AvroConfig(
-            enabled=True,
-        ),
-        mlflow=MlflowConfig(
-            enabled=True,
-            mlflow_uri="<MLFLOW-URI>",
-            username="<USERNAME>",
-            password="<PASSWORD>",
+            db_type="sqlite",
+            pg_dsn=None,
         ),
     ),
     map=MapConfig(
         file_path="<MAP-FILE-PATH>",
-        cache_path="<CACHE-FILE-PATH>",
     ),
     agents=AgentsConfig(
         citizens=[
@@ -111,12 +80,32 @@ config = Config(
                 func=update_attitude,
             ),
             WorkflowStepConfig(
+                type=WorkflowType.SAVE_CONTEXT,
+                target_agent=AgentFilterConfig(
+                    agent_class=(SocietyAgent,),
+                ),
+                key="attitude",
+                save_as="guncontrol_attitude_initial",
+            ),
+            WorkflowStepConfig(
                 type=WorkflowType.RUN,
                 days=3,
             ),
             WorkflowStepConfig(
-                type=WorkflowType.FUNCTION,
-                func=gather_attitude,
+                type=WorkflowType.SAVE_CONTEXT,
+                target_agent=AgentFilterConfig(
+                    agent_class=(SocietyAgent,),
+                ),
+                key="attitude",
+                save_as="guncontrol_attitude_final",
+            ),
+            WorkflowStepConfig(
+                type=WorkflowType.SAVE_CONTEXT,
+                target_agent=AgentFilterConfig(
+                    agent_class=(SocietyAgent,),
+                ),
+                key="chat_histories",
+                save_as="guncontrol_chat_histories",
             ),
         ],
         environment=EnvironmentConfig(

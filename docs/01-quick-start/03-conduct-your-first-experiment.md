@@ -1,6 +1,6 @@
 # Conduct Your First Experiment with Interventions
 
-This guide will help you conduct a simple experiment involving interventions and data collection. We'll walk through how to introduce interventions such as weather changes, collect relevant data, and store it using MLflow.
+This guide will help you conduct a simple experiment involving interventions and data collection. We'll walk through how to introduce interventions such as weather changes, collect relevant data, and store it using database.
 
 We provide two ways to run the simulation:
 
@@ -18,19 +18,11 @@ llm:
   model: <YOUR-MODEL> # LLM model
   provider: <PROVIDER> # LLM provider
 env:
-  avro:
-    enabled: false # Whether to enable Avro
-  mlflow:
-    enabled: false # Whether to enable MLflow
-    mlflow_uri: http://localhost:59000 # MLflow server URI``
-    username: <CHANGE_ME> # MLflow server username
-    password: <CHANGE_ME> # MLflow server password
-  pgsql:
-    enabled: true # Whether to enable PostgreSQL
-    dsn: postgresql://postgres:CHANGE_ME@localhost:5432/postgres # PostgreSQL connection string
+  db:
+    enabled: true # Whether to enable database
+    db_type: sqlite # Database type, currently supported: sqlite (default), postgresql
 map:
   file_path: <MAP-FILE-PATH> # Path to the map file
-  cache_path: <CACHE-FILE-PATH> # Cache path for accelerating map file loading
 agents:
   citizens:
   - agent_class: citizen # The class of the agent
@@ -126,24 +118,14 @@ config = Config(
         )
     ],
     env=EnvConfig(
-        pgsql=PostgreSQLConfig(
+        db=DatabaseConfig(
             enabled=True,
-            dsn="<PGSQL-DSN>",
-            num_workers="auto",
-        ),
-        avro=AvroConfig(
-            enabled=True,
-        ),
-        mlflow=MlflowConfig(
-            enabled=False,
-            mlflow_uri="<MLFLOW-URI>",
-            username="<USERNAME>",
-            password="<PASSWORD>",
+            db_type="sqlite",
+            pg_dsn=None,
         ),
     ),
     map=MapConfig(
         file_path="<MAP-FILE-PATH>",
-        cache_path="<CACHE-FILE-PATH>",
     ),
     agents=AgentsConfig(
         citizens=[
@@ -206,7 +188,7 @@ After completing the first experiment, analyze the results to understand the imp
 
 ### Example of Analyzing Results
 
-Review the logs and visualizations provided by MLflow to interpret the outcomes of your experiment. Based on these insights, you can plan and execute larger and more complex experiments.
+Review the logs and visualizations provided by database to interpret the outcomes of your experiment. Based on these insights, you can plan and execute larger and more complex experiments.
 
 ## Next Steps
 

@@ -55,6 +55,10 @@
   - ```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.finish_experiment
     :summary:
     ```
+* - {py:obj}`_compute_bill <agentsociety.webapi.api.experiment_runner._compute_bill>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner._compute_bill
+    :summary:
+    ```
 ````
 
 ### Data
@@ -282,5 +286,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 :async:
 
 ```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.finish_experiment
+```
+````
+
+````{py:function} _compute_bill(db: sqlalchemy.ext.asyncio.AsyncSession, experiment: agentsociety.webapi.models.experiment.Experiment) -> None
+:canonical: agentsociety.webapi.api.experiment_runner._compute_bill
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner._compute_bill
 ```
 ````

@@ -13,9 +13,10 @@
 :titlesonly:
 :maxdepth: 1
 
+agentsociety.storage.database
+agentsociety.storage._base
 agentsociety.storage.type
-agentsociety.storage.pgsql
-agentsociety.storage.avro
+agentsociety.storage.model
 ```
 
 ## Package Contents
@@ -37,7 +38,7 @@ agentsociety.storage.avro
 ````{py:data} __all__
 :canonical: agentsociety.storage.__all__
 :value: >
-   ['AvroSaver', 'AvroConfig', 'PgWriter', 'StorageDialog', 'StorageSurvey', 'StorageDialogType', 'Post...
+   ['TABLE_PREFIX', 'Base', 'BaseNoInit', 'MoneyDecimal', 'DatabaseWriter', 'DatabaseConfig', 'StorageD...
 
 ```{autodoc2-docstring} agentsociety.storage.__all__
 ```

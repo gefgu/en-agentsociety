@@ -26,7 +26,6 @@ agentsociety.s3
 agentsociety.cityagent
 agentsociety.executor
 agentsociety.survey
-agentsociety.metrics
 agentsociety.message
 agentsociety.filesystem
 agentsociety.utils

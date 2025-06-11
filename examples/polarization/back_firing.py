@@ -1,19 +1,14 @@
 import asyncio
-import json
 import logging
 import os
 import random
-from typing import Union, cast
 
 import ray
 from message_agent import AgreeAgent, DisagreeAgent
 
-from agentsociety.agent.distribution import Distribution, DistributionConfig
 from agentsociety.cityagent import (
-    DEFAULT_DISTRIBUTIONS,
     SocietyAgent,
     default,
-    memory_config_societyagent,
 )
 from agentsociety.configs import (
     AgentsConfig,
@@ -25,14 +20,14 @@ from agentsociety.configs import (
 )
 from agentsociety.configs.agent import AgentConfig
 from agentsociety.configs.exp import (
+    AgentFilterConfig,
     WorkflowStepConfig,
     WorkflowType,
 )
 from agentsociety.environment import EnvironmentConfig
 from agentsociety.llm import LLMProviderType
-from agentsociety.metrics import MlflowConfig
 from agentsociety.simulation import AgentSociety
-from agentsociety.storage import AvroConfig, PostgreSQLConfig
+from agentsociety.storage import DatabaseConfig
 
 ray.init(logging_level=logging.INFO)
 
@@ -60,32 +55,6 @@ async def update_attitude(simulation: AgentSociety):
         await simulation.update([agent_id], "friends", [])
     await simulation.update([agree_agent_id], "friends", disagree_friends)
     await simulation.update([disagree_agent_id], "friends", agree_friends)
-    attitudes = await simulation.gather("attitude", citizen_ids)
-    with open(f"exp3/attitudes_initial.json", "w", encoding="utf-8") as f:
-        json.dump(attitudes, f, ensure_ascii=False, indent=2)
-
-
-async def gather_attitude(simulation: AgentSociety):
-    print("gather attitude")
-    citizen_ids = await simulation.filter(types=(SocietyAgent,))
-    attitudes = await simulation.gather(
-        "attitude", citizen_ids, flatten=True, keep_id=True
-    )
-
-    with open(f"exp3/attitudes_final.json", "w", encoding="utf-8") as f:
-        json.dump(attitudes, f, ensure_ascii=False, indent=2)
-
-    chat_histories = await simulation.gather(
-        "chat_histories", citizen_ids, flatten=True, keep_id=True
-    )
-    with open(f"exp3/chat_histories.json", "w", encoding="utf-8") as f:
-        json.dump(chat_histories, f, ensure_ascii=False, indent=2)
-
-
-distributions = cast(
-    dict[str, Union[Distribution, DistributionConfig]],
-    DEFAULT_DISTRIBUTIONS,
-)
 
 
 config = Config(
@@ -99,24 +68,14 @@ config = Config(
         )
     ],
     env=EnvConfig(
-        pgsql=PostgreSQLConfig(
+        db=DatabaseConfig(
             enabled=True,
-            dsn="<PGSQL-DSN>",
-            num_workers="auto",
-        ),
-        avro=AvroConfig(
-            enabled=True,
-        ),
-        mlflow=MlflowConfig(
-            enabled=True,
-            mlflow_uri="<MLFLOW-URI>",
-            username="<USERNAME>",
-            password="<PASSWORD>",
+            db_type="sqlite",
+            pg_dsn=None,
         ),
     ),
     map=MapConfig(
         file_path="<MAP-FILE-PATH>",
-        cache_path="<CACHE-FILE-PATH>",
     ),
     agents=AgentsConfig(
         citizens=[
@@ -127,14 +86,10 @@ config = Config(
             AgentConfig(
                 agent_class=AgreeAgent,
                 number=1,
-                memory_config_func=memory_config_societyagent,
-                memory_distributions=distributions,
             ),
             AgentConfig(
                 agent_class=DisagreeAgent,
                 number=1,
-                memory_config_func=memory_config_societyagent,
-                memory_distributions=distributions,
             ),
         ],
     ),  # type: ignore
@@ -146,12 +101,32 @@ config = Config(
                 func=update_attitude,
             ),
             WorkflowStepConfig(
+                type=WorkflowType.SAVE_CONTEXT,
+                target_agent=AgentFilterConfig(
+                    agent_class=(SocietyAgent,),
+                ),
+                key="attitude",
+                save_as="guncontrol_attitude_initial",
+            ),
+            WorkflowStepConfig(
                 type=WorkflowType.RUN,
                 days=3,
             ),
             WorkflowStepConfig(
-                type=WorkflowType.FUNCTION,
-                func=gather_attitude,
+                type=WorkflowType.SAVE_CONTEXT,
+                target_agent=AgentFilterConfig(
+                    agent_class=(SocietyAgent,),
+                ),
+                key="attitude",
+                save_as="guncontrol_attitude_final",
+            ),
+            WorkflowStepConfig(
+                type=WorkflowType.SAVE_CONTEXT,
+                target_agent=AgentFilterConfig(
+                    agent_class=(SocietyAgent,),
+                ),
+                key="chat_histories",
+                save_as="guncontrol_chat_histories",
             ),
         ],
         environment=EnvironmentConfig(

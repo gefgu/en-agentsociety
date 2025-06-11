@@ -41,42 +41,6 @@
     ```
 ````
 
-### Functions
-
-````{list-table}
-:class: autosummary longtable
-:align: left
-
-* - {py:obj}`agent_profile <agentsociety.webapi.models.agent.agent_profile>`
-  - ```{autodoc2-docstring} agentsociety.webapi.models.agent.agent_profile
-    :summary:
-    ```
-* - {py:obj}`agent_status <agentsociety.webapi.models.agent.agent_status>`
-  - ```{autodoc2-docstring} agentsociety.webapi.models.agent.agent_status
-    :summary:
-    ```
-* - {py:obj}`agent_survey <agentsociety.webapi.models.agent.agent_survey>`
-  - ```{autodoc2-docstring} agentsociety.webapi.models.agent.agent_survey
-    :summary:
-    ```
-* - {py:obj}`agent_dialog <agentsociety.webapi.models.agent.agent_dialog>`
-  - ```{autodoc2-docstring} agentsociety.webapi.models.agent.agent_dialog
-    :summary:
-    ```
-* - {py:obj}`global_prompt <agentsociety.webapi.models.agent.global_prompt>`
-  - ```{autodoc2-docstring} agentsociety.webapi.models.agent.global_prompt
-    :summary:
-    ```
-* - {py:obj}`pending_dialog <agentsociety.webapi.models.agent.pending_dialog>`
-  - ```{autodoc2-docstring} agentsociety.webapi.models.agent.pending_dialog
-    :summary:
-    ```
-* - {py:obj}`pending_survey <agentsociety.webapi.models.agent.pending_survey>`
-  - ```{autodoc2-docstring} agentsociety.webapi.models.agent.pending_survey
-    :summary:
-    ```
-````
-
 ### Data
 
 ````{list-table}
@@ -99,55 +63,6 @@
 ```{autodoc2-docstring} agentsociety.webapi.models.agent.__all__
 ```
 
-````
-
-````{py:function} agent_profile(table_name: str)
-:canonical: agentsociety.webapi.models.agent.agent_profile
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent.agent_profile
-```
-````
-
-````{py:function} agent_status(table_name: str)
-:canonical: agentsociety.webapi.models.agent.agent_status
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent.agent_status
-```
-````
-
-````{py:function} agent_survey(table_name: str)
-:canonical: agentsociety.webapi.models.agent.agent_survey
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent.agent_survey
-```
-````
-
-````{py:function} agent_dialog(table_name: str)
-:canonical: agentsociety.webapi.models.agent.agent_dialog
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent.agent_dialog
-```
-````
-
-````{py:function} global_prompt(table_name: str)
-:canonical: agentsociety.webapi.models.agent.global_prompt
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent.global_prompt
-```
-````
-
-````{py:function} pending_dialog(table_name: str)
-:canonical: agentsociety.webapi.models.agent.pending_dialog
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent.pending_dialog
-```
-````
-
-````{py:function} pending_survey(table_name: str)
-:canonical: agentsociety.webapi.models.agent.pending_survey
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent.pending_survey
-```
 ````
 
 `````{py:class} AgentDialogType()

@@ -1,5 +1,5 @@
 import { makeAutoObservable, runInAction } from "mobx";
-import { Agent, AgentDialog, AgentProfile, AgentStatus, AgentSurvey, LngLat, Time, ApiMLflowMetric } from "./components/type";
+import { Agent, AgentDialog, AgentProfile, AgentStatus, AgentSurvey, LngLat, Time, ApiMetric } from "./components/type";
 import { message } from "antd";
 import React from "react";
 import { Experiment, Survey } from "../../components/type";
@@ -44,7 +44,7 @@ export class ReplayStore {
     _clickedAgentStatuses: AgentStatus[] = []
     _clickedAgentDialogs: AgentDialog[] = []
     _clickedAgentSurveys: AgentSurvey[] = []
-    _metrics: Map<string, ApiMLflowMetric[]> = new Map()
+    _metrics: Map<string, ApiMetric[]> = new Map()
 
     _id2surveys: Map<string, Survey> = new Map()
 

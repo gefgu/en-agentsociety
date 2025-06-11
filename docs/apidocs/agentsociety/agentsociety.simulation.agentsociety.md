@@ -160,18 +160,18 @@
 
 ````
 
-````{py:property} enable_avro
-:canonical: agentsociety.simulation.agentsociety.AgentSociety.enable_avro
+````{py:property} enable_database
+:canonical: agentsociety.simulation.agentsociety.AgentSociety.enable_database
 
-```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety.enable_avro
+```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety.enable_database
 ```
 
 ````
 
-````{py:property} enable_pgsql
-:canonical: agentsociety.simulation.agentsociety.AgentSociety.enable_pgsql
+````{py:property} database_writer
+:canonical: agentsociety.simulation.agentsociety.AgentSociety.database_writer
 
-```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety.enable_pgsql
+```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety.database_writer
 ```
 
 ````
@@ -188,14 +188,6 @@
 :canonical: agentsociety.simulation.agentsociety.AgentSociety.messager
 
 ```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety.messager
-```
-
-````
-
-````{py:property} mlflow_client
-:canonical: agentsociety.simulation.agentsociety.AgentSociety.mlflow_client
-
-```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety.mlflow_client
 ```
 
 ````

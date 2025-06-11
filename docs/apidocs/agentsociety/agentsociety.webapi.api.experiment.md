@@ -123,7 +123,7 @@
 ```
 ````
 
-````{py:function} get_experiment_metrics_by_id(db: sqlalchemy.ext.asyncio.AsyncSession, exp_id: uuid.UUID) -> typing.Tuple[bool, typing.Dict[str, typing.List[agentsociety.webapi.models.metric.ApiMLflowMetric]]]
+````{py:function} get_experiment_metrics_by_id(db: sqlalchemy.ext.asyncio.AsyncSession, exp_id: uuid.UUID) -> typing.Tuple[bool, typing.Dict[str, typing.List[ApiMLflowMetric]]]
 :canonical: agentsociety.webapi.api.experiment.get_experiment_metrics_by_id
 :async:
 
@@ -131,14 +131,14 @@
 ```
 ````
 
-````{py:function} serialize_metrics(metrics_by_key: typing.Dict[str, typing.List[agentsociety.webapi.models.metric.ApiMLflowMetric]]) -> typing.Dict[str, typing.List[dict]]
+````{py:function} serialize_metrics(metrics_by_key: typing.Dict[str, typing.List[ApiMLflowMetric]]) -> typing.Dict[str, typing.List[dict]]
 :canonical: agentsociety.webapi.api.experiment.serialize_metrics
 
 ```{autodoc2-docstring} agentsociety.webapi.api.experiment.serialize_metrics
 ```
 ````
 
-````{py:function} get_experiment_metrics(request: fastapi.Request, exp_id: uuid.UUID) -> agentsociety.webapi.models.ApiResponseWrapper[typing.Dict[str, typing.List[agentsociety.webapi.models.metric.ApiMLflowMetric]]]
+````{py:function} get_experiment_metrics(request: fastapi.Request, exp_id: uuid.UUID) -> agentsociety.webapi.models.ApiResponseWrapper[typing.Dict[str, typing.List[ApiMLflowMetric]]]
 :canonical: agentsociety.webapi.api.experiment.get_experiment_metrics
 :async:
 

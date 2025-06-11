@@ -126,35 +126,13 @@ Bases: {py:obj}`typing.NamedTuple`
 
 ````
 
-````{py:attribute} avro_saver
-:canonical: agentsociety.agent.agent_base.AgentToolbox.avro_saver
-:type: typing.Optional[agentsociety.storage.AvroSaver]
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.AgentToolbox.avro_saver
-```
-
-````
-
-````{py:attribute} pgsql_writer
-:canonical: agentsociety.agent.agent_base.AgentToolbox.pgsql_writer
+````{py:attribute} database_writer
+:canonical: agentsociety.agent.agent_base.AgentToolbox.database_writer
 :type: typing.Optional[ray.ObjectRef]
 :value: >
    None
 
-```{autodoc2-docstring} agentsociety.agent.agent_base.AgentToolbox.pgsql_writer
-```
-
-````
-
-````{py:attribute} mlflow_client
-:canonical: agentsociety.agent.agent_base.AgentToolbox.mlflow_client
-:type: typing.Optional[agentsociety.metrics.MlflowClient]
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.AgentToolbox.mlflow_client
+```{autodoc2-docstring} agentsociety.agent.agent_base.AgentToolbox.database_writer
 ```
 
 ````
@@ -365,26 +343,10 @@ Bases: {py:obj}`abc.ABC`
 
 ````
 
-````{py:property} avro_saver
-:canonical: agentsociety.agent.agent_base.Agent.avro_saver
+````{py:property} database_writer
+:canonical: agentsociety.agent.agent_base.Agent.database_writer
 
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.avro_saver
-```
-
-````
-
-````{py:property} pgsql_writer
-:canonical: agentsociety.agent.agent_base.Agent.pgsql_writer
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.pgsql_writer
-```
-
-````
-
-````{py:property} mlflow_client
-:canonical: agentsociety.agent.agent_base.Agent.mlflow_client
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.mlflow_client
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.database_writer
 ```
 
 ````

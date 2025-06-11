@@ -45,7 +45,7 @@
 
 ````
 
-`````{py:class} AgentGroup(tenant_id: str, exp_name: str, exp_id: str, group_id: str, config: agentsociety.configs.Config, agent_inits: list[tuple[int, type[typing.Union[agentsociety.agent.CitizenAgentBase, agentsociety.agent.FirmAgentBase, agentsociety.agent.BankAgentBase, agentsociety.agent.NBSAgentBase, agentsociety.agent.GovernmentAgentBase]], agentsociety.agent.memory_config_generator.MemoryConfigGenerator, int, agentsociety.agent.AgentParams, dict[type[agentsociety.agent.Block], agentsociety.agent.BlockParams]]], environment_init: dict, pgsql_writer: typing.Optional[ray.ObjectRef], mlflow_run_id: typing.Optional[str], agent_config_file: typing.Optional[dict[type[agentsociety.agent.Agent], typing.Any]] = None)
+`````{py:class} AgentGroup(tenant_id: str, exp_name: str, exp_id: str, group_id: str, config: agentsociety.configs.Config, agent_inits: list[tuple[int, type[typing.Union[agentsociety.agent.CitizenAgentBase, agentsociety.agent.FirmAgentBase, agentsociety.agent.BankAgentBase, agentsociety.agent.NBSAgentBase, agentsociety.agent.GovernmentAgentBase]], agentsociety.agent.memory_config_generator.MemoryConfigGenerator, int, agentsociety.agent.AgentParams, dict[type[agentsociety.agent.Block], agentsociety.agent.BlockParams]]], environment_init: dict, database_writer: typing.Optional[ray.ObjectRef], agent_config_file: typing.Optional[dict[type[agentsociety.agent.Agent], typing.Any]] = None)
 :canonical: agentsociety.simulation.agentgroup.AgentGroup
 
 ```{autodoc2-docstring} agentsociety.simulation.agentgroup.AgentGroup

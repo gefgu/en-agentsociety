@@ -39,19 +39,11 @@ llm:
   provider: <PROVIDER> # LLM provider
   semaphore: 200 # Semaphore for LLM requests, control the max number of concurrent requests
 env:
-  avro:
-    enabled: false # Whether to enable Avro
-  mlflow:
-    enabled: true # Whether to enable MLflow
-    mlflow_uri: http://localhost:59000 # MLflow server URI
-    username: <CHANGE_ME> # MLflow server username
-    password: <CHANGE_ME> # MLflow server password
-  pgsql:
-    enabled: true # Whether to enable PostgreSQL
-    dsn: postgresql://postgres:CHANGE_ME@localhost:5432/postgres # PostgreSQL connection string
+  db:
+    enabled: true # Whether to enable database
+    db_type: sqlite # Database type, currently supported: sqlite (default), postgresql
 map:
   file_path: <MAP-FILE-PATH> # Path to the map file
-  cache_path: <CACHE-FILE-PATH> # Cache path for accelerating map file loading
 agents:
   citizens:
   - agent_class: citizen # The class of the agent
@@ -137,11 +129,6 @@ When the simulation is over, you can see an error `exception asyncio.CancelledEr
 ```
 
 ## Step 4：View the Results
-
-```{admonition} Caution
-:class: caution
-To use this interface, you MUST deploy PostgreSQL and MLflow first.
-```
 
 When the simulation is done (or is running), you can use our visualization tool within the python package `agentsociety ui` to replay the simulation.
 

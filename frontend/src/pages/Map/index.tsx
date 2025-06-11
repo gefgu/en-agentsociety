@@ -9,8 +9,9 @@ import {
     InboxOutlined
 } from '@ant-design/icons';
 import { MapConfig, ConfigWrapper } from '../../types/config';
-import { fetchCustom } from '../../components/fetch';
+import { fetchCustom, postDownloadCustom, WITH_AUTH } from '../../components/fetch';
 import dayjs from 'dayjs';
+import { getAccessToken } from '../../components/Auth';
 import { useTranslation } from 'react-i18next';
 
 const { Dragger } = Upload;
@@ -68,7 +69,6 @@ const Map: React.FC = () => {
         // Create a basic map config based on config.json structure
         setFormValues({
             file_path: "maps/default_map.pb",
-            cache_path: "maps/default_map.cache"
         });
         metaForm.setFieldsValue({
             name: `Map ${maps.length + 1}`,
@@ -172,6 +172,9 @@ const Map: React.FC = () => {
         name: 'file',
         multiple: false,
         action: '/api/map-configs/-/upload',
+        headers: WITH_AUTH ? {
+            Authorization: `Bearer ${getAccessToken()}`
+        } : {},
         beforeUpload: (file) => {
             // check suffix
             if (!file.name.endsWith('.pb')) {
@@ -252,15 +255,7 @@ const Map: React.FC = () => {
                     </Tooltip>
                     <Tooltip title={t('common.export')}>
                         <Button icon={<DownloadOutlined />} size="small" onClick={() => {
-                            const url = `/api/map-configs/${record.id}/export`
-                            // use form post to download the file
-                            const form = document.createElement('form');
-                            form.action = url;
-                            form.method = 'POST';
-                            form.target = '_blank';
-                            document.body.appendChild(form);
-                            form.submit();
-                            document.body.removeChild(form);
+                            postDownloadCustom(`/api/map-configs/${record.id}/export`)
                         }} />
                     </Tooltip>
 

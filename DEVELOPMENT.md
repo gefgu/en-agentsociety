@@ -36,13 +36,9 @@ read_only: false
 debug: true
 logging_level: INFO
 env:
-  mlflow:
+  db:
     enabled: true
-    mlflow_uri: http://localhost:59000
-    password: CHANGE_ME
-    username: admin
-  pgsql:
-    dsn: postgresql://postgres:CHANGE_ME@localhost:5432/postgres
+    db_type: sqlite
 ```
 
 2. Run the backend:

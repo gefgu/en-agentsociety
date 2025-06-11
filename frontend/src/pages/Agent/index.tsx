@@ -186,22 +186,17 @@ const AgentList: React.FC = () => {
                     const response = await fetchCustom(`/api/agent-templates/${citizen.templateId}`);
                     if (response.ok) {
                         const template = (await response.json()).data;
-                        const convertedBlocks = {};
-                        Object.entries(template.blocks).forEach(([key, value]) => {
-                            const blockKey = key.toLowerCase();
-                            convertedBlocks[blockKey] = value;
-                        });
 
                         return citizen.memory_from_file ? {
                             agent_class: template.agent_class || 'citizen',
                             memory_from_file: citizen.memory_from_file,
                             agent_params: template.agent_params,
-                            blocks: convertedBlocks
+                            blocks: template.blocks
                         } : {
                             number: citizen.number || 1,
                             agent_class: template.agent_class || 'citizen',
                             agent_params: template.agent_params,
-                            blocks: convertedBlocks
+                            blocks: template.blocks
                         };
                     }
                 } catch (error) {
@@ -317,7 +312,7 @@ const AgentList: React.FC = () => {
 
             if (pathParts.length >= 3 && pathParts[0] === 'agent_profiles') {
                 // 在 profiles 中查找匹配的 profile
-                const matchedProfile = profiles.find(profile => 
+                const matchedProfile = profiles.find(profile =>
                     profile.file_path === agent.memory_from_file
                 );
 

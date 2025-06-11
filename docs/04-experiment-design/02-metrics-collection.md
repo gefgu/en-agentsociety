@@ -1,12 +1,6 @@
 # Metrics Collection
 
-The metrics management system, encapsulated within the `MlflowClient` class is designed to streamline the process of connecting to, logging data with, and managing experiments in [MLflow](https://mlflow.org/).
-
-```{admonition} Caution
-:class: caution
-To integrate with `MLflow`, you have to deploy it first.
-Check [prerequisites](./01-quick-start/01-prerequisites.md) for details.
-```
+The metrics management system, encapsulated within the `DatabaseWriter` class is designed to streamline the process of connecting to, logging data with, and managing experiments in database.
 
 ## Metric Extractor
 

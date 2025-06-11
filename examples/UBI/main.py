@@ -1,14 +1,21 @@
 import asyncio
 import logging
-import pickle as pkl
 
 import ray
 
 from agentsociety.cityagent import (
+    MobilityBlock,
+    MobilityBlockParams,
+    SocialBlock,
+    SocialBlockParams,
+    EconomyBlock,
+    EconomyBlockParams,
+    OtherBlock,
+    OtherBlockParams,
     SocietyAgent,
+    NBSAgent,
     default,
 )
-from agentsociety.cityagent.metrics import economy_metric
 from agentsociety.configs import (
     AgentsConfig,
     Config,
@@ -17,8 +24,9 @@ from agentsociety.configs import (
     LLMConfig,
     MapConfig,
 )
-from agentsociety.configs.agent import AgentConfig, InstitutionAgentClass
+from agentsociety.configs.agent import AgentConfig
 from agentsociety.configs.exp import (
+    AgentFilterConfig,
     MetricExtractorConfig,
     MetricType,
     WorkflowStepConfig,
@@ -26,20 +34,10 @@ from agentsociety.configs.exp import (
 )
 from agentsociety.environment import EnvironmentConfig
 from agentsociety.llm import LLMProviderType
-from agentsociety.metrics import MlflowConfig, MlflowConfig
 from agentsociety.simulation import AgentSociety
-from agentsociety.storage import AvroConfig, PostgreSQLConfig
+from agentsociety.storage import DatabaseConfig
 
 ray.init(logging_level=logging.INFO)
-
-
-async def gather_ubi_opinions(simulation: AgentSociety):
-    citizen_ids = await simulation.filter(types=(SocietyAgent,))
-    opinions = await simulation.gather(
-        "ubi_opinion", citizen_ids, flatten=True, keep_id=True
-    )
-    with open("opinions.pkl", "wb") as f:
-        pkl.dump(opinions, f)
 
 
 config = Config(
@@ -53,30 +51,30 @@ config = Config(
         )
     ],
     env=EnvConfig(
-        pgsql=PostgreSQLConfig(
+        db=DatabaseConfig(
             enabled=True,
-            dsn="<PGSQL-DSN>",
-            num_workers="auto",
-        ),
-        avro=AvroConfig(
-            enabled=True,
-        ),
-        mlflow=MlflowConfig(
-            enabled=True,
-            mlflow_uri="<MLFLOW-URI>",
-            username="<USERNAME>",
-            password="<PASSWORD>",
+            db_type="sqlite",
+            pg_dsn=None,
         ),
     ),
     map=MapConfig(
         file_path="<MAP-FILE-PATH>",
-        cache_path="<CACHE-FILE-PATH>",
     ),
     agents=AgentsConfig(
         citizens=[
             AgentConfig(
                 agent_class="citizen",
                 number=1,
+                blocks={
+                    MobilityBlock: MobilityBlockParams(),
+                    SocialBlock: SocialBlockParams(),
+                    EconomyBlock: EconomyBlockParams(
+                        UBI=1000,
+                        num_labor_hours=168,
+                        productivity_per_labor=1
+                    ),
+                    OtherBlock: OtherBlockParams(),
+                }
             ),
         ],
     ),  # type: ignore
@@ -86,17 +84,61 @@ config = Config(
             WorkflowStepConfig(
                 type=WorkflowType.RUN,
                 days=10,
-            )
+            ),
+            WorkflowStepConfig(
+                type=WorkflowType.SAVE_CONTEXT,
+                target_agent=AgentFilterConfig(
+                    agent_class=(SocietyAgent,),
+                ),
+                key="ubi_opinion",
+                save_as="ubi_opinion",
+            ),
         ],
         environment=EnvironmentConfig(
             start_tick=6 * 60 * 60,
         ),
         metric_extractors=[
             MetricExtractorConfig(
-                type=MetricType.FUNCTION, func=economy_metric, step_interval=1
+                type=MetricType.STATE, 
+                step_interval=10, 
+                target_agent=AgentFilterConfig(agent_class=(NBSAgent,)),
+                key="real_gdp_metric",
+                description="Extract real GDP metric value from NBSAgent"
             ),
             MetricExtractorConfig(
-                type=MetricType.FUNCTION, func=gather_ubi_opinions, step_interval=12
+                type=MetricType.STATE, 
+                step_interval=10, 
+                target_agent=AgentFilterConfig(agent_class=(NBSAgent,)),
+                key="price_metric",
+                description="Extract price metric value from NBSAgent"
+            ),
+            MetricExtractorConfig(
+                type=MetricType.STATE, 
+                step_interval=10, 
+                target_agent=AgentFilterConfig(agent_class=(NBSAgent,)),
+                key="working_hours_metric",
+                description="Extract working hours metric value from NBSAgent"
+            ),
+            MetricExtractorConfig(
+                type=MetricType.STATE, 
+                step_interval=10, 
+                target_agent=AgentFilterConfig(agent_class=(NBSAgent,)),
+                key="depression_metric",
+                description="Extract depression metric value from NBSAgent"
+            ),
+            MetricExtractorConfig(
+                type=MetricType.STATE, 
+                step_interval=10, 
+                target_agent=AgentFilterConfig(agent_class=(NBSAgent,)),
+                key="consumption_currency_metric",
+                description="Extract consumption currency metric value from NBSAgent"
+            ),
+            MetricExtractorConfig(
+                type=MetricType.STATE, 
+                step_interval=10, 
+                target_agent=AgentFilterConfig(agent_class=(NBSAgent,)),
+                key="income_currency_metric",
+                description="Extract income currency metric value from NBSAgent"
             ),
         ],
     ),

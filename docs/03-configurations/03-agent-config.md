@@ -43,9 +43,9 @@ The `blocks` field (optional) allows passing additional blocks to the agent as y
 
 ```yaml
 blocks:
-  mobilityblock:
+  MobilityBlock:
     search_limit: 50
-  otherblock:
+  OtherBlock:
     block_parameter_01: value_01
     block_parameter_02: value_02
 ```

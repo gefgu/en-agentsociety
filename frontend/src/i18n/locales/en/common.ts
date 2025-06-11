@@ -4,7 +4,6 @@ export default {
         survey: 'Survey',
         documentation: 'Documentation',
         github: 'GitHub',
-        mlflow: 'MLFlow',
         llmConfigs: 'LLM',
         maps: 'Maps',
         agents: 'Agents',
@@ -14,8 +13,10 @@ export default {
         create: 'Create',
         login: 'Login',
         logout: 'Logout',
+        account: 'Account',
         demo: 'Demo',
         demoUser: 'Demo User',
+        bill: 'Billing',
         profiles: 'Profiles',
     },
     common: {

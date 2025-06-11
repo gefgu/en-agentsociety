@@ -5,8 +5,6 @@
 If you want to deploy the service locally, you can follow the instructions in this section. If you prefer not to deploy it yourself and would rather use our online platform directly, you can skip this section.
 ```
 
-To launch the Web UI, you first need to set up the environment as described in [Prerequisites](../01-quick-start/01-prerequisites.md), including PostgreSQL and MLflow.
-
 Then, create a configuration file (e.g., `config.yaml`) with the required environment information. The configuration include:
 
 ```{admonition} Hint
@@ -38,15 +36,10 @@ Once the configuration is ready, start the backend service using the following c
     ```yaml
     addr: 127.0.0.1:8080 # Optional: Address for the UI service
     env: # Required
-      avro:
-        enabled: true    # Enable avro data storage
-      mlflow:
-        enabled: true    # Enable MLflow integration
-        mlflow_uri: http://localhost:59000  # MLflow server address
-        password: YOUR_PASSWORD  # MLflow password
-        username: YOUR_USERNAME  # MLflow username
-      pgsql:
-        dsn: postgresql://USERNAME:PASSWORD@HOST:PORT/DATABASE  # PostgreSQL connection string
+      db:
+        enabled: true    # Enable database storage
+        db_type: sqlite | postgresql
+        pg_dsn: postgresql://USERNAME:PASSWORD@HOST:PORT/DATABASE  # PostgreSQL connection string
     ```
 
 The UI service will be available at `http://localhost:8080` or the address specified in your configuration file.

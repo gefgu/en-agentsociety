@@ -13,9 +13,9 @@ cd ${PROJECT_DIR}
 # NOW, we just provide a simple script to rebuild the frontend manually.
 # Please run the script after you have made changes to the frontend code.
 
-rm -r agentsociety/_dist || true
+rm -r packages/agentsociety/agentsociety/_dist || true
 cd frontend
 npm ci
 npm run build
 cd ..
-cp -r frontend/dist/ agentsociety/_dist/
+cp -r frontend/dist/ packages/agentsociety/agentsociety/_dist/

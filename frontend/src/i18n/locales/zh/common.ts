@@ -4,7 +4,6 @@ export default {
         survey: '问卷',
         documentation: '文档',
         github: 'GitHub',
-        mlflow: 'MLFlow',
         llmConfigs: 'LLM',
         maps: '地图',
         agents: '智能体',
@@ -14,8 +13,10 @@ export default {
         create: '创建',
         login: '登录',
         logout: '退出登录',
+        account: '账户',
         demo: '示例',
         demoUser: '示例用户',
+        bill: '账单',
         profiles: '智能体画像',
     },
     common: {

@@ -32,7 +32,7 @@ export default {
     statusFailedDesc: "实验启动失败，请检查配置后重试",
     statusPreparingDesc: "实验正在准备中，请稍候...",
     messages: {
-        startFailed: "启动实验失败",
+        startFailed: "启动实验失败: {{error}}",
         startSuccess: "实验启动成功",
         initSuccess: "实验初始化成功",
         statusCheckFailed: "检查实验状态失败",

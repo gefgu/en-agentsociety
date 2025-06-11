@@ -44,13 +44,11 @@ Example:
 ```yaml
 map:
   file_path: <MAP-FILE-PATH> # Path to the map file
-  cache_path: <CACHE-FILE-PATH> # Cache path for accelerating map file loading
 ```
 
 The `MapConfig` class contains the following fields:
 
 - `file_path` (str, required): The path to the map file
-- `cache_path` (str, optional): The cache path for accelerating map file loading
 
 ### Other Configurations
 
@@ -82,18 +80,11 @@ llm:
   semaphore: 200 # Semaphore for LLM requests, control the max number of concurrent requests
 map:
   file_path: <MAP-FILE-PATH> # Path to the map file
-  cache_path: <CACHE-FILE-PATH> # Cache path for accelerating map file loading
 env:
-  avro:
-    enabled: false # Whether to enable Avro
-  mlflow:
-    enabled: false # Whether to enable MLflow
-    mlflow_uri: http://localhost:59000 # MLflow server URI``
-    username: <CHANGE_ME> # MLflow server username
-    password: <CHANGE_ME> # MLflow server password
-  pgsql:
-    enabled: true # Whether to enable PostgreSQL
-    dsn: postgresql://postgres:CHANGE_ME@localhost:5432/postgres # PostgreSQL connection string
+  db:
+    enabled: true # Whether to enable database
+    db_type: sqlite | postgresql
+    pg_dsn: postgresql://postgres:CHANGE_ME@localhost:5432/postgres # PostgreSQL connection string
 agents:
   citizens:
   - agent_class: citizen # The class of the agent

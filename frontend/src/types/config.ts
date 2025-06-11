@@ -16,7 +16,6 @@ export interface LLMConfig {
 // Map Configuration
 export interface MapConfig {
   file_path: string;
-  cache_path?: string;
 }
 
 // Agent Configuration

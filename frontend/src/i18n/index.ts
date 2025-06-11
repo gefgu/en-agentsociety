@@ -15,6 +15,8 @@ import enConsole from './locales/en/console';
 import zhConsole from './locales/zh/console';
 import enReplay from './locales/en/replay';
 import zhReplay from './locales/zh/replay';
+import enBill from './locales/en/bill';
+import zhBill from './locales/zh/bill';
 import enAgent from './locales/en/agent';
 import zhAgent from './locales/zh/agent';
 import enMap from './locales/en/map';
@@ -38,6 +40,7 @@ const resources = {
             survey: enSurvey,
             console: enConsole,
             replay: enReplay,
+            bill: enBill,
             agent: enAgent,
             map: enMap,
             workflow: enWorkflow,
@@ -54,6 +57,7 @@ const resources = {
             survey: zhSurvey,
             console: zhConsole,
             replay: zhReplay,
+            bill: zhBill,
             agent: zhAgent,
             map: zhMap,
             workflow: zhWorkflow,

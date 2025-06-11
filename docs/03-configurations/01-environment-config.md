@@ -11,32 +11,31 @@ The structure is as follows:
 
 ```yaml
 env:
-  pgsql:
-  avro:
-  mlflow:
+  db:
   s3:
 ```
 
-### PostgreSQL Configuration 
+### Database Configuration 
 
-An example of the `pgsql` section is as follows:
+An example of the `db` section is as follows:
 
 ```yaml
-pgsql:
+db:
   enabled: true
-  dsn: postgresql://postgres:CHANGE_ME@localhost:5432/postgres
+  db_type: sqlite | postgresql
+  pg_dsn: postgresql://postgres:CHANGE_ME@localhost:5432/postgres
 ```
 
-The `pgsql` section manages the persistent storage database settings, including:
+The `db` section manages the persistent storage database settings, including:
 - Database connection parameters
 - Table configurations
 - Query settings
 
-The `PostgreSQLConfig` class contains the following fields:
+The `DatabaseConfig` class contains the following fields:
 
-- `enabled` (bool, optional): Whether PostgreSQL storage is enabled, defaults to True
-- `dsn` (str, required): Data source name for PostgreSQL connection, must start with "postgresql://"
-- `num_workers` (Union[int, "auto"], optional): Number of workers for PostgreSQL operations, defaults to "auto"
+- `enabled` (bool, optional): Whether database storage is enabled, defaults to True
+- `db_type` (str, required): Database type, currently supported: sqlite (default), postgresql
+- `pg_dsn` (str, required): Data source name for PostgreSQL connection, must start with "postgresql://"
 
 The DSN (Data Source Name) string follows the format:
 
@@ -44,54 +43,11 @@ The DSN (Data Source Name) string follows the format:
 postgresql://user:password@host:port/database
 ```
 
-### Avro Configuration
-
-An example of the `avro` section is as follows:
-
-```yaml
-avro:
-  enabled: true
-  path: <CHANGE_ME>
-```
-
-The `avro` section handles data serialization settings:
-- Schema definitions
-- Serialization formats
-- Data validation rules
-
-The `AvroConfig` class contains the following fields:
-
-- `enabled` (bool, optional): Whether Avro storage is enabled, defaults to False
-- `path` (str, required): The file system path where Avro files will be stored. Must be a valid directory path.
-
-### MLflow Configuration
-
-An example of the `mlflow` section is as follows:
-
-```yaml
-mlflow:
-  enabled: true
-  mlflow_uri: <CHANGE_ME>
-  username: <CHANGE_ME>
-  password: <CHANGE_ME>
-```
-
-The `mlflow` component configures the machine learning experiment tracking:
-- Experiment logging parameters
-- Model tracking settings
-- Metrics storage configuration
-The `MlflowConfig` class contains the following fields:
-
-- `enabled` (bool, optional): Whether MLflow tracking is enabled, defaults to False
-- `username` (str, optional): Username for MLflow server authentication
-- `password` (str, optional): Password for MLflow server authentication  
-- `mlflow_uri` (str, required): URI for connecting to the MLflow tracking server
-
 ### S3 Configuration
 
 ```{admonition} Note
 :class: note
-When enabling S3 storage, the local file system will be replaced by S3, including `map.file_path`, `map.cache_path`, and `agents.*.memory_from_file`.
+When enabling S3 storage, the local file system will be replaced by S3, including `map.file_path`, and `agents.*.memory_from_file`.
 ```
 
 An example of the `s3` section is as follows:
@@ -123,16 +79,10 @@ An example of the `env` section in `config.yaml` is as follows:
 
 ```yaml
 env:
-  pgsql:
-    enabled: true # Whether to enable PostgreSQL
-    dsn: postgresql://postgres:CHANGE_ME@localhost:5432/postgres # PostgreSQL connection string
-  avro:
-    enabled: false # Whether to enable Avro
-  mlflow:
-    enabled: false # Whether to enable MLflow
-    mlflow_uri: http://localhost:59000 # MLflow server URI``
-    username: <CHANGE_ME> # MLflow server username
-    password: <CHANGE_ME> # MLflow server password
+  db:
+    enabled: true # Whether to enable database
+    db_type: sqlite | postgresql
+    pg_dsn: postgresql://postgres:CHANGE_ME@localhost:5432/postgres # PostgreSQL connection string
   s3:
     enabled: false # Whether to enable S3 storage instead of local file system
     endpoint: <S3-ENDPOINT> # S3 endpoint

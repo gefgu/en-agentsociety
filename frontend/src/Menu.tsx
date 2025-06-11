@@ -1,32 +1,21 @@
-import { ExportOutlined, GithubOutlined, PlusOutlined, ExperimentOutlined, ApiOutlined, TeamOutlined, GlobalOutlined, NodeIndexOutlined, SettingOutlined } from "@ant-design/icons";
+import { GithubOutlined, ExperimentOutlined, ApiOutlined, TeamOutlined, GlobalOutlined, NodeIndexOutlined, SettingOutlined } from "@ant-design/icons";
 import { Menu, MenuProps, Space, Dropdown, Button } from "antd";
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import Account from "./components/Account";
 import { useTranslation } from 'react-i18next';
+import { WITH_AUTH } from "./components/fetch";
+// import Account from "./components/Account";
 
 const RootMenu = ({ selectedKey, style }: {
     selectedKey: string,
     style?: React.CSSProperties
 }) => {
     const { t, i18n } = useTranslation();
-    const [mlflowUrl, setMlflowUrl] = useState<string>("");
-
-    useEffect(() => {
-        fetch("/api/mlflow/url")
-            .then(res => res.json())
-            .then(res => {
-                setMlflowUrl(res.data);
-            });
-    }, []);
 
     const handleLanguageChange = () => {
         const newLang = i18n.language === 'en' ? 'zh' : 'en';
         i18n.changeLanguage(newLang);
     };
-
-    // Experiment submenu items
-    const experimentItems: MenuProps['items'] = [
-    ];
 
     const agentItems: MenuProps['items'] = [
         {
@@ -74,11 +63,9 @@ const RootMenu = ({ selectedKey, style }: {
             icon: <ExperimentOutlined />,
         },
         { key: "/survey", label: <Link to="/survey">{t('menu.survey')}</Link> },
+        ...(WITH_AUTH ? [{ key: "/bill", label: <Link to="/bill">{t('menu.bill')}</Link> }] : []),
     ];
 
-    if (mlflowUrl !== "") {
-        menuItems.push({ key: "/mlflow", label: <Link to={mlflowUrl} rel="noopener noreferrer" target="_blank"><Space>{t('menu.mlflow')}<ExportOutlined /></Space></Link> });
-    }
     menuItems.push({ key: "/Documentation", label: <Link to="https://agentsociety.readthedocs.io/en/latest/" rel="noopener noreferrer" target="_blank"><Space>{t('menu.documentation')}</Space></Link> });
     menuItems.push({ key: "/Github", label: <Link to="https://github.com/tsinghua-fib-lab/agentsociety/" rel="noopener noreferrer" target="_blank"><Space>{t('menu.github')}<GithubOutlined /></Space></Link> });
 
@@ -112,6 +99,7 @@ const RootMenu = ({ selectedKey, style }: {
                 >
                     {i18n.language === 'en' ? '中文' : 'English'}
                 </Button>
+                {WITH_AUTH && <Account />}
             </div>
         </div>
     );
