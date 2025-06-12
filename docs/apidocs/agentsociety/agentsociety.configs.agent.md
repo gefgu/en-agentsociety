@@ -105,7 +105,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} AgentConfig(/, **data: typing.Any)
+`````{py:class} AgentConfig(**data: typing.Any)
 :canonical: agentsociety.configs.agent.AgentConfig
 
 Bases: {py:obj}`pydantic.BaseModel`

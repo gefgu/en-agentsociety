@@ -27,7 +27,7 @@
 
 ### API
 
-`````{py:class} MemoryUnit(content: agentsociety.memory.const.Optional[dict] = None, required_attributes: agentsociety.memory.const.Optional[dict] = None, activate_timestamp: bool = False)
+`````{py:class} MemoryUnit(content: typing.Optional[dict] = None, required_attributes: typing.Optional[dict] = None, activate_timestamp: bool = False)
 :canonical: agentsociety.memory.memory_base.MemoryUnit
 
 ```{autodoc2-docstring} agentsociety.memory.memory_base.MemoryUnit
@@ -156,7 +156,7 @@ Bases: {py:obj}`abc.ABC`
 
 ````
 
-````{py:method} _fetch_recent_memory(recent_n: agentsociety.memory.const.Optional[int] = None) -> collections.abc.Sequence[typing.Any]
+````{py:method} _fetch_recent_memory(recent_n: typing.Optional[int] = None) -> collections.abc.Sequence[typing.Any]
 :canonical: agentsociety.memory.memory_base.MemoryBase._fetch_recent_memory
 
 ```{autodoc2-docstring} agentsociety.memory.memory_base.MemoryBase._fetch_recent_memory

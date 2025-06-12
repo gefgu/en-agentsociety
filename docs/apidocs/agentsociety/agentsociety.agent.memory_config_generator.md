@@ -75,7 +75,7 @@
 
 ````
 
-`````{py:class} StatusAttribute(/, **data: typing.Any)
+`````{py:class} StatusAttribute(**data: typing.Any)
 :canonical: agentsociety.agent.memory_config_generator.StatusAttribute
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -172,7 +172,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 ```
 ````
 
-`````{py:class} MemoryConfigGenerator(config_func: typing.Callable[[dict[str, agentsociety.agent.distribution.Distribution], typing.Optional[list[agentsociety.agent.memory_config_generator.StatusAttribute]]], tuple[dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, typing.Union[agentsociety.agent.memory_config_generator.MemoryT, float]], dict[str, typing.Any]]], class_config: typing.Optional[list[agentsociety.agent.memory_config_generator.StatusAttribute]] = None, file: typing.Optional[str] = None, distributions: dict[str, typing.Union[agentsociety.agent.distribution.Distribution, agentsociety.agent.distribution.DistributionConfig]] = {}, s3config: agentsociety.s3.S3Config = S3Config.model_validate({}))
+`````{py:class} MemoryConfigGenerator(config_func: typing.Callable[[dict[str, agentsociety.agent.distribution.Distribution], typing.Optional[list[agentsociety.agent.memory_config_generator.StatusAttribute]]], tuple[dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, typing.Any]]], class_config: typing.Optional[list[agentsociety.agent.memory_config_generator.StatusAttribute]] = None, number: typing.Optional[int] = None, file: typing.Optional[str] = None, distributions: dict[str, typing.Union[agentsociety.agent.distribution.Distribution, agentsociety.agent.distribution.DistributionConfig]] = {}, s3config: agentsociety.s3.S3Config = S3Config.model_validate({}))
 :canonical: agentsociety.agent.memory_config_generator.MemoryConfigGenerator
 
 ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryConfigGenerator
@@ -217,7 +217,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 ```
 ````
 
-````{py:function} _memory_config_merge(file_data: dict, base_extra_attrs: dict[str, agentsociety.agent.memory_config_generator.MemoryT], base_profile: dict[str, typing.Union[agentsociety.agent.memory_config_generator.MemoryT, float]], base_base: dict[str, typing.Any]) -> dict[str, typing.Any]
+````{py:function} _memory_config_merge(file_data: dict, base_extra_attrs: dict[str, agentsociety.agent.memory_config_generator.MemoryT], base_profile: dict[str, agentsociety.agent.memory_config_generator.MemoryT], base_base: dict[str, typing.Any]) -> dict[str, typing.Any]
 :canonical: agentsociety.agent.memory_config_generator._memory_config_merge
 
 ```{autodoc2-docstring} agentsociety.agent.memory_config_generator._memory_config_merge

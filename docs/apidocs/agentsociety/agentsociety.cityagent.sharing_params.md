@@ -27,7 +27,7 @@
 
 ### API
 
-`````{py:class} SocietyAgentConfig(/, **data: typing.Any)
+`````{py:class} SocietyAgentConfig(**data: typing.Any)
 :canonical: agentsociety.cityagent.sharing_params.SocietyAgentConfig
 
 Bases: {py:obj}`agentsociety.agent.AgentParams`
@@ -98,7 +98,7 @@ Bases: {py:obj}`agentsociety.agent.AgentParams`
 
 `````
 
-`````{py:class} SocietyAgentBlockOutput(/, **data: typing.Any)
+`````{py:class} SocietyAgentBlockOutput(**data: typing.Any)
 :canonical: agentsociety.cityagent.sharing_params.SocietyAgentBlockOutput
 
 Bases: {py:obj}`agentsociety.agent.BlockOutput`
@@ -149,7 +149,7 @@ Bases: {py:obj}`agentsociety.agent.BlockOutput`
 
 `````
 
-`````{py:class} SocietyAgentContext(/, **data: typing.Any)
+`````{py:class} SocietyAgentContext(**data: typing.Any)
 :canonical: agentsociety.cityagent.sharing_params.SocietyAgentContext
 
 Bases: {py:obj}`agentsociety.agent.AgentContext`

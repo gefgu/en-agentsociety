@@ -155,7 +155,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} DistributionConfig(/, **data: typing.Any)
+`````{py:class} DistributionConfig(**data: typing.Any)
 :canonical: agentsociety.agent.distribution.DistributionConfig
 
 Bases: {py:obj}`pydantic.BaseModel`

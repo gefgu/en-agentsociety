@@ -21,7 +21,7 @@ extensions = [
     "autodoc2",
 ]
 autodoc2_packages = [
-    "../agentsociety",
+    "../packages/agentsociety/agentsociety",
 ]
 autodoc2_render_plugin = "myst"
 

@@ -111,7 +111,7 @@ Bases: {py:obj}`enum.IntEnum`
 
 `````
 
-``````{py:class} ApiAgentProfile(/, **data: typing.Any)
+``````{py:class} ApiAgentProfile(**data: typing.Any)
 :canonical: agentsociety.webapi.models.agent.ApiAgentProfile
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -178,7 +178,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ``````
 
-``````{py:class} ApiAgentStatus(/, **data: typing.Any)
+``````{py:class} ApiAgentStatus(**data: typing.Any)
 :canonical: agentsociety.webapi.models.agent.ApiAgentStatus
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -311,7 +311,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ``````
 
-``````{py:class} ApiAgentSurvey(/, **data: typing.Any)
+``````{py:class} ApiAgentSurvey(**data: typing.Any)
 :canonical: agentsociety.webapi.models.agent.ApiAgentSurvey
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -411,7 +411,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ``````
 
-``````{py:class} ApiAgentDialog(/, **data: typing.Any)
+``````{py:class} ApiAgentDialog(**data: typing.Any)
 :canonical: agentsociety.webapi.models.agent.ApiAgentDialog
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -522,7 +522,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ``````
 
-``````{py:class} ApiGlobalPrompt(/, **data: typing.Any)
+``````{py:class} ApiGlobalPrompt(**data: typing.Any)
 :canonical: agentsociety.webapi.models.agent.ApiGlobalPrompt
 
 Bases: {py:obj}`pydantic.BaseModel`

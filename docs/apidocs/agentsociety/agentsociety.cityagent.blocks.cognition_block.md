@@ -66,7 +66,7 @@
 ```
 ````
 
-`````{py:class} CognitionBlockParams(/, **data: typing.Any)
+`````{py:class} CognitionBlockParams(**data: typing.Any)
 :canonical: agentsociety.cityagent.blocks.cognition_block.CognitionBlockParams
 
 Bases: {py:obj}`agentsociety.agent.BlockParams`

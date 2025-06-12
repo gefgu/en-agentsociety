@@ -83,7 +83,7 @@
 
 ````
 
-`````{py:class} BlockParams(/, **data: typing.Any)
+`````{py:class} BlockParams(**data: typing.Any)
 :canonical: agentsociety.agent.block.BlockParams
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -101,7 +101,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-```{py:class} BlockOutput(/, **data: typing.Any)
+```{py:class} BlockOutput(**data: typing.Any)
 :canonical: agentsociety.agent.block.BlockOutput
 
 Bases: {py:obj}`pydantic.BaseModel`

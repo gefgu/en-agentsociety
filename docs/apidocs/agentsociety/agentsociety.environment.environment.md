@@ -73,7 +73,7 @@
 
 ````
 
-`````{py:class} SimulatorConfig(/, **data: typing.Any)
+`````{py:class} SimulatorConfig(**data: typing.Any)
 :canonical: agentsociety.environment.environment.SimulatorConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -132,7 +132,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-`````{py:class} EnvironmentConfig(/, **data: typing.Any)
+`````{py:class} EnvironmentConfig(**data: typing.Any)
 :canonical: agentsociety.environment.environment.EnvironmentConfig
 
 Bases: {py:obj}`pydantic.BaseModel`

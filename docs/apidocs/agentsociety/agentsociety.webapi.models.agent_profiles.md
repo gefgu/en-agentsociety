@@ -168,7 +168,7 @@ Bases: {py:obj}`agentsociety.webapi.models._base.Base`
 
 `````
 
-``````{py:class} ApiAgentProfile(/, **data: typing.Any)
+``````{py:class} ApiAgentProfile(**data: typing.Any)
 :canonical: agentsociety.webapi.models.agent_profiles.ApiAgentProfile
 
 Bases: {py:obj}`pydantic.BaseModel`

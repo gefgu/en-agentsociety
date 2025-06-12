@@ -38,7 +38,7 @@ agentsociety.storage.model
 ````{py:data} __all__
 :canonical: agentsociety.storage.__all__
 :value: >
-   ['TABLE_PREFIX', 'Base', 'BaseNoInit', 'MoneyDecimal', 'DatabaseWriter', 'DatabaseConfig', 'StorageD...
+   ['TABLE_PREFIX', 'Base', 'MoneyDecimal', 'DatabaseWriter', 'DatabaseConfig', 'StorageDialog', 'Stora...
 
 ```{autodoc2-docstring} agentsociety.storage.__all__
 ```

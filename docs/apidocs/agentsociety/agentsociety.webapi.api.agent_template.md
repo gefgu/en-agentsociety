@@ -192,7 +192,7 @@
 ```
 ````
 
-`````{py:class} ParamOption(/, **data: typing.Any)
+`````{py:class} ParamOption(**data: typing.Any)
 :canonical: agentsociety.webapi.api.agent_template.ParamOption
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -221,7 +221,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} Param(/, **data: typing.Any)
+`````{py:class} Param(**data: typing.Any)
 :canonical: agentsociety.webapi.api.agent_template.Param
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -303,7 +303,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} NameTypeDescription(/, **data: typing.Any)
+`````{py:class} NameTypeDescription(**data: typing.Any)
 :canonical: agentsociety.webapi.api.agent_template.NameTypeDescription
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -373,7 +373,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 ```
 ````
 
-`````{py:class} AgentParam(/, **data: typing.Any)
+`````{py:class} AgentParam(**data: typing.Any)
 :canonical: agentsociety.webapi.api.agent_template.AgentParam
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -430,7 +430,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 ```
 ````
 
-`````{py:class} BlockParam(/, **data: typing.Any)
+`````{py:class} BlockParam(**data: typing.Any)
 :canonical: agentsociety.webapi.api.agent_template.BlockParam
 
 Bases: {py:obj}`pydantic.BaseModel`

@@ -51,7 +51,7 @@
 
 ### API
 
-````{py:class} AgentContext(/, **data: typing.Any)
+````{py:class} AgentContext(**data: typing.Any)
 :canonical: agentsociety.agent.context.AgentContext
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -67,7 +67,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:class} BlockContext(/, **data: typing.Any)
+````{py:class} BlockContext(**data: typing.Any)
 :canonical: agentsociety.agent.context.BlockContext
 
 Bases: {py:obj}`pydantic.BaseModel`

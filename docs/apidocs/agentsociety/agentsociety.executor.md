@@ -13,7 +13,6 @@
 :titlesonly:
 :maxdepth: 1
 
-agentsociety.executor.kubernetes
 agentsociety.executor.process
 ```
 
@@ -36,7 +35,7 @@ agentsociety.executor.process
 ````{py:data} __all__
 :canonical: agentsociety.executor.__all__
 :value: >
-   ['KubernetesExecutor', 'ProcessExecutor']
+   ['ProcessExecutor']
 
 ```{autodoc2-docstring} agentsociety.executor.__all__
 ```

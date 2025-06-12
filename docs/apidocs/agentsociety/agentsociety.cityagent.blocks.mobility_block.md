@@ -250,7 +250,7 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 `````
 
-`````{py:class} MobilityBlockParams(/, **data: typing.Any)
+`````{py:class} MobilityBlockParams(**data: typing.Any)
 :canonical: agentsociety.cityagent.blocks.mobility_block.MobilityBlockParams
 
 Bases: {py:obj}`agentsociety.agent.BlockParams`
@@ -279,7 +279,7 @@ Bases: {py:obj}`agentsociety.agent.BlockParams`
 
 `````
 
-`````{py:class} MobilityBlockContext(/, **data: typing.Any)
+`````{py:class} MobilityBlockContext(**data: typing.Any)
 :canonical: agentsociety.cityagent.blocks.mobility_block.MobilityBlockContext
 
 Bases: {py:obj}`agentsociety.agent.BlockContext`

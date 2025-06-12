@@ -218,7 +218,7 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 `````
 
-`````{py:class} EconomyBlockParams(/, **data: typing.Any)
+`````{py:class} EconomyBlockParams(**data: typing.Any)
 :canonical: agentsociety.cityagent.blocks.economy_block.EconomyBlockParams
 
 Bases: {py:obj}`agentsociety.agent.BlockParams`
@@ -280,7 +280,7 @@ Bases: {py:obj}`agentsociety.agent.BlockParams`
 
 `````
 
-```{py:class} EconomyBlockContext(/, **data: typing.Any)
+```{py:class} EconomyBlockContext(**data: typing.Any)
 :canonical: agentsociety.cityagent.blocks.economy_block.EconomyBlockContext
 
 Bases: {py:obj}`agentsociety.agent.BlockContext`

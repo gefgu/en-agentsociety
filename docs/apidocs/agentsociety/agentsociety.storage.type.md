@@ -65,7 +65,7 @@
 
 ````
 
-`````{py:class} StorageExpInfo(/, **data: typing.Any)
+`````{py:class} StorageExpInfo(**data: typing.Any)
 :canonical: agentsociety.storage.type.StorageExpInfo
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -215,7 +215,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} StorageSurvey(/, **data: typing.Any)
+`````{py:class} StorageSurvey(**data: typing.Any)
 :canonical: agentsociety.storage.type.StorageSurvey
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -334,7 +334,7 @@ Bases: {py:obj}`enum.IntEnum`
 
 `````
 
-`````{py:class} StorageDialog(/, **data: typing.Any)
+`````{py:class} StorageDialog(**data: typing.Any)
 :canonical: agentsociety.storage.type.StorageDialog
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -418,7 +418,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} StorageGlobalPrompt(/, **data: typing.Any)
+`````{py:class} StorageGlobalPrompt(**data: typing.Any)
 :canonical: agentsociety.storage.type.StorageGlobalPrompt
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -469,7 +469,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} StorageProfile(/, **data: typing.Any)
+`````{py:class} StorageProfile(**data: typing.Any)
 :canonical: agentsociety.storage.type.StorageProfile
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -509,7 +509,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} StorageStatus(/, **data: typing.Any)
+`````{py:class} StorageStatus(**data: typing.Any)
 :canonical: agentsociety.storage.type.StorageStatus
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -626,7 +626,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} StoragePendingDialog(/, **data: typing.Any)
+`````{py:class} StoragePendingDialog(**data: typing.Any)
 :canonical: agentsociety.storage.type.StoragePendingDialog
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -719,7 +719,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} StoragePendingSurvey(/, **data: typing.Any)
+`````{py:class} StoragePendingSurvey(**data: typing.Any)
 :canonical: agentsociety.storage.type.StoragePendingSurvey
 
 Bases: {py:obj}`pydantic.BaseModel`

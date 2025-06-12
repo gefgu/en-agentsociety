@@ -114,7 +114,7 @@
 ```
 ````
 
-`````{py:class} AgentSociety(config: agentsociety.configs.Config, tenant_id: str = 'local')
+`````{py:class} AgentSociety(config: agentsociety.configs.Config, tenant_id: str = '')
 :canonical: agentsociety.simulation.agentsociety.AgentSociety
 
 ```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety
@@ -228,7 +228,7 @@
 
 ````
 
-````{py:method} update(target_agent_ids: list[int], target_key: str, content: typing.Any)
+````{py:method} update(target_agent_ids: list[int], target_key: str, content: typing.Any, query: bool = False)
 :canonical: agentsociety.simulation.agentsociety.AgentSociety.update
 :async:
 
@@ -296,6 +296,15 @@
 :async:
 
 ```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety._save_global_prompt
+```
+
+````
+
+````{py:method} _gather_and_update_context(target_agent_ids: list[int], key: str, save_as: str)
+:canonical: agentsociety.simulation.agentsociety.AgentSociety._gather_and_update_context
+:async:
+
+```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety._gather_and_update_context
 ```
 
 ````

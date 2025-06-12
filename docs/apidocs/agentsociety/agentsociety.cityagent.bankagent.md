@@ -68,7 +68,7 @@
 ```
 ````
 
-`````{py:class} BankAgentConfig(/, **data: typing.Any)
+`````{py:class} BankAgentConfig(**data: typing.Any)
 :canonical: agentsociety.cityagent.bankagent.BankAgentConfig
 
 Bases: {py:obj}`agentsociety.agent.AgentParams`

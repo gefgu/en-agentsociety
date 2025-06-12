@@ -42,7 +42,7 @@
 `````{py:class} MemoryTag()
 :canonical: agentsociety.memory.memory.MemoryTag
 
-Bases: {py:obj}`str`, {py:obj}`agentsociety.memory.const.Enum`
+Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ```{autodoc2-docstring} agentsociety.memory.memory.MemoryTag
 ```
@@ -178,7 +178,7 @@ Bases: {py:obj}`str`, {py:obj}`agentsociety.memory.const.Enum`
 
 ````{py:attribute} cognition_id
 :canonical: agentsociety.memory.memory.MemoryNode.cognition_id
-:type: agentsociety.memory.const.Optional[int]
+:type: typing.Optional[int]
 :value: >
    None
 
@@ -189,7 +189,7 @@ Bases: {py:obj}`str`, {py:obj}`agentsociety.memory.const.Enum`
 
 ````{py:attribute} id
 :canonical: agentsociety.memory.memory.MemoryNode.id
-:type: agentsociety.memory.const.Optional[int]
+:type: typing.Optional[int]
 :value: >
    None
 
@@ -327,7 +327,7 @@ Bases: {py:obj}`str`, {py:obj}`agentsociety.memory.const.Enum`
 
 ````
 
-````{py:method} search(query: str, tag: agentsociety.memory.const.Optional[agentsociety.memory.memory.MemoryTag] = None, top_k: int = 3, day_range: agentsociety.memory.const.Optional[tuple[int, int]] = None, time_range: agentsociety.memory.const.Optional[tuple[int, int]] = None) -> str
+````{py:method} search(query: str, tag: typing.Optional[agentsociety.memory.memory.MemoryTag] = None, top_k: int = 3, day_range: typing.Optional[tuple[int, int]] = None, time_range: typing.Optional[tuple[int, int]] = None) -> str
 :canonical: agentsociety.memory.memory.StreamMemory.search
 :async:
 
@@ -336,7 +336,7 @@ Bases: {py:obj}`str`, {py:obj}`agentsociety.memory.const.Enum`
 
 ````
 
-````{py:method} search_today(query: str = '', tag: agentsociety.memory.const.Optional[agentsociety.memory.memory.MemoryTag] = None, top_k: int = 100) -> str
+````{py:method} search_today(query: str = '', tag: typing.Optional[agentsociety.memory.memory.MemoryTag] = None, top_k: int = 100) -> str
 :canonical: agentsociety.memory.memory.StreamMemory.search_today
 :async:
 
@@ -419,7 +419,7 @@ Bases: {py:obj}`str`, {py:obj}`agentsociety.memory.const.Enum`
 
 ````
 
-````{py:method} search(query: str, top_k: int = 3, filter: agentsociety.memory.const.Optional[dict] = None) -> str
+````{py:method} search(query: str, top_k: int = 3, filter: typing.Optional[dict] = None) -> str
 :canonical: agentsociety.memory.memory.StatusMemory.search
 :async:
 
@@ -444,7 +444,7 @@ Bases: {py:obj}`str`, {py:obj}`agentsociety.memory.const.Enum`
 
 ````
 
-````{py:method} get(key: typing.Any, default_value: agentsociety.memory.const.Optional[typing.Any] = None, mode: typing.Union[typing.Literal[read only], typing.Literal[read and write]] = 'read only') -> typing.Any
+````{py:method} get(key: typing.Any, default_value: typing.Optional[typing.Any] = None, mode: typing.Union[typing.Literal[read only], typing.Literal[read and write]] = 'read only') -> typing.Any
 :canonical: agentsociety.memory.memory.StatusMemory.get
 :async:
 
@@ -499,7 +499,7 @@ Bases: {py:obj}`str`, {py:obj}`agentsociety.memory.const.Enum`
 
 `````
 
-`````{py:class} Memory(agent_id: int, environment: agentsociety.environment.Environment, faiss_query: agentsociety.memory.faiss_query.FaissQuery, embedding_model: langchain_core.embeddings.Embeddings, config: agentsociety.memory.const.Optional[dict[typing.Any, typing.Any]] = None, profile: agentsociety.memory.const.Optional[dict[typing.Any, typing.Any]] = None, base: agentsociety.memory.const.Optional[dict[typing.Any, typing.Any]] = None, activate_timestamp: bool = False)
+`````{py:class} Memory(agent_id: int, environment: agentsociety.environment.Environment, faiss_query: agentsociety.memory.faiss_query.FaissQuery, embedding_model: langchain_core.embeddings.Embeddings, config: typing.Optional[dict[typing.Any, typing.Any]] = None, profile: typing.Optional[dict[typing.Any, typing.Any]] = None, base: typing.Optional[dict[typing.Any, typing.Any]] = None, activate_timestamp: bool = False)
 :canonical: agentsociety.memory.memory.Memory
 
 ```{autodoc2-docstring} agentsociety.memory.memory.Memory

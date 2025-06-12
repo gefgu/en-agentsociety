@@ -259,7 +259,7 @@
 ```
 ````
 
-`````{py:class} CreateTempDownloadLinkRequest(/, **data: typing.Any)
+`````{py:class} CreateTempDownloadLinkRequest(**data: typing.Any)
 :canonical: agentsociety.webapi.api.config.CreateTempDownloadLinkRequest
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -277,7 +277,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} CreateTempDownloadLinkResponse(/, **data: typing.Any)
+`````{py:class} CreateTempDownloadLinkResponse(**data: typing.Any)
 :canonical: agentsociety.webapi.api.config.CreateTempDownloadLinkResponse
 
 Bases: {py:obj}`pydantic.BaseModel`

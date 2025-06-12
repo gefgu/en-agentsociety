@@ -45,7 +45,7 @@
 
 ````
 
-`````{py:class} EnvConfig(/, **data: typing.Any)
+`````{py:class} EnvConfig(**data: typing.Any)
 :canonical: agentsociety.configs.env.EnvConfig
 
 Bases: {py:obj}`pydantic.BaseModel`

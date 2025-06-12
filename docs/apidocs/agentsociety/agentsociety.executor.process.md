@@ -45,7 +45,7 @@
 
 ````
 
-`````{py:class} ProcessExecutor(base_dir: str)
+`````{py:class} ProcessExecutor(home_dir: str)
 :canonical: agentsociety.executor.process.ProcessExecutor
 
 ```{autodoc2-docstring} agentsociety.executor.process.ProcessExecutor

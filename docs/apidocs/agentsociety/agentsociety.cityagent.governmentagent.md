@@ -49,7 +49,7 @@
 
 ````
 
-`````{py:class} GovernmentAgentConfig(/, **data: typing.Any)
+`````{py:class} GovernmentAgentConfig(**data: typing.Any)
 :canonical: agentsociety.cityagent.governmentagent.GovernmentAgentConfig
 
 Bases: {py:obj}`agentsociety.agent.AgentParams`

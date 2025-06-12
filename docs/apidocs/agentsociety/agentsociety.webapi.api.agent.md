@@ -27,10 +27,6 @@
 :class: autosummary longtable
 :align: left
 
-* - {py:obj}`_find_started_experiment_by_id <agentsociety.webapi.api.agent._find_started_experiment_by_id>`
-  - ```{autodoc2-docstring} agentsociety.webapi.api.agent._find_started_experiment_by_id
-    :summary:
-    ```
 * - {py:obj}`get_agent_dialog_by_exp_id_and_agent_id <agentsociety.webapi.api.agent.get_agent_dialog_by_exp_id_and_agent_id>`
   - ```{autodoc2-docstring} agentsociety.webapi.api.agent.get_agent_dialog_by_exp_id_and_agent_id
     :summary:
@@ -107,14 +103,6 @@
 
 ````
 
-````{py:function} _find_started_experiment_by_id(request: fastapi.Request, db: sqlalchemy.ext.asyncio.AsyncSession, exp_id: uuid.UUID) -> agentsociety.webapi.models.experiment.Experiment
-:canonical: agentsociety.webapi.api.agent._find_started_experiment_by_id
-:async:
-
-```{autodoc2-docstring} agentsociety.webapi.api.agent._find_started_experiment_by_id
-```
-````
-
 ````{py:function} get_agent_dialog_by_exp_id_and_agent_id(request: fastapi.Request, exp_id: uuid.UUID, agent_id: int) -> agentsociety.webapi.models.ApiResponseWrapper[typing.List[agentsociety.webapi.models.agent.ApiAgentDialog]]
 :canonical: agentsociety.webapi.api.agent.get_agent_dialog_by_exp_id_and_agent_id
 :async:
@@ -171,7 +159,7 @@
 ```
 ````
 
-`````{py:class} AgentChatMessage(/, **data: typing.Any)
+`````{py:class} AgentChatMessage(**data: typing.Any)
 :canonical: agentsociety.webapi.api.agent.AgentChatMessage
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -219,7 +207,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 ```
 ````
 
-`````{py:class} AgentSurveyMessage(/, **data: typing.Any)
+`````{py:class} AgentSurveyMessage(**data: typing.Any)
 :canonical: agentsociety.webapi.api.agent.AgentSurveyMessage
 
 Bases: {py:obj}`pydantic.BaseModel`

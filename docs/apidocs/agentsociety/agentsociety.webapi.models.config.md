@@ -174,7 +174,7 @@ Bases: {py:obj}`agentsociety.webapi.models._base.Base`
 
 `````
 
-``````{py:class} ApiLLMConfig(/, **data: typing.Any)
+``````{py:class} ApiLLMConfig(**data: typing.Any)
 :canonical: agentsociety.webapi.models.config.ApiLLMConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -465,7 +465,7 @@ Bases: {py:obj}`agentsociety.webapi.models._base.Base`
 
 `````
 
-``````{py:class} ApiMapConfig(/, **data: typing.Any)
+``````{py:class} ApiMapConfig(**data: typing.Any)
 :canonical: agentsociety.webapi.models.config.ApiMapConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -681,7 +681,7 @@ Bases: {py:obj}`agentsociety.webapi.models._base.Base`
 
 `````
 
-``````{py:class} ApiAgentConfig(/, **data: typing.Any)
+``````{py:class} ApiAgentConfig(**data: typing.Any)
 :canonical: agentsociety.webapi.models.config.ApiAgentConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -897,7 +897,7 @@ Bases: {py:obj}`agentsociety.webapi.models._base.Base`
 
 `````
 
-``````{py:class} ApiWorkflowConfig(/, **data: typing.Any)
+``````{py:class} ApiWorkflowConfig(**data: typing.Any)
 :canonical: agentsociety.webapi.models.config.ApiWorkflowConfig
 
 Bases: {py:obj}`pydantic.BaseModel`

@@ -16,7 +16,9 @@
 :align: left
 
 * - {py:obj}`Syncer <agentsociety.environment.syncer.syncer.Syncer>`
-  -
+  - ```{autodoc2-docstring} agentsociety.environment.syncer.syncer.Syncer
+    :summary:
+    ```
 ````
 
 ### Data
@@ -47,6 +49,15 @@
 :canonical: agentsociety.environment.syncer.syncer.Syncer
 
 Bases: {py:obj}`pycityproto.city.sync.v2.sync_service_pb2_grpc.SyncServiceServicer`
+
+```{autodoc2-docstring} agentsociety.environment.syncer.syncer.Syncer
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.environment.syncer.syncer.Syncer.__init__
+```
 
 ````{py:method} init() -> None
 :canonical: agentsociety.environment.syncer.syncer.Syncer.init

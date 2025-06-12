@@ -49,7 +49,7 @@
 
 ````
 
-`````{py:class} NBSAgentConfig(/, **data: typing.Any)
+`````{py:class} NBSAgentConfig(**data: typing.Any)
 :canonical: agentsociety.cityagent.nbsagent.NBSAgentConfig
 
 Bases: {py:obj}`agentsociety.agent.AgentParams`

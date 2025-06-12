@@ -96,7 +96,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} Question(/, **data: typing.Any)
+`````{py:class} Question(**data: typing.Any)
 :canonical: agentsociety.survey.models.Question
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -211,7 +211,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} Page(/, **data: typing.Any)
+`````{py:class} Page(**data: typing.Any)
 :canonical: agentsociety.survey.models.Page
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -240,7 +240,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} Survey(/, **data: typing.Any)
+`````{py:class} Survey(**data: typing.Any)
 :canonical: agentsociety.survey.models.Survey
 
 Bases: {py:obj}`pydantic.BaseModel`

@@ -26,7 +26,7 @@
 ````{py:data} __all__
 :canonical: agentsociety.webapi.models._base.__all__
 :value: >
-   ['Base', 'BaseNoInit', 'TABLE_PREFIX', 'MoneyDecimal']
+   ['Base', 'TABLE_PREFIX', 'MoneyDecimal']
 
 ```{autodoc2-docstring} agentsociety.webapi.models._base.__all__
 ```

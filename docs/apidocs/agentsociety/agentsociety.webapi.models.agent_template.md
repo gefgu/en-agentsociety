@@ -102,7 +102,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} ChoiceDistributionConfig(/, **data: typing.Any)
+`````{py:class} ChoiceDistributionConfig(**data: typing.Any)
 :canonical: agentsociety.webapi.models.agent_template.ChoiceDistributionConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -142,7 +142,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} UniformIntDistributionConfig(/, **data: typing.Any)
+`````{py:class} UniformIntDistributionConfig(**data: typing.Any)
 :canonical: agentsociety.webapi.models.agent_template.UniformIntDistributionConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -182,7 +182,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} NormalDistributionConfig(/, **data: typing.Any)
+`````{py:class} NormalDistributionConfig(**data: typing.Any)
 :canonical: agentsociety.webapi.models.agent_template.NormalDistributionConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -434,7 +434,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ``````
 
-``````{py:class} ApiAgentTemplate(/, **data: typing.Any)
+``````{py:class} ApiAgentTemplate(**data: typing.Any)
 :canonical: agentsociety.webapi.models.agent_template.ApiAgentTemplate
 
 Bases: {py:obj}`pydantic.BaseModel`

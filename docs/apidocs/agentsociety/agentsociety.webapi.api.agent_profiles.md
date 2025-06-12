@@ -87,7 +87,7 @@
 
 ````
 
-`````{py:class} SaveProfileRequest(/, **data: typing.Any)
+`````{py:class} SaveProfileRequest(**data: typing.Any)
 :canonical: agentsociety.webapi.api.agent_profiles.SaveProfileRequest
 
 Bases: {py:obj}`pydantic.BaseModel`

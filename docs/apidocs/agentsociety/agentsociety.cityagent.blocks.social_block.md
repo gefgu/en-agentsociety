@@ -209,14 +209,14 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 `````
 
-```{py:class} SocialBlockParams(/, **data: typing.Any)
+```{py:class} SocialBlockParams(**data: typing.Any)
 :canonical: agentsociety.cityagent.blocks.social_block.SocialBlockParams
 
 Bases: {py:obj}`agentsociety.agent.BlockParams`
 
 ```
 
-`````{py:class} SocialBlockContext(/, **data: typing.Any)
+`````{py:class} SocialBlockContext(**data: typing.Any)
 :canonical: agentsociety.cityagent.blocks.social_block.SocialBlockContext
 
 Bases: {py:obj}`agentsociety.agent.BlockContext`

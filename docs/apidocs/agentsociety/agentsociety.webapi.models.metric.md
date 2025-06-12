@@ -45,7 +45,7 @@
 
 ````
 
-``````{py:class} ApiMetric(/, **data: typing.Any)
+``````{py:class} ApiMetric(**data: typing.Any)
 :canonical: agentsociety.webapi.models.metric.ApiMetric
 
 Bases: {py:obj}`pydantic.BaseModel`

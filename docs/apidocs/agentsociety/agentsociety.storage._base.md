@@ -33,10 +33,6 @@
   - ```{autodoc2-docstring} agentsociety.storage._base.Base
     :summary:
     ```
-* - {py:obj}`BaseNoInit <agentsociety.storage._base.BaseNoInit>`
-  - ```{autodoc2-docstring} agentsociety.storage._base.BaseNoInit
-    :summary:
-    ```
 * - {py:obj}`TABLE_PREFIX <agentsociety.storage._base.TABLE_PREFIX>`
   - ```{autodoc2-docstring} agentsociety.storage._base.TABLE_PREFIX
     :summary:
@@ -48,7 +44,7 @@
 ````{py:data} __all__
 :canonical: agentsociety.storage._base.__all__
 :value: >
-   ['Base', 'BaseNoInit', 'TABLE_PREFIX', 'MoneyDecimal']
+   ['Base', 'TABLE_PREFIX', 'MoneyDecimal']
 
 ```{autodoc2-docstring} agentsociety.storage._base.__all__
 ```
@@ -68,16 +64,6 @@ Bases: {py:obj}`decimal.Decimal`
    'declarative_base(...)'
 
 ```{autodoc2-docstring} agentsociety.storage._base.Base
-```
-
-````
-
-````{py:data} BaseNoInit
-:canonical: agentsociety.storage._base.BaseNoInit
-:value: >
-   'declarative_base(...)'
-
-```{autodoc2-docstring} agentsociety.storage._base.BaseNoInit
 ```
 
 ````

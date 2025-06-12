@@ -49,7 +49,7 @@
 
 ````
 
-`````{py:class} S3Config(/, **data: typing.Any)
+`````{py:class} S3Config(**data: typing.Any)
 :canonical: agentsociety.s3.client.S3Config
 
 Bases: {py:obj}`pydantic.BaseModel`

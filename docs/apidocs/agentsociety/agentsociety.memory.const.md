@@ -117,7 +117,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} SocialRelation(/, **data: typing.Any)
+`````{py:class} SocialRelation(**data: typing.Any)
 :canonical: agentsociety.memory.const.SocialRelation
 
 Bases: {py:obj}`pydantic.BaseModel`

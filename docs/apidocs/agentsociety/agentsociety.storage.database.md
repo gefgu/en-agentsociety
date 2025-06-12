@@ -65,7 +65,7 @@
 
 ````
 
-`````{py:class} DatabaseConfig(/, **data: typing.Any)
+`````{py:class} DatabaseConfig(**data: typing.Any)
 :canonical: agentsociety.storage.database.DatabaseConfig
 
 Bases: {py:obj}`pydantic.BaseModel`

@@ -65,7 +65,7 @@ agentsociety.configs.agent
 
 ````
 
-`````{py:class} AgentsConfig(/, **data: typing.Any)
+`````{py:class} AgentsConfig(**data: typing.Any)
 :canonical: agentsociety.configs.AgentsConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -177,7 +177,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} AdvancedConfig(/, **data: typing.Any)
+`````{py:class} AdvancedConfig(**data: typing.Any)
 :canonical: agentsociety.configs.AdvancedConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -237,7 +237,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} Config(/, **data: typing.Any)
+`````{py:class} Config(**data: typing.Any)
 :canonical: agentsociety.configs.Config
 
 Bases: {py:obj}`pydantic.BaseModel`

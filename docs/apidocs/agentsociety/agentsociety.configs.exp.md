@@ -169,6 +169,16 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ````
 
+````{py:attribute} SAVE_CONTEXT
+:canonical: agentsociety.configs.exp.WorkflowType.SAVE_CONTEXT
+:value: >
+   'save_context'
+
+```{autodoc2-docstring} agentsociety.configs.exp.WorkflowType.SAVE_CONTEXT
+```
+
+````
+
 ````{py:attribute} INTERVENE
 :canonical: agentsociety.configs.exp.WorkflowType.INTERVENE
 :value: >
@@ -191,7 +201,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} AgentFilterConfig(/, **data: typing.Any)
+`````{py:class} AgentFilterConfig(**data: typing.Any)
 :canonical: agentsociety.configs.exp.AgentFilterConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -237,7 +247,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} WorkflowStepConfig(/, **data: typing.Any)
+`````{py:class} WorkflowStepConfig(**data: typing.Any)
 :canonical: agentsociety.configs.exp.WorkflowStepConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -360,6 +370,17 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
+````{py:attribute} save_as
+:canonical: agentsociety.configs.exp.WorkflowStepConfig.save_as
+:type: typing.Optional[str]
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.configs.exp.WorkflowStepConfig.save_as
+```
+
+````
+
 ````{py:attribute} value
 :canonical: agentsociety.configs.exp.WorkflowStepConfig.value
 :type: typing.Optional[typing.Any]
@@ -447,7 +468,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} MetricExtractorConfig(/, **data: typing.Any)
+`````{py:class} MetricExtractorConfig(**data: typing.Any)
 :canonical: agentsociety.configs.exp.MetricExtractorConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -506,7 +527,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````{py:attribute} target_agent
 :canonical: agentsociety.configs.exp.MetricExtractorConfig.target_agent
-:type: typing.Optional[list]
+:type: typing.Optional[typing.Union[list, agentsociety.configs.exp.AgentFilterConfig]]
 :value: >
    None
 
@@ -541,7 +562,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 :canonical: agentsociety.configs.exp.MetricExtractorConfig.extract_time
 :type: int
 :value: >
-   0
+   1
 
 ```{autodoc2-docstring} agentsociety.configs.exp.MetricExtractorConfig.extract_time
 ```
@@ -577,7 +598,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} ExpConfig(/, **data: typing.Any)
+`````{py:class} ExpConfig(**data: typing.Any)
 :canonical: agentsociety.configs.exp.ExpConfig
 
 Bases: {py:obj}`pydantic.BaseModel`

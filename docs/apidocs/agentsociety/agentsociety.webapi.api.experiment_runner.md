@@ -55,8 +55,16 @@
   - ```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.finish_experiment
     :summary:
     ```
-* - {py:obj}`_compute_bill <agentsociety.webapi.api.experiment_runner._compute_bill>`
-  - ```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner._compute_bill
+* - {py:obj}`_compute_commercial_bill <agentsociety.webapi.api.experiment_runner._compute_commercial_bill>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner._compute_commercial_bill
+    :summary:
+    ```
+* - {py:obj}`_check_commercial_balance <agentsociety.webapi.api.experiment_runner._check_commercial_balance>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner._check_commercial_balance
+    :summary:
+    ```
+* - {py:obj}`_record_experiment_bill <agentsociety.webapi.api.experiment_runner._record_experiment_bill>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner._record_experiment_bill
     :summary:
     ```
 ````
@@ -113,7 +121,7 @@
 
 ````
 
-`````{py:class} ConfigPrimaryKey(/, **data: typing.Any)
+`````{py:class} ConfigPrimaryKey(**data: typing.Any)
 :canonical: agentsociety.webapi.api.experiment_runner.ConfigPrimaryKey
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -151,7 +159,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} ExperimentRequest(/, **data: typing.Any)
+`````{py:class} ExperimentRequest(**data: typing.Any)
 :canonical: agentsociety.webapi.api.experiment_runner.ExperimentRequest
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -222,7 +230,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} ExperimentResponse(/, **data: typing.Any)
+`````{py:class} ExperimentResponse(**data: typing.Any)
 :canonical: agentsociety.webapi.api.experiment_runner.ExperimentResponse
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -289,10 +297,26 @@ Bases: {py:obj}`pydantic.BaseModel`
 ```
 ````
 
-````{py:function} _compute_bill(db: sqlalchemy.ext.asyncio.AsyncSession, experiment: agentsociety.webapi.models.experiment.Experiment) -> None
-:canonical: agentsociety.webapi.api.experiment_runner._compute_bill
+````{py:function} _compute_commercial_bill(app_state, db: sqlalchemy.ext.asyncio.AsyncSession, experiment: agentsociety.webapi.models.experiment.Experiment)
+:canonical: agentsociety.webapi.api.experiment_runner._compute_commercial_bill
 :async:
 
-```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner._compute_bill
+```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner._compute_commercial_bill
+```
+````
+
+````{py:function} _check_commercial_balance(app_state, tenant_id: str, db: sqlalchemy.ext.asyncio.AsyncSession)
+:canonical: agentsociety.webapi.api.experiment_runner._check_commercial_balance
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner._check_commercial_balance
+```
+````
+
+````{py:function} _record_experiment_bill(app_state, db: sqlalchemy.ext.asyncio.AsyncSession, tenant_id: str, exp_id: uuid.UUID, llm_config_id: typing.Optional[uuid.UUID] = None)
+:canonical: agentsociety.webapi.api.experiment_runner._record_experiment_bill
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner._record_experiment_bill
 ```
 ````

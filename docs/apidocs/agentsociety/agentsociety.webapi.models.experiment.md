@@ -187,7 +187,7 @@ Bases: {py:obj}`enum.IntEnum`
 
 `````
 
-``````{py:class} ApiExperiment(/, **data: typing.Any)
+``````{py:class} ApiExperiment(**data: typing.Any)
 :canonical: agentsociety.webapi.models.experiment.ApiExperiment
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -364,7 +364,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ``````
 
-`````{py:class} ApiTime(/, **data: typing.Any)
+`````{py:class} ApiTime(**data: typing.Any)
 :canonical: agentsociety.webapi.models.experiment.ApiTime
 
 Bases: {py:obj}`pydantic.BaseModel`

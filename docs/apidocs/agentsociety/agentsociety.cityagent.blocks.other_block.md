@@ -33,9 +33,30 @@
     ```
 ````
 
+### Data
+
+````{list-table}
+:class: autosummary longtable
+:align: left
+
+* - {py:obj}`SLEEP_TIME_ESTIMATION_PROMPT <agentsociety.cityagent.blocks.other_block.SLEEP_TIME_ESTIMATION_PROMPT>`
+  - ```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.SLEEP_TIME_ESTIMATION_PROMPT
+    :summary:
+    ```
+````
+
 ### API
 
-`````{py:class} SleepBlock(llm: agentsociety.llm.LLM, agent_memory: typing.Optional[agentsociety.memory.Memory] = None)
+````{py:data} SLEEP_TIME_ESTIMATION_PROMPT
+:canonical: agentsociety.cityagent.blocks.other_block.SLEEP_TIME_ESTIMATION_PROMPT
+:value: <Multiline-String>
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.SLEEP_TIME_ESTIMATION_PROMPT
+```
+
+````
+
+`````{py:class} SleepBlock(llm: agentsociety.llm.LLM, agent_memory: typing.Optional[agentsociety.memory.Memory] = None, sleep_time_estimation_prompt: str = SLEEP_TIME_ESTIMATION_PROMPT)
 :canonical: agentsociety.cityagent.blocks.other_block.SleepBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -122,14 +143,25 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 `````
 
-```{py:class} OtherBlockParams(/, **data: typing.Any)
+`````{py:class} OtherBlockParams(**data: typing.Any)
 :canonical: agentsociety.cityagent.blocks.other_block.OtherBlockParams
 
 Bases: {py:obj}`agentsociety.agent.BlockParams`
 
+````{py:attribute} sleep_time_estimation_prompt
+:canonical: agentsociety.cityagent.blocks.other_block.OtherBlockParams.sleep_time_estimation_prompt
+:type: str
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherBlockParams.sleep_time_estimation_prompt
 ```
 
-```{py:class} OtherBlockContext(/, **data: typing.Any)
+````
+
+`````
+
+```{py:class} OtherBlockContext(**data: typing.Any)
 :canonical: agentsociety.cityagent.blocks.other_block.OtherBlockContext
 
 Bases: {py:obj}`agentsociety.agent.BlockContext`

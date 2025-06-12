@@ -220,7 +220,7 @@
 
 ````
 
-````{py:method} update(target_agent_id: int, target_key: str, content: typing.Any)
+````{py:method} update(target_agent_id: int, target_key: str, content: typing.Any, query: bool = False)
 :canonical: agentsociety.simulation.agentgroup.AgentGroup.update
 :async:
 

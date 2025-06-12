@@ -17,7 +17,6 @@ agentsociety.webapi.models.config
 agentsociety.webapi.models._base
 agentsociety.webapi.models.experiment
 agentsociety.webapi.models.survey
-agentsociety.webapi.models.bill
 agentsociety.webapi.models.metric
 agentsociety.webapi.models.agent_profiles
 agentsociety.webapi.models.agent_template
@@ -80,7 +79,7 @@ agentsociety.webapi.models.agent
 
 ````
 
-`````{py:class} ApiResponseWrapper(/, **data: typing.Any)
+`````{py:class} ApiResponseWrapper(**data: typing.Any)
 :canonical: agentsociety.webapi.models.ApiResponseWrapper
 
 Bases: {py:obj}`pydantic.BaseModel`, {py:obj}`typing.Generic`\[{py:obj}`agentsociety.webapi.models.T`\]
@@ -107,7 +106,7 @@ Bases: {py:obj}`pydantic.BaseModel`, {py:obj}`typing.Generic`\[{py:obj}`agentsoc
 
 `````
 
-`````{py:class} ApiPaginatedResponseWrapper(/, **data: typing.Any)
+`````{py:class} ApiPaginatedResponseWrapper(**data: typing.Any)
 :canonical: agentsociety.webapi.models.ApiPaginatedResponseWrapper
 
 Bases: {py:obj}`pydantic.BaseModel`, {py:obj}`typing.Generic`\[{py:obj}`agentsociety.webapi.models.T`\]

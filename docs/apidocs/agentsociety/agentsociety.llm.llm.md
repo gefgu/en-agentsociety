@@ -155,7 +155,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} LLMConfig(/, **data: typing.Any)
+`````{py:class} LLMConfig(**data: typing.Any)
 :canonical: agentsociety.llm.llm.LLMConfig
 
 Bases: {py:obj}`pydantic.BaseModel`

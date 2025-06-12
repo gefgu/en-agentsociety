@@ -96,7 +96,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} Message(/, **data: typing.Any)
+`````{py:class} Message(**data: typing.Any)
 :canonical: agentsociety.message.messager.Message
 
 Bases: {py:obj}`pydantic.BaseModel`

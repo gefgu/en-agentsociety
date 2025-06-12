@@ -135,7 +135,7 @@ Bases: {py:obj}`agentsociety.webapi.models._base.Base`
 
 `````
 
-``````{py:class} ApiSurvey(/, **data: typing.Any)
+``````{py:class} ApiSurvey(**data: typing.Any)
 :canonical: agentsociety.webapi.models.survey.ApiSurvey
 
 Bases: {py:obj}`pydantic.BaseModel`

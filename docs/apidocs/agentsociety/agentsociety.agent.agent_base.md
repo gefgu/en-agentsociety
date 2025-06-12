@@ -23,6 +23,10 @@
   - ```{autodoc2-docstring} agentsociety.agent.agent_base.AgentToolbox
     :summary:
     ```
+* - {py:obj}`GatherQuery <agentsociety.agent.agent_base.GatherQuery>`
+  - ```{autodoc2-docstring} agentsociety.agent.agent_base.GatherQuery
+    :summary:
+    ```
 * - {py:obj}`AgentType <agentsociety.agent.agent_base.AgentType>`
   - ```{autodoc2-docstring} agentsociety.agent.agent_base.AgentType
     :summary:
@@ -69,7 +73,7 @@
 
 ````
 
-````{py:class} AgentParams(/, **data: typing.Any)
+````{py:class} AgentParams(**data: typing.Any)
 :canonical: agentsociety.agent.agent_base.AgentParams
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -139,18 +143,72 @@ Bases: {py:obj}`typing.NamedTuple`
 
 `````
 
-`````{py:class} AgentType(*args, **kwds)
-:canonical: agentsociety.agent.agent_base.AgentType
+`````{py:class} GatherQuery(**data: typing.Any)
+:canonical: agentsociety.agent.agent_base.GatherQuery
 
-Bases: {py:obj}`enum.Enum`
+Bases: {py:obj}`pydantic.BaseModel`
 
-```{autodoc2-docstring} agentsociety.agent.agent_base.AgentType
+```{autodoc2-docstring} agentsociety.agent.agent_base.GatherQuery
 ```
 
 ```{rubric} Initialization
 ```
 
-```{autodoc2-docstring} agentsociety.agent.agent_base.AgentType.__init__
+```{autodoc2-docstring} agentsociety.agent.agent_base.GatherQuery.__init__
+```
+
+````{py:attribute} key
+:canonical: agentsociety.agent.agent_base.GatherQuery.key
+:type: str
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.GatherQuery.key
+```
+
+````
+
+````{py:attribute} target_agent_ids
+:canonical: agentsociety.agent.agent_base.GatherQuery.target_agent_ids
+:type: list[int]
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.GatherQuery.target_agent_ids
+```
+
+````
+
+````{py:attribute} flatten
+:canonical: agentsociety.agent.agent_base.GatherQuery.flatten
+:type: bool
+:value: >
+   True
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.GatherQuery.flatten
+```
+
+````
+
+````{py:attribute} keep_id
+:canonical: agentsociety.agent.agent_base.GatherQuery.keep_id
+:type: bool
+:value: >
+   True
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.GatherQuery.keep_id
+```
+
+````
+
+`````
+
+`````{py:class} AgentType
+:canonical: agentsociety.agent.agent_base.AgentType
+
+Bases: {py:obj}`enum.Enum`
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.AgentType
 ```
 
 ````{py:attribute} Unspecified
@@ -309,6 +367,9 @@ Bases: {py:obj}`abc.ABC`
 ````{py:method} __getstate__()
 :canonical: agentsociety.agent.agent_base.Agent.__getstate__
 
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.__getstate__
+```
+
 ````
 
 ````{py:property} id
@@ -400,6 +461,30 @@ Bases: {py:obj}`abc.ABC`
 :async:
 
 ```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.send_message_to_agent
+```
+
+````
+
+````{py:method} _get_gather_query_and_clear()
+:canonical: agentsociety.agent.agent_base.Agent._get_gather_query_and_clear
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent._get_gather_query_and_clear
+```
+
+````
+
+````{py:method} register_gather_query(key: str, target_agent_ids: list[int], flatten: bool = True, keep_id: bool = True)
+:canonical: agentsociety.agent.agent_base.Agent.register_gather_query
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.register_gather_query
+```
+
+````
+
+````{py:method} get_gather_results(key: str) -> typing.Optional[list[typing.Any] | dict[int, typing.Any]]
+:canonical: agentsociety.agent.agent_base.Agent.get_gather_results
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.get_gather_results
 ```
 
 ````

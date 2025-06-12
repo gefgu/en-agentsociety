@@ -17,6 +17,7 @@ agentsociety.agent
 agentsociety.environment
 agentsociety.storage
 agentsociety.webapi
+agentsociety.commercial
 agentsociety.configs
 agentsociety.memory
 agentsociety.llm

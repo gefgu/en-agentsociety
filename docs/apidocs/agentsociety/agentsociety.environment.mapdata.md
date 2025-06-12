@@ -49,7 +49,7 @@
 
 ````
 
-`````{py:class} MapConfig(/, **data: typing.Any)
+`````{py:class} MapConfig(**data: typing.Any)
 :canonical: agentsociety.environment.mapdata.MapConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -70,17 +70,6 @@ Bases: {py:obj}`pydantic.BaseModel`
    'Field(...)'
 
 ```{autodoc2-docstring} agentsociety.environment.mapdata.MapConfig.file_path
-```
-
-````
-
-````{py:attribute} cache_path
-:canonical: agentsociety.environment.mapdata.MapConfig.cache_path
-:type: typing.Optional[str]
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.environment.mapdata.MapConfig.cache_path
 ```
 
 ````

@@ -103,7 +103,7 @@
 ```
 ````
 
-`````{py:class} ApiSurveyCreate(/, **data: typing.Any)
+`````{py:class} ApiSurveyCreate(**data: typing.Any)
 :canonical: agentsociety.webapi.api.survey.ApiSurveyCreate
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -140,7 +140,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 ```
 ````
 
-`````{py:class} ApiSurveyUpdate(/, **data: typing.Any)
+`````{py:class} ApiSurveyUpdate(**data: typing.Any)
 :canonical: agentsociety.webapi.api.survey.ApiSurveyUpdate
 
 Bases: {py:obj}`pydantic.BaseModel`

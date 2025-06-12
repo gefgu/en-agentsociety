@@ -29,7 +29,6 @@ agentsociety.cityagent.governmentagent
 agentsociety.cityagent.bankagent
 agentsociety.cityagent.sharing_params
 agentsociety.cityagent.firmagent
-agentsociety.cityagent.metrics
 agentsociety.cityagent.nbsagent
 ```
 
