@@ -78,9 +78,12 @@ def cli():
 
 @cli.command()
 @common_options
-def ui(config: str, config_base64: str):
+def ui(config: Optional[str], config_base64: Optional[str]):
     """Launch AgentSociety GUI"""
-    config_data = load_config(config, config_base64)
+    if config is None and config_base64 is None:
+        config_data = {}
+    else:
+        config_data = load_config(config, config_base64)
 
     import uvicorn
 
@@ -92,7 +95,11 @@ def ui(config: str, config_base64: str):
     class WebUIConfig(BaseModel):
         addr: str = Field(default="127.0.0.1:8080")
         callback_url: str = ""
-        env: EnvConfig
+        env: EnvConfig = Field(default_factory=lambda: EnvConfig.model_validate({
+            "db": {
+                "enabled": True,
+            }
+        }))
         read_only: bool = Field(default=False)
         debug: bool = Field(default=False)
         logging_level: str = Field(default="INFO")
@@ -105,10 +112,10 @@ def ui(config: str, config_base64: str):
         get_logger().debug(f"WebUI config: {c}")
 
         db_dsn = c.env.db.get_dsn(Path(c.env.home_dir) / "sqlite.db")
-        
+
         # default executor
         executor = ProcessExecutor(c.env.home_dir)
-        
+
         more_state: Dict[str, Any] = {
             "callback_url": c.callback_url,
             "executor": executor,

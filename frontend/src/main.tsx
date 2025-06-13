@@ -23,6 +23,18 @@ import './i18n'
 import { useTranslation } from 'react-i18next'
 import Bill from './pages/Bill'
 import AgentTemplateForm from './pages/AgentTemplate/AgentTemplateForm'
+import { WITH_AUTH } from './components/fetch'
+
+const authProvider = (children: React.ReactNode) => {
+    if (WITH_AUTH) {
+        return (
+            <AuthProvider sdkConfig={sdkConfig}>
+                {children}
+            </AuthProvider>
+        )
+    }
+    return children;
+}
 
 const router = createBrowserRouter([
     {
@@ -32,81 +44,81 @@ const router = createBrowserRouter([
     {
         path: "/console",
         element: (
-            <AuthProvider sdkConfig={sdkConfig}>
+            authProvider(
                 <RootLayout selectedKey='/console'><Console /></RootLayout>
-            </AuthProvider>
+            )
         ),
     },
     {
         path: "/exp/:id",
         element: (
-            <AuthProvider sdkConfig={sdkConfig}>
+            authProvider(
                 <RootLayout selectedKey='/console'><Replay /></RootLayout>
-            </AuthProvider>
+            )
         ),
     },
     {
         path: "/survey",
         element: (
-            <AuthProvider sdkConfig={sdkConfig}>
+            authProvider(
                 <RootLayout selectedKey='/survey'><Survey /></RootLayout>
-            </AuthProvider>
+            )
         ),
     },
     {
         path: "/create-experiment",
         element: (
-            <AuthProvider sdkConfig={sdkConfig}>
+            authProvider(
                 <RootLayout selectedKey='/create-experiment'><CreateExperiment /></RootLayout>
-            </AuthProvider>
+            )
         ),
     },
     {
         path: "/llms",
         element: (
-            <AuthProvider sdkConfig={sdkConfig}>
+            authProvider(
                 <RootLayout selectedKey='/llms'><LLM /></RootLayout>
-            </AuthProvider>
+            )
         ),
     },
     {
         path: "/agents",
         element: (
-            <AuthProvider sdkConfig={sdkConfig}>
+            authProvider(
                 <RootLayout selectedKey='/agents'><AgentList /></RootLayout>
-            </AuthProvider>
+            )
         ),
     },
     {
         path: "/profiles",
         element: (
-            <AuthProvider sdkConfig={sdkConfig}>
+            authProvider(
                 <RootLayout selectedKey='/profiles'><ProfileList /></RootLayout>
-            </AuthProvider>
+            )
         ),
     },
     {
         path: "/workflows",
         element: (
-            <AuthProvider sdkConfig={sdkConfig}>
+            authProvider(
                 <RootLayout selectedKey='/workflows'><WorkflowList /></RootLayout>
-            </AuthProvider>
+            )
         ),
     },
     {
         path: "/maps",
         element: (
-            <AuthProvider sdkConfig={sdkConfig}>
+            authProvider(
                 <RootLayout selectedKey='/maps'><Map /></RootLayout>
-            </AuthProvider>
+            )
         ),
     },
     {
         path: "/bill",
         element: (
-            <AuthProvider sdkConfig={sdkConfig}>
+            authProvider(
                 <RootLayout selectedKey='/bill'><Bill /></RootLayout>
-            </AuthProvider>
+            )
         ),
     },
     {
@@ -116,25 +128,25 @@ const router = createBrowserRouter([
     {
         path: "/agent-templates",
         element: (
-            <AuthProvider sdkConfig={sdkConfig}>
+            authProvider(
                 <RootLayout selectedKey='/agent-templates'><AgentTemplate /></RootLayout>
-            </AuthProvider>
+            )
         ),
     },
     {
         path: "/agent-templates/create",
         element: (
-            <AuthProvider sdkConfig={sdkConfig}>
+            authProvider(
                 <RootLayout selectedKey='/agent-templates'><AgentTemplateForm /></RootLayout>
-            </AuthProvider>
+            )
         ),
     },
     {
         path: "/agent-templates/edit/:id",
         element: (
-            <AuthProvider sdkConfig={sdkConfig}>
+            authProvider(
                 <RootLayout selectedKey='/agent-templates'><AgentTemplateForm /></RootLayout>
-            </AuthProvider>
+            )
         ),
     },
     {
@@ -168,10 +180,10 @@ const theme: ThemeConfig = {
 
 const App = () => {
     const { i18n } = useTranslation()
-    
+
     return (
-        <ConfigProvider 
-            theme={theme} 
+        <ConfigProvider
+            theme={theme}
             locale={i18n.language === 'en' ? enUS : zhCN}
         >
             <RouterProvider router={router} />
