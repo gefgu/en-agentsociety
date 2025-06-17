@@ -1,11 +1,13 @@
 import asyncio
 import jsonc
 import logging
+from typing import Optional
 
-from agentsociety.agent import CitizenAgentBase
+from agentsociety.agent import CitizenAgentBase, Block
 from agentsociety.agent.agent_base import AgentToolbox
 from agentsociety.memory import Memory
 from agentsociety.agent.prompt import FormatPrompt
+from agentsociety.cityagent.societyagent import SocietyAgentConfig
 
 logger = logging.getLogger(__name__)
 
@@ -47,12 +49,16 @@ class AgreeAgent(CitizenAgentBase):
         name: str,
         toolbox: AgentToolbox,
         memory: Memory,
+        agent_params: Optional[SocietyAgentConfig] = None,
+        blocks: Optional[list[Block]] = None,
     ) -> None:
         super().__init__(
             id=id,
             name=name,
             toolbox=toolbox,
             memory=memory,
+            agent_params=agent_params,
+            blocks=blocks,
         )
         self.response_prompt = FormatPrompt(AGREE_RESPONSE_PROMPT)
         self.last_time_trigger = None
@@ -113,7 +119,7 @@ class AgreeAgent(CitizenAgentBase):
                 message_data = jsonc.loads(raw_content)
                 content = message_data["content"]
                 propagation_count = message_data.get("propagation_count", 1)
-            except (jsonc.JSONDecodeError, TypeError, KeyError):
+            except Exception:
                 content = raw_content
                 propagation_count = 1
             if not content:
@@ -146,12 +152,16 @@ class DisagreeAgent(CitizenAgentBase):
         name: str,
         toolbox: AgentToolbox,
         memory: Memory,
+        agent_params: Optional[SocietyAgentConfig] = None,
+        blocks: Optional[list[Block]] = None,
     ) -> None:
         super().__init__(
             id=id,
             name=name,
             toolbox=toolbox,
             memory=memory,
+            agent_params=agent_params,
+            blocks=blocks,
         )
         self.response_prompt = FormatPrompt(DISAGREE_RESPONSE_PROMPT)
         self.last_time_trigger = None
@@ -212,7 +222,7 @@ class DisagreeAgent(CitizenAgentBase):
                 message_data = jsonc.loads(raw_content)
                 content = message_data["content"]
                 propagation_count = message_data.get("propagation_count", 1)
-            except (jsonc.JSONDecodeError, TypeError, KeyError):
+            except Exception:
                 content = raw_content
                 propagation_count = 1
             if not content:
