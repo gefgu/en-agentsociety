@@ -7,7 +7,7 @@ from agentsociety.agent import CitizenAgentBase, Block
 from agentsociety.agent.agent_base import AgentToolbox
 from agentsociety.memory import Memory
 from agentsociety.agent.prompt import FormatPrompt
-from agentsociety.cityagent.societyagent import SocietyAgentConfig
+from agentsociety.cityagent.societyagent import SocietyAgentConfig, StatusAttribute
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +43,12 @@ What you would say (One or two sentences):
 
 
 class AgreeAgent(CitizenAgentBase):
+    StatusAttributes = [
+        StatusAttribute(
+            name="friends", type=list, default=[], description="agent's friends list"
+        ),
+    ]
+
     def __init__(
         self,
         id: int,
@@ -146,6 +152,12 @@ class AgreeAgent(CitizenAgentBase):
 
 
 class DisagreeAgent(CitizenAgentBase):
+    StatusAttributes = [
+        StatusAttribute(
+            name="friends", type=list, default=[], description="agent's friends list"
+        ),
+    ]
+    
     def __init__(
         self,
         id: int,
