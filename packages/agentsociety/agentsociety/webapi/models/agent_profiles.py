@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Any, Optional
+from typing import Optional
 
 from pydantic import AwareDatetime, BaseModel
 from sqlalchemy.orm import Mapped, mapped_column

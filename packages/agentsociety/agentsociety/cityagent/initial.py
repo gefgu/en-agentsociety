@@ -1,4 +1,3 @@
-import logging
 import random
 from copy import deepcopy
 
@@ -138,19 +137,19 @@ async def bind_agent_info(simulation: AgentSociety):
     citizen_ids = await simulation.filter(types=(SocietyAgent,))
     try:
         firm_ids = await simulation.filter(types=(FirmAgent,))
-    except Exception as e:
+    except Exception:
         firm_ids = []
     try:
         government_ids = await simulation.filter(types=(GovernmentAgent,))
-    except Exception as e:
+    except Exception:
         government_ids = []
     try:
         bank_ids = await simulation.filter(types=(BankAgent,))
-    except Exception as e:
+    except Exception:
         bank_ids = []
     try:
         nbs_ids = await simulation.filter(types=(NBSAgent,))
-    except Exception as e:
+    except Exception:
         nbs_ids = []
     if len(firm_ids) == 0 or len(government_ids) == 0 or len(bank_ids) == 0 or len(nbs_ids) == 0:
         get_logger().warning("No firm, government, bank or NBS found, skipping economy binding")

@@ -1,14 +1,11 @@
 # Due to the current limitations of the simulator's support, only NoneBlock, MessageBlock, and FindPersonBlock are available in the Dispatcher.
 
-import logging
 import random
 from typing import Any, Optional
 
-import jsonc
+import json_repair
 
-from agentsociety.agent import Block, FormatPrompt, BlockParams
-from agentsociety.environment import Environment
-from agentsociety.llm import LLM
+from agentsociety.agent import AgentToolbox, Block, FormatPrompt, BlockParams
 from agentsociety.logger import get_logger
 from agentsociety.memory import Memory
 from agentsociety.agent.dispatcher import BlockDispatcher
@@ -80,9 +77,9 @@ class SocialNoneBlock(Block):
     name = "SocialNoneBlock"
     description = "Handle all other cases"
 
-    def __init__(self, llm: LLM, agent_memory: Memory):
+    def __init__(self, toolbox: AgentToolbox, agent_memory: Memory):
         super().__init__(
-            llm=llm, agent_memory=agent_memory
+            toolbox=toolbox, agent_memory=agent_memory
         )
         self.guidance_prompt = FormatPrompt(template=TIME_ESTIMATE_PROMPT)
 
@@ -106,8 +103,9 @@ class SocialNoneBlock(Block):
         )
         result = clean_json_response(result)
         try:
-            result = jsonc.loads(result)
-            node_id = await self.memory.stream.add_social(
+            result: Any = json_repair.loads(result)
+            node_id = await self.memory.stream.add(
+                topic="social",
                 description=f"I {step['intention']}"
             )
             return {
@@ -120,7 +118,8 @@ class SocialNoneBlock(Block):
             get_logger().warning(
                 f"Error occurred while parsing the evaluation response: {e}, original result: {result}"
             )
-            node_id = await self.memory.stream.add_social(
+            node_id = await self.memory.stream.add(
+                topic="social",
                 description=f"I failed to execute {step['intention']}"
             )
             return {
@@ -138,10 +137,9 @@ class FindPersonBlock(Block):
     name = "FindPersonBlock"
     description = "Find a suitable person to socialize with"
 
-    def __init__(self, llm: LLM, environment: Environment, agent_memory: Memory):
+    def __init__(self, toolbox: AgentToolbox, agent_memory: Memory):
         super().__init__(
-            llm=llm,
-            environment=environment,
+            toolbox=toolbox,
             agent_memory=agent_memory,
         )
 
@@ -196,8 +194,9 @@ class FindPersonBlock(Block):
             relationships = await self.memory.status.get("relationships") or {}
 
             if not friends:
-                node_id = await self.memory.stream.add_social(
-                    description=f"I can't find any friends to contact with."
+                node_id = await self.memory.stream.add(
+                    topic="social",
+                    description="I can't find any friends to contact with."
                 )
                 return {
                     "success": False,
@@ -254,7 +253,7 @@ class FindPersonBlock(Block):
                 # Convert index to ID
                 target = index_to_id[friend_index]
                 plan_context["target"] = target # type: ignore
-            except Exception as e:
+            except Exception:
                 # If parsing fails, select the friend with the strongest relationship as the default option
                 target = (
                     max(relationships.items(), key=lambda x: x[1])[0]
@@ -263,7 +262,8 @@ class FindPersonBlock(Block):
                 )
                 mode = "online"
 
-            node_id = await self.memory.stream.add_social(
+            node_id = await self.memory.stream.add(
+                topic="social",
                 description=f"I selected the friend {target} for {mode} interaction"
             )
             return {
@@ -276,8 +276,9 @@ class FindPersonBlock(Block):
             }
 
         except Exception as e:
-            node_id = await self.memory.stream.add_social(
-                description=f"I can't find any friends to socialize with."
+            node_id = await self.memory.stream.add(
+                topic="social",
+                description="I can't find any friends to socialize with."
             )
             return {
                 "success": False,
@@ -292,13 +293,12 @@ class MessageBlock(Block):
     name = "MessageBlock"
     description = "Send a message to someone"
 
-    def __init__(self, llm: LLM, environment: Environment, agent_memory: Memory):
+    def __init__(self, toolbox: AgentToolbox, agent_memory: Memory):
         super().__init__(
-            llm=llm,
-            environment=environment,
+            toolbox=toolbox,
             agent_memory=agent_memory,
         )
-        self.find_person_block = FindPersonBlock(llm, environment, agent_memory)
+        self.find_person_block = FindPersonBlock(toolbox, agent_memory)
 
         # configurable fields
         self.default_message_template = """
@@ -369,7 +369,8 @@ class MessageBlock(Block):
             await self.memory.status.update("chat_histories", chat_histories)
 
             # Send message
-            node_id = await self.memory.stream.add_social(
+            node_id = await self.memory.stream.add(
+                topic="social",
                 description=f"I sent a message to {target}: {message}"
             )
             return {
@@ -382,7 +383,8 @@ class MessageBlock(Block):
             }
 
         except Exception as e:
-            node_id = await self.memory.stream.add_social(
+            node_id = await self.memory.stream.add(
+                topic="social",
                 description=f"I can't send a message to {target}"
             )
             return {
@@ -412,16 +414,15 @@ class EnvSocialBlock(Block):
 
     def __init__(
             self, 
-            llm: LLM, 
-            environment: Environment, 
+            toolbox: AgentToolbox, 
             agent_memory: Memory, 
             block_params: Optional[EnvSocialBlockParams] = None
         ):
-        super().__init__(llm=llm, environment=environment, agent_memory=agent_memory, block_params=block_params)
-        self.find_person_block = FindPersonBlock(llm, environment, agent_memory)
-        self.message_block = MessageBlock(llm, environment, agent_memory)
-        self.noneblock = SocialNoneBlock(llm, agent_memory)
-        self.dispatcher = BlockDispatcher(llm, agent_memory)
+        super().__init__(toolbox=toolbox, agent_memory=agent_memory, block_params=block_params)
+        self.find_person_block = FindPersonBlock(toolbox, agent_memory)
+        self.message_block = MessageBlock(toolbox, agent_memory)
+        self.noneblock = SocialNoneBlock(toolbox, agent_memory)
+        self.dispatcher = BlockDispatcher(toolbox, agent_memory)
 
         self.trigger_time = 0
         self.token_consumption = 0
@@ -442,32 +443,12 @@ class EnvSocialBlock(Block):
         Returns:
             Result dict from the executed sub-block.
         """
-        node_id = await self.memory.stream.add_social(description=f"I {step['intention']}")
+        node_id = await self.memory.stream.add(
+            topic="social", description=f"I {step['intention']}"
+        )
         return {
             "success": True,
             "evaluation": f'Finished {step["intention"]}',
             "consumed_time": random.randint(1, 120),
             "node_id": node_id,
         }
-        try:
-            self.trigger_time += 1
-            consumption_start = (
-                self.llm.prompt_tokens_used + self.llm.completion_tokens_used
-            )
-
-            # Select the appropriate sub-block using dispatcher
-            dispatch_context = {"current_intention": step["intention"]}
-            selected_block = await self.dispatcher.dispatch(dispatch_context)
-
-            # Execute the selected sub-block and get the result
-            result = await selected_block.forward(step, plan_context)
-
-            return result
-
-        except Exception as e:
-            return {
-                "success": False,
-                "evaluation": "Failed to complete social interaction with default behavior",
-                "consumed_time": 15,
-                "node_id": None,
-            }

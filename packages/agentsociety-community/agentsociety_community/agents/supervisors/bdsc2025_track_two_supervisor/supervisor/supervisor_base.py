@@ -1,18 +1,12 @@
-import asyncio
 import random
 import time
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Optional, Set, Tuple, cast
+from typing import Any, Optional, Set, Tuple, cast
 
-import jsonc
-from agentsociety.agent import (AgentToolbox, Block, StatusAttribute,
-                                SupervisorBase)
-from agentsociety.agent.prompt import FormatPrompt
-from agentsociety.llm import LLM
+from agentsociety.agent import (AgentToolbox, Block, SupervisorBase)
 from agentsociety.memory import Memory
 from agentsociety.memory.const import RelationType, SocialRelation
 from agentsociety.message import Message, MessageKind
-from openai import OpenAIError
 
 from .sensing_api import InterventionType, SensingAPI
 from .sharing_params import SupervisorConfig, SupervisorContext

@@ -1,7 +1,5 @@
-import json
-from typing import Any
 
-from agentsociety.configs.exp import (AgentFilterConfig, ExpConfig,
+from agentsociety.configs.exp import (ExpConfig,
                                       WorkflowStepConfig, WorkflowType)
 from agentsociety.environment import EnvironmentConfig
 from agentsociety.simulation import AgentSociety

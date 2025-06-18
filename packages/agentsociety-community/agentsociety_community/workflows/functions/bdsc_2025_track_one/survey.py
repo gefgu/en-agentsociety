@@ -7,7 +7,6 @@ from typing import Any
 import uuid
 from datetime import datetime
 from agentsociety.survey.models import Survey, Page, Question, QuestionType
-import jsonc
 
 def create_low_carbon_awareness_survey() -> Survey:
     """
@@ -156,7 +155,7 @@ def create_low_carbon_awareness_survey() -> Survey:
 
 SCORE_MAP = {'A': 100, 'B': 75, 'C': 50, 'D': 25}
 
-def extract_survey_scores(responses: list[Any]) -> list[float]:
+def extract_survey_scores(responses: list[Any]) -> tuple[list[float], float]:
     """
     Extracts the rumor spread scores from survey responses.
 

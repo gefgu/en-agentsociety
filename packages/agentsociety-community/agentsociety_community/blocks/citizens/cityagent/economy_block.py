@@ -1,25 +1,25 @@
 import numbers
 import random
-from typing import Optional
+from typing import Any, Optional
 
-import jsonc
+import json_repair
 import numpy as np
-from agentsociety.agent import (
-    Block,
-    BlockContext,
-    BlockDispatcher,
-    BlockParams,
-    DotDict,
-    FormatPrompt,
-)
-from agentsociety.environment import Environment
-from agentsociety.llm import LLM
-from agentsociety.logger import get_logger
-from agentsociety.memory import Memory
 from pydantic import Field
 
+from agentsociety.agent import (
+    AgentToolbox,
+    Block,
+    FormatPrompt,
+    BlockParams,
+    BlockDispatcher,
+    DotDict,
+    BlockContext,
+)
+from agentsociety.logger import get_logger
+from agentsociety.memory import Memory
 from ....agents.citizens.cityagent.societyagent import SocietyAgentBlockOutput
-from .utils import *
+from .utils import clean_json_response, prettify_document
+from .utils import extract_dict_from_string
 
 WORKTIME_ESTIMATE_PROMPT = """As an intelligent agent's time estimation system, please estimate the time needed to complete the current action based on the overall plan and current intention.
 
@@ -73,9 +73,8 @@ class WorkBlock(Block):
 
     def __init__(
         self,
-        llm: LLM,
-        environment: Environment,
-        memory: Memory,
+        toolbox: AgentToolbox,
+        agent_memory: Memory,
         worktime_estimation_prompt: str = WORKTIME_ESTIMATE_PROMPT,
     ):
         """Initialize with dependencies.
@@ -86,13 +85,12 @@ class WorkBlock(Block):
             memory: Agent's memory system
         """
         super().__init__(
-            llm=llm,
-            environment=environment,
-            agent_memory=memory,
+            toolbox=toolbox,
+            agent_memory=agent_memory,
         )
         self.guidance_prompt = FormatPrompt(
             template=worktime_estimation_prompt,
-            memory=memory,
+            memory=agent_memory,
         )
 
     async def forward(self, context: DotDict):
@@ -113,7 +111,7 @@ class WorkBlock(Block):
         )
         result = clean_json_response(result)
         try:
-            result = jsonc.loads(result)
+            result: Any = json_repair.loads(result)
             time = result["time"]
             day, start_time = self.environment.get_datetime(format_time=True)
             await self.memory.status.update(
@@ -125,8 +123,9 @@ class WorkBlock(Block):
             )
             work_hour_finish = await self.memory.status.get("work_hour_finish")
             work_hour_finish += float(time / 60)
-            node_id = await self.memory.stream.add_economy(
-                description=f"I worked {time} minutes on {context['current_step']['intention']}"
+            node_id = await self.memory.stream.add(
+                topic="economy",
+                description=f"I worked {time} minutes on {context['current_step']['intention']}",
             )
             await self.memory.status.update("work_hour_finish", work_hour_finish)
             return {
@@ -147,8 +146,9 @@ class WorkBlock(Block):
                 mode="merge",
             )
             work_hour_finish = await self.memory.status.get("work_hour_finish")
-            node_id = await self.memory.stream.add_economy(
-                description=f"I worked {time} minutes on {context['current_step']['intention']}"
+            node_id = await self.memory.stream.add(
+                topic="economy",
+                description=f"I worked {time} minutes on {context['current_step']['intention']}",
             )
             work_hour_finish += float(time / 60)
             await self.memory.status.update("work_hour_finish", work_hour_finish)
@@ -173,8 +173,7 @@ class ConsumptionBlock(Block):
 
     def __init__(
         self,
-        llm: LLM,
-        environment: Environment,
+        toolbox: AgentToolbox,
         agent_memory: Memory,
     ):
         """Initialize consumption processor.
@@ -183,8 +182,7 @@ class ConsumptionBlock(Block):
             economy_client: Client for economic system interactions
         """
         super().__init__(
-            llm=llm,
-            environment=environment,
+            toolbox=toolbox,
             agent_memory=agent_memory,
         )
         self.forward_times = 0
@@ -210,12 +208,13 @@ class ConsumptionBlock(Block):
             agent_id, "consumption"
         )
         if consumption_currency >= month_consumption:
-            node_id = await self.memory.stream.add_economy(
-                description=f"I have passed the monthly consumption limit, so I will not consume."
+            node_id = await self.memory.stream.add(
+                topic="economy",
+                description="I have passed the monthly consumption limit, so I will not consume.",
             )
             return {
                 "success": False,
-                "evaluation": f"I have passed the monthly consumption limit, so I will not consume.",
+                "evaluation": "I have passed the monthly consumption limit, so I will not consume.",
                 "consumed_time": 0,
                 "node_id": node_id,
             }
@@ -230,8 +229,9 @@ class ConsumptionBlock(Block):
         real_consumption = await self.environment.economy_client.calculate_consumption(
             firms_id, agent_id, demand_each_firm
         )
-        node_id = await self.memory.stream.add_economy(
-            description=f"I bought some goods, and spent {real_consumption:.1f} on {intention}"
+        node_id = await self.memory.stream.add(
+            topic="economy",
+            description=f"I bought some goods, and spent {real_consumption:.1f} on {intention}",
         )
         evaluation = {
             "success": True,
@@ -250,13 +250,13 @@ class EconomyNoneBlock(Block):
     name = "EconomyNoneBlock"
     description = "Fallback block for other activities"
 
-    def __init__(self, llm: LLM, memory: Memory):
-        super().__init__(llm=llm, agent_memory=memory)
+    def __init__(self, toolbox: AgentToolbox, agent_memory: Memory):
+        super().__init__(toolbox=toolbox, agent_memory=agent_memory)
 
     async def forward(self, context: DotDict):
         """Log generic activities in economy stream."""
-        node_id = await self.memory.stream.add_economy(
-            description=f"I {context['current_step']['intention']}"
+        node_id = await self.memory.stream.add(
+            topic="economy", description=f"I {context['current_step']['intention']}"
         )
         return {
             "success": True,
@@ -300,7 +300,7 @@ class EconomyBlock(Block):
     ContextType = EconomyBlockContext
     NeedAgent = True
     name = "EconomyBlock"
-    description = "Responsible for all kinds of economic-related operations, for example, work, shopping, consume, etc."
+    description = "Work, shopping, consume, and other economic activities."
     actions = {
         "work": "Support the work action",
         "consume": "Support the consume action",
@@ -309,20 +309,17 @@ class EconomyBlock(Block):
 
     def __init__(
         self,
-        llm: LLM,
-        environment: Environment,
+        toolbox: AgentToolbox,
         agent_memory: Memory,
         block_params: Optional[EconomyBlockParams] = None,
     ):
         super().__init__(
-            llm=llm,
-            environment=environment,
+            toolbox=toolbox,
             agent_memory=agent_memory,
             block_params=block_params,
         )
         self.month_plan_block = MonthEconomyPlanBlock(
-            llm=llm,
-            environment=environment,
+            toolbox=toolbox,
             agent_memory=agent_memory,
             ubi=self.params.UBI,
             num_labor_hours=self.params.num_labor_hours,
@@ -330,13 +327,21 @@ class EconomyBlock(Block):
             time_diff=self.params.time_diff,
         )
         self.work_block = WorkBlock(
-            llm, environment, agent_memory, self.params.worktime_estimation_prompt
+            toolbox=toolbox,
+            agent_memory=agent_memory,
+            worktime_estimation_prompt=self.params.worktime_estimation_prompt,
         )
-        self.consumption_block = ConsumptionBlock(llm, environment, agent_memory)
-        self.none_block = EconomyNoneBlock(llm, agent_memory)
+        self.consumption_block = ConsumptionBlock(
+            toolbox=toolbox,
+            agent_memory=agent_memory,
+        )
+        self.none_block = EconomyNoneBlock(toolbox=toolbox, agent_memory=agent_memory)
         self.trigger_time = 0
         self.token_consumption = 0
-        self.dispatcher = BlockDispatcher(llm, agent_memory)
+        self.dispatcher = BlockDispatcher(
+            toolbox=toolbox,
+            agent_memory=agent_memory,
+        )
         self.dispatcher.register_blocks(
             [self.work_block, self.consumption_block, self.none_block]
         )
@@ -370,15 +375,13 @@ class EconomyBlock(Block):
             result = await selected_block.forward(context)
             return self.OutputType(**result)
         except Exception as e:
-            get_logger().error(
-                f"EconomyBlock: Error in forward: {e}"
-            )
+            get_logger().error(f"EconomyBlock: Error in forward: {e}")
             return self.OutputType(
-                    success=False,
-                    evaluation=f"Failed to forward",
-                    consumed_time=0,
-                    node_id=None,
-                )
+                success=False,
+                evaluation="Failed to forward",
+                consumed_time=0,
+                node_id=None,
+            )
 
 
 class MonthEconomyPlanBlock(Block):
@@ -392,15 +395,17 @@ class MonthEconomyPlanBlock(Block):
 
     def __init__(
         self,
-        llm: LLM,
-        environment: Environment,
+        toolbox: AgentToolbox,
         agent_memory: Memory,
         ubi: float = 0,
         num_labor_hours: int = 168,
         productivity_per_labor: float = 1,
         time_diff: int = 30 * 24 * 60 * 60,
     ):
-        super().__init__(llm=llm, environment=environment, agent_memory=agent_memory)
+        super().__init__(
+            toolbox=toolbox,
+            agent_memory=agent_memory,
+        )
         self.llm_error = 0
         self.last_time_trigger = None
         self.forward_times = 0
@@ -461,7 +466,7 @@ class MonthEconomyPlanBlock(Block):
                 "consumption_propensity"
             )
             if (consumption <= 0) and (consumption_propensity > 0):
-                consumption_prompt = f"""
+                consumption_prompt = """
                             Besides, you had no consumption due to shortage of goods.
                         """
             else:
@@ -512,7 +517,7 @@ class MonthEconomyPlanBlock(Block):
                     )
                 else:
                     self.llm_error += 1
-            except:
+            except Exception:
                 self.llm_error += 1
 
             work_skill = await self.environment.economy_client.get(agent_id, "skill")
@@ -591,7 +596,7 @@ class MonthEconomyPlanBlock(Block):
                             content[k] = category2score[content[k].lower()]
                     depression = sum(list(content.values()))
                     await self.memory.status.update("depression", depression)
-                except:
+                except Exception:
                     self.llm_error += 1
 
             if self.ubi and self.forward_times >= 96 and self.forward_times % 12 == 0:

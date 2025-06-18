@@ -1,17 +1,13 @@
 import asyncio
 import random
-import time
-from typing import Any, Optional, Set, Tuple, cast
+from typing import Any, Optional, cast
 
-import jsonc
-from agentsociety.agent import (AgentToolbox, Block, StatusAttribute,
-                                SupervisorBase)
+from agentsociety.agent import (AgentToolbox, Block)
 from agentsociety.agent.prompt import FormatPrompt
 from agentsociety.memory import Memory
 from openai import OpenAIError
 
-from .supervisor.sensing_api import (InterventionType,
-                                                       SensingAPI)
+from .supervisor.sensing_api import (InterventionType)
 from .supervisor.sharing_params import (SupervisorConfig,
                                                           SupervisorContext)
 from .supervisor.supervisor_base import (
@@ -334,7 +330,7 @@ class BaselineSupervisor(BDSC2025SupervisorBase):
                     for post in posts_to_delete:
                         self.delete_post_intervention(post["post_id"], "低分帖子")
                     break
-                except OpenAIError as e:
+                except OpenAIError:
                     self.context.current_round_posts = self.context.current_round_posts[
                         : -self.messages_shorten_length
                     ]
@@ -465,7 +461,7 @@ class BaselineSupervisor(BDSC2025SupervisorBase):
                             agent_id, self.params.persuade_agent_content
                         )
                     break
-                except OpenAIError as e:
+                except OpenAIError:
                     self.context.current_round_posts = self.context.current_round_posts[
                         : -self.messages_shorten_length
                     ]
@@ -595,7 +591,7 @@ class BaselineSupervisor(BDSC2025SupervisorBase):
                     for follower_id, following_id in edges_to_remove_filtered:
                         self.remove_follower_intervention(follower_id, following_id)
                     break
-                except OpenAIError as e:
+                except OpenAIError:
                     self.context.current_round_posts = self.context.current_round_posts[
                         : -self.messages_shorten_length
                     ]
@@ -701,7 +697,7 @@ class BaselineSupervisor(BDSC2025SupervisorBase):
                     for agent_id in agents_to_ban_filtered:
                         self.ban_agent_intervention(agent_id, "低分帖子")
                     break
-                except OpenAIError as e:
+                except OpenAIError:
                     self.context.current_round_posts = self.context.current_round_posts[
                         : -self.messages_shorten_length
                     ]

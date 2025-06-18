@@ -37,7 +37,7 @@ class LightService:
         - **Returns**:
         - https://cityproto.sim.fiblab.net/#city.traffic.v1.GetTrafficLightResponse
         """
-        if type(req) != light_service.GetTrafficLightRequest:
+        if not isinstance(req, light_service.GetTrafficLightRequest):
             req = ParseDict(req, light_service.GetTrafficLightRequest())
         res = cast(
             Awaitable[light_service.GetTrafficLightResponse],
@@ -62,7 +62,7 @@ class LightService:
         - **Returns**:
         - https://cityproto.sim.fiblab.net/#city.traffic.v1.SetTrafficLightResponse
         """
-        if type(req) != light_service.SetTrafficLightRequest:
+        if not isinstance(req, light_service.SetTrafficLightRequest):
             req = ParseDict(req, light_service.SetTrafficLightRequest())
         res = cast(
             Awaitable[light_service.SetTrafficLightResponse],
@@ -87,7 +87,7 @@ class LightService:
         - **Returns**:
         - https://cityproto.sim.fiblab.net/#city.traffic.v1.SetTrafficLightPhaseResponse
         """
-        if type(req) != light_service.SetTrafficLightPhaseRequest:
+        if not isinstance(req, light_service.SetTrafficLightPhaseRequest):
             req = ParseDict(req, light_service.SetTrafficLightPhaseRequest())
         res = cast(
             Awaitable[light_service.SetTrafficLightPhaseResponse],
@@ -112,7 +112,7 @@ class LightService:
         - **Returns**:
         - https://cityproto.sim.fiblab.net/#city.traffic.v1.SetTrafficLightStatusResponse
         """
-        if type(req) != light_service.SetTrafficLightStatusRequest:
+        if not isinstance(req, light_service.SetTrafficLightStatusRequest):
             req = ParseDict(req, light_service.SetTrafficLightStatusRequest())
         res = cast(
             Awaitable[light_service.SetTrafficLightStatusResponse],

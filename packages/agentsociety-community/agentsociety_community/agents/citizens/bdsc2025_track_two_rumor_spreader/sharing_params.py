@@ -1,4 +1,3 @@
-from typing import Optional
 
 from agentsociety.agent import AgentContext, AgentParams, BlockOutput
 from pydantic import Field

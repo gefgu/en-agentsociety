@@ -1,14 +1,10 @@
-import logging
-import random
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Optional, Tuple
 
-import jsonc
-
-from agentsociety.agent import Agent, Block, FormatPrompt, DotDict
-from agentsociety.environment import Environment
-from agentsociety.llm import LLM
+import json_repair
+from agentsociety.agent import Agent, AgentToolbox, Block, DotDict, FormatPrompt
 from agentsociety.logger import get_logger
 from agentsociety.memory import Memory
+
 from .utils import clean_json_response
 
 GUIDANCE_SELECTION_PROMPT = """As an intelligent agent's decision system, please help me determine a suitable option to satisfy my current need.
@@ -117,8 +113,7 @@ class PlanBlock(Block):
     def __init__(
         self,
         agent: Agent,
-        llm: LLM,
-        environment: Environment,
+        toolbox: AgentToolbox,
         agent_memory: Memory,
         agent_context: DotDict,
         max_plan_steps: int = 6,
@@ -131,7 +126,7 @@ class PlanBlock(Block):
             environment: Environment for contextual data
             memory: Agent's memory storage for status tracking
         """
-        super().__init__(llm=llm, environment=environment, agent_memory=agent_memory)
+        super().__init__(toolbox=toolbox, agent_memory=agent_memory)
         self.set_agent(agent)
         self.context = agent_context
         self.guidance_prompt = FormatPrompt(template=GUIDANCE_SELECTION_PROMPT)
@@ -206,11 +201,11 @@ class PlanBlock(Block):
 
         response = await self.llm.atext_request(
             self.guidance_prompt.to_dialog(), response_format={"type": "json_object"}
-        )  #
+        )
         retry = 3
         while retry > 0:
             try:
-                result = jsonc.loads(clean_json_response(response))  #
+                result: Any = json_repair.loads(clean_json_response(response))
                 if "selected_option" not in result or "evaluation" not in result:
                     raise ValueError("Invalid guidance selection format")
                 if (
@@ -248,7 +243,7 @@ class PlanBlock(Block):
         retry = 3
         while retry > 0:
             try:
-                result = jsonc.loads(clean_json_response(response))  #
+                result: Any = json_repair.loads(clean_json_response(response))
                 if (
                     "plan" not in result
                     or "target" not in result["plan"]
@@ -258,12 +253,9 @@ class PlanBlock(Block):
                 for step in result["plan"]["steps"]:
                     if "intention" not in step or "type" not in step:
                         raise ValueError("Each step must have an intention and a type")
-                    if step["type"] not in ["mobility", "social", "economy", "other"]:
-                        raise ValueError(f"Invalid step type: {step['type']}")
                 return result
             except Exception as e:
-                get_logger().warning(f"Error parsing detailed plan: {str(e)}")
-                get_logger().debug(
+                get_logger().warning(
                     f"Error parsing detailed plan: {str(e)} with response={response}"
                 )
                 retry -= 1
@@ -311,5 +303,8 @@ Execution Steps: \n{formated_steps}
         _, plan["start_time"] = self.environment.get_datetime(format_time=True)
         await self.memory.status.update("current_plan", plan)
         await self.memory.status.update("execution_context", {"plan": formated_plan})
-        await self.memory.stream.add_cognition(description=cognition)
+        await self.memory.stream.add(
+            topic="cognition",
+            description=cognition,
+        )
         return cognition

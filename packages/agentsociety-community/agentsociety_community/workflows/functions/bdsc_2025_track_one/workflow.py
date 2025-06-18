@@ -5,7 +5,7 @@ Input: Configs, Output: Evaluation results.
 
 from typing import Any
 from agentsociety.simulation import AgentSociety
-from agentsociety.configs.exp import WorkflowType, WorkflowStepConfig, AgentFilterConfig, ExpConfig
+from agentsociety.configs.exp import WorkflowType, WorkflowStepConfig, ExpConfig
 from agentsociety.environment import EnvironmentConfig
 
 from ....agents.citizens.bdsc2025_track_one_envambassador import EnvAgentBase
@@ -63,6 +63,7 @@ async def gather_carbon_emission_results(simulation: AgentSociety):
     walk_logs = []
     public_transport_logs = []
     car_logs = []
+    assert isinstance(transportation_logs, dict), "transportation_logs should be a dict"
     for _, logs in transportation_logs.items():
         for log in logs:
             if log["mode"] == "walk":

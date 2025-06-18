@@ -1,167 +1,29 @@
-from __future__ import annotations
+from typing import Any, Optional
 
-import asyncio
-import functools
-import inspect
-from collections.abc import Callable, Coroutine
-from typing import Any, Optional, Union, cast
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from ..environment import Environment
 from ..llm import LLM
-from ..memory import Memory
-from ..memory.state import StateMemory
-from ..utils.decorators import record_call_aio
-from .context import DotDict, BlockContext, context_to_dot_dict, auto_deepcopy_dotdict
-from ..logger import get_logger
+from ..memory import KVMemory, Memory
+from .context import BlockContext, DotDict, auto_deepcopy_dotdict, context_to_dot_dict
+from .memory_config_generator import MemoryConfig
+from .toolbox import AgentToolbox
 
 TRIGGER_INTERVAL = 1
 
 __all__ = [
     "Block",
-    "log_and_check",
-    "log_and_check_with_memory",
-    "trigger_class",
+    "BlockParams",
+    "BlockOutput",
 ]
 
 
 class BlockParams(BaseModel):
+    # TODO: unused
     block_memory: Optional[dict[str, Any]] = None
 
 
 class BlockOutput(BaseModel): ...
-
-
-def log_and_check_with_memory(
-    condition: Union[
-        Callable[[Memory], Coroutine[Any, Any, bool]],
-        Callable[[], Coroutine[Any, Any, bool]],
-        Callable[[Memory], bool],
-        Callable[[], bool],
-    ] = lambda: True,
-    trigger_interval: float = TRIGGER_INTERVAL,
-    record_function_calling: bool = False,
-):
-    """
-    A decorator that logs function calls and optionally checks a condition before executing the function.
-
-    This decorator is specifically designed to be used with the `block` method. A 'Memory' object is required in method input.
-
-    - **Args**:
-        - `condition` (Callable): A condition function that must be satisfied before the decorated function is executed.
-                             Can be synchronous or asynchronous.
-        - `trigger_interval` (float): The interval (in seconds) to wait between condition checks.
-        - `record_function_calling` (bool): Whether to log the function call information.
-    """
-
-    def decorator(func):
-        @record_call_aio(record_function_calling)
-        @functools.wraps(func)
-        async def wrapper(self, *args, **kwargs):
-            memory = None
-            for arg in list(args) + list(kwargs.values()):
-                if memory is not None:
-                    break
-                if isinstance(arg, Memory):
-                    memory = arg
-            assert isinstance(memory, Memory), "Input arguments has no `Memory` object!"
-            # Wait until the condition is met
-            sig = inspect.signature(condition)
-            params = list(sig.parameters.values())
-            if len(params) == 1 and params[0].annotation is Memory:
-                if inspect.iscoroutinefunction(condition):
-                    condition_func = cast(
-                        Callable[[Memory], Coroutine[Any, Any, bool]], condition
-                    )
-                    while not await condition_func(memory):
-                        await asyncio.sleep(trigger_interval)
-                else:
-                    condition_func = cast(Callable[[Memory], bool], condition)
-                    while not condition_func(memory):
-                        await asyncio.sleep(trigger_interval)
-            elif len(params) == 0:
-                if inspect.iscoroutinefunction(condition):
-                    condition_func = cast(
-                        Callable[[], Coroutine[Any, Any, bool]], condition
-                    )
-                    while not await condition_func():
-                        await asyncio.sleep(trigger_interval)
-                else:
-                    condition_func = cast(Callable[[], bool], condition)
-                    while not condition_func():
-                        await asyncio.sleep(trigger_interval)
-            else:
-                raise RuntimeError(
-                    f"Invalid parameter format in condition function {condition}"
-                )
-            result = await func(self, *args, **kwargs)
-            return result
-
-        return wrapper
-
-    return decorator
-
-
-def log_and_check(
-    condition: Union[
-        Callable[[], Coroutine[Any, Any, bool]],
-        Callable[[], bool],
-    ] = lambda: True,
-    trigger_interval: float = TRIGGER_INTERVAL,
-    record_function_calling: bool = False,
-):
-    """
-    A decorator that logs function calls and optionally checks a condition before executing the function.
-
-    This decorator is specifically designed to be used with the `block` method.
-
-    - **Args**:
-        - `condition` (Callable): A condition function that must be satisfied before the decorated function is executed.
-                             Can be synchronous or asynchronous.
-        - `trigger_interval` (float): The interval (in seconds) to wait between condition checks.
-        - `record_function_calling` (bool): Whether to log the function call information.
-    """
-
-    def decorator(func):
-        @record_call_aio(record_function_calling)
-        @functools.wraps(func)
-        async def wrapper(self, *args, **kwargs):
-            # Wait until the condition is met
-            sig = inspect.signature(condition)
-            params = list(sig.parameters.values())
-            if len(params) == 0:
-                if inspect.iscoroutinefunction(condition):
-                    while not await condition():
-                        await asyncio.sleep(trigger_interval)
-                else:
-                    while not condition():
-                        await asyncio.sleep(trigger_interval)
-            else:
-                raise RuntimeError(
-                    f"Invalid parameter format in condition function {condition}"
-                )
-            result = await func(self, *args, **kwargs)
-            return result
-
-        return wrapper
-
-    return decorator
-
-
-def trigger_class():
-    def decorator(cls):
-        original_forward = cls.forward
-
-        @functools.wraps(original_forward)
-        async def wrapped_forward(self, *args, **kwargs):
-            if self.trigger is not None:
-                await self.trigger.wait_for_trigger()
-            return await original_forward(self, *args, **kwargs)
-
-        cls.forward = wrapped_forward
-        return cls
-
-    return decorator
 
 
 # Behavior Block, used for augmenting agent's behavior capabilities
@@ -182,8 +44,7 @@ class Block:
 
     def __init__(
         self,
-        llm: Optional[LLM] = None,
-        environment: Optional[Environment] = None,
+        toolbox: AgentToolbox,
         agent_memory: Optional[Memory] = None,
         block_params: Optional[Any] = None,
     ):
@@ -196,11 +57,9 @@ class Block:
             - `llm` (Optional[LLM], optional): An instance of LLM. Defaults to None.
             - `environment` (Optional[Environment], optional): An instance of Environment. Defaults to None.
             - `memory` (Optional[Memory], optional): An instance of Memory. Defaults to None.
-            - `trigger` (Optional[EventTrigger], optional): An event trigger that may be associated with this block. Defaults to None.
         """
-        self._llm = llm
+        self._toolbox = toolbox
         self._agent_memory = agent_memory
-        self._environment = environment
         self._agent = None
 
         # parse block_params
@@ -209,7 +68,12 @@ class Block:
         self.params = block_params
         for key, value in self.params.model_dump().items():
             if key == "block_memory":
-                self._block_memory = StateMemory(value)
+                # TODO: remove this after we have a better way to handle block memory
+                if isinstance(value, MemoryConfig):
+                    self._block_memory = KVMemory(
+                        value,
+                        embedding=self._toolbox.embedding,
+                    )
             else:
                 setattr(self, key, value)
 
@@ -244,21 +108,23 @@ class Block:
     def agent(self) -> Any:
         if self._agent is None:
             raise RuntimeError(
-                f"Agent access before assignment, please `set_agent` first!"
+                "Agent access before assignment, please `set_agent` first!"
             )
         return self._agent
 
     @property
+    def toolbox(self) -> AgentToolbox:
+        return self._toolbox
+
+    @property
     def llm(self) -> LLM:
-        if self._llm is None:
-            raise RuntimeError(f"LLM access before assignment, please `set_llm` first!")
-        return self._llm
+        return self._toolbox.llm
 
     @property
     def memory(self) -> Memory:
         if self._agent_memory is None:
             raise RuntimeError(
-                f"Memory access before assignment, please `set_memory` first!"
+                "Memory access before assignment, please `set_memory` first!"
             )
         return self._agent_memory
 
@@ -266,25 +132,21 @@ class Block:
     def agent_memory(self) -> Memory:
         if self._agent_memory is None:
             raise RuntimeError(
-                f"Memory access before assignment, please `set_memory` first!"
+                "Memory access before assignment, please `set_memory` first!"
             )
         return self._agent_memory
 
     @property
-    def block_memory(self) -> StateMemory:
+    def block_memory(self) -> KVMemory:
         if self._block_memory is None:
             raise RuntimeError(
-                f"Block memory access before assignment, please `set_block_memory` first!"
+                "Block memory access before assignment, please `set_block_memory` first!"
             )
         return self._block_memory
 
     @property
     def environment(self) -> Environment:
-        if self._environment is None:
-            raise RuntimeError(
-                f"Environment access before assignment, please `set_environment` first!"
-            )
-        return self._environment
+        return self._toolbox.environment
 
     async def before_forward(self):
         """

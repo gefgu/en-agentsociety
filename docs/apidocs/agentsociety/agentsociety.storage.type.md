@@ -255,7 +255,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````{py:attribute} survey_id
 :canonical: agentsociety.storage.type.StorageSurvey.survey_id
-:type: str
+:type: uuid.UUID
 :value: >
    None
 
@@ -779,7 +779,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````{py:attribute} survey_id
 :canonical: agentsociety.storage.type.StoragePendingSurvey.survey_id
-:type: str
+:type: uuid.UUID
 :value: >
    None
 

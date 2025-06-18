@@ -1,16 +1,10 @@
-from abc import abstractmethod
-from typing import List, Dict, Any, Optional
-import json
-import os
+from typing import Any, Optional
 
-import jsonc
-from pydantic import Field
-from agentsociety.agent import CitizenAgentBase, AgentToolbox, Block, AgentParams, StatusAttribute
+from agentsociety.agent import CitizenAgentBase, AgentToolbox, Block, AgentParams, MemoryAttribute
 from agentsociety.message import Message, MessageKind
 from agentsociety.memory import Memory
-from agentsociety.agent import register_get
 
-from .tools import Sence, Poster, Announcement, Communication, MessageProbe
+from .tools import Sense, Poster, Announcement, Communication, MessageProbe
 from .fundmanager import FundManager
 
 
@@ -33,19 +27,19 @@ class EnvAgentBase(CitizenAgentBase):
     """
     ParamsType = EnvAgentBaseConfig
     StatusAttributes = [
-        StatusAttribute(name="citizens",type=dict,default={},description="citizens' profile"),
-        StatusAttribute(name="citizen_ids",type=list,default=[],description="citizens' ids"),
-        StatusAttribute(
+        MemoryAttribute(name="citizens",type=dict,default_or_value={},description="citizens' profile"),
+        MemoryAttribute(name="citizen_ids",type=list,default_or_value=[],description="citizens' ids"),
+        MemoryAttribute(
             name="probe_logs",
             type=dict,
-            default={
+            default_or_value={
                 "message": [],
                 "poster": [],
                 "announcement": []
             },
             description="probe logs"
         ),
-        StatusAttribute(name="chat_histories",type=dict,default={},description="all chat histories"),
+        MemoryAttribute(name="chat_histories",type=dict,default_or_value={},description="all chat histories"),
     ]
     
     def __init__(
@@ -69,7 +63,7 @@ class EnvAgentBase(CitizenAgentBase):
         
         # Initialize tools
         self._probe = MessageProbe(agent=self, llm=toolbox.llm)
-        self.sence = Sence(agent=self, llm=toolbox.llm, probe=self._probe)
+        self.sence = Sense(agent=self, llm=toolbox.llm, probe=self._probe)
         self.poster = Poster(agent=self, llm=toolbox.llm, probe=self._probe)
         self.announcement = Announcement(agent=self, llm=toolbox.llm, probe=self._probe)
         self.communication = Communication(agent=self, llm=toolbox.llm, probe=self._probe)
@@ -127,7 +121,7 @@ class EnvAgentBase(CitizenAgentBase):
                     if response:
                         await self.communication.sendMessage(sender_id, response)
                     return response
-                except Exception as e:
+                except Exception:
                     return ""
             else:
                 return ""

@@ -318,7 +318,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:method} to_prompt() -> str
+````{py:method} to_prompt() -> typing.List[str]
 :canonical: agentsociety.survey.models.Survey.to_prompt
 
 ```{autodoc2-docstring} agentsociety.survey.models.Survey.to_prompt

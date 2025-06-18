@@ -89,11 +89,11 @@ class Syncer(sync_grpc.SyncServiceServicer):
             - bool: Whether this participant needs to be closed
         """
         # Enter sync state
-        get_logger().debug(f"Virtual SyncerClient: Enter sync state")
+        get_logger().debug("Virtual SyncerClient: Enter sync state")
         await self._enter_barrier.wait()
 
         # Exit sync state
-        get_logger().debug(f"Virtual SyncerClient: Exit sync state")
+        get_logger().debug("Virtual SyncerClient: Exit sync state")
         await self._exit_barrier.wait()
 
         return close

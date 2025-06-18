@@ -2,13 +2,12 @@
 Survey for the Env Ambassador Challenge.
 """
 
-import random
 import uuid
 from datetime import datetime
 from typing import Any
 
-import jsonc
 from agentsociety.survey.models import Page, Question, QuestionType, Survey
+import json_repair
 
 
 def create_rumor_spread_surveys(
@@ -37,7 +36,7 @@ def create_rumor_spread_surveys(
     for i, rumor in enumerate(survey_rumors):
         questions = [
             Question(
-                name=f"消息置信度调查",
+                name="消息置信度调查",
                 title=prompt_final_survey.format(rumor=rumor),
                 type=QuestionType.RATING,
                 min_rating=0,
@@ -78,12 +77,16 @@ def extract_survey_scores(responses: list[Any]) -> tuple[list[float], float]:
 
     for answer in responses:
         try:
-            answer = jsonc.loads(answer)
+            answer = json_repair.loads(answer)
             if isinstance(answer, dict):
                 scores.append(float(answer["score"]))
-            else:
+            elif isinstance(answer, str):
                 scores.append(float(answer))
-        except Exception as e:
+            elif isinstance(answer, (float, int)):
+                scores.append(float(answer))
+            else:
+                raise ValueError(f"Invalid answer type: {type(answer)}")
+        except Exception:
             pass
             # scores.append(10 * random.random())
 

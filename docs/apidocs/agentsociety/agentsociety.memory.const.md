@@ -31,6 +31,10 @@
 :class: autosummary longtable
 :align: left
 
+* - {py:obj}`__all__ <agentsociety.memory.const.__all__>`
+  - ```{autodoc2-docstring} agentsociety.memory.const.__all__
+    :summary:
+    ```
 * - {py:obj}`PROFILE_ATTRIBUTES <agentsociety.memory.const.PROFILE_ATTRIBUTES>`
   - ```{autodoc2-docstring} agentsociety.memory.const.PROFILE_ATTRIBUTES
     :summary:
@@ -39,17 +43,19 @@
   - ```{autodoc2-docstring} agentsociety.memory.const.STATE_ATTRIBUTES
     :summary:
     ```
-* - {py:obj}`SELF_DEFINE_PREFIX <agentsociety.memory.const.SELF_DEFINE_PREFIX>`
-  - ```{autodoc2-docstring} agentsociety.memory.const.SELF_DEFINE_PREFIX
-    :summary:
-    ```
-* - {py:obj}`TIME_STAMP_KEY <agentsociety.memory.const.TIME_STAMP_KEY>`
-  - ```{autodoc2-docstring} agentsociety.memory.const.TIME_STAMP_KEY
-    :summary:
-    ```
 ````
 
 ### API
+
+````{py:data} __all__
+:canonical: agentsociety.memory.const.__all__
+:value: >
+   ['RelationType', 'SocialRelation', 'PROFILE_ATTRIBUTES', 'STATE_ATTRIBUTES']
+
+```{autodoc2-docstring} agentsociety.memory.const.__all__
+```
+
+````
 
 `````{py:class} RelationType()
 :canonical: agentsociety.memory.const.RelationType
@@ -193,26 +199,6 @@ Bases: {py:obj}`pydantic.BaseModel`
    None
 
 ```{autodoc2-docstring} agentsociety.memory.const.STATE_ATTRIBUTES
-```
-
-````
-
-````{py:data} SELF_DEFINE_PREFIX
-:canonical: agentsociety.memory.const.SELF_DEFINE_PREFIX
-:value: >
-   'self_define_'
-
-```{autodoc2-docstring} agentsociety.memory.const.SELF_DEFINE_PREFIX
-```
-
-````
-
-````{py:data} TIME_STAMP_KEY
-:canonical: agentsociety.memory.const.TIME_STAMP_KEY
-:value: >
-   '_timestamp'
-
-```{autodoc2-docstring} agentsociety.memory.const.TIME_STAMP_KEY
 ```
 
 ````

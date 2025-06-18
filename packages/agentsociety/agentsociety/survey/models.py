@@ -72,20 +72,31 @@ class Survey(BaseModel):
     created_at: datetime = Field(default_factory=datetime.now)
     """Timestamp of when the survey was created"""
 
-    def to_prompt(self) -> str:
+    def to_prompt(self) -> List[str]:
         """
-        Convert the questionnaire dictionary into a format that can be processed question by question by the LLM, using English prompts.
+        Convert the questionnaire into a list of strings, where each string represents one question.
+        
+        - **Description**:
+            - Converts the survey into a list of individual question prompts, each containing the survey context and one specific question.
+        
+        - **Returns**:
+            - `List[str]`: A list of strings, each representing one question with its context and instructions.
         """
-        prompt = f"""Survey Title: {self.title}
+        question_prompts = []
+        
+        # Create the survey context that will be included in each question
+        survey_context = f"""Survey Title: {self.title}
 Survey Description: {self.description}
 
-Please answer each question in the following format:
+Please answer the following question in the specified format:
 
 """
-
+        
         question_count = 1
         for page in self.pages:
             for question in page.elements:
+                # Start with survey context for each question
+                prompt = survey_context
                 prompt += f"Question {question_count}: {question.title}\n"
 
                 # Generate different prompts based on the types of questions
@@ -115,15 +126,12 @@ Please answer each question in the following format:
                     prompt += "Options: Yes, No\n"
                     prompt += "Please select either Yes or No\n"
 
-                prompt += "\nAnswer: [Your response here]\n\n---\n\n"
+                prompt += "\nAnswer: [Your response here]\n"
+                
+                # Add instructions for this specific question
+                prompt += "\nPlease ensure your response matches the question type requirements and is clear and specific."
+                
+                question_prompts.append(prompt)
                 question_count += 1
 
-        # Add a summary prompt
-        prompt += """Please ensure:
-1. All required questions are answered
-2. Responses match the question type requirements
-3. Answers are clear and specific
-
-Format your responses exactly as requested above."""
-
-        return prompt
+        return question_prompts

@@ -21,6 +21,7 @@ def is_available() -> bool:
     try:
         # Try to import a core commercial module to verify availability
         from . import auth
+        _ = auth
         return True
     except ImportError:
         return False

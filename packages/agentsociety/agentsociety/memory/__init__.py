@@ -1,9 +1,9 @@
 """Memory."""
 
-from .faiss_query import FaissQuery
-from .memory import Memory
+from .memory import Memory, KVMemory, StreamMemory
 
 __all__ = [
     "Memory",
-    "FaissQuery",
+    "KVMemory",
+    "StreamMemory",
 ]

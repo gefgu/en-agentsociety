@@ -44,7 +44,7 @@
 
 ````
 
-`````{py:class} BlockDispatcher(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory, selection_prompt: str = DISPATCHER_PROMPT)
+`````{py:class} BlockDispatcher(toolbox: agentsociety.agent.toolbox.AgentToolbox, agent_memory: agentsociety.memory.Memory, selection_prompt: str = DISPATCHER_PROMPT)
 :canonical: agentsociety.agent.dispatcher.BlockDispatcher
 
 ```{autodoc2-docstring} agentsociety.agent.dispatcher.BlockDispatcher

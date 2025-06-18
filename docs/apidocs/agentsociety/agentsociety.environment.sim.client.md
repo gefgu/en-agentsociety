@@ -75,14 +75,6 @@
 
 ````
 
-````{py:property} pause_service
-:canonical: agentsociety.environment.sim.client.CityClient.pause_service
-
-```{autodoc2-docstring} agentsociety.environment.sim.client.CityClient.pause_service
-```
-
-````
-
 ````{py:property} lane_service
 :canonical: agentsociety.environment.sim.client.CityClient.lane_service
 

@@ -1,12 +1,8 @@
-import logging
-import random
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Optional, Tuple
 
-import jsonc
+import json_repair
 
-from agentsociety.agent import Block, FormatPrompt
-from agentsociety.environment import Environment
-from agentsociety.llm import LLM
+from agentsociety.agent import AgentToolbox, Block, FormatPrompt
 from agentsociety.logger import get_logger
 from agentsociety.memory import Memory
 from .utils import clean_json_response
@@ -148,8 +144,7 @@ class EnvPlanBlock(Block):
 
     def __init__(
             self, 
-            llm: LLM, 
-            environment: Environment, 
+            toolbox: AgentToolbox, 
             agent_memory: Memory, 
             max_plan_steps: int = 6,
             detailed_plan_prompt: str = DETAILED_PLAN_PROMPT,
@@ -161,7 +156,7 @@ class EnvPlanBlock(Block):
             environment: Environment for contextual data
             memory: Agent's memory storage for status tracking
         """
-        super().__init__(llm=llm, environment=environment, agent_memory=agent_memory)
+        super().__init__(toolbox=toolbox, agent_memory=agent_memory)
         self.guidance_prompt = FormatPrompt(template=GUIDANCE_SELECTION_PROMPT)
         self.detail_prompt = FormatPrompt(template=detailed_plan_prompt)
         self.trigger_time = 0
@@ -237,7 +232,7 @@ class EnvPlanBlock(Block):
         retry = 3
         while retry > 0:
             try:
-                result = jsonc.loads(clean_json_response(response))  #
+                result: Any = json_repair.loads(clean_json_response(response))  #
                 if "selected_option" not in result or "evaluation" not in result:
                     raise ValueError("Invalid guidance selection format")
                 if (
@@ -252,7 +247,9 @@ class EnvPlanBlock(Block):
                 cognition = f"I choose to {result['selected_option']} because {result['evaluation']['reasoning']}"
                 return result, cognition
             except Exception as e:
-                pass
+                get_logger().warning(
+                    f"Error parsing guidance selection response: {str(e)}"
+                )
                 retry -= 1
         return None
 
@@ -299,7 +296,7 @@ class EnvPlanBlock(Block):
         retry = 3
         while retry > 0:
             try:
-                result = jsonc.loads(clean_json_response(response))  #
+                result: Any = json_repair.loads(clean_json_response(response))  #
                 if (
                     "plan" not in result
                     or "target" not in result["plan"]
@@ -312,7 +309,7 @@ class EnvPlanBlock(Block):
                     if step["type"] not in ["mobility", "social", "economy", "other"]:
                         raise ValueError(f"Invalid step type: {step['type']}")
                 return result
-            except Exception as e:
+            except Exception:
                 pass
                 retry -= 1
         return None
@@ -360,5 +357,7 @@ Execution Steps: \n{formated_steps}
         _, plan["start_time"] = self.environment.get_datetime(format_time=True)
         await self.memory.status.update("current_plan", plan)
         await self.memory.status.update("execution_context", {"plan": formated_plan})
-        await self.memory.stream.add_cognition(description=cognition)
+        await self.memory.stream.add(
+            topic="cognition", description=cognition
+        )
         return cognition

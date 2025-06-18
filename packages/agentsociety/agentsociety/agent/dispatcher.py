@@ -1,16 +1,13 @@
-import logging
-import random
-
-import jsonc
+from typing import Any
+import json_repair
 from openai.types.chat import ChatCompletionToolParam
 
-from ..memory import Memory
-from .context import DotDict
-from .block import Block
-from .decorator import param_docs
-from .prompt import FormatPrompt
-from ..llm import LLM
 from ..logger import get_logger
+from ..memory import Memory
+from .block import Block
+from .context import DotDict
+from .prompt import FormatPrompt
+from .toolbox import AgentToolbox
 
 DISPATCHER_PROMPT = """
 Based on the task information (which describes the needs of the user), select the most appropriate block to handle the task.
@@ -25,27 +22,30 @@ class BlockDispatcher:
     """Orchestrates task routing between registered processing blocks.
 
     Attributes:
-        llm: Language model interface for decision-making
+        toolbox: AgentToolbox
         blocks: Registry of available processing blocks (name -> Block mapping)
         prompt: Formatted prompt template for LLM instructions
     """
 
     def __init__(
-        self, llm: LLM, memory: Memory, selection_prompt: str = DISPATCHER_PROMPT
+        self,
+        toolbox: AgentToolbox,
+        agent_memory: Memory,
+        selection_prompt: str = DISPATCHER_PROMPT,
     ):
         """Initialize dispatcher with LLM interface.
 
         Args:
             llm: Language model for block selection decisions
         """
-        self.llm = llm
-        self.memory = memory
+        self.toolbox = toolbox
+        self.memory = agent_memory
         self.blocks: dict[str, Block] = {}
-        self.dispatcher_prompt = FormatPrompt(selection_prompt, memory=memory)
+        self.dispatcher_prompt = FormatPrompt(selection_prompt, memory=self.memory)
 
     def register_dispatcher_prompt(self, dispatcher_prompt: str) -> None:
         """Register a dispatcher prompt.
-        
+
         Args:
             dispatcher_prompt: Dispatcher prompt
         """
@@ -118,12 +118,12 @@ class BlockDispatcher:
             await self.dispatcher_prompt.format(context=context)
 
             # Call LLM with tools schema
-            response = await self.llm.atext_request(
+            response = await self.toolbox.llm.atext_request(
                 self.dispatcher_prompt.to_dialog(),
                 tools=[function_schema],
                 tool_choice={"type": "function", "function": {"name": "select_block"}},
             )
-            function_args = jsonc.loads(
+            function_args: Any = json_repair.loads(
                 response.choices[0].message.tool_calls[0].function.arguments
             )
             selected_block = function_args.get("block_name")

@@ -1,14 +1,11 @@
-import logging
-from typing import Optional
-import jsonc
-from pydantic import Field
-from agentsociety.environment import Environment
-from agentsociety.llm import LLM
+from typing import Any, Optional
+import json_repair
+from agentsociety.agent import AgentToolbox, Block, BlockParams, FormatPrompt
 from agentsociety.logger import get_logger
 from agentsociety.memory import Memory
-from agentsociety.agent import Block, FormatPrompt, BlockParams
+from pydantic import Field
 
-__all__ = ["CognitionBlock"]
+__all__ = ["EnvCognitionBlock"]
 
 
 def extract_json(output_str):
@@ -34,7 +31,7 @@ def extract_json(output_str):
 
         # Convert the JSON string to a dictionary
         return json_str
-    except (ValueError, jsonc.JSONDecodeError) as e:
+    except ValueError as e:
         get_logger().warning(f"Failed to extract JSON: {e}")
         return None
     
@@ -58,7 +55,12 @@ class EnvCognitionBlock(Block):
     description = "Handles daily updates of attitudes, thoughts, and emotions"
     actions = {}
 
-    def __init__(self, llm: LLM, environment: Environment, agent_memory: Memory, block_params: Optional[CognitionBlockParams] = None):
+    def __init__(
+            self, 
+            toolbox: AgentToolbox,
+            agent_memory: Memory,
+            block_params: Optional[CognitionBlockParams] = None
+        ):
         """Initialize CognitionBlock with dependencies.
 
         Args:
@@ -67,7 +69,9 @@ class EnvCognitionBlock(Block):
             memory: Memory system to store/retrieve agent status and experiences.
         """
         super().__init__(
-            llm=llm, environment=environment, agent_memory=agent_memory, block_params=block_params
+            toolbox=toolbox,
+            agent_memory=agent_memory,
+            block_params=block_params
         )
         self.last_check_day = 0
 
@@ -159,7 +163,7 @@ class EnvCognitionBlock(Block):
 
             await question_prompt.format(**prompt_data)
             evaluation = True
-            response: dict = {}
+            response = {}
             for retry in range(10):
                 try:
                     _response = await self.llm.atext_request(
@@ -169,10 +173,10 @@ class EnvCognitionBlock(Block):
                     )
                     json_str = extract_json(_response)
                     if json_str:
-                        response = jsonc.loads(json_str)
+                        response: Any = json_repair.loads(json_str)
                         evaluation = False
                         break
-                except:
+                except Exception:
                     pass
             if evaluation:
                 raise Exception(f"Request for attitude:{topic} update failed")
@@ -254,7 +258,7 @@ class EnvCognitionBlock(Block):
         )
 
         evaluation = True
-        response: dict = {}
+        response = {}
         for retry in range(10):
             try:
                 _response = await self.llm.atext_request(
@@ -264,17 +268,18 @@ class EnvCognitionBlock(Block):
                 )
                 json_str = extract_json(_response)
                 if json_str:
-                    response = jsonc.loads(json_str)
+                    response: Any = json_repair.loads(json_str)
                     evaluation = False
                     break
-            except:
+            except Exception:
                 pass
         if evaluation:
             raise Exception("Request for cognition update failed")
 
         thought = str(response["thought"])
         await self.memory.status.update("thought", thought)
-        await self.memory.stream.add_cognition(description=thought)
+        await self.memory.stream.add(
+            topic="cognition", description=thought)
 
         return thought
 
@@ -377,7 +382,7 @@ class EnvCognitionBlock(Block):
         )
 
         evaluation = True
-        response: dict = {}
+        response = {}
         for retry in range(10):
             try:
                 _response = await self.llm.atext_request(
@@ -387,11 +392,10 @@ class EnvCognitionBlock(Block):
                 )
                 json_str = extract_json(_response)
                 if json_str:
-                    response = jsonc.loads(json_str)
+                    response: Any = json_repair.loads(json_str)
                     evaluation = False
                     break
-            except Exception as e:
-                get_logger().warning(f"Request for cognition update failed: {e}")
+            except Exception:
                 pass
         if evaluation:
             raise Exception("Request for cognition update failed")

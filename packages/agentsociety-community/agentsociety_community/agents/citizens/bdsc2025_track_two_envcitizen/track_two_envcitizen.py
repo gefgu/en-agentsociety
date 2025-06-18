@@ -1,10 +1,8 @@
 import random
 import time
-from typing import Any, Optional
+from typing import Optional
 
-import jsonc
-from agentsociety.agent import (Agent, AgentToolbox, Block, CitizenAgentBase,
-                                FormatPrompt, StatusAttribute)
+from agentsociety.agent import AgentToolbox, Block, CitizenAgentBase, MemoryAttribute
 from agentsociety.logger import get_logger
 from agentsociety.memory import Memory
 from agentsociety.memory.const import RelationType, SocialRelation
@@ -12,8 +10,7 @@ from agentsociety.message import Message
 from agentsociety.survey import Survey
 
 from .blocks import SocialBlock
-from .sharing_params import (EnvCitizenBlockOutput, EnvCitizenConfig,
-                             EnvCitizenContext)
+from .sharing_params import EnvCitizenBlockOutput, EnvCitizenConfig, EnvCitizenContext
 
 
 def extract_json(output_str):
@@ -39,7 +36,7 @@ def extract_json(output_str):
 
         # Convert the JSON string to a dictionary
         return json_str
-    except (ValueError, jsonc.JSONDecodeError) as e:
+    except Exception as e:
         get_logger().warning(f"Failed to extract JSON: {e}")
         return None
 
@@ -53,60 +50,60 @@ class TrackTwoEnvCitizen(CitizenAgentBase):
 
     StatusAttributes = [
         # Needs Model
-        StatusAttribute(
+        MemoryAttribute(
             name="hunger_satisfaction",
             type=float,
-            default=0.9,
+            default_or_value=0.9,
             description="agent's hunger satisfaction, 0-1",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="energy_satisfaction",
             type=float,
-            default=0.9,
+            default_or_value=0.9,
             description="agent's energy satisfaction, 0-1",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="safety_satisfaction",
             type=float,
-            default=0.4,
+            default_or_value=0.4,
             description="agent's safety satisfaction, 0-1",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="social_satisfaction",
             type=float,
-            default=0.6,
+            default_or_value=0.6,
             description="agent's social satisfaction, 0-1",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="current_need",
             type=str,
-            default="none",
+            default_or_value="none",
             description="agent's current need",
         ),
         # Plan Behavior Model
-        StatusAttribute(
+        MemoryAttribute(
             name="current_plan",
             type=dict,
-            default={},
+            default_or_value={},
             description="agent's current plan",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="execution_context",
             type=dict,
-            default={},
+            default_or_value={},
             description="agent's execution context",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="plan_history",
             type=list,
-            default=[],
+            default_or_value=[],
             description="agent's plan history",
         ),
         # Cognition
-        StatusAttribute(
+        MemoryAttribute(
             name="emotion",
             type=dict,
-            default={
+            default_or_value={
                 "sadness": 5,
                 "joy": 5,
                 "fear": 5,
@@ -116,193 +113,193 @@ class TrackTwoEnvCitizen(CitizenAgentBase):
             },
             description="agent's emotion, 0-10",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="attitude",
             type=dict,
-            default={},
+            default_or_value={},
             description="agent's attitude",
             whether_embedding=True,
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="thought",
             type=str,
-            default="Currently nothing good or bad is happening",
+            default_or_value="Currently nothing good or bad is happening",
             description="agent's thought",
             whether_embedding=True,
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="emotion_types",
             type=str,
-            default="Relief",
+            default_or_value="Relief",
             description="agent's emotion types",
             whether_embedding=True,
         ),
         # Economy
-        StatusAttribute(
-            name="work_skill", type=float, default=0.0, description="agent's work skill"
+        MemoryAttribute(
+            name="work_skill", type=float, default_or_value=0.0, description="agent's work skill"
         ),
-        StatusAttribute(
-            name="tax_paid", type=float, default=0.0, description="agent's tax paid"
+        MemoryAttribute(
+            name="tax_paid", type=float, default_or_value=0.0, description="agent's tax paid"
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="consumption_currency",
             type=float,
-            default=0.0,
+            default_or_value=0.0,
             description="agent's consumption currency",
         ),
-        StatusAttribute(
-            name="goods_demand", type=int, default=0, description="agent's goods demand"
+        MemoryAttribute(
+            name="goods_demand", type=int, default_or_value=0, description="agent's goods demand"
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="goods_consumption",
             type=int,
-            default=0,
+            default_or_value=0,
             description="agent's goods consumption",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="work_propensity",
             type=float,
-            default=0.0,
+            default_or_value=0.0,
             description="agent's work propensity",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="consumption_propensity",
             type=float,
-            default=0.0,
+            default_or_value=0.0,
             description="agent's consumption propensity",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="to_consumption_currency",
             type=float,
-            default=0.0,
+            default_or_value=0.0,
             description="agent's to consumption currency",
         ),
-        StatusAttribute(
-            name="firm_id", type=int, default=0, description="agent's firm id"
+        MemoryAttribute(
+            name="firm_id", type=int, default_or_value=0, description="agent's firm id"
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="government_id",
             type=int,
-            default=0,
+            default_or_value=0,
             description="agent's government id",
         ),
-        StatusAttribute(
-            name="bank_id", type=int, default=0, description="agent's bank id"
+        MemoryAttribute(
+            name="bank_id", type=int, default_or_value=0, description="agent's bank id"
         ),
-        StatusAttribute(
-            name="nbs_id", type=int, default=0, description="agent's nbs id"
+        MemoryAttribute(
+            name="nbs_id", type=int, default_or_value=0, description="agent's nbs id"
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="dialog_queue",
             type=list,
-            default=[],
+            default_or_value=[],
             description="agent's dialog queue",
         ),
-        StatusAttribute(
-            name="firm_forward", type=int, default=0, description="agent's firm forward"
+        MemoryAttribute(
+            name="firm_forward", type=int, default_or_value=0, description="agent's firm forward"
         ),
-        StatusAttribute(
-            name="bank_forward", type=int, default=0, description="agent's bank forward"
+        MemoryAttribute(
+            name="bank_forward", type=int, default_or_value=0, description="agent's bank forward"
         ),
-        StatusAttribute(
-            name="nbs_forward", type=int, default=0, description="agent's nbs forward"
+        MemoryAttribute(
+            name="nbs_forward", type=int, default_or_value=0, description="agent's nbs forward"
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="government_forward",
             type=int,
-            default=0,
+            default_or_value=0,
             description="agent's government forward",
         ),
-        StatusAttribute(
-            name="forward", type=int, default=0, description="agent's forward"
+        MemoryAttribute(
+            name="forward", type=int, default_or_value=0, description="agent's forward"
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="depression",
             type=float,
-            default=0.0,
+            default_or_value=0.0,
             description="agent's depression, 0-1",
         ),
-        StatusAttribute(
-            name="ubi_opinion", type=list, default=[], description="agent's ubi opinion"
+        MemoryAttribute(
+            name="ubi_opinion", type=list, default_or_value=[], description="agent's ubi opinion"
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="working_experience",
             type=list,
-            default=[],
+            default_or_value=[],
             description="agent's working experience",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="work_hour_month",
             type=float,
-            default=160,
+            default_or_value=160,
             description="agent's work hour per month",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="work_hour_finish",
             type=float,
-            default=0,
+            default_or_value=0,
             description="agent's work hour finished",
         ),
         # Social
-        StatusAttribute(
+        MemoryAttribute(
             name="friends_info",
             type=dict,
-            default={},
+            default_or_value={},
             description="agent's friends info",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="relationships",
             type=dict,
-            default={},
+            default_or_value={},
             description="agent's relationship strength with each friend",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="relation_types",
             type=dict,
-            default={},
+            default_or_value={},
             description="agent's relation types with each friend",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="chat_histories",
             type=dict,
-            default={},
+            default_or_value={},
             description="all chat histories",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="interactions",
             type=dict,
-            default={},
+            default_or_value={},
             description="all interaction records",
         ),
         # Mobility
-        StatusAttribute(
+        MemoryAttribute(
             name="number_poi_visited",
             type=int,
-            default=1,
+            default_or_value=1,
             description="agent's number of poi visited",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="location_knowledge",
             type=dict,
-            default={},
+            default_or_value={},
             description="agent's location knowledge",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="message_propagation_preference",
             type=str,
-            default="",
+            default_or_value="",
             description="agent's message propagation preference",
         ),
-        StatusAttribute(
-            name="background_story",
-            type=str,
-            default="",
-            description="agent's background story",
-        ),
-        StatusAttribute(
+        # MemoryAttribute(
+        #     name="background_story",
+        #     type=str,
+        #     default_or_value="",
+        #     description="agent's background story",
+        # ),
+        MemoryAttribute(
             name="survey_request_history",
             type=list,
-            default=[],
+            default_or_value=[],
             description="agent's survey request history",
         ),
     ]
@@ -327,7 +324,7 @@ class TrackTwoEnvCitizen(CitizenAgentBase):
         )
         self.social_block = SocialBlock(
             agent=self,
-            llm=self.llm,
+            toolbox=toolbox,
             max_visible_followers=self.params.max_visible_followers,
             max_private_chats=self.params.max_private_chats,
             chat_probability=self.params.chat_probability,
@@ -383,7 +380,7 @@ class TrackTwoEnvCitizen(CitizenAgentBase):
     async def do_chat(self, message: Message) -> str:
         """Process incoming social/economic messages and generate responses."""
         payload = message.payload
-        print("PAYLOAD", payload)
+        get_logger().debug(f"Agent {self.id}: do_chat - payload: {payload}")
         if payload["type"] == "social":
             resp = f"Agent {self.id} received agent chat response: {payload}"
             try:
@@ -399,7 +396,7 @@ class TrackTwoEnvCitizen(CitizenAgentBase):
 
                 # add social memory
                 description = f"You received a social message: {raw_content}"
-                await self.memory.stream.add_social(description=description)
+                await self.memory.stream.add(topic="social", description=description)
             except Exception as e:
                 get_logger().warning(f"Error in process_agent_chat_response: {str(e)}")
                 return ""
@@ -407,7 +404,7 @@ class TrackTwoEnvCitizen(CitizenAgentBase):
             content = payload["content"]
             # add persuasion memory
             description = f"You received a persuasion message: {content}"
-            await self.memory.stream.add_social(description=description)
+            await self.memory.stream.add(topic="social", description=description)
             await self.social_block._add_intervention_to_history(
                 intervention_type="persuasion_received",
                 details={

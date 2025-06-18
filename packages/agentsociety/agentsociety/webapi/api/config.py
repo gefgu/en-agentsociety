@@ -481,7 +481,7 @@ async def download_map_by_token(
         if not link:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Download link not found",
+                detail="Download link not found",
             )
         if link.expire_at < datetime.now(link.expire_at.tzinfo):
             raise HTTPException(

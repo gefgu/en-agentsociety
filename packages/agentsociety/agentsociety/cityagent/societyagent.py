@@ -1,16 +1,17 @@
 import random
 import time
 
-import jsonc
-from typing import Optional, Any
+import json
+from typing import Any, Optional
 
-from pydantic import Field
+import json_repair
+
 from ..agent import (
     AgentToolbox,
     Block,
     CitizenAgentBase,
     FormatPrompt,
-    StatusAttribute,
+    MemoryAttribute,
 )
 from ..logger import get_logger
 from ..memory import Memory
@@ -20,7 +21,7 @@ from .sharing_params import (
     SocietyAgentBlockOutput,
     SocietyAgentContext,
 )
-from ..message import Message, MessageKind
+from ..message import Message
 
 ENVIRONMENT_REFLECTION_PROMPT = """
 You are a citizen of the city.
@@ -40,42 +41,41 @@ class SocietyAgent(CitizenAgentBase):
     BlockOutputType = SocietyAgentBlockOutput
     Context = SocietyAgentContext
     StatusAttributes = [
-        # Needs Model
-        StatusAttribute(
+        MemoryAttribute(
             name="hunger_satisfaction",
             type=float,
-            default=0.9,
+            default_or_value=0.9,
             description="agent's hunger satisfaction, 0-1",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="energy_satisfaction",
             type=float,
-            default=0.9,
+            default_or_value=0.9,
             description="agent's energy satisfaction, 0-1",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="safety_satisfaction",
             type=float,
-            default=0.4,
+            default_or_value=0.4,
             description="agent's safety satisfaction, 0-1",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="social_satisfaction",
             type=float,
-            default=0.6,
+            default_or_value=0.6,
             description="agent's social satisfaction, 0-1",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="current_need",
             type=str,
-            default="none",
+            default_or_value="none",
             description="agent's current need",
         ),
         # cognition
-        StatusAttribute(
+        MemoryAttribute(
             name="emotion",
             type=dict,
-            default={
+            default_or_value={
                 "sadness": 5,
                 "joy": 5,
                 "fear": 5,
@@ -85,92 +85,92 @@ class SocietyAgent(CitizenAgentBase):
             },
             description="agent's emotion, 0-10",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="thought",
             type=str,
-            default="Currently nothing good or bad is happening",
+            default_or_value="Currently nothing good or bad is happening",
             description="agent's thought",
             whether_embedding=True,
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="emotion_types",
             type=str,
-            default="Relief",
+            default_or_value="Relief",
             description="agent's emotion types",
             whether_embedding=True,
         ),
-        StatusAttribute(
-            name="firm_id", type=int, default=0, description="agent's firm id"
+        MemoryAttribute(
+            name="firm_id", type=int, default_or_value=0, description="agent's firm id"
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="government_id",
             type=int,
-            default=0,
+            default_or_value=0,
             description="agent's government id",
         ),
-        StatusAttribute(
-            name="bank_id", type=int, default=0, description="agent's bank id"
+        MemoryAttribute(
+            name="bank_id", type=int, default_or_value=0, description="agent's bank id"
         ),
-        StatusAttribute(
-            name="nbs_id", type=int, default=0, description="agent's nbs id"
+        MemoryAttribute(
+            name="nbs_id", type=int, default_or_value=0, description="agent's nbs id"
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="depression",
             type=float,
-            default=0.0,
+            default_or_value=0.0,
             description="agent's depression, 0-1",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="working_experience",
             type=list,
-            default=[],
+            default_or_value=[],
             description="agent's working experience",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="work_hour_month",
             type=float,
-            default=160,
+            default_or_value=160,
             description="agent's work hour per month",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="work_hour_finish",
             type=float,
-            default=0,
+            default_or_value=0,
             description="agent's work hour finished",
         ),
         # social
-        StatusAttribute(
-            name="friends", type=list, default=[], description="agent's friends list"
+        MemoryAttribute(
+            name="friends", type=list, default_or_value=[], description="agent's friends list"
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="relationships",
             type=dict,
-            default={},
+            default_or_value={},
             description="agent's relationship strength with each friend",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="relation_types",
             type=dict,
-            default={},
+            default_or_value={},
             description="agent's relation types with each friend",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="chat_histories",
             type=dict,
-            default={},
+            default_or_value={},
             description="all chat histories",
         ),
-        StatusAttribute(
+        MemoryAttribute(
             name="interactions",
             type=dict,
-            default={},
+            default_or_value={},
             description="all interaction records",
         ),
         # mobility
-        StatusAttribute(
+        MemoryAttribute(
             name="number_poi_visited",
             type=int,
-            default=1,
+            default_or_value=1,
             description="agent's number of poi visited",
         ),
     ]
@@ -212,8 +212,7 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         )
 
         self.needs_block = NeedsBlock(
-            llm=self.llm,
-            environment=self.environment,
+            toolbox=self._toolbox,
             agent_memory=self.memory,
             agent_context=self.context,
             initial_prompt=self.params.need_initialization_prompt,
@@ -221,8 +220,7 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
 
         self.plan_block = PlanBlock(
             agent=self,
-            llm=self.llm,
-            environment=self.environment,
+            toolbox=self._toolbox,
             agent_memory=self.memory,
             agent_context=self.context,
             max_plan_steps=self.params.max_plan_steps,
@@ -230,7 +228,8 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         )
 
         self.cognition_block = CognitionBlock(
-            llm=self.llm, agent_memory=self.memory, environment=self.environment
+            toolbox=self._toolbox,
+            agent_memory=self.memory,
         )
         self.environment_reflection_prompt = FormatPrompt(
             ENVIRONMENT_REFLECTION_PROMPT, memory=self.memory
@@ -312,7 +311,7 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
     async def plan_generation(self):
         """Generate a new plan if no current plan exists in memory."""
         cognition = None
-        current_plan = await self.memory.status.get("current_plan")
+        current_plan = await self.memory.status.get("current_plan", False)
         if current_plan is None or not current_plan:
             cognition = (
                 await self.plan_block.forward()
@@ -376,7 +375,7 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
             return False
 
         # Get the previous step information
-        current_plan = await self.memory.status.get("current_plan")
+        current_plan = await self.memory.status.get("current_plan", False)
         # If there is no current plan, return True
         if current_plan is None or not current_plan:
             return True
@@ -474,10 +473,10 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
 
                 # Parse message content
                 try:
-                    message_data = jsonc.loads(raw_content)
+                    message_data: Any = json_repair.loads(raw_content)
                     content = message_data["content"]
                     propagation_count = message_data.get("propagation_count", 1)
-                except (jsonc.JSONDecodeError, TypeError, KeyError):
+                except (TypeError, KeyError):
                     content = raw_content
                     propagation_count = 1
 
@@ -486,7 +485,7 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
 
                 # add social memory
                 description = f"You received a social message: {content}"
-                await self.memory.stream.add_social(description=description)
+                await self.memory.stream.add(topic="social", description=description)
                 if self.params.enable_cognition:
                     # update emotion
                     await self.cognition_block.emotion_update(description)
@@ -542,7 +541,7 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
                     ],
                     response_format={"type": "json_object"},
                 )
-                should_respond = jsonc.loads(should_respond)["should_respond"]
+                should_respond = json_repair.loads(should_respond)["should_respond"]  # type: ignore
                 if should_respond == "NO":
                     return ""
 
@@ -582,7 +581,7 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
                     await self.memory.status.update("chat_histories", chat_histories)
 
                     # Send response
-                    serialized_response = jsonc.dumps(
+                    serialized_response = json.dumps(
                         {
                             "content": response,
                             "propagation_count": propagation_count + 1,
@@ -604,7 +603,7 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
                 value = int(value)
             description = f"You received a economic message: Your {key} has changed from {await self.memory.status.get(key)} to {value}"
             await self.memory.status.update(key, value)
-            await self.memory.stream.add_economy(description=description)
+            await self.memory.stream.add(topic="economy", description=description)
             if self.params.enable_cognition:
                 await self.cognition_block.emotion_update(description)
             return ""
@@ -614,7 +613,7 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         # cognition
         conclusion = await self.cognition_block.emotion_update(intervention_message)
         await self.save_agent_thought(conclusion)
-        await self.memory.stream.add_cognition(description=conclusion)
+        await self.memory.stream.add(topic="cognition", description=conclusion)
         # needs
         await self.needs_block.reflect_to_intervention(intervention_message)
 
@@ -671,7 +670,7 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
                     "consumed_time": random.randint(1, 100),
                     "node_id": None,
                 }
-            if result != None:
+            if result is not None:
                 current_step["evaluation"] = result
 
             # Update current_step, plan, and execution_context information

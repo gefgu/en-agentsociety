@@ -2,11 +2,11 @@
 MessageProbe tool for the Agent Society.
 """
 
-from typing import Any, Dict
+from typing import Dict
 
-import jsonc
 from agentsociety.llm import LLM
 from agentsociety.agent import Agent
+import json_repair
 from .utils import clean_json_response
 
 MESSAGE_PROBE_PROMPT = """
@@ -111,12 +111,12 @@ class MessageProbe:
         ) # type: ignore
         result = clean_json_response(response)
         try:
-            result = jsonc.loads(result)
+            result = json_repair.loads(result)
             self.__evaluation_results['message'].append(result)
             probe_logs = await self.agent.status.get('probe_logs')
             probe_logs['message'].append(result)
             await self.agent.status.update('probe_logs', probe_logs)
-        except Exception as e:
+        except Exception:
             result = {
                 'credibility': 50,
                 'reasonableness': 50
@@ -156,12 +156,12 @@ class MessageProbe:
         ) # type: ignore
         result = clean_json_response(response)
         try:
-            result = jsonc.loads(result)
+            result = json_repair.loads(result)
             self.__evaluation_results['poster'].append(result)
             probe_logs = await self.agent.status.get('probe_logs')
             probe_logs['poster'].append(result)
             await self.agent.status.update('probe_logs', probe_logs)
-        except Exception as e:
+        except Exception:
             result = {
                 'credibility': 50,
                 'reasonableness': 50
@@ -201,12 +201,12 @@ class MessageProbe:
         ) # type: ignore
         result = clean_json_response(response)
         try:
-            result = jsonc.loads(result)
+            result = json_repair.loads(result)
             self.__evaluation_results['announcement'].append(result)
             probe_logs = await self.agent.memory.status.get('probe_logs')
             probe_logs['announcement'].append(result)
             await self.agent.memory.status.update('probe_logs', probe_logs)
-        except Exception as e:
+        except Exception:
             result = {
                 'credibility': 50,
                 'reasonableness': 50

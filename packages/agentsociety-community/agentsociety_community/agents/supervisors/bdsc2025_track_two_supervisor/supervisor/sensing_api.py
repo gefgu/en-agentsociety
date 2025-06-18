@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import re  # 用于关键词搜索
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
 from agentsociety.agent import SupervisorBase
 

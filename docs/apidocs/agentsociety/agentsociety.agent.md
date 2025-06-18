@@ -21,8 +21,8 @@ agentsociety.agent.dispatcher
 agentsociety.agent.block
 agentsociety.agent.agent_base
 agentsociety.agent.memory_config_generator
+agentsociety.agent.toolbox
 agentsociety.agent.agent
-agentsociety.agent.trigger
 ```
 
 ## Package Contents
@@ -44,7 +44,7 @@ agentsociety.agent.trigger
 ````{py:data} __all__
 :canonical: agentsociety.agent.__all__
 :value: >
-   ['Agent', 'AgentParams', 'StatusAttribute', 'CitizenAgentBase', 'AgentType', 'AgentToolbox', 'FirmAg...
+   ['Agent', 'AgentParams', 'MemoryAttribute', 'CitizenAgentBase', 'SupervisorBase', 'AgentType', 'Agen...
 
 ```{autodoc2-docstring} agentsociety.agent.__all__
 ```

@@ -19,10 +19,6 @@
   - ```{autodoc2-docstring} agentsociety.agent.agent_base.AgentParams
     :summary:
     ```
-* - {py:obj}`AgentToolbox <agentsociety.agent.agent_base.AgentToolbox>`
-  - ```{autodoc2-docstring} agentsociety.agent.agent_base.AgentToolbox
-    :summary:
-    ```
 * - {py:obj}`GatherQuery <agentsociety.agent.agent_base.GatherQuery>`
   - ```{autodoc2-docstring} agentsociety.agent.agent_base.GatherQuery
     :summary:
@@ -66,7 +62,7 @@
 ````{py:data} __all__
 :canonical: agentsociety.agent.agent_base.__all__
 :value: >
-   ['Agent', 'AgentType']
+   ['Agent', 'AgentType', 'AgentParams', 'GatherQuery']
 
 ```{autodoc2-docstring} agentsociety.agent.agent_base.__all__
 ```
@@ -88,60 +84,6 @@ Bases: {py:obj}`pydantic.BaseModel`
 ```
 
 ````
-
-`````{py:class} AgentToolbox
-:canonical: agentsociety.agent.agent_base.AgentToolbox
-
-Bases: {py:obj}`typing.NamedTuple`
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.AgentToolbox
-```
-
-````{py:attribute} llm
-:canonical: agentsociety.agent.agent_base.AgentToolbox.llm
-:type: agentsociety.llm.LLM
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.AgentToolbox.llm
-```
-
-````
-
-````{py:attribute} environment
-:canonical: agentsociety.agent.agent_base.AgentToolbox.environment
-:type: agentsociety.environment.Environment
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.AgentToolbox.environment
-```
-
-````
-
-````{py:attribute} messager
-:canonical: agentsociety.agent.agent_base.AgentToolbox.messager
-:type: agentsociety.message.Messager
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.AgentToolbox.messager
-```
-
-````
-
-````{py:attribute} database_writer
-:canonical: agentsociety.agent.agent_base.AgentToolbox.database_writer
-:type: typing.Optional[ray.ObjectRef]
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.AgentToolbox.database_writer
-```
-
-````
-
-`````
 
 `````{py:class} GatherQuery(**data: typing.Any)
 :canonical: agentsociety.agent.agent_base.GatherQuery
@@ -260,7 +202,7 @@ Bases: {py:obj}`enum.Enum`
 ```
 ````
 
-`````{py:class} Agent(id: int, name: str, type: agentsociety.agent.agent_base.AgentType, toolbox: agentsociety.agent.agent_base.AgentToolbox, memory: agentsociety.memory.Memory, agent_params: typing.Optional[typing.Any] = None, blocks: typing.Optional[list[agentsociety.agent.block.Block]] = None)
+`````{py:class} Agent(id: int, name: str, type: agentsociety.agent.agent_base.AgentType, toolbox: agentsociety.agent.toolbox.AgentToolbox, memory: agentsociety.memory.Memory, agent_params: typing.Optional[typing.Any] = None, blocks: typing.Optional[list[agentsociety.agent.block.Block]] = None)
 :canonical: agentsociety.agent.agent_base.Agent
 
 Bases: {py:obj}`abc.ABC`
@@ -309,7 +251,7 @@ Bases: {py:obj}`abc.ABC`
 
 ````{py:attribute} StatusAttributes
 :canonical: agentsociety.agent.agent_base.Agent.StatusAttributes
-:type: list[agentsociety.agent.memory_config_generator.StatusAttribute]
+:type: list[agentsociety.agent.memory_config_generator.MemoryAttribute]
 :value: >
    []
 

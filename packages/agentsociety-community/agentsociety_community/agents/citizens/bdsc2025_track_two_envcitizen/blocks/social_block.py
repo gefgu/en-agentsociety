@@ -1,20 +1,16 @@
 import asyncio
 import random
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Optional, Tuple
 
-from agentsociety.agent import (Agent, Block, BlockContext, BlockParams,
-                                FormatPrompt)
+from agentsociety.agent import Agent, Block, BlockContext, BlockParams, FormatPrompt
+from agentsociety.agent.toolbox import AgentToolbox
 from agentsociety.environment import Environment
-from agentsociety.llm import LLM
 from agentsociety.logger import get_logger
 from agentsociety.memory import Memory
 from agentsociety.memory.const import RelationType, SocialRelation
-from pydantic import Field
 
 from ..sharing_params import EnvCitizenBlockOutput
-from .utils import TIME_ESTIMATE_PROMPT, clean_json_response
 
 
 class SocialBlockParams(BlockParams): ...
@@ -38,7 +34,7 @@ class SocialBlock(Block):
     # 总结 Prompt
     summary_prompt = FormatPrompt(
         "你是一名社交网络用户，个人信息如下：\n"
-        "性别: {gender}\n年龄段: {age_group}\n职业: {occupation}\n"
+        "性别: {gender}\n年龄段: {age}\n职业: {occupation}\n"
         "\n你的历史信息总结如下：\n{history_summary}\n"
         "{preference_appendix}\n"
         "你上一轮收到的消息列表如下（每行格式：来源ID: 内容）：\n{new_messages}\n\n"
@@ -49,7 +45,7 @@ class SocialBlock(Block):
     # 公开发帖 Prompt
     public_post_prompt = FormatPrompt(
         "你是一名社交网络用户，个人信息如下：\n"
-        "性别: {gender}\n年龄段: {age_group}\n职业: {occupation}\n"
+        "性别: {gender}\n年龄段: {age}\n职业: {occupation}\n"
         "{preference_appendix}\n"
         "\n以下是你最新更新的外部信息总结：\n{message_summary}\n\n"
         "你的被干预历史记录如下：{intervention_history}\n"
@@ -60,12 +56,12 @@ class SocialBlock(Block):
     # 私聊 Prompt (批量)
     private_chat_prompt = FormatPrompt(
         "你是一名社交网络用户，个人信息如下：\n"
-        "性别: {gender}\n年龄段: {age_group}\n职业: {occupation}\n"
+        "性别: {gender}\n年龄段: {age}\n职业: {occupation}\n"
         "{preference_appendix}\n"
         "\n以下是你最新更新的外部信息总结：\n{message_summary}\n\n"
         "你的被干预历史记录如下：{intervention_history}\n"
         "你即将与一位好友私聊。该好友信息如下：\n"
-        "性别: {friend_gender}\n年龄段: {friend_age_group}\n职业: {friend_occupation}\n"
+        "性别: {friend_gender}\n年龄段: {friend_age}\n职业: {friend_occupation}\n"
         "请基于以上所有信息，撰写私聊内容，不超过200字。请只输出私聊内容本身，不要包含其它说明。"
         # "注意，在没有较为明确的证据或者官方辟谣的情况下，你应当相信你收到的消息是真的，不要因为你的偏见而对不寻常的消息产生质疑，要尊重信息本身，不要过分相信自己。"
     )
@@ -81,7 +77,7 @@ class SocialBlock(Block):
     def __init__(
         self,
         agent: Agent,
-        llm: LLM,
+        toolbox: AgentToolbox,
         max_visible_followers: int,
         max_private_chats: int,
         chat_probability: float,
@@ -102,8 +98,7 @@ class SocialBlock(Block):
             memory: The memory instance.
         """
         super().__init__(
-            llm=llm,
-            environment=environment,
+            toolbox=toolbox,
             agent_memory=memory,
             block_params=block_params,
         )
@@ -215,13 +210,13 @@ class SocialBlock(Block):
             # Update history summary if needed
             status_mem = self.memory.status
             gender = await status_mem.get("gender", "")
-            age_group = await status_mem.get("age_group", "")
+            age = await status_mem.get("age", "")
             occupation = await status_mem.get("occupation", "")
             preference = await status_mem.get("message_propagation_preference", "")
             if self._current_messages or self.history_summary == "(空)":
                 await self.summary_prompt.format(
                     gender=gender,
-                    age_group=age_group,
+                    age=age,
                     occupation=occupation,
                     preference_appendix=self.preference_appendix.get(preference, ""),
                     history_summary=self.history_summary,
@@ -230,19 +225,20 @@ class SocialBlock(Block):
                 self.history_summary = await self.llm.atext_request(
                     self.summary_prompt.to_dialog(),
                 )
-                await self.agent.memory.stream.add_social(
+                await self.agent.memory.stream.add(
+                    topic="social",
                     description=self.history_summary,
                 )
             self._current_messages.clear()
             status_mem = self.memory.status
             gender = await status_mem.get("gender", "")
-            age_group = await status_mem.get("age_group", "")
+            age = await status_mem.get("age", "")
             occupation = await status_mem.get("occupation", "")
             preference = await status_mem.get("message_propagation_preference", "")
             # Generate public post
             await self.public_post_prompt.format(
                 gender=gender,
-                age_group=age_group,
+                age=age,
                 occupation=occupation,
                 preference_appendix=self.preference_appendix.get(preference, ""),
                 message_summary=self.history_summary,
@@ -284,13 +280,13 @@ class SocialBlock(Block):
                 tasks = []
                 status_mem = self.memory.status
                 gender = await status_mem.get("gender", "")
-                age_group = await status_mem.get("age_group", "")
+                age = await status_mem.get("age", "")
                 occupation = await status_mem.get("occupation", "")
                 preference = await status_mem.get("message_propagation_preference", "")
                 for target_id in private_chat_targets:
                     await self.private_chat_prompt.format(
                         gender=gender,
-                        age_group=age_group,
+                        age=age,
                         occupation=occupation,
                         preference_appendix=self.preference_appendix.get(
                             preference, ""
@@ -298,7 +294,7 @@ class SocialBlock(Block):
                         message_summary=self.history_summary,
                         intervention_history=current_intervention_history_str,
                         friend_gender=friends_info.get(target_id, {}).get("gender", ""),
-                        friend_age_group=friends_info.get(target_id, {}).get("age", ""),
+                        friend_age=friends_info.get(target_id, {}).get("age", ""),
                         friend_occupation=friends_info.get(target_id, {}).get(
                             "occupation", ""
                         ),

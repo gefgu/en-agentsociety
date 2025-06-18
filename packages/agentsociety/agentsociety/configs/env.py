@@ -2,9 +2,9 @@ from typing import Union
 
 from pydantic import BaseModel, Field
 
-from ..storage import DatabaseConfig
-from ..s3 import S3Config, S3Client
 from ..filesystem import FileSystemClient
+from ..s3 import S3Client, S3Config
+from ..storage import DatabaseConfig
 
 __all__ = [
     "EnvConfig",

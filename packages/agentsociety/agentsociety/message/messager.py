@@ -1,14 +1,13 @@
 import asyncio
 from datetime import datetime
 from enum import Enum
-from typing import Any, Awaitable, Callable, Optional, Union
+from typing import Optional
 
 import ray
 import ray.actor
 from pydantic import BaseModel, Field
 
 from ..logger import get_logger
-from ..utils import NONE_SENDER_ID
 from ..utils.decorators import lock_decorator
 
 __all__ = [
@@ -32,7 +31,7 @@ class Message(BaseModel):
     """target agent id or aoi id"""
     day: int
     """day"""
-    t: int
+    t: float
     """tick"""
     kind: MessageKind
     """message kind"""
@@ -94,18 +93,6 @@ class Messager:
         """
         self._message_interceptor = message_interceptor
 
-    async def init(self):
-        """
-        Initialize the messager.
-        """
-        pass
-
-    async def close(self):
-        """
-        Close the messager.
-        """
-        pass
-
     @lock_decorator
     async def send_message(self, message: Message):
         """
@@ -133,7 +120,7 @@ class Messager:
 
     async def fetch_received_messages(self):
         """
-        Fetch messages from the received messages list. (Called by AgentGroup)
+        Fetch messages from the received messages list. (Called by AgentSociety)
         """
         msgs = self._received_messages
         self._received_messages = []

@@ -1,10 +1,10 @@
-import jsonc
 from agentsociety.agent import AgentToolbox, Block, FormatPrompt
 from agentsociety.message import Message, MessageKind
 from agentsociety.memory import Memory
 from agentsociety.logger import get_logger
 from typing import Any, Optional
-from pydantic import Field
+
+import json_repair
 from .embagentbase import EnvAgentBase
 from .defaults import *
 from .sharing_params import *
@@ -69,7 +69,7 @@ class BaselineEnvAmbassador(EnvAgentBase):
         funds_history = self._fund_manager.get_funds_history()
         history_ = ""
         if len(funds_history) == 0:
-            return f"No cost history."
+            return "No cost history."
         for spend in funds_history[-latest_n:]:
             history_ += f"Spend {spend['amount']} units of funds for {spend['reason']}. Left balance: {spend['new_balance']} units.\n"
         return f"The cost history of the environment protection ambassador is:\n {history_}."
@@ -162,7 +162,7 @@ class BaselineEnvAmbassador(EnvAgentBase):
         self.context.agent_query_history.append(f"Query citizens with criteria: {', '.join(query_str)}")
         return f"Found {len(citizen_ids)} citizens matching the criteria, agent ids: {citizen_ids}"
 
-    async def getCitizenChatHistory(self, citizen_ids: list[int] = None):
+    async def getCitizenChatHistory(self, citizen_ids: Optional[list[int]] = None):
         """Get the chat history of the citizens."""
         chat_histories = await self.memory.status.get("chat_histories")
         if citizen_ids is None or len(citizen_ids) == 0:
@@ -219,7 +219,7 @@ class BaselineEnvAmbassador(EnvAgentBase):
                 # Extract the function call information
                 sense_response = sense_response.choices[0].message
                 function_name = sense_response.tool_calls[0].function.name
-                function_args = jsonc.loads(sense_response.tool_calls[0].function.arguments)
+                function_args = json_repair.loads(sense_response.tool_calls[0].function.arguments)
                 get_logger().info(f"Function name: {function_name}, Function args: {function_args}")
                 
                 # Check if sensing is complete
@@ -297,7 +297,7 @@ class BaselineEnvAmbassador(EnvAgentBase):
                 # Extract the action steps from the plan
                 plan_response = plan_response.choices[0].message
                 function_name = plan_response.tool_calls[0].function.name
-                plan_args = jsonc.loads(plan_response.tool_calls[0].function.arguments)
+                plan_args = json_repair.loads(plan_response.tool_calls[0].function.arguments)
                 get_logger().info(f"Plan response: {plan_args}")
             except Exception as e:
                 get_logger().error(f"Ambassador {self.id} planning strategy failed. Error: {e}")
@@ -311,7 +311,7 @@ class BaselineEnvAmbassador(EnvAgentBase):
                 self.context.action_strategy_this_round = strategy_data
                 self.context.action_strategy_history.append(strategy_data)
                 break
-            except:
+            except Exception:
                 get_logger().error(f"Ambassador {self.id} planning strategy failed. Parsing plan response error: {plan_args}")
                 strategy_data = {
                     "situation_analysis": "Don't know the current situation.",
@@ -337,7 +337,7 @@ class BaselineEnvAmbassador(EnvAgentBase):
 
                 action_response = action_response.choices[0].message
                 function_name = action_response.tool_calls[0].function.name
-                function_args = jsonc.loads(action_response.tool_calls[0].function.arguments)
+                function_args = json_repair.loads(action_response.tool_calls[0].function.arguments)
                 get_logger().info(f"Function name: {function_name}, Function args: {function_args}")
             except Exception as e:
                 get_logger().error(f"Ambassador {self.id} action failed. Error: {e}")
@@ -428,7 +428,7 @@ class BaselineEnvAmbassador(EnvAgentBase):
                     if response:
                         await self.communication.sendMessage(sender_id, response)
                     return response
-                except Exception as e:
+                except Exception:
                     return ""
             else:
                 return ""

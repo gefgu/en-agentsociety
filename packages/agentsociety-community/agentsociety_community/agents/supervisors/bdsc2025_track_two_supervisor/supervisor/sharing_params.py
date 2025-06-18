@@ -1,7 +1,6 @@
 from string import Formatter
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal
 
-from agentsociety.agent.dispatcher import DISPATCHER_PROMPT
 from pydantic import BaseModel, Field, model_validator
 
 from .default_prompts import *

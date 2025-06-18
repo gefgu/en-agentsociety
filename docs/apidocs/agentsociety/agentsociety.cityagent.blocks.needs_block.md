@@ -70,7 +70,7 @@
 
 ````
 
-`````{py:class} NeedsBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, agent_memory: agentsociety.memory.Memory, agent_context: agentsociety.agent.DotDict, evaluation_prompt: str = EVALUATION_PROMPT, reflection_prompt: str = REFLECTION_PROMPT, initial_prompt: str = INITIAL_NEEDS_PROMPT)
+`````{py:class} NeedsBlock(toolbox: agentsociety.agent.AgentToolbox, agent_memory: agentsociety.memory.Memory, agent_context: agentsociety.agent.DotDict, evaluation_prompt: str = EVALUATION_PROMPT, reflection_prompt: str = REFLECTION_PROMPT, initial_prompt: str = INITIAL_NEEDS_PROMPT)
 :canonical: agentsociety.cityagent.blocks.needs_block.NeedsBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`

@@ -60,7 +60,7 @@
 ````{py:data} __all__
 :canonical: agentsociety.agent.agent.__all__
 :value: >
-   ['CitizenAgentBase', 'FirmAgentBase', 'BankAgentBase', 'NBSAgentBase', 'GovernmentAgentBase']
+   ['CitizenAgentBase', 'FirmAgentBase', 'BankAgentBase', 'NBSAgentBase', 'GovernmentAgentBase', 'Super...
 
 ```{autodoc2-docstring} agentsociety.agent.agent.__all__
 ```

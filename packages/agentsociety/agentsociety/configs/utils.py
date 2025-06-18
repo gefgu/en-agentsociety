@@ -1,9 +1,6 @@
-from __future__ import annotations
-
 from typing import TypeVar
 
 import yaml
-
 
 T = TypeVar("T")
 

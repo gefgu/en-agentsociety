@@ -57,7 +57,7 @@
 
 ````
 
-`````{py:class} PlanBlock(agent: agentsociety.agent.Agent, llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, agent_memory: agentsociety.memory.Memory, agent_context: agentsociety.agent.DotDict, max_plan_steps: int = 6, detailed_plan_prompt: str = DETAILED_PLAN_PROMPT)
+`````{py:class} PlanBlock(agent: agentsociety.agent.Agent, toolbox: agentsociety.agent.AgentToolbox, agent_memory: agentsociety.memory.Memory, agent_context: agentsociety.agent.DotDict, max_plan_steps: int = 6, detailed_plan_prompt: str = DETAILED_PLAN_PROMPT)
 :canonical: agentsociety.cityagent.blocks.plan_block.PlanBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`

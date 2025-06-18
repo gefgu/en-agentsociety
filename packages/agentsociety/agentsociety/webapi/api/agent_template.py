@@ -7,7 +7,6 @@ from typing import (
     Union,
     cast,
     Any,
-    Type,
     get_args,
     get_origin,
 )
@@ -15,7 +14,7 @@ from typing import (
 from fastapi import APIRouter, Body, HTTPException, Request, status
 from pydantic import BaseModel
 from pydantic_core import PydanticUndefined
-from sqlalchemy import delete, insert, select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import ApiResponseWrapper

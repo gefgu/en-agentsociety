@@ -202,28 +202,6 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:attribute} embedding_model
-:canonical: agentsociety.configs.AdvancedConfig.embedding_model
-:type: typing.Optional[str]
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.configs.AdvancedConfig.embedding_model
-```
-
-````
-
-````{py:attribute} group_size
-:canonical: agentsociety.configs.AdvancedConfig.group_size
-:type: typing.Union[int, typing.Literal[auto]]
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.configs.AdvancedConfig.group_size
-```
-
-````
-
 ````{py:attribute} logging_level
 :canonical: agentsociety.configs.AdvancedConfig.logging_level
 :type: str
@@ -313,14 +291,6 @@ Bases: {py:obj}`pydantic.BaseModel`
    'Field(...)'
 
 ```{autodoc2-docstring} agentsociety.configs.Config.advanced
-```
-
-````
-
-````{py:method} set_auto_workers()
-:canonical: agentsociety.configs.Config.set_auto_workers
-
-```{autodoc2-docstring} agentsociety.configs.Config.set_auto_workers
 ```
 
 ````

@@ -1,13 +1,19 @@
 # Due to the current limitations of the simulator's support, only NoneBlock, MessageBlock, and FindPersonBlock are available in the Dispatcher.
 
-import logging
 from typing import Any, Optional
 
-import jsonc
+import json
 
-from ...agent import Block, FormatPrompt, BlockParams, DotDict, BlockContext
-from ...environment import Environment
-from ...llm import LLM
+import json_repair
+
+from ...agent import (
+    AgentToolbox,
+    Block,
+    FormatPrompt,
+    BlockParams,
+    DotDict,
+    BlockContext,
+)
 from ...logger import get_logger
 from ...memory import Memory
 from ...agent.dispatcher import BlockDispatcher
@@ -82,8 +88,8 @@ class SocialNoneBlock(Block):
     name = "SocialNoneBlock"
     description = "Handle all other cases"
 
-    def __init__(self, llm: LLM, agent_memory: Memory):
-        super().__init__(llm=llm, agent_memory=agent_memory)
+    def __init__(self, toolbox: AgentToolbox, agent_memory: Memory):
+        super().__init__(toolbox=toolbox, agent_memory=agent_memory)
         self.guidance_prompt = FormatPrompt(template=TIME_ESTIMATE_PROMPT)
 
     async def forward(self, step, context):
@@ -106,9 +112,9 @@ class SocialNoneBlock(Block):
         )
         result = clean_json_response(result)
         try:
-            result = jsonc.loads(result)
-            node_id = await self.memory.stream.add_social(
-                description=f"I {step['intention']}"
+            result: Any = json_repair.loads(result)
+            node_id = await self.memory.stream.add(
+                topic="social", description=f"I {step['intention']}"
             )
             return {
                 "success": True,
@@ -120,8 +126,8 @@ class SocialNoneBlock(Block):
             get_logger().warning(
                 f"Error occurred while parsing the evaluation response: {e}, original result: {result}"
             )
-            node_id = await self.memory.stream.add_social(
-                description=f"I failed to execute {step['intention']}"
+            node_id = await self.memory.stream.add(
+                topic="social", description=f"I failed to execute {step['intention']}"
             )
             return {
                 "success": False,
@@ -139,10 +145,9 @@ class FindPersonBlock(Block):
     name = "FindPersonBlock"
     description = "Find a suitable person to socialize with"
 
-    def __init__(self, llm: LLM, environment: Environment, agent_memory: Memory):
+    def __init__(self, toolbox: AgentToolbox, agent_memory: Memory):
         super().__init__(
-            llm=llm,
-            environment=environment,
+            toolbox=toolbox,
             agent_memory=agent_memory,
         )
 
@@ -196,8 +201,9 @@ class FindPersonBlock(Block):
             relationships = await self.memory.status.get("relationships", {})
 
             if not friends:
-                node_id = await self.memory.stream.add_social(
-                    description=f"I can't find any friends to contact with."
+                node_id = await self.memory.stream.add(
+                    topic="social",
+                    description="I can't find any friends to contact with.",
                 )
                 return {
                     "success": False,
@@ -255,7 +261,7 @@ class FindPersonBlock(Block):
                 target = index_to_id[friend_index]
                 if context is not None:
                     context["target"] = target
-            except Exception as e:
+            except Exception:
                 # If parsing fails, select the friend with the strongest relationship as the default option
                 target = (
                     max(relationships.items(), key=lambda x: x[1])[0]
@@ -264,8 +270,9 @@ class FindPersonBlock(Block):
                 )
                 mode = "online"
 
-            node_id = await self.memory.stream.add_social(
-                description=f"I selected the friend {target} for {mode} interaction"
+            node_id = await self.memory.stream.add(
+                topic="social",
+                description=f"I selected the friend {target} for {mode} interaction",
             )
             return {
                 "success": True,
@@ -277,8 +284,9 @@ class FindPersonBlock(Block):
             }
 
         except Exception as e:
-            node_id = await self.memory.stream.add_social(
-                description=f"I can't find any friends to socialize with."
+            node_id = await self.memory.stream.add(
+                topic="social",
+                description="I can't find any friends to socialize with.",
             )
             return {
                 "success": False,
@@ -294,13 +302,12 @@ class MessageBlock(Block):
     name = "MessageBlock"
     description = "Send a message to someone"
 
-    def __init__(self, llm: LLM, environment: Environment, agent_memory: Memory):
+    def __init__(self, toolbox: AgentToolbox, agent_memory: Memory):
         super().__init__(
-            llm=llm,
-            environment=environment,
+            toolbox=toolbox,
             agent_memory=agent_memory,
         )
-        self.find_person_block = FindPersonBlock(llm, environment, agent_memory)
+        self.find_person_block = FindPersonBlock(toolbox, agent_memory)
 
         # configurable fields
         self.default_message_template = """
@@ -333,7 +340,7 @@ class MessageBlock(Block):
             JSON string with message and metadata.
         """
         try:
-            return jsonc.dumps(
+            return json.dumps(
                 {"content": message, "propagation_count": propagation_count},
                 ensure_ascii=False,
             )
@@ -393,8 +400,8 @@ class MessageBlock(Block):
             # Send message
             serialized_message = self._serialize_message(message, 1)
             await self.agent.send_message(target, serialized_message)
-            node_id = await self.memory.stream.add_social(
-                description=f"I sent a message to {target}: {message}"
+            node_id = await self.memory.stream.add(
+                topic="social", description=f"I sent a message to {target}: {message}"
             )
             return {
                 "success": True,
@@ -404,8 +411,8 @@ class MessageBlock(Block):
             }
 
         except Exception as e:
-            node_id = await self.memory.stream.add_social(
-                description=f"I can't send a message to {target}"
+            node_id = await self.memory.stream.add(
+                topic="social", description=f"I can't send a message to {target}"
             )
             return {
                 "success": False,
@@ -435,7 +442,7 @@ class SocialBlock(Block):
     ContextType = SocialBlockContext
     NeedAgent = True
     name = "SocialBlock"
-    description = "Responsible for all kinds of social interactions, for example, find a friend, send a message, etc."
+    description = "Do social interactions, for example, find a friend, send a message, and other social activities."
     actions = {
         "find_person": "Support the find person action, determine the social target.",
         "message": "Support the message action, send a message to the social target.",
@@ -444,21 +451,19 @@ class SocialBlock(Block):
 
     def __init__(
         self,
-        llm: LLM,
-        environment: Environment,
+        toolbox: AgentToolbox,
         agent_memory: Memory,
         block_params: Optional[SocialBlockParams] = None,
     ):
         super().__init__(
-            llm=llm,
-            environment=environment,
+            toolbox=toolbox,
             agent_memory=agent_memory,
             block_params=block_params,
         )
-        self.find_person_block = FindPersonBlock(llm, environment, agent_memory)
-        self.message_block = MessageBlock(llm, environment, agent_memory)
-        self.noneblock = SocialNoneBlock(llm, agent_memory)
-        self.dispatcher = BlockDispatcher(llm, agent_memory)
+        self.find_person_block = FindPersonBlock(toolbox, agent_memory)
+        self.message_block = MessageBlock(toolbox, agent_memory)
+        self.noneblock = SocialNoneBlock(toolbox, agent_memory)
+        self.dispatcher = BlockDispatcher(toolbox, agent_memory)
 
         self.trigger_time = 0
         self.token_consumption = 0
@@ -479,9 +484,6 @@ class SocialBlock(Block):
         """
         try:
             self.trigger_time += 1
-            consumption_start = (
-                self.llm.prompt_tokens_used + self.llm.completion_tokens_used
-            )
 
             context = agent_context | self.context
 

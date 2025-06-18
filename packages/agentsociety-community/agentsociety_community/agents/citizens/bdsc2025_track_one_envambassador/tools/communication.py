@@ -4,7 +4,6 @@ Communication tool for the Agent Society.
 
 from typing import Union
 
-import jsonc
 from agentsociety.agent import Agent
 from agentsociety.llm import LLM
 from .message_probe import MessageProbe

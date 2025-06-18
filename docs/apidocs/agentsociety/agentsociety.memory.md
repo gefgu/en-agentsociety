@@ -13,13 +13,7 @@
 :titlesonly:
 :maxdepth: 1
 
-agentsociety.memory.self_define
-agentsociety.memory.state
-agentsociety.memory.profile
-agentsociety.memory.utils
 agentsociety.memory.memory
-agentsociety.memory.faiss_query
-agentsociety.memory.memory_base
 agentsociety.memory.const
 ```
 
@@ -42,7 +36,7 @@ agentsociety.memory.const
 ````{py:data} __all__
 :canonical: agentsociety.memory.__all__
 :value: >
-   ['Memory', 'FaissQuery']
+   ['Memory', 'KVMemory', 'StreamMemory']
 
 ```{autodoc2-docstring} agentsociety.memory.__all__
 ```

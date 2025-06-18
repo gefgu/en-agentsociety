@@ -52,7 +52,7 @@ class Announcement:
         if not success:
             return {
                 "success": False,
-                "reason": f"You don't have enough funds to make announcement."
+                "reason": "You don't have enough funds to make announcement."
             }
         await self.probe.probeAnnouncement(content)
         citizen_ids = await self.agent.memory.status.get("citizen_ids")
@@ -60,5 +60,5 @@ class Announcement:
             await self.agent.send_message_to_agent(citizen_id, ANNOUNCEMENT_EMBELLISHMENT + content)
         return {
             "success": True,
-            "reason": f"You have made an announcement."
+            "reason": "You have made an announcement."
         }

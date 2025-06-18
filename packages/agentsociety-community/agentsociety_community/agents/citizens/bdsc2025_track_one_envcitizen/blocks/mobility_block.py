@@ -1,15 +1,12 @@
 import math
 import random
-from typing import Any, Optional
+from typing import Optional
 
-import jsonc
+import json_repair
 import numpy as np
 from pydantic import Field
-import ray
 
-from agentsociety.agent import Block, FormatPrompt, BlockParams, DotDict
-from agentsociety.environment import Environment
-from agentsociety.llm import LLM
+from agentsociety.agent import AgentToolbox, Block, FormatPrompt, BlockParams, DotDict
 from agentsociety.logger import get_logger
 from agentsociety.memory import Memory
 from agentsociety.agent.dispatcher import BlockDispatcher
@@ -189,10 +186,9 @@ class PlaceSelectionBlock(Block):
     name = "PlaceSelectionBlock"
     description = "Selects destinations for unknown locations (excluding home/work)"
 
-    def __init__(self, llm: LLM, environment: Environment, agent_memory: Memory, search_limit: int = 50):
+    def __init__(self, toolbox: AgentToolbox, agent_memory: Memory, search_limit: int = 50):
         super().__init__(
-            llm=llm,
-            environment=environment,
+            toolbox=toolbox,
             agent_memory=agent_memory,
         )
         self.typeSelectionPrompt = FormatPrompt(PLACE_TYPE_SELECTION_PROMPT)
@@ -218,7 +214,7 @@ class PlaceSelectionBlock(Block):
                 self.typeSelectionPrompt.to_dialog(),
                 response_format={"type": "json_object"},
             )
-            levelOneType = jsonc.loads(clean_json_response(levelOneType))["place_type"]
+            levelOneType = json_repair.loads(clean_json_response(levelOneType))["place_type"] # type: ignore
             sub_category = poi_cate[levelOneType]
         except Exception as e:
             get_logger().warning(f"Level 1 selection failed: {e}")
@@ -239,7 +235,7 @@ class PlaceSelectionBlock(Block):
                 self.secondTypeSelectionPrompt.to_dialog(),
                 response_format={"type": "json_object"},
             )
-            levelTwoType = jsonc.loads(clean_json_response(levelTwoType))["place_type"]
+            levelTwoType = json_repair.loads(clean_json_response(levelTwoType))["place_type"] # type: ignore
         except Exception as e:
             get_logger().warning(f"Level 2 selection failed: {e}")
             levelTwoType = random.choice(sub_category)
@@ -258,7 +254,7 @@ class PlaceSelectionBlock(Block):
             radius = await self.llm.atext_request(
                 self.radiusPrompt.to_dialog(), response_format={"type": "json_object"}
             )
-            radius = int(jsonc.loads(radius)["radius"])
+            radius = int(json_repair.loads(radius)["radius"]) # type: ignore
         except Exception as e:
             get_logger().warning(f"Radius selection failed: {e}")
             radius = 10000  # Default 10km
@@ -284,7 +280,8 @@ class PlaceSelectionBlock(Block):
             next_place = (next_place["name"], next_place["aoi_id"])
 
         plan_context["next_place"] = next_place
-        node_id = await self.memory.stream.add_mobility(
+        node_id = await self.memory.stream.add(
+            topic="mobility",
             description=f"For {step['intention']}, selected: {next_place}"
         )
         return {
@@ -300,10 +297,9 @@ class MoveBlock(Block):
     name = "MoveBlock"
     description = "Executes mobility operations between locations"
 
-    def __init__(self, llm: LLM, environment: Environment, agent_memory: Memory):
+    def __init__(self, toolbox: AgentToolbox, agent_memory: Memory):
         super().__init__(
-            llm=llm,
-            environment=environment,
+            toolbox=toolbox,
             agent_memory=agent_memory,
         )
         self.placeAnalysisPrompt = FormatPrompt(PLACE_ANALYSIS_PROMPT)
@@ -325,8 +321,8 @@ class MoveBlock(Block):
         )  #
         try:
             response = clean_json_response(response)
-            response = jsonc.loads(response)["place_type"]
-        except Exception as e:
+            response = json_repair.loads(response)["place_type"] # type: ignore
+        except Exception:
             get_logger().warning(
                 f"Place Analysis: wrong type of place, raw response: {response}"
             )
@@ -336,8 +332,9 @@ class MoveBlock(Block):
             home = await self.memory.status.get("home")
             home = home["aoi_position"]["aoi_id"]
             nowPlace = await self.memory.status.get("position")
-            node_id = await self.memory.stream.add_mobility(
-                description=f"I returned home"
+            node_id = await self.memory.stream.add(
+                topic="mobility",
+                description="I returned home"
             )
             if (
                 "aoi_position" in nowPlace
@@ -345,7 +342,7 @@ class MoveBlock(Block):
             ):
                 return {
                     "success": True,
-                    "evaluation": f"Successfully returned home (already at home)",
+                    "evaluation": "Successfully returned home (already at home)",
                     "to_place": home,
                     "consumed_time": 0,
                     "node_id": node_id,
@@ -377,7 +374,7 @@ class MoveBlock(Block):
                     response_format={"type": "json_object"},
                 )
                 try:
-                    transportation_mode = jsonc.loads(transportation_mode)["transportation_mode"]
+                    transportation_mode = json_repair.loads(transportation_mode)["transportation_mode"] # type: ignore
                     if transportation_mode not in ["walk", "public transport", "car"]:
                         transportation_mode = "public transport"
                 except Exception as e:
@@ -399,7 +396,7 @@ class MoveBlock(Block):
             await self.memory.status.update("number_poi_visited", number_poi_visited)
             return {
                 "success": True,
-                "evaluation": f"Successfully returned home",
+                "evaluation": "Successfully returned home",
                 "to_place": home,
                 "consumed_time": step["consumed_time"],
                 "node_id": node_id,
@@ -409,8 +406,9 @@ class MoveBlock(Block):
             work = await self.memory.status.get("work")
             work = work["aoi_position"]["aoi_id"]
             nowPlace = await self.memory.status.get("position")
-            node_id = await self.memory.stream.add_mobility(
-                description=f"I went to my workplace"
+            node_id = await self.memory.stream.add(
+                topic="mobility",
+                description="I went to my workplace"
             )
             if (
                 "aoi_position" in nowPlace
@@ -418,7 +416,7 @@ class MoveBlock(Block):
             ):
                 return {
                     "success": True,
-                    "evaluation": f"Successfully reached the workplace (already at the workplace)",
+                    "evaluation": "Successfully reached the workplace (already at the workplace)",
                     "to_place": work,
                     "consumed_time": 0,
                     "node_id": node_id,
@@ -451,7 +449,7 @@ class MoveBlock(Block):
                     response_format={"type": "json_object"},
                 )
                 try:
-                    transportation_mode = jsonc.loads(transportation_mode)["transportation_mode"]
+                    transportation_mode = json_repair.loads(transportation_mode)["transportation_mode"] # type: ignore
                     if transportation_mode not in ["walk", "public transport", "car"]:
                         transportation_mode = "public transport"
                 except Exception as e:
@@ -473,7 +471,7 @@ class MoveBlock(Block):
             await self.memory.status.update("number_poi_visited", number_poi_visited)
             return {
                 "success": True,
-                "evaluation": f"Successfully reached the workplace",
+                "evaluation": "Successfully reached the workplace",
                 "to_place": work,
                 "consumed_time": step["consumed_time"],
                 "node_id": node_id,
@@ -481,7 +479,8 @@ class MoveBlock(Block):
         elif response in known_places:
             the_place = place_knowledge[response]["id"]
             nowPlace = await self.memory.status.get("position")
-            node_id = await self.memory.stream.add_mobility(
+            node_id = await self.memory.stream.add(
+                topic="mobility",
                 description=f"I went to {response}"
             )
             if (
@@ -523,7 +522,7 @@ class MoveBlock(Block):
                     response_format={"type": "json_object"},
                 )
                 try:
-                    transportation_mode = jsonc.loads(transportation_mode)["transportation_mode"]
+                    transportation_mode = json_repair.loads(transportation_mode)["transportation_mode"] # type: ignore
                     if transportation_mode not in ["walk", "public transport", "car"]:
                         transportation_mode = "public transport"
                 except Exception as e:
@@ -554,7 +553,7 @@ class MoveBlock(Block):
             # move to other places
             next_place = plan_context.get("next_place", None)
             nowPlace = await self.memory.status.get("position")
-            if next_place != None:
+            if next_place is not None:
                 await self.environment.set_aoi_schedules(
                     person_id=agent_id,
                     target_positions=next_place[1],
@@ -601,7 +600,7 @@ class MoveBlock(Block):
                     response_format={"type": "json_object"},
                 )
                 try:
-                    transportation_mode = jsonc.loads(transportation_mode)["transportation_mode"]
+                    transportation_mode = json_repair.loads(transportation_mode)["transportation_mode"] # type: ignore
                     if transportation_mode not in ["walk", "public transport", "car"]:
                         transportation_mode = "public transport"
                 except Exception as e:
@@ -614,7 +613,8 @@ class MoveBlock(Block):
                 })
                 await self.memory.status.update("transportation_log", transportation_log)
             
-            node_id = await self.memory.stream.add_mobility(
+            node_id = await self.memory.stream.add(
+                topic="mobility",
                 description=f"I went to {next_place}"
             )
             number_poi_visited = await self.memory.status.get("number_poi_visited")
@@ -635,15 +635,16 @@ class MobilityNoneBlock(Block):
     name = "MobilityNoneBlock"
     description = "Handles other mobility operations"
 
-    def __init__(self, llm: LLM, agent_memory: Memory):
+    def __init__(self, toolbox: AgentToolbox, agent_memory: Memory):
         super().__init__(
-            llm=llm,
+            toolbox=toolbox,
             agent_memory=agent_memory,
         )
 
     async def forward(self, step, plan_context):
         """Log completion without action"""
-        node_id = await self.memory.stream.add_mobility(
+        node_id = await self.memory.stream.add(
+            topic="mobility",
             description=f"I finished {step['intention']}"
         )
         return {
@@ -674,23 +675,24 @@ class EnvMobilityBlock(Block):
 
     def __init__(
             self, 
-            llm: LLM, 
-            environment: Environment, 
+            toolbox: AgentToolbox, 
             agent_memory: Memory, 
             block_params: Optional[EnvMobilityBlockParams] = None
         ):
         super().__init__(
-            llm=llm, environment=environment, agent_memory=agent_memory, block_params=block_params
+            toolbox=toolbox,
+            agent_memory=agent_memory,
+            block_params=block_params
         )
         # initialize all blocks
-        self.place_selection_block = PlaceSelectionBlock(llm, environment, agent_memory, self.params.search_limit)
-        self.move_block = MoveBlock(llm, environment, agent_memory)
-        self.mobility_none_block = MobilityNoneBlock(llm, agent_memory)
+        self.place_selection_block = PlaceSelectionBlock(toolbox, agent_memory, self.params.search_limit)
+        self.move_block = MoveBlock(toolbox, agent_memory)
+        self.mobility_none_block = MobilityNoneBlock(toolbox, agent_memory)
         self.trigger_time = 0  # Block invocation counter
         self.token_consumption = 0  # LLM token tracker
 
         # Initialize block routing system
-        self.dispatcher = BlockDispatcher(llm, agent_memory)
+        self.dispatcher = BlockDispatcher(toolbox, agent_memory)
         # register all blocks
         self.dispatcher.register_blocks(
             [self.place_selection_block, self.move_block, self.mobility_none_block]
@@ -705,7 +707,10 @@ class EnvMobilityBlock(Block):
 
         # Execute the selected sub-block and get the result
         if selected_block is None:
-            node_id = await self.memory.stream.add_mobility(description=f"I finished {step['intention']}")
+            node_id = await self.memory.stream.add(
+                topic="mobility",
+                description=f"I finished {step['intention']}"
+            )
             return {
                 "success": True,
                 "evaluation": f'Finished {step["intention"]}',

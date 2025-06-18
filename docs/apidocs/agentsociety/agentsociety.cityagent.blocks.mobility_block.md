@@ -118,7 +118,7 @@
 ```
 ````
 
-`````{py:class} PlaceSelectionBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, agent_memory: agentsociety.memory.Memory, search_limit: int = 50)
+`````{py:class} PlaceSelectionBlock(toolbox: agentsociety.agent.AgentToolbox, agent_memory: agentsociety.memory.Memory, search_limit: int = 50)
 :canonical: agentsociety.cityagent.blocks.mobility_block.PlaceSelectionBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -163,7 +163,7 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 `````
 
-`````{py:class} MoveBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, agent_memory: agentsociety.memory.Memory)
+`````{py:class} MoveBlock(toolbox: agentsociety.agent.AgentToolbox, agent_memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.mobility_block.MoveBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -205,7 +205,7 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 `````
 
-`````{py:class} MobilityNoneBlock(llm: agentsociety.llm.LLM, agent_memory: agentsociety.memory.Memory)
+`````{py:class} MobilityNoneBlock(toolbox: agentsociety.agent.AgentToolbox, agent_memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.mobility_block.MobilityNoneBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -297,7 +297,7 @@ Bases: {py:obj}`agentsociety.agent.BlockContext`
 
 `````
 
-`````{py:class} MobilityBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, agent_memory: agentsociety.memory.Memory, block_params: typing.Optional[agentsociety.cityagent.blocks.mobility_block.MobilityBlockParams] = None)
+`````{py:class} MobilityBlock(toolbox: agentsociety.agent.AgentToolbox, agent_memory: agentsociety.memory.Memory, block_params: typing.Optional[agentsociety.cityagent.blocks.mobility_block.MobilityBlockParams] = None)
 :canonical: agentsociety.cityagent.blocks.mobility_block.MobilityBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -354,7 +354,7 @@ Bases: {py:obj}`agentsociety.agent.Block`
 ````{py:attribute} description
 :canonical: agentsociety.cityagent.blocks.mobility_block.MobilityBlock.description
 :value: >
-   'Responsible for all kinds of mobility-related operations, for example, go to work, go to home, go to...'
+   'Used for moving like go to work, go to home, go to other places, etc.'
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MobilityBlock.description
 ```

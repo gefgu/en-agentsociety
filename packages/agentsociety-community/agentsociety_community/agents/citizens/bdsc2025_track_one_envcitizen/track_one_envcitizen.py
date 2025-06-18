@@ -1,18 +1,15 @@
-from collections import deque
-import random
 import time
-import os
 import json
 
-import jsonc
+from agentsociety.message import Message
+import json_repair
 from typing import Optional
 
 from pydantic import Field
-from agentsociety.agent import AgentToolbox, Block, CitizenAgentBase, AgentParams, FormatPrompt, AgentContext, DotDict, StatusAttribute
+from agentsociety.agent import AgentToolbox, Block, CitizenAgentBase, AgentParams, FormatPrompt, AgentContext, DotDict, MemoryAttribute
 from agentsociety.logger import get_logger
 from agentsociety.memory import Memory
 from agentsociety.survey import Survey
-from agentsociety.message import Message, MessageKind
 from .blocks import (EnvCognitionBlock, EnvNeedsBlock, EnvPlanBlock, EnvMobilityBlock, EnvEconomyBlock, EnvSocialBlock, EnvOtherBlock)
 from .blocks.needs_block import INITIAL_NEEDS_PROMPT
 from .blocks.plan_block import DETAILED_PLAN_PROMPT
@@ -40,7 +37,7 @@ def extract_json(output_str):
 
         # Convert the JSON string to a dictionary
         return json_str
-    except (ValueError, jsonc.JSONDecodeError) as e:
+    except ValueError as e:
         get_logger().warning(f"Failed to extract JSON: {e}")
         return None
 
@@ -76,59 +73,59 @@ class TrackOneEnvCitizen(CitizenAgentBase):
     ParamsType = EnvSocialAgentConfig
     Context = AgentContext
     StatusAttributes = [
-        StatusAttribute(name="type",type=str,default="citizen",description="agent's type"),
-        StatusAttribute(name="environmental_attitude",type=str,default="",description="agent's attitude towards the environmental protection"),
-        StatusAttribute(name="survey_result",type=str,default="",description="agent's survey result"),
+        MemoryAttribute(name="type",type=str,default_or_value="citizen",description="agent's type"),
+        MemoryAttribute(name="environmental_attitude",type=str,default_or_value="",description="agent's attitude towards the environmental protection"),
+        MemoryAttribute(name="survey_result",type=str,default_or_value="",description="agent's survey result"),
         # Needs Model
-        StatusAttribute(name="hunger_satisfaction",type=float,default=0.9,description="agent's hunger satisfaction, 0-1"),
-        StatusAttribute(name="energy_satisfaction",type=float,default=0.9,description="agent's energy satisfaction, 0-1"),
-        StatusAttribute(name="safety_satisfaction",type=float,default=0.4,description="agent's safety satisfaction, 0-1"),
-        StatusAttribute(name="social_satisfaction",type=float,default=0.6,description="agent's social satisfaction, 0-1"),
-        StatusAttribute(name="current_need",type=str,default="none",description="agent's current need"),
+        MemoryAttribute(name="hunger_satisfaction",type=float,default_or_value=0.9,description="agent's hunger satisfaction, 0-1"),
+        MemoryAttribute(name="energy_satisfaction",type=float,default_or_value=0.9,description="agent's energy satisfaction, 0-1"),
+        MemoryAttribute(name="safety_satisfaction",type=float,default_or_value=0.4,description="agent's safety satisfaction, 0-1"),
+        MemoryAttribute(name="social_satisfaction",type=float,default_or_value=0.6,description="agent's social satisfaction, 0-1"),
+        MemoryAttribute(name="current_need",type=str,default_or_value="none",description="agent's current need"),
         # Plan Behavior Model
-        StatusAttribute(name="current_plan",type=dict,default={},description="agent's current plan"),
-        StatusAttribute(name="execution_context",type=dict,default={},description="agent's execution context"),
-        StatusAttribute(name="plan_history",type=list,default=[],description="agent's plan history"),
+        MemoryAttribute(name="current_plan",type=dict,default_or_value={},description="agent's current plan"),
+        MemoryAttribute(name="execution_context",type=dict,default_or_value={},description="agent's execution context"),
+        MemoryAttribute(name="plan_history",type=list,default_or_value=[],description="agent's plan history"),
         # cognition
-        StatusAttribute(name="emotion",type=dict,default={"sadness": 5, "joy": 5, "fear": 5, "disgust": 5, "anger": 5, "surprise": 5},description="agent's emotion, 0-10"),
-        StatusAttribute(name="attitude",type=dict,default={},description="agent's attitude"),
-        StatusAttribute(name="thought",type=str,default="Currently nothing good or bad is happening",description="agent's thought",whether_embedding=True),
-        StatusAttribute(name="emotion_types",type=str,default="Relief",description="agent's emotion types",whether_embedding=True),
+        MemoryAttribute(name="emotion",type=dict,default_or_value={"sadness": 5, "joy": 5, "fear": 5, "disgust": 5, "anger": 5, "surprise": 5},description="agent's emotion, 0-10"),
+        MemoryAttribute(name="attitude",type=dict,default_or_value={},description="agent's attitude"),
+        MemoryAttribute(name="thought",type=str,default_or_value="Currently nothing good or bad is happening",description="agent's thought",whether_embedding=True),
+        MemoryAttribute(name="emotion_types",type=str,default_or_value="Relief",description="agent's emotion types",whether_embedding=True),
         # economy
-        StatusAttribute(name="work_skill",type=float,default=0.5,description="agent's work skill, 0-1"),
-        StatusAttribute(name="tax_paid",type=float,default=0.0,description="agent's tax paid"),
-        StatusAttribute(name="consumption_currency",type=float,default=0.0,description="agent's consumption currency"),
-        StatusAttribute(name="goods_demand",type=int,default=0,description="agent's goods demand"),
-        StatusAttribute(name="goods_consumption",type=int,default=0,description="agent's goods consumption"),
-        StatusAttribute(name="work_propensity",type=float,default=0.0,description="agent's work propensity, 0-1"),
-        StatusAttribute(name="consumption_propensity",type=float,default=0.0,description="agent's consumption propensity, 0-1"),
-        StatusAttribute(name="to_consumption_currency",type=float,default=0.0,description="agent's to consumption currency"),
+        MemoryAttribute(name="work_skill",type=float,default_or_value=0.5,description="agent's work skill, 0-1"),
+        MemoryAttribute(name="tax_paid",type=float,default_or_value=0.0,description="agent's tax paid"),
+        MemoryAttribute(name="consumption_currency",type=float,default_or_value=0.0,description="agent's consumption currency"),
+        MemoryAttribute(name="goods_demand",type=int,default_or_value=0,description="agent's goods demand"),
+        MemoryAttribute(name="goods_consumption",type=int,default_or_value=0,description="agent's goods consumption"),
+        MemoryAttribute(name="work_propensity",type=float,default_or_value=0.0,description="agent's work propensity, 0-1"),
+        MemoryAttribute(name="consumption_propensity",type=float,default_or_value=0.0,description="agent's consumption propensity, 0-1"),
+        MemoryAttribute(name="to_consumption_currency",type=float,default_or_value=0.0,description="agent's to consumption currency"),
         # other
-        StatusAttribute(name="firm_id",type=int,default=0,description="agent's firm id"),
-        StatusAttribute(name="government_id",type=int,default=0,description="agent's government id"),
-        StatusAttribute(name="bank_id",type=int,default=0,description="agent's bank id"),
-        StatusAttribute(name="nbs_id",type=int,default=0,description="agent's nbs id"),
-        StatusAttribute(name="firm_forward",type=int,default=0,description="agent's firm forward"),
-        StatusAttribute(name="bank_forward",type=int,default=0,description="agent's bank forward"),
-        StatusAttribute(name="nbs_forward",type=int,default=0,description="agent's nbs forward"),
-        StatusAttribute(name="government_forward",type=int,default=0,description="agent's government forward"),
-        StatusAttribute(name="forward",type=int,default=0,description="agent's forward"),
-        StatusAttribute(name="depression",type=float,default=0.0,description="agent's depression, 0-1"),
-        StatusAttribute(name="ubi_opinion",type=list,default=[],description="agent's ubi opinion"),
-        StatusAttribute(name="working_experience",type=list,default=[],description="agent's working experience"),
-        StatusAttribute(name="work_hour_month",type=float,default=160,description="agent's work hour per month"),
-        StatusAttribute(name="work_hour_finish",type=float,default=0,description="agent's work hour finished"),
+        MemoryAttribute(name="firm_id",type=int,default_or_value=0,description="agent's firm id"),
+        MemoryAttribute(name="government_id",type=int,default_or_value=0,description="agent's government id"),
+        MemoryAttribute(name="bank_id",type=int,default_or_value=0,description="agent's bank id"),
+        MemoryAttribute(name="nbs_id",type=int,default_or_value=0,description="agent's nbs id"),
+        MemoryAttribute(name="firm_forward",type=int,default_or_value=0,description="agent's firm forward"),
+        MemoryAttribute(name="bank_forward",type=int,default_or_value=0,description="agent's bank forward"),
+        MemoryAttribute(name="nbs_forward",type=int,default_or_value=0,description="agent's nbs forward"),
+        MemoryAttribute(name="government_forward",type=int,default_or_value=0,description="agent's government forward"),
+        MemoryAttribute(name="forward",type=int,default_or_value=0,description="agent's forward"),
+        MemoryAttribute(name="depression",type=float,default_or_value=0.0,description="agent's depression, 0-1"),
+        MemoryAttribute(name="ubi_opinion",type=list,default_or_value=[],description="agent's ubi opinion"),
+        MemoryAttribute(name="working_experience",type=list,default_or_value=[],description="agent's working experience"),
+        MemoryAttribute(name="work_hour_month",type=float,default_or_value=160,description="agent's work hour per month"),
+        MemoryAttribute(name="work_hour_finish",type=float,default_or_value=0,description="agent's work hour finished"),
         # social
-        StatusAttribute(name="friends",type=list,default=[],description="agent's friends list"),
-        StatusAttribute(name="relationships",type=dict,default={},description="agent's relationship strength with each friend"),
-        StatusAttribute(name="relation_types",type=dict,default={},description="agent's relation types with each friend"),
-        StatusAttribute(name="chat_histories",type=dict,default={},description="all chat histories"),
-        StatusAttribute(name="interactions",type=dict,default={},description="all interaction records"),
+        MemoryAttribute(name="friends",type=list,default_or_value=[],description="agent's friends list"),
+        MemoryAttribute(name="relationships",type=dict,default_or_value={},description="agent's relationship strength with each friend"),
+        MemoryAttribute(name="relation_types",type=dict,default_or_value={},description="agent's relation types with each friend"),
+        MemoryAttribute(name="chat_histories",type=dict,default_or_value={},description="all chat histories"),
+        MemoryAttribute(name="interactions",type=dict,default_or_value={},description="all interaction records"),
         # mobility
-        StatusAttribute(name="number_poi_visited",type=int,default=1,description="agent's number of poi visited"),
-        StatusAttribute(name="transportation_log",type=list,default=[],description="agent's transportation log"),
-        StatusAttribute(name="logging_flag",type=bool,default=False,description="agent's logging flag"),
-        StatusAttribute(name="location_knowledge",type=dict,default={},description="agent's location knowledge"),
+        MemoryAttribute(name="number_poi_visited",type=int,default_or_value=1,description="agent's number of poi visited"),
+        MemoryAttribute(name="transportation_log",type=list,default_or_value=[],description="agent's transportation log"),
+        MemoryAttribute(name="logging_flag",type=bool,default_or_value=False,description="agent's logging flag"),
+        MemoryAttribute(name="location_knowledge",type=dict,default_or_value={},description="agent's location knowledge"),
     ]
     description: str = """The citizen agent used in the BDSC2025 competition - Track One"""
 
@@ -153,22 +150,20 @@ class TrackOneEnvCitizen(CitizenAgentBase):
         )
 
         self.needs_block = EnvNeedsBlock(
-            llm=self.llm, 
-            environment=self.environment, 
+            toolbox=toolbox, 
             agent_memory=self.memory,
             initial_prompt=self.params.need_initialization_prompt,
         )
 
         self.plan_block = EnvPlanBlock(
-            llm=self.llm, 
-            environment=self.environment, 
+            toolbox=toolbox, 
             agent_memory=self.memory,
             max_plan_steps=self.params.max_plan_steps,
             detailed_plan_prompt=self.params.plan_generation_prompt,
         )
 
         self.cognition_block = EnvCognitionBlock(
-            llm=self.llm, agent_memory=self.memory, environment=self.environment
+            toolbox=toolbox, agent_memory=self.memory
         )
         self.environment_reflection_prompt = FormatPrompt(ENVIRONMENT_REFLECTION_PROMPT)
         self.step_count = -1
@@ -177,24 +172,20 @@ class TrackOneEnvCitizen(CitizenAgentBase):
         self.info_checked = {}
 
         env_mobility_block = EnvMobilityBlock(
-            llm=self.llm,
-            environment=self.environment,
+            toolbox=toolbox,
             agent_memory=self.memory,
         )
         env_economy_block = EnvEconomyBlock(
-            llm=self.llm,
-            environment=self.environment,
+            toolbox=toolbox,
             agent_memory=self.memory,
         )
         env_social_block = EnvSocialBlock(
-            llm=self.llm,
-            environment=self.environment,
+            toolbox=toolbox,
             agent_memory=self.memory,
         )
         env_social_block.set_agent(self)
         env_other_blocks = EnvOtherBlock(  
-            llm=self.llm,
-            environment=self.environment,
+            toolbox=toolbox,
             agent_memory=self.memory,
         )
         self.blocks = [env_mobility_block, env_economy_block, env_social_block, env_other_blocks]
@@ -207,13 +198,20 @@ class TrackOneEnvCitizen(CitizenAgentBase):
             position = await self.memory.status.get("position")
             aoi_id = position["aoi_position"]["aoi_id"]
             if aoi_id not in self.info_checked or self.info_checked[aoi_id] == 0:
-                await self.environment_reflection_prompt.format(self)
+                await self.environment_reflection_prompt.format(
+                    background_story=await self.memory.status.get("background_story"),
+                    environmental_attitude=await self.memory.status.get("environmental_attitude"),
+                    get_aoi_info=aoi_info,
+                )
                 reflection = await self.llm.atext_request(
                     self.environment_reflection_prompt.to_dialog(),
                 )
                 self.info_checked[aoi_id] = 10
                 await self.save_agent_thought(reflection)
-                await self.memory.stream.add_event(f"You seeing some posters about environmental protection, and you feel {reflection}")
+                await self.memory.stream.add(
+                    topic="event",
+                    description=f"You seeing some posters about environmental protection, and you feel {reflection}"
+                )
             else:
                 self.info_checked[aoi_id] -= 1
 
@@ -266,10 +264,10 @@ class TrackOneEnvCitizen(CitizenAgentBase):
                 )
                 json_str = extract_json(_response)
                 if json_str:
-                    json_dict = jsonc.loads(json_str)
-                    json_str = jsonc.dumps(json_dict, ensure_ascii=False)
+                    json_dict = json_repair.loads(json_str)
+                    json_str = json.dumps(json_dict, ensure_ascii=False)
                     break
-            except:
+            except Exception:
                 pass
         else:
             import traceback
@@ -333,7 +331,7 @@ Please update your attitude towards the environmental protection based on the me
                     )
                     await self.memory.status.update("environmental_attitude", attitude)
                     self.last_attitude_update = (current_day, current_t)
-        except Exception as e:
+        except Exception:
             pass
 
     async def plan_generation(self):
@@ -409,7 +407,7 @@ Please update your attitude towards the environmental protection based on the me
         step_consumed_time = current_step["evaluation"]["consumed_time"]
         try:
             time_end_plan = step_start_time + int(step_consumed_time) * 60
-        except Exception as e:
+        except Exception:
             time_end_plan = time_now
         if time_now >= time_end_plan:
             # The previous step has been completed
@@ -447,7 +445,7 @@ Please update your attitude towards the environmental protection based on the me
                             await self.memory.stream.add_cognition_to_memory(
                                 current_plan["stream_nodes"], conclusion
                             )
-                        except Exception as e:
+                        except Exception:
                             pass
                     await self.memory.status.update("current_plan", current_plan)
                 return True
@@ -476,55 +474,57 @@ Please update your attitude towards the environmental protection based on the me
                         await self.memory.stream.add_cognition_to_memory(
                             current_plan["stream_nodes"], conclusion
                         )
-                    except Exception as e:
+                    except Exception:
                         pass
                 await self.memory.status.update("current_plan", current_plan)
                 return True
         # The previous step has not been completed
         return False
-
-    async def do_chat(self, message: Message) -> str:
+    
+    async def do_chat(self, message: Message) -> str: # type: ignore
         """Process incoming social/economic messages and generate responses."""
-        if message.kind == MessageKind.AGENT_CHAT:
-            payload = message.payload
-            sender_id = message.from_id
-            if not sender_id:
-                return ""
-            
-            if payload["type"] == "social":
-                try:
-                    # Extract basic info
-                    content = payload.get("content", None)
+        sender_id = message.from_id
+        if not sender_id:
+            return ""
+        
+        payload = message.payload
+        if payload.get("type", "social") == "social":
+            try:
+                # Extract basic info
+                content = payload.get("content", None)
 
-                    if not content:
-                        return ""
+                if not content:
+                    return ""
 
-                    # add social memory
-                    description = f"You received a message: {content}"
-                    await self.memory.stream.add_social(description=description)
-                    if self.params.enable_cognition:
-                        # update emotion
-                        await self.cognition_block.emotion_update(description)
+                # add social memory
+                description = f"You received a message: {content}"
+                await self.memory.stream.add(
+                    topic="social",
+                    description=description
+                )
+                if self.params.enable_cognition:
+                    # update emotion
+                    await self.cognition_block.emotion_update(description)
 
-                    # Get chat histories and ensure proper format
-                    if "ANNOUNCEMENT" not in content:
-                        chat_histories = await self.memory.status.get("chat_histories") or {}
-                        if not isinstance(chat_histories, dict):
-                            chat_histories = {}
+                # Get chat histories and ensure proper format
+                if "ANNOUNCEMENT" not in content:
+                    chat_histories = await self.memory.status.get("chat_histories") or {}
+                    if not isinstance(chat_histories, dict):
+                        chat_histories = {}
 
-                        # Update chat history with received message
-                        if sender_id not in chat_histories:
-                            chat_histories[sender_id] = ""
-                        if chat_histories[sender_id]:
-                            chat_histories[sender_id] += "，"
-                        chat_histories[sender_id] += f"them: {content}"
+                    # Update chat history with received message
+                    if sender_id not in chat_histories:
+                        chat_histories[sender_id] = ""
+                    if chat_histories[sender_id]:
+                        chat_histories[sender_id] += "，"
+                    chat_histories[sender_id] += f"them: {content}"
 
-                        # Get relationship score
-                        relationships = await self.memory.status.get("relationships") or {}
-                        relationship_score = relationships.get(sender_id, 50)
+                    # Get relationship score
+                    relationships = await self.memory.status.get("relationships") or {}
+                    relationship_score = relationships.get(sender_id, 50)
 
-                        # Decision prompt
-                        should_respond_prompt = f"""Based on:
+                    # Decision prompt
+                    should_respond_prompt = f"""Based on:
 - Received message: "{content}"
 - Our relationship score: {relationship_score}/100
 - My background story: {await self.memory.status.get("background_story")}
@@ -539,21 +539,21 @@ Should I respond to this message? Consider:
 
 Answer only YES or NO, in JSON format, e.g. {{"should_respond": "YES"}}"""
 
-                        should_respond = await self.llm.atext_request(
-                            dialog=[
-                                {
-                                    "role": "system",
-                                    "content": "You are helping decide whether to respond to a message.",
-                                },
-                                {"role": "user", "content": should_respond_prompt},
-                            ],
-                            response_format={"type": "json_object"},
-                        )
-                        should_respond = jsonc.loads(should_respond)["should_respond"]
-                        if should_respond == "NO":
-                            return ""
+                    should_respond = await self.llm.atext_request(
+                        dialog=[
+                            {
+                                "role": "system",
+                                "content": "You are helping decide whether to respond to a message.",
+                            },
+                            {"role": "user", "content": should_respond_prompt},
+                        ],
+                        response_format={"type": "json_object"},
+                    )
+                    should_respond = json_repair.loads(should_respond)["should_respond"] # type: ignore
+                    if should_respond == "NO":
+                        return ""
 
-                        response_prompt = f"""Based on:
+                    response_prompt = f"""Based on:
 - Received message: "{content}"
 - Our relationship score: {relationship_score}/100
 - Your background story: {await self.memory.status.get("background_story") or ""}
@@ -570,43 +570,42 @@ Generate an appropriate response that:
 
 Response should be ONLY the message text, no explanations."""
 
-                        response = await self.llm.atext_request(
-                            [
-                                {
-                                    "role": "system",
-                                    "content": "You are helping generate a chat response.",
-                                },
-                                {"role": "user", "content": response_prompt},
-                            ]
-                        )
+                    response = await self.llm.atext_request(
+                        [
+                            {
+                                "role": "system",
+                                "content": "You are helping generate a chat response.",
+                            },
+                            {"role": "user", "content": response_prompt},
+                        ]
+                    )
 
-                        if response:
-                            # Update chat history with response
-                            chat_histories[sender_id] += f", me: {response}"
-                            await self.memory.status.update("chat_histories", chat_histories)
+                    if response:
+                        # Update chat history with response
+                        chat_histories[sender_id] += f", me: {response}"
+                        await self.memory.status.update("chat_histories", chat_histories)
 
-                            await self.send_message_to_agent(sender_id, response)
-                        return response
+                        await self.send_message_to_agent(sender_id, response)
+                    return response
 
-                except Exception as e:
-                    get_logger().warning(f"Error in process_agent_chat_response: {str(e)}")
-                    return ""
-            else:
-                content = payload["content"]
-                key, value = content.split("@")
-                if "." in value:
-                    value = float(value)
-                else:
-                    value = int(value)
-                description = f"You received a economic message: Your {key} has changed from {await self.memory.status.get(key)} to {value}"
-                await self.memory.status.update(key, value)
-                await self.memory.stream.add_economy(description=description)
-                if self.params.enable_cognition:
-                    await self.cognition_block.emotion_update(description)
+            except Exception as e:
+                get_logger().warning(f"Error in process_agent_chat_response: {str(e)}")
                 return ""
-        elif message.kind == MessageKind.USER_CHAT:
-            return "AUTO RESPONSE: HELLO"
         else:
+            content = payload["content"]
+            key, value = content.split("@")
+            if "." in value:
+                value = float(value)
+            else:
+                value = int(value)
+            description = f"You received a economic message: Your {key} has changed from {await self.memory.status.get(key)} to {value}"
+            await self.memory.status.update(key, value)
+            await self.memory.stream.add(
+                topic="economy",
+                description=description
+            )
+            if self.params.enable_cognition:
+                await self.cognition_block.emotion_update(description)
             return ""
 
     async def react_to_intervention(self, intervention_message: str):
@@ -616,7 +615,8 @@ Response should be ONLY the message text, no explanations."""
             intervention_message
         )
         await self.save_agent_thought(conclusion)
-        await self.memory.stream.add_cognition(description=conclusion)
+        await self.memory.stream.add(
+            topic="cognition", description=conclusion)
         # needs
         await self.needs_block.reflect_to_intervention(
             intervention_message
@@ -650,7 +650,7 @@ Response should be ONLY the message text, no explanations."""
             dispatch_context = DotDict({"current_intention": current_step["intention"]})
             selected_block = await self.dispatcher.dispatch(dispatch_context)
             if selected_block:
-                result = await selected_block.forward(current_step, execution_context)
+                result = await selected_block.forward(current_step, execution_context) # type: ignore
                 if "message" in result:
                     await self.send_message_to_agent(result["target"], result["message"])
             else:
@@ -660,7 +660,7 @@ Response should be ONLY the message text, no explanations."""
                     "consumed_time": 0,
                     "node_id": None,
                 }
-            if result != None:
+            if result is not None:
                 current_step["evaluation"] = result
 
             # Update current_step, plan, and execution_context information

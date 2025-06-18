@@ -42,21 +42,20 @@ class MapData:
         map_data = None
         # 1. try to load from cache
         cache_path = config.file_path+'.cache'
-        if os.path.exists(cache_path):
-            exists = (
-                s3client.exists(cache_path)
-                if s3client is not None
-                else os.path.exists(cache_path)
-            )
-            if exists:
-                get_logger().info("Start load cache file in MapData")
-                if s3client is not None:
-                    map_bytes = s3client.download(cache_path)
-                    map_data = pickle.loads(map_bytes)
-                else:
-                    with open(cache_path, "rb") as f:
-                        map_data = pickle.load(f)
-                get_logger().info("Finish load cache file in MapData")
+        exists = (
+            s3client.exists(cache_path)
+            if s3client is not None
+            else os.path.exists(cache_path)
+        )
+        if exists:
+            get_logger().info("Start load cache file in MapData")
+            if s3client is not None:
+                map_bytes = s3client.download(cache_path)
+                map_data = pickle.loads(map_bytes)
+            else:
+                with open(cache_path, "rb") as f:
+                    map_data = pickle.load(f)
+            get_logger().info("Finish load cache file in MapData")
         if map_data is None:
             get_logger().info("No cache file found, start parse pb file in MapData")
             if s3client is not None:
@@ -107,7 +106,7 @@ class MapData:
                 )
             map_data = self._parse_map(jsons)
             get_logger().info("Finish parse pb file")
-            if os.path.exists(cache_path):
+            if not exists:
                 get_logger().info("Start save cache file")
                 if s3client is not None:
                     s3client.upload(pickle.dumps(map_data), cache_path)

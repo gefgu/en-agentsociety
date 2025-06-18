@@ -83,7 +83,7 @@
 ```
 ````
 
-`````{py:class} WorkBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, memory: agentsociety.memory.Memory, worktime_estimation_prompt: str = WORKTIME_ESTIMATE_PROMPT)
+`````{py:class} WorkBlock(toolbox: agentsociety.agent.AgentToolbox, agent_memory: agentsociety.memory.Memory, worktime_estimation_prompt: str = WORKTIME_ESTIMATE_PROMPT)
 :canonical: agentsociety.cityagent.blocks.economy_block.WorkBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -128,7 +128,7 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 `````
 
-`````{py:class} ConsumptionBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, agent_memory: agentsociety.memory.Memory)
+`````{py:class} ConsumptionBlock(toolbox: agentsociety.agent.AgentToolbox, agent_memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.economy_block.ConsumptionBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -173,7 +173,7 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 `````
 
-`````{py:class} EconomyNoneBlock(llm: agentsociety.llm.LLM, memory: agentsociety.memory.Memory)
+`````{py:class} EconomyNoneBlock(toolbox: agentsociety.agent.AgentToolbox, agent_memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.economy_block.EconomyNoneBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -287,7 +287,7 @@ Bases: {py:obj}`agentsociety.agent.BlockContext`
 
 ```
 
-`````{py:class} EconomyBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, agent_memory: agentsociety.memory.Memory, block_params: typing.Optional[agentsociety.cityagent.blocks.economy_block.EconomyBlockParams] = None)
+`````{py:class} EconomyBlock(toolbox: agentsociety.agent.AgentToolbox, agent_memory: agentsociety.memory.Memory, block_params: typing.Optional[agentsociety.cityagent.blocks.economy_block.EconomyBlockParams] = None)
 :canonical: agentsociety.cityagent.blocks.economy_block.EconomyBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -354,7 +354,7 @@ Bases: {py:obj}`agentsociety.agent.Block`
 ````{py:attribute} description
 :canonical: agentsociety.cityagent.blocks.economy_block.EconomyBlock.description
 :value: >
-   'Responsible for all kinds of economic-related operations, for example, work, shopping, consume, etc.'
+   'Work, shopping, consume, and other economic activities.'
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.economy_block.EconomyBlock.description
 ```
@@ -388,7 +388,7 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 `````
 
-`````{py:class} MonthEconomyPlanBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, agent_memory: agentsociety.memory.Memory, ubi: float = 0, num_labor_hours: int = 168, productivity_per_labor: float = 1, time_diff: int = 30 * 24 * 60 * 60)
+`````{py:class} MonthEconomyPlanBlock(toolbox: agentsociety.agent.AgentToolbox, agent_memory: agentsociety.memory.Memory, ubi: float = 0, num_labor_hours: int = 168, productivity_per_labor: float = 1, time_diff: int = 30 * 24 * 60 * 60)
 :canonical: agentsociety.cityagent.blocks.economy_block.MonthEconomyPlanBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`

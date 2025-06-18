@@ -1,7 +1,15 @@
-from pycityproto.city.person.v2.motion_pb2 import Status
-from typing import Optional
-from pydantic import BaseModel, Field, model_validator
 from enum import Enum
+from typing import Optional
+
+from pycityproto.city.person.v2.motion_pb2 import Status
+from pydantic import BaseModel, Field
+
+__all__ = [
+    "RelationType",
+    "SocialRelation",
+    "PROFILE_ATTRIBUTES",
+    "STATE_ATTRIBUTES",
+]
 
 
 class RelationType(str, Enum):
@@ -72,7 +80,3 @@ STATE_ATTRIBUTES = {
     "l": float(),
     "survey_responses": list(),
 }
-
-SELF_DEFINE_PREFIX = "self_define_"
-
-TIME_STAMP_KEY = "_timestamp"

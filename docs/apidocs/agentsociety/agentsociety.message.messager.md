@@ -136,7 +136,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````{py:attribute} t
 :canonical: agentsociety.message.messager.Message.t
-:type: int
+:type: float
 :value: >
    None
 
@@ -221,24 +221,6 @@ Bases: {py:obj}`pydantic.BaseModel`
 :canonical: agentsociety.message.messager.Messager.set_message_interceptor
 
 ```{autodoc2-docstring} agentsociety.message.messager.Messager.set_message_interceptor
-```
-
-````
-
-````{py:method} init()
-:canonical: agentsociety.message.messager.Messager.init
-:async:
-
-```{autodoc2-docstring} agentsociety.message.messager.Messager.init
-```
-
-````
-
-````{py:method} close()
-:canonical: agentsociety.message.messager.Messager.close
-:async:
-
-```{autodoc2-docstring} agentsociety.message.messager.Messager.close
 ```
 
 ````

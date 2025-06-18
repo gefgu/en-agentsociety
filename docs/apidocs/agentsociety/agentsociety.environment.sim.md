@@ -14,7 +14,6 @@
 :maxdepth: 1
 
 agentsociety.environment.sim.road_service
-agentsociety.environment.sim.pause_service
 agentsociety.environment.sim.aoi_service
 agentsociety.environment.sim.lane_service
 agentsociety.environment.sim.clock_service

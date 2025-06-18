@@ -1,5 +1,4 @@
 import socket
-from contextlib import closing
 from typing import List
 
 __all__ = ["find_free_ports"]

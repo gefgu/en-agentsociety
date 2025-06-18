@@ -35,7 +35,7 @@ class ClockService:
         - **Returns**:
         - https://cityproto.readthedocs.io/en/latest/docs.html#nowresponse
         """
-        if type(req) != clock_service.NowRequest:
+        if not isinstance(req, clock_service.NowRequest):
             req = ParseDict(req, clock_service.NowRequest())
         res = cast(
             Awaitable[clock_service.NowResponse],

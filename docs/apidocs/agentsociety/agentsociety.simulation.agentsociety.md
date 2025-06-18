@@ -126,6 +126,24 @@
 ```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety.__init__
 ```
 
+````{py:method} _init_embedding()
+:canonical: agentsociety.simulation.agentsociety.AgentSociety._init_embedding
+:async:
+
+```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety._init_embedding
+```
+
+````
+
+````{py:method} _init_embedding_task()
+:canonical: agentsociety.simulation.agentsociety.AgentSociety._init_embedding_task
+:async:
+
+```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety._init_embedding_task
+```
+
+````
+
 ````{py:method} init()
 :canonical: agentsociety.simulation.agentsociety.AgentSociety.init
 :async:
@@ -156,6 +174,14 @@
 :canonical: agentsociety.simulation.agentsociety.AgentSociety.config
 
 ```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety.config
+```
+
+````
+
+````{py:property} llm
+:canonical: agentsociety.simulation.agentsociety.AgentSociety.llm
+
+```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety.llm
 ```
 
 ````
@@ -313,6 +339,24 @@
 :canonical: agentsociety.simulation.agentsociety.AgentSociety._save_context
 
 ```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety._save_context
+```
+
+````
+
+````{py:method} _message_dispatch()
+:canonical: agentsociety.simulation.agentsociety.AgentSociety._message_dispatch
+:async:
+
+```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety._message_dispatch
+```
+
+````
+
+````{py:method} _save(day: int, t: int)
+:canonical: agentsociety.simulation.agentsociety.AgentSociety._save
+:async:
+
+```{autodoc2-docstring} agentsociety.simulation.agentsociety.AgentSociety._save
 ```
 
 ````

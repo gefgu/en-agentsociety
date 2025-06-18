@@ -33,7 +33,7 @@ class AoiService:
         - **Returns**:
         - https://cityproto.sim.fiblab.net/#city.map.v2.GetAoiResponse
         """
-        if type(req) != aoi_service.GetAoiRequest:
+        if not isinstance(req, aoi_service.GetAoiRequest):
             req = ParseDict(req, aoi_service.GetAoiRequest())
         res = cast(Awaitable[aoi_service.GetAoiResponse], self._aio_stub.GetAoi(req))
         return async_parse(res, dict_return)

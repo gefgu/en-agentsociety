@@ -66,7 +66,7 @@
 
 `````
 
-`````{py:class} SocialNoneBlock(llm: agentsociety.llm.LLM, agent_memory: agentsociety.memory.Memory)
+`````{py:class} SocialNoneBlock(toolbox: agentsociety.agent.AgentToolbox, agent_memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.social_block.SocialNoneBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -111,7 +111,7 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 `````
 
-`````{py:class} FindPersonBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, agent_memory: agentsociety.memory.Memory)
+`````{py:class} FindPersonBlock(toolbox: agentsociety.agent.AgentToolbox, agent_memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.social_block.FindPersonBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -156,7 +156,7 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 `````
 
-`````{py:class} MessageBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, agent_memory: agentsociety.memory.Memory)
+`````{py:class} MessageBlock(toolbox: agentsociety.agent.AgentToolbox, agent_memory: agentsociety.memory.Memory)
 :canonical: agentsociety.cityagent.blocks.social_block.MessageBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -234,7 +234,7 @@ Bases: {py:obj}`agentsociety.agent.BlockContext`
 
 `````
 
-`````{py:class} SocialBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, agent_memory: agentsociety.memory.Memory, block_params: typing.Optional[agentsociety.cityagent.blocks.social_block.SocialBlockParams] = None)
+`````{py:class} SocialBlock(toolbox: agentsociety.agent.AgentToolbox, agent_memory: agentsociety.memory.Memory, block_params: typing.Optional[agentsociety.cityagent.blocks.social_block.SocialBlockParams] = None)
 :canonical: agentsociety.cityagent.blocks.social_block.SocialBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -301,7 +301,7 @@ Bases: {py:obj}`agentsociety.agent.Block`
 ````{py:attribute} description
 :canonical: agentsociety.cityagent.blocks.social_block.SocialBlock.description
 :value: >
-   'Responsible for all kinds of social interactions, for example, find a friend, send a message, etc.'
+   'Do social interactions, for example, find a friend, send a message, and other social activities.'
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialBlock.description
 ```

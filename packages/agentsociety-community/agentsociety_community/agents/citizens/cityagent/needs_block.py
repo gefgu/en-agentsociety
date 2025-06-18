@@ -1,11 +1,8 @@
-import logging
-from typing import cast
 
-import jsonc
+from typing import Any
 
-from agentsociety.agent import Block, FormatPrompt, DotDict
-from agentsociety.environment import Environment
-from agentsociety.llm import LLM
+import json_repair
+from agentsociety.agent import AgentToolbox, Block, FormatPrompt, DotDict
 from agentsociety.logger import get_logger
 from agentsociety.memory import Memory
 from .utils import clean_json_response
@@ -30,7 +27,7 @@ Current satisfaction levels (0-1 float values, lower means less satisfied):
 - safety_satisfaction: Safety satisfaction level (Normally, the agent will be more satisfied with safety when they have high income and currency)
 - social_satisfaction: Social satisfaction level
 
-Please response in json format (Do not return any other text), example:
+Please response in json format, example:
 {{
     "current_satisfaction": {{
         "hunger_satisfaction": 0.8,
@@ -39,6 +36,9 @@ Please response in json format (Do not return any other text), example:
         "social_satisfaction": 0.6
     }}
 }}
+DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
+DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
+DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
 """
 
 EVALUATION_PROMPT = """You are an evaluation system for an intelligent agent. The agent has performed the following actions to satisfy the {current_need} need:
@@ -119,8 +119,7 @@ class NeedsBlock(Block):
 
     def __init__(
         self,
-        llm: LLM,
-        environment: Environment,
+        toolbox: AgentToolbox,
         agent_memory: Memory,
         agent_context: DotDict,
         evaluation_prompt: str = EVALUATION_PROMPT,
@@ -145,7 +144,7 @@ class NeedsBlock(Block):
             T_P: Safety threshold for triggering need (default: 0.2)
             T_C: Social threshold for triggering need (default: 0.3)
         """
-        super().__init__(llm=llm, environment=environment, agent_memory=agent_memory)
+        super().__init__(toolbox=toolbox, agent_memory=agent_memory)
         self.context = agent_context
         self.evaluation_prompt = FormatPrompt(template=evaluation_prompt)
         self.initial_prompt = FormatPrompt(template=initial_prompt, memory=agent_memory)
@@ -203,7 +202,7 @@ class NeedsBlock(Block):
             retry = 3
             while retry > 0:
                 try:
-                    satisfaction = jsonc.loads(response)
+                    satisfaction: Any = json_repair.loads(response)
                     satisfactions = satisfaction["current_satisfaction"]
                     await self.memory.status.update(
                         "hunger_satisfaction", satisfactions["hunger_satisfaction"]
@@ -218,16 +217,11 @@ class NeedsBlock(Block):
                         "social_satisfaction", satisfactions["social_satisfaction"]
                     )
                     break
-                except jsonc.JSONDecodeError:
-                    get_logger().warning(
-                        f"Initial response is not a valid JSON format: {response}"
-                    )
-                    retry -= 1
                 except Exception as e:
                     get_logger().warning(f"Initial response error: {e}")
                     retry -= 1
 
-            current_plan = await self.memory.status.get("current_plan")
+            current_plan = await self.memory.status.get("current_plan", False)
             if current_plan:
                 history = await self.memory.status.get("plan_history")
                 history.append(current_plan)
@@ -238,8 +232,8 @@ class NeedsBlock(Block):
 
     async def reflect_to_intervention(self, intervention: str):
         # rebuild needs for intervention
-        current_plan = await self.memory.status.get("current_plan")
-        if current_plan is None:
+        current_plan = await self.memory.status.get("current_plan", False)
+        if not current_plan:
             return
         step_index = current_plan.get("index", 0)
         current_action = current_plan.get("steps", [{"intention": "", "type": ""}])[
@@ -262,7 +256,7 @@ class NeedsBlock(Block):
             self.reflection_prompt.to_dialog(), response_format={"type": "json_object"}
         )
         try:
-            reflection = jsonc.loads(clean_json_response(response))  #
+            reflection: Any = json_repair.loads(clean_json_response(response))
             if "do_something" in reflection:
                 self._need_to_do = reflection["description"]
             else:
@@ -275,11 +269,6 @@ class NeedsBlock(Block):
                         "social_satisfaction",
                     ]:
                         await self.memory.status.update(need_type, new_value)
-        except jsonc.JSONDecodeError:
-            get_logger().warning(
-                f"Reflection response is not a valid JSON format: {response}"
-            )
-            return None
         except Exception as e:
             get_logger().warning(f"Error processing reflection response: {str(e)}")
             get_logger().warning(f"Original response: {response}")
@@ -368,46 +357,52 @@ class NeedsBlock(Block):
             if self._need_to_do:
                 await self.memory.status.update("current_need", self._need_to_do)
                 self.context.current_intention = self._need_to_do
-                await self.memory.stream.add_cognition(
-                    description=f"I need to do: {self._need_to_do}"
+                await self.memory.stream.add(
+                    topic="cognition", description=f"I need to do: {self._need_to_do}"
                 )
                 cognition = f"I need to do: {self._need_to_do}"
                 self._need_to_do_checked = True
             elif hunger_satisfaction <= self.T_H:
                 await self.memory.status.update("current_need", "hungry")
                 self.context.current_intention = "hungry"
-                await self.memory.stream.add_cognition(description="I feel hungry")
+                await self.memory.stream.add(
+                    topic="cognition", description="I feel hungry"
+                )
                 cognition = "I feel hungry"
             elif energy_satisfaction <= self.T_D:
                 await self.memory.status.update("current_need", "tired")
                 self.context.current_intention = "tired"
-                await self.memory.stream.add_cognition(description="I feel tired")
+                await self.memory.stream.add(
+                    topic="cognition", description="I feel tired"
+                )
                 cognition = "I feel tired"
             elif self.need_work:
                 await self.memory.status.update("current_need", "safe")
                 self.context.current_intention = "safe"
-                await self.memory.stream.add_cognition(description="I need to work")
+                await self.memory.stream.add(
+                    topic="cognition", description="I need to work"
+                )
                 cognition = "I need to work"
                 self.need_work = False
             elif safety_satisfaction <= self.T_P:
                 await self.memory.status.update("current_need", "safe")
                 self.context.current_intention = "safe"
-                await self.memory.stream.add_cognition(
-                    description="I have safe needs right now"
+                await self.memory.stream.add(
+                    topic="cognition", description="I have safe needs right now"
                 )
                 cognition = "I have safe needs right now"
             elif social_satisfaction <= self.T_C:
                 await self.memory.status.update("current_need", "social")
                 self.context.current_intention = "social"
-                await self.memory.stream.add_cognition(
-                    description="I have social needs right now"
+                await self.memory.stream.add(
+                    topic="cognition", description="I have social needs right now"
                 )
                 cognition = "I have social needs right now"
             else:
                 await self.memory.status.update("current_need", "whatever")
                 self.context.current_intention = "whatever"
-                await self.memory.stream.add_cognition(
-                    description="I have no specific needs right now"
+                await self.memory.stream.add(
+                    topic="cognition", description="I have no specific needs right now"
                 )
                 cognition = "I have no specific needs right now"
 
@@ -452,8 +447,9 @@ class NeedsBlock(Block):
                 await self.evaluate_and_adjust_needs(current_plan)
                 history = await self.memory.status.get("plan_history")
                 history.append(current_plan)
-                await self.memory.stream.add_cognition(
-                    description=f"I need to change my plan because the need of [{new_need}] is more important than [{current_need}]"
+                await self.memory.stream.add(
+                    topic="cognition",
+                    description=f"I need to change my plan because the need of [{new_need}] is more important than [{current_need}]",
                 )
                 cognition = f"I need to change my plan because the need of [{new_need}] is more important than [{current_need}]"
                 await self.memory.status.update("current_need", new_need)
@@ -500,7 +496,7 @@ class NeedsBlock(Block):
                 response_format={"type": "json_object"},
             )
             try:
-                new_satisfaction = jsonc.loads(clean_json_response(response))  #
+                new_satisfaction: Any = json_repair.loads(clean_json_response(response))  # type: ignore
                 # Update values of all needs
                 for need_type, new_value in new_satisfaction.items():
                     if need_type in [
@@ -511,11 +507,6 @@ class NeedsBlock(Block):
                     ]:
                         await self.memory.status.update(need_type, new_value)
                 return
-            except jsonc.JSONDecodeError:
-                get_logger().warning(
-                    f"Evaluation response is not a valid JSON format: {response}"
-                )
-                retry -= 1
             except Exception as e:
                 get_logger().warning(f"Error processing evaluation response: {str(e)}")
                 get_logger().warning(f"Original response: {response}")

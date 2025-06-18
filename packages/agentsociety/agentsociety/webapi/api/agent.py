@@ -8,7 +8,6 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...configs import EnvConfig
 from ..models import ApiResponseWrapper
 from ..models.agent import (
     AgentDialogType,
@@ -106,6 +105,8 @@ async def list_agent_profile_by_exp_id(
         profiles: List[ApiAgentProfile] = []
         for row in rows:
             profile = {columns[i]: row[i] for i in range(len(columns))}
+            if "profile" in profile and isinstance(profile["profile"], str):
+                profile["profile"] = json.loads(profile["profile"])
             profiles.append(ApiAgentProfile(**profile))
 
         return ApiResponseWrapper(data=profiles)
@@ -133,7 +134,10 @@ async def get_agent_profile_by_exp_id_and_agent_id(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Agent profile not found"
             )
-        profile = ApiAgentProfile(**{columns[i]: row[i] for i in range(len(columns))})
+        profile = {columns[i]: row[i] for i in range(len(columns))}
+        if "profile" in profile and isinstance(profile["profile"], str):
+            profile["profile"] = json.loads(profile["profile"])
+        profile = ApiAgentProfile(**profile)
 
         return ApiResponseWrapper(data=profile)
 
@@ -163,6 +167,8 @@ async def list_agent_status_by_day_and_t(
         statuses: List[ApiAgentStatus] = []
         for row in rows:
             s = {columns[i]: row[i] for i in range(len(columns))}
+            if "status" in s and isinstance(s["status"], str):
+                s["status"] = json.loads(s["status"])
             statuses.append(ApiAgentStatus(**s))
 
         return ApiResponseWrapper(data=statuses)
@@ -189,6 +195,8 @@ async def get_agent_status_by_exp_id_and_agent_id(
         statuses: List[ApiAgentStatus] = []
         for row in rows:
             s = {columns[i]: row[i] for i in range(len(columns))}
+            if "status" in s and isinstance(s["status"], str):
+                s["status"] = json.loads(s["status"])
             statuses.append(ApiAgentStatus(**s))
 
         return ApiResponseWrapper(data=statuses)
@@ -215,6 +223,8 @@ async def get_agent_survey_by_exp_id_and_agent_id(
         surveys: List[ApiAgentSurvey] = []
         for row in rows:
             survey = {columns[i]: row[i] for i in range(len(columns))}
+            if "data" in survey and isinstance(survey["data"], str):
+                survey["data"] = json.loads(survey["data"])
             surveys.append(ApiAgentSurvey(**survey))
 
         # Get pending surveys

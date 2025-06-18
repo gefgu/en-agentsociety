@@ -1,4 +1,3 @@
-import warnings
 from collections.abc import Awaitable, Coroutine
 from typing import Any, Literal, Union, cast, overload
 
@@ -119,7 +118,7 @@ class PersonService:
         - **Returns**:
         - https://cityproto.sim.fiblab.net/#city.person.v2.GetPersonResponse
         """
-        if type(req) != person_service.GetPersonRequest:
+        if not isinstance(req, person_service.GetPersonRequest):
             req = ParseDict(req, person_service.GetPersonRequest())
         res = cast(
             Awaitable[person_service.GetPersonResponse], self._aio_stub.GetPerson(req)
@@ -155,7 +154,7 @@ class PersonService:
         - **Returns**:
         - https://cityproto.sim.fiblab.net/#city.person.v2.AddPersonResponse
         """
-        if type(req) != person_service.AddPersonRequest:
+        if not isinstance(req, person_service.AddPersonRequest):
             req = ParseDict(req, person_service.AddPersonRequest())
         res = cast(
             Awaitable[person_service.AddPersonResponse], self._aio_stub.AddPerson(req)
@@ -177,7 +176,7 @@ class PersonService:
         - **Returns**:
         - https://cityproto.sim.fiblab.net/#city.person.v2.SetScheduleResponse
         """
-        if type(req) != person_service.SetScheduleRequest:
+        if not isinstance(req, person_service.SetScheduleRequest):
             req = ParseDict(req, person_service.SetScheduleRequest())
         res = cast(
             Awaitable[person_service.SetScheduleResponse],
@@ -200,7 +199,7 @@ class PersonService:
         - **Returns**:
         - https://cityproto.sim.fiblab.net/#city.person.v2.GetPersonsResponse
         """
-        if type(req) != person_service.GetPersonsRequest:
+        if not isinstance(req, person_service.GetPersonsRequest):
             req = ParseDict(req, person_service.GetPersonsRequest())
         res = cast(
             Awaitable[person_service.GetPersonsResponse],
@@ -225,7 +224,7 @@ class PersonService:
         - **Returns**:
         - https://cityproto.sim.fiblab.net/#city.person.v2.GetPersonByLongLatBBoxResponse
         """
-        if type(req) != person_service.GetPersonByLongLatBBoxRequest:
+        if not isinstance(req, person_service.GetPersonByLongLatBBoxRequest):
             req = ParseDict(req, person_service.GetPersonByLongLatBBoxRequest())
         res = cast(
             Awaitable[person_service.GetPersonByLongLatBBoxResponse],
@@ -250,7 +249,7 @@ class PersonService:
         - **Returns**:
         - https://cityproto.sim.fiblab.net/#city.person.v2.GetAllVehiclesResponse
         """
-        if type(req) != person_service.GetAllVehiclesRequest:
+        if not isinstance(req, person_service.GetAllVehiclesRequest):
             req = ParseDict(req, person_service.GetAllVehiclesRequest())
         res = cast(
             Awaitable[person_service.GetAllVehiclesResponse],
@@ -275,7 +274,7 @@ class PersonService:
         - **Returns**:
         - https://cityproto.sim.fiblab.net/#city.person.v2.ResetPersonPositionResponse
         """
-        if type(req) != person_service.ResetPersonPositionRequest:
+        if not isinstance(req, person_service.ResetPersonPositionRequest):
             req = ParseDict(req, person_service.ResetPersonPositionRequest())
         res = cast(
             Awaitable[person_service.ResetPersonPositionResponse],

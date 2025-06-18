@@ -1,3 +1,5 @@
+__all__ = ["POI_CATG_DICT"]
+
 POI_CATG_DICT = {
     "outdoor activity": [
         "bandstand",

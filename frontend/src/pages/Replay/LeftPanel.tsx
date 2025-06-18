@@ -64,7 +64,9 @@ const InfoPanel = observer(() => {
                 {agent && agent.profile && Object.entries(agent.profile).map(([k, v]) => (
                     <Flex className='left-info-block' justify='space-between' key={k}>
                         <span style={{ fontWeight: 400, color: "#909399" }}>{k}:&nbsp;&nbsp;</span>
-                        <span style={{ fontWeight: 600, color: "#007AFF" }}>{v}</span>
+                        <Tooltip title={<span>{v}</span>}>
+                            <span style={{ fontWeight: 600, color: "#007AFF", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '150px' }}>{v}</span>
+                        </Tooltip>
                     </Flex>
                 ))}
             </Flex>

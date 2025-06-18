@@ -84,7 +84,7 @@ Bases: {py:obj}`agentsociety.agent.BlockParams`
 
 `````
 
-`````{py:class} CognitionBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, agent_memory: agentsociety.memory.Memory, block_params: typing.Optional[agentsociety.cityagent.blocks.cognition_block.CognitionBlockParams] = None)
+`````{py:class} CognitionBlock(toolbox: agentsociety.agent.AgentToolbox, agent_memory: agentsociety.memory.Memory, block_params: typing.Optional[agentsociety.cityagent.blocks.cognition_block.CognitionBlockParams] = None)
 :canonical: agentsociety.cityagent.blocks.cognition_block.CognitionBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`

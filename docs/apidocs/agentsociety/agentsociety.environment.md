@@ -26,6 +26,7 @@ agentsociety.environment.economy
 :maxdepth: 1
 
 agentsociety.environment.environment
+agentsociety.environment.download_sim
 agentsociety.environment.mapdata
 ```
 

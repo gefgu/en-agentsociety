@@ -2,6 +2,7 @@ import enum
 from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime
+import uuid
 
 __all__ = [
     "StorageSurvey",
@@ -35,7 +36,7 @@ class StorageSurvey(BaseModel):
     id: int
     day: int
     t: float
-    survey_id: str
+    survey_id: uuid.UUID
     result: str
     created_at: datetime
 
@@ -114,7 +115,7 @@ class StoragePendingSurvey(BaseModel):
     """Day"""
     t: float
     """Time"""
-    survey_id: str
+    survey_id: uuid.UUID
     """Survey ID"""
     data: dict
     """Data"""

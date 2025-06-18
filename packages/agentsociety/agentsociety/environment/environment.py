@@ -19,15 +19,15 @@ from shapely.geometry import Point
 
 from ..logger import get_logger
 from ..s3 import S3Client, S3Config
-from ..utils.decorators import log_execution_time
 from .economy.econ_client import EconomyClient
 from .mapdata import MapConfig, MapData
 from .sim import CityClient
 from .syncer import Syncer
 from .utils import find_free_ports
 from .utils.base64 import encode_to_base64
-from .utils.const import *
+from .utils.const import POI_CATG_DICT
 from .utils.protobuf import dict2pb
+from .download_sim import download_binary
 
 __all__ = [
     "Environment",
@@ -96,8 +96,6 @@ class Environment:
         map_data: MapData,
         server_addr: Optional[str],
         environment_config: EnvironmentConfig,
-        # TEMP
-        # TODO: try to remove this
         citizen_ids: set[int] = set(),
         firm_ids: set[int] = set(),
         bank_ids: set[int] = set(),
@@ -307,7 +305,6 @@ class Environment:
                 global_prompt += f"{key}: {value}\n"
         return global_prompt
 
-    @log_execution_time
     def get_poi_categories(
         self,
         center: Optional[Union[tuple[float, float], Point]] = None,
@@ -384,7 +381,6 @@ class Environment:
         else:
             return (day, time)
 
-    @log_execution_time
     async def get_person(self, person_id: int) -> dict:
         """
         Retrieve information about a specific person by ID.
@@ -400,7 +396,6 @@ class Environment:
         )
         return person
 
-    @log_execution_time
     async def add_person(self, dict_person: dict) -> dict:
         """
         Add a new person to the simulation.
@@ -419,7 +414,6 @@ class Environment:
         resp: dict = await self.city_client.person_service.AddPerson(req)
         return resp
 
-    @log_execution_time
     async def set_aoi_schedules(
         self,
         person_id: int,
@@ -491,7 +485,6 @@ class Environment:
         req = {"person_id": person_id, "schedules": _schedules}
         await self.city_client.person_service.SetSchedule(req)
 
-    @log_execution_time
     async def reset_person_position(
         self,
         person_id: int,
@@ -539,7 +532,6 @@ class Environment:
                 f"Neither aoi or lane pos provided for person {person_id} position reset!!"
             )
 
-    @log_execution_time
     def get_around_poi(
         self,
         center: Union[tuple[float, float], Point],
@@ -599,6 +591,7 @@ class EnvironmentStarter(Environment):
         environment_config: EnvironmentConfig,
         s3config: S3Config,
         log_dir: str,
+        home_dir: str,
     ):
         """
         Environment config
@@ -608,11 +601,13 @@ class EnvironmentStarter(Environment):
             - `simulator_config` (SimulatorConfig): Simulator config
             - `environment_config` (EnvironmentConfig): Environment config
         """
+        self._sim_bin_path = download_binary(home_dir)
         self._map_config = map_config
         self._environment_config = environment_config
         self._sim_config = simulator_config
         self._s3config = s3config
         self._log_dir = log_dir
+        self._home_dir = home_dir
         mapdata = MapData(map_config, s3config)
 
         super().__init__(mapdata, None, environment_config)
@@ -669,7 +664,7 @@ class EnvironmentStarter(Environment):
         )
         self._sim_proc = Popen(
             [
-                "agentsociety-sim",
+                self._sim_bin_path,
                 "-config-data",
                 config_base64,
                 "-job",

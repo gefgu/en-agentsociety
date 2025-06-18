@@ -15,8 +15,8 @@
 :class: autosummary longtable
 :align: left
 
-* - {py:obj}`MemoryTag <agentsociety.memory.memory.MemoryTag>`
-  - ```{autodoc2-docstring} agentsociety.memory.memory.MemoryTag
+* - {py:obj}`KVMemory <agentsociety.memory.memory.KVMemory>`
+  - ```{autodoc2-docstring} agentsociety.memory.memory.KVMemory
     :summary:
     ```
 * - {py:obj}`MemoryNode <agentsociety.memory.memory.MemoryNode>`
@@ -27,88 +27,105 @@
   - ```{autodoc2-docstring} agentsociety.memory.memory.StreamMemory
     :summary:
     ```
-* - {py:obj}`StatusMemory <agentsociety.memory.memory.StatusMemory>`
-  - ```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory
-    :summary:
-    ```
 * - {py:obj}`Memory <agentsociety.memory.memory.Memory>`
   - ```{autodoc2-docstring} agentsociety.memory.memory.Memory
     :summary:
     ```
 ````
 
+### Data
+
+````{list-table}
+:class: autosummary longtable
+:align: left
+
+* - {py:obj}`__all__ <agentsociety.memory.memory.__all__>`
+  - ```{autodoc2-docstring} agentsociety.memory.memory.__all__
+    :summary:
+    ```
+````
+
 ### API
 
-`````{py:class} MemoryTag()
-:canonical: agentsociety.memory.memory.MemoryTag
+````{py:data} __all__
+:canonical: agentsociety.memory.memory.__all__
+:value: >
+   ['KVMemory', 'StreamMemory', 'Memory']
 
-Bases: {py:obj}`str`, {py:obj}`enum.Enum`
+```{autodoc2-docstring} agentsociety.memory.memory.__all__
+```
 
-```{autodoc2-docstring} agentsociety.memory.memory.MemoryTag
+````
+
+`````{py:class} KVMemory(memory_config: agentsociety.agent.memory_config_generator.MemoryConfig, embedding: fastembed.SparseTextEmbedding)
+:canonical: agentsociety.memory.memory.KVMemory
+
+```{autodoc2-docstring} agentsociety.memory.memory.KVMemory
 ```
 
 ```{rubric} Initialization
 ```
 
-```{autodoc2-docstring} agentsociety.memory.memory.MemoryTag.__init__
+```{autodoc2-docstring} agentsociety.memory.memory.KVMemory.__init__
 ```
 
-````{py:attribute} MOBILITY
-:canonical: agentsociety.memory.memory.MemoryTag.MOBILITY
-:value: >
-   'mobility'
+````{py:method} initialize_embeddings() -> None
+:canonical: agentsociety.memory.memory.KVMemory.initialize_embeddings
+:async:
 
-```{autodoc2-docstring} agentsociety.memory.memory.MemoryTag.MOBILITY
-```
-
-````
-
-````{py:attribute} SOCIAL
-:canonical: agentsociety.memory.memory.MemoryTag.SOCIAL
-:value: >
-   'social'
-
-```{autodoc2-docstring} agentsociety.memory.memory.MemoryTag.SOCIAL
+```{autodoc2-docstring} agentsociety.memory.memory.KVMemory.initialize_embeddings
 ```
 
 ````
 
-````{py:attribute} ECONOMY
-:canonical: agentsociety.memory.memory.MemoryTag.ECONOMY
-:value: >
-   'economy'
+````{py:method} _generate_semantic_text(key: str, value: typing.Any) -> str
+:canonical: agentsociety.memory.memory.KVMemory._generate_semantic_text
 
-```{autodoc2-docstring} agentsociety.memory.memory.MemoryTag.ECONOMY
+```{autodoc2-docstring} agentsociety.memory.memory.KVMemory._generate_semantic_text
 ```
 
 ````
 
-````{py:attribute} COGNITION
-:canonical: agentsociety.memory.memory.MemoryTag.COGNITION
-:value: >
-   'cognition'
+````{py:method} search(query: str, top_k: int = 3, filter: typing.Optional[dict] = None) -> str
+:canonical: agentsociety.memory.memory.KVMemory.search
+:async:
 
-```{autodoc2-docstring} agentsociety.memory.memory.MemoryTag.COGNITION
+```{autodoc2-docstring} agentsociety.memory.memory.KVMemory.search
 ```
 
 ````
 
-````{py:attribute} OTHER
-:canonical: agentsociety.memory.memory.MemoryTag.OTHER
-:value: >
-   'other'
+````{py:method} should_embed(key: str) -> bool
+:canonical: agentsociety.memory.memory.KVMemory.should_embed
 
-```{autodoc2-docstring} agentsociety.memory.memory.MemoryTag.OTHER
+```{autodoc2-docstring} agentsociety.memory.memory.KVMemory.should_embed
 ```
 
 ````
 
-````{py:attribute} EVENT
-:canonical: agentsociety.memory.memory.MemoryTag.EVENT
-:value: >
-   'event'
+````{py:method} get(key: typing.Any, default_value: typing.Optional[typing.Any] = None) -> typing.Any
+:canonical: agentsociety.memory.memory.KVMemory.get
+:async:
 
-```{autodoc2-docstring} agentsociety.memory.memory.MemoryTag.EVENT
+```{autodoc2-docstring} agentsociety.memory.memory.KVMemory.get
+```
+
+````
+
+````{py:method} update(key: typing.Any, value: typing.Any, mode: typing.Union[typing.Literal[replace], typing.Literal[merge]] = 'replace') -> None
+:canonical: agentsociety.memory.memory.KVMemory.update
+:async:
+
+```{autodoc2-docstring} agentsociety.memory.memory.KVMemory.update
+```
+
+````
+
+````{py:method} export(keys: list[str]) -> dict[str, typing.Any]
+:canonical: agentsociety.memory.memory.KVMemory.export
+:async:
+
+```{autodoc2-docstring} agentsociety.memory.memory.KVMemory.export
 ```
 
 ````
@@ -121,13 +138,13 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 ```{autodoc2-docstring} agentsociety.memory.memory.MemoryNode
 ```
 
-````{py:attribute} tag
-:canonical: agentsociety.memory.memory.MemoryNode.tag
-:type: agentsociety.memory.memory.MemoryTag
+````{py:attribute} topic
+:canonical: agentsociety.memory.memory.MemoryNode.topic
+:type: str
 :value: >
    None
 
-```{autodoc2-docstring} agentsociety.memory.memory.MemoryNode.tag
+```{autodoc2-docstring} agentsociety.memory.memory.MemoryNode.topic
 ```
 
 ````
@@ -200,7 +217,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} StreamMemory(agent_id: int, environment: agentsociety.environment.Environment, faiss_query: agentsociety.memory.faiss_query.FaissQuery, embedding_model: langchain_core.embeddings.Embeddings, max_len: int = 1000)
+`````{py:class} StreamMemory(environment: agentsociety.environment.Environment, status_memory: agentsociety.memory.memory.KVMemory, embedding: fastembed.SparseTextEmbedding, max_len: int = 1000)
 :canonical: agentsociety.memory.memory.StreamMemory
 
 ```{autodoc2-docstring} agentsociety.memory.memory.StreamMemory
@@ -212,90 +229,11 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 ```{autodoc2-docstring} agentsociety.memory.memory.StreamMemory.__init__
 ```
 
-````{py:property} faiss_query
-:canonical: agentsociety.memory.memory.StreamMemory.faiss_query
-:type: agentsociety.memory.faiss_query.FaissQuery
-
-```{autodoc2-docstring} agentsociety.memory.memory.StreamMemory.faiss_query
-```
-
-````
-
-````{py:property} status_memory
-:canonical: agentsociety.memory.memory.StreamMemory.status_memory
-
-```{autodoc2-docstring} agentsociety.memory.memory.StreamMemory.status_memory
-```
-
-````
-
-````{py:method} set_status_memory(status_memory)
-:canonical: agentsociety.memory.memory.StreamMemory.set_status_memory
-
-```{autodoc2-docstring} agentsociety.memory.memory.StreamMemory.set_status_memory
-```
-
-````
-
-````{py:method} _add_memory(tag: agentsociety.memory.memory.MemoryTag, description: str) -> int
-:canonical: agentsociety.memory.memory.StreamMemory._add_memory
+````{py:method} add(topic: str, description: str) -> int
+:canonical: agentsociety.memory.memory.StreamMemory.add
 :async:
 
-```{autodoc2-docstring} agentsociety.memory.memory.StreamMemory._add_memory
-```
-
-````
-
-````{py:method} add_cognition(description: str) -> int
-:canonical: agentsociety.memory.memory.StreamMemory.add_cognition
-:async:
-
-```{autodoc2-docstring} agentsociety.memory.memory.StreamMemory.add_cognition
-```
-
-````
-
-````{py:method} add_social(description: str) -> int
-:canonical: agentsociety.memory.memory.StreamMemory.add_social
-:async:
-
-```{autodoc2-docstring} agentsociety.memory.memory.StreamMemory.add_social
-```
-
-````
-
-````{py:method} add_economy(description: str) -> int
-:canonical: agentsociety.memory.memory.StreamMemory.add_economy
-:async:
-
-```{autodoc2-docstring} agentsociety.memory.memory.StreamMemory.add_economy
-```
-
-````
-
-````{py:method} add_mobility(description: str) -> int
-:canonical: agentsociety.memory.memory.StreamMemory.add_mobility
-:async:
-
-```{autodoc2-docstring} agentsociety.memory.memory.StreamMemory.add_mobility
-```
-
-````
-
-````{py:method} add_event(description: str) -> int
-:canonical: agentsociety.memory.memory.StreamMemory.add_event
-:async:
-
-```{autodoc2-docstring} agentsociety.memory.memory.StreamMemory.add_event
-```
-
-````
-
-````{py:method} add_other(description: str) -> int
-:canonical: agentsociety.memory.memory.StreamMemory.add_other
-:async:
-
-```{autodoc2-docstring} agentsociety.memory.memory.StreamMemory.add_other
+```{autodoc2-docstring} agentsociety.memory.memory.StreamMemory.add
 ```
 
 ````
@@ -318,7 +256,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ````
 
-````{py:method} get_by_ids(memory_ids: typing.Union[int, list[int]]) -> str
+````{py:method} get_by_ids(memory_ids: list[int]) -> str
 :canonical: agentsociety.memory.memory.StreamMemory.get_by_ids
 :async:
 
@@ -327,7 +265,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ````
 
-````{py:method} search(query: str, tag: typing.Optional[agentsociety.memory.memory.MemoryTag] = None, top_k: int = 3, day_range: typing.Optional[tuple[int, int]] = None, time_range: typing.Optional[tuple[int, int]] = None) -> str
+````{py:method} search(query: str, topic: typing.Optional[str] = None, top_k: int = 3, day_range: typing.Optional[tuple[int, int]] = None, time_range: typing.Optional[tuple[int, int]] = None) -> str
 :canonical: agentsociety.memory.memory.StreamMemory.search
 :async:
 
@@ -336,7 +274,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ````
 
-````{py:method} search_today(query: str = '', tag: typing.Optional[agentsociety.memory.memory.MemoryTag] = None, top_k: int = 100) -> str
+````{py:method} search_today(query: str = '', topic: typing.Optional[str] = None, top_k: int = 100) -> str
 :canonical: agentsociety.memory.memory.StreamMemory.search_today
 :async:
 
@@ -345,7 +283,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ````
 
-````{py:method} add_cognition_to_memory(memory_id: typing.Union[int, list[int]], cognition: str) -> None
+````{py:method} add_cognition_to_memory(memory_ids: list[int], cognition: str) -> None
 :canonical: agentsociety.memory.memory.StreamMemory.add_cognition_to_memory
 :async:
 
@@ -365,141 +303,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} StatusMemory(agent_id: int, environment: agentsociety.environment.Environment, faiss_query: agentsociety.memory.faiss_query.FaissQuery, embedding_model: langchain_core.embeddings.Embeddings, profile: agentsociety.memory.profile.ProfileMemory, state: agentsociety.memory.state.StateMemory, dynamic: agentsociety.memory.self_define.DynamicMemory)
-:canonical: agentsociety.memory.memory.StatusMemory
-
-```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory.__init__
-```
-
-````{py:property} faiss_query
-:canonical: agentsociety.memory.memory.StatusMemory.faiss_query
-:type: agentsociety.memory.faiss_query.FaissQuery
-
-```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory.faiss_query
-```
-
-````
-
-````{py:method} initialize_embeddings() -> None
-:canonical: agentsociety.memory.memory.StatusMemory.initialize_embeddings
-:async:
-
-```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory.initialize_embeddings
-```
-
-````
-
-````{py:method} _get_memory_type_by_key(key: str) -> str
-:canonical: agentsociety.memory.memory.StatusMemory._get_memory_type_by_key
-
-```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory._get_memory_type_by_key
-```
-
-````
-
-````{py:method} set_semantic_templates(templates: dict[str, str])
-:canonical: agentsociety.memory.memory.StatusMemory.set_semantic_templates
-
-```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory.set_semantic_templates
-```
-
-````
-
-````{py:method} _generate_semantic_text(key: str, value: typing.Any) -> str
-:canonical: agentsociety.memory.memory.StatusMemory._generate_semantic_text
-
-```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory._generate_semantic_text
-```
-
-````
-
-````{py:method} search(query: str, top_k: int = 3, filter: typing.Optional[dict] = None) -> str
-:canonical: agentsociety.memory.memory.StatusMemory.search
-:async:
-
-```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory.search
-```
-
-````
-
-````{py:method} set_embedding_fields(embedding_fields: typing.Dict[str, bool])
-:canonical: agentsociety.memory.memory.StatusMemory.set_embedding_fields
-
-```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory.set_embedding_fields
-```
-
-````
-
-````{py:method} should_embed(key: str) -> bool
-:canonical: agentsociety.memory.memory.StatusMemory.should_embed
-
-```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory.should_embed
-```
-
-````
-
-````{py:method} get(key: typing.Any, default_value: typing.Optional[typing.Any] = None, mode: typing.Union[typing.Literal[read only], typing.Literal[read and write]] = 'read only') -> typing.Any
-:canonical: agentsociety.memory.memory.StatusMemory.get
-:async:
-
-```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory.get
-```
-
-````
-
-````{py:method} update(key: typing.Any, value: typing.Any, mode: typing.Union[typing.Literal[replace], typing.Literal[merge]] = 'replace', store_snapshot: bool = False, protect_llm_read_only_fields: bool = True) -> None
-:canonical: agentsociety.memory.memory.StatusMemory.update
-:async:
-
-```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory.update
-```
-
-````
-
-````{py:method} _get_memory_type(mem: typing.Any) -> str
-:canonical: agentsociety.memory.memory.StatusMemory._get_memory_type
-
-```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory._get_memory_type
-```
-
-````
-
-````{py:method} add_watcher(key: str, callback: collections.abc.Callable) -> None
-:canonical: agentsociety.memory.memory.StatusMemory.add_watcher
-:async:
-
-```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory.add_watcher
-```
-
-````
-
-````{py:method} export() -> tuple[collections.abc.Sequence[dict], collections.abc.Sequence[dict], collections.abc.Sequence[dict]]
-:canonical: agentsociety.memory.memory.StatusMemory.export
-:async:
-
-```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory.export
-```
-
-````
-
-````{py:method} load(snapshots: tuple[collections.abc.Sequence[dict], collections.abc.Sequence[dict], collections.abc.Sequence[dict]], reset_memory: bool = True) -> None
-:canonical: agentsociety.memory.memory.StatusMemory.load
-:async:
-
-```{autodoc2-docstring} agentsociety.memory.memory.StatusMemory.load
-```
-
-````
-
-`````
-
-`````{py:class} Memory(agent_id: int, environment: agentsociety.environment.Environment, faiss_query: agentsociety.memory.faiss_query.FaissQuery, embedding_model: langchain_core.embeddings.Embeddings, config: typing.Optional[dict[typing.Any, typing.Any]] = None, profile: typing.Optional[dict[typing.Any, typing.Any]] = None, base: typing.Optional[dict[typing.Any, typing.Any]] = None, activate_timestamp: bool = False)
+`````{py:class} Memory(environment: agentsociety.environment.Environment, embedding: fastembed.SparseTextEmbedding, memory_config: agentsociety.agent.memory_config_generator.MemoryConfig)
 :canonical: agentsociety.memory.memory.Memory
 
 ```{autodoc2-docstring} agentsociety.memory.memory.Memory
@@ -513,7 +317,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ````{py:property} status
 :canonical: agentsociety.memory.memory.Memory.status
-:type: agentsociety.memory.memory.StatusMemory
+:type: agentsociety.memory.memory.KVMemory
 
 ```{autodoc2-docstring} agentsociety.memory.memory.Memory.status
 ```
@@ -525,31 +329,6 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 :type: agentsociety.memory.memory.StreamMemory
 
 ```{autodoc2-docstring} agentsociety.memory.memory.Memory.stream
-```
-
-````
-
-````{py:property} embedding_model
-:canonical: agentsociety.memory.memory.Memory.embedding_model
-
-```{autodoc2-docstring} agentsociety.memory.memory.Memory.embedding_model
-```
-
-````
-
-````{py:property} agent_id
-:canonical: agentsociety.memory.memory.Memory.agent_id
-
-```{autodoc2-docstring} agentsociety.memory.memory.Memory.agent_id
-```
-
-````
-
-````{py:property} faiss_query
-:canonical: agentsociety.memory.memory.Memory.faiss_query
-:type: agentsociety.memory.faiss_query.FaissQuery
-
-```{autodoc2-docstring} agentsociety.memory.memory.Memory.faiss_query
 ```
 
 ````

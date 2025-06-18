@@ -1,33 +1,27 @@
-from __future__ import annotations
-
-import asyncio
-import inspect
-import logging
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, NamedTuple, Optional, Union
+from typing import Any, Optional, Union
 
-import jsonc
-import ray
 from pycityproto.city.person.v2 import person_pb2 as person_pb2
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-from ..environment import Environment
-from ..llm import LLM
 from ..logger import get_logger
 from ..memory import Memory
-from ..message import Messager, Message, MessageKind
+from ..message import Message, MessageKind
 from ..storage import StorageDialog, StorageDialogType
-from .context import AgentContext, context_to_dot_dict
 from .block import Block, BlockOutput
-from .dispatcher import DISPATCHER_PROMPT, BlockDispatcher
-from .memory_config_generator import StatusAttribute
+from .context import AgentContext, context_to_dot_dict
+from .dispatcher import BlockDispatcher
+from .memory_config_generator import MemoryAttribute
+from .toolbox import AgentToolbox
 
 __all__ = [
     "Agent",
     "AgentType",
+    "AgentParams",
+    "GatherQuery",
 ]
 
 
@@ -35,24 +29,15 @@ class AgentParams(BaseModel):
     """
     Agent parameters
     """
+
     ...
-
-
-class AgentToolbox(NamedTuple):
-    """
-    A named tuple representing the toolbox of an agent.
-    """
-
-    llm: LLM
-    environment: Environment
-    messager: Messager
-    database_writer: Optional[ray.ObjectRef]
 
 
 class GatherQuery(BaseModel):
     """
     A model for gather query
     """
+
     key: str
     target_agent_ids: list[int]
     flatten: bool = True
@@ -96,7 +81,7 @@ def extract_json(output_str):
 
         # Convert the JSON string to a dictionary
         return json_str
-    except (ValueError, jsonc.JSONDecodeError) as e:
+    except ValueError as e:
         get_logger().warning(f"Failed to extract JSON: {e}")
         return None
 
@@ -111,7 +96,7 @@ class Agent(ABC):
         AgentContext  # Agent Context for information retrieval
     )
     BlockOutputType: type[BlockOutput] = BlockOutput  # Block output
-    StatusAttributes: list[StatusAttribute] = []  # Memory configuration
+    StatusAttributes: list[MemoryAttribute] = []  # Memory configuration
     description: str = ""  # Agent description: How this agent works
 
     def __init__(
@@ -146,7 +131,7 @@ class Agent(ABC):
         self.params = agent_params
 
         # parse blocks
-        self.dispatcher = BlockDispatcher(self.llm, self.memory)
+        self.dispatcher = BlockDispatcher(self._toolbox, self._memory)
         if blocks is not None:
             for block in blocks:
                 if block.OutputType != self.BlockOutputType:
@@ -189,9 +174,7 @@ class Agent(ABC):
                 cls.get_functions[info["function_name"]] = info
 
     async def init(self):
-        await self._memory.status.update(
-            "id", self._id, protect_llm_read_only_fields=False
-        )
+        await self._memory.status.update("id", self._id)
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -227,28 +210,16 @@ class Agent(ABC):
     @property
     def memory(self):
         """The Agent's Memory"""
-        if self._memory is None:
-            raise RuntimeError(
-                f"Memory access before assignment, please `set_memory` first!"
-            )
         return self._memory
 
     @property
     def status(self):
         """The Agent's Status Memory"""
-        if self.memory.status is None:
-            raise RuntimeError(
-                f"Status access before assignment, please `set_memory` first!"
-            )
         return self.memory.status
 
     @property
     def stream(self):
         """The Agent's Stream Memory"""
-        if self.memory.stream is None:
-            raise RuntimeError(
-                f"Stream access before assignment, please `set_memory` first!"
-            )
         return self.memory.stream
 
     @abstractmethod
@@ -318,7 +289,7 @@ class Agent(ABC):
         )
         # Database
         if self.database_writer is not None and type == "social":
-            await self.database_writer.write_dialogs.remote(  # type:ignore
+            await self.database_writer.write_dialogs(  # type:ignore
                 [storage_dialog]
             )
 
@@ -327,7 +298,13 @@ class Agent(ABC):
         self.gather_query: dict[str, GatherQuery] = {}
         return query
 
-    def register_gather_query(self, key: str, target_agent_ids: list[int], flatten: bool = True, keep_id: bool = True):
+    def register_gather_query(
+        self,
+        key: str,
+        target_agent_ids: list[int],
+        flatten: bool = True,
+        keep_id: bool = True,
+    ):
         self.gather_query[key] = GatherQuery(
             key=key,
             target_agent_ids=target_agent_ids,

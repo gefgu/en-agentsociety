@@ -1,4 +1,4 @@
-from typing import Optional, cast
+from typing import Optional
 
 import numpy as np
 from pydantic import Field
@@ -161,7 +161,7 @@ The central banking agent that manages monetary policy in the simulation.
             target_inflation = 0.02
             if len(inflations) > 0:
                 # natural_unemployment_rate = 0.04
-                inflation_coeff, unemployment_coeff = 0.5, 0.5
+                inflation_coeff = 0.5
                 tao = 1
                 avg_inflation = np.mean(inflations[-tao:])
                 interest_rate = (

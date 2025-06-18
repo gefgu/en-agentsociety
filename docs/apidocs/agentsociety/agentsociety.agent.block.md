@@ -25,26 +25,6 @@
     ```
 ````
 
-### Functions
-
-````{list-table}
-:class: autosummary longtable
-:align: left
-
-* - {py:obj}`log_and_check_with_memory <agentsociety.agent.block.log_and_check_with_memory>`
-  - ```{autodoc2-docstring} agentsociety.agent.block.log_and_check_with_memory
-    :summary:
-    ```
-* - {py:obj}`log_and_check <agentsociety.agent.block.log_and_check>`
-  - ```{autodoc2-docstring} agentsociety.agent.block.log_and_check
-    :summary:
-    ```
-* - {py:obj}`trigger_class <agentsociety.agent.block.trigger_class>`
-  - ```{autodoc2-docstring} agentsociety.agent.block.trigger_class
-    :summary:
-    ```
-````
-
 ### Data
 
 ````{list-table}
@@ -76,7 +56,7 @@
 ````{py:data} __all__
 :canonical: agentsociety.agent.block.__all__
 :value: >
-   ['Block', 'log_and_check', 'log_and_check_with_memory', 'trigger_class']
+   ['Block', 'BlockParams', 'BlockOutput']
 
 ```{autodoc2-docstring} agentsociety.agent.block.__all__
 ```
@@ -108,28 +88,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ```
 
-````{py:function} log_and_check_with_memory(condition: typing.Union[collections.abc.Callable[[agentsociety.memory.Memory], collections.abc.Coroutine[typing.Any, typing.Any, bool]], collections.abc.Callable[[], collections.abc.Coroutine[typing.Any, typing.Any, bool]], collections.abc.Callable[[agentsociety.memory.Memory], bool], collections.abc.Callable[[], bool]] = lambda: True, trigger_interval: float = TRIGGER_INTERVAL, record_function_calling: bool = False)
-:canonical: agentsociety.agent.block.log_and_check_with_memory
-
-```{autodoc2-docstring} agentsociety.agent.block.log_and_check_with_memory
-```
-````
-
-````{py:function} log_and_check(condition: typing.Union[collections.abc.Callable[[], collections.abc.Coroutine[typing.Any, typing.Any, bool]], collections.abc.Callable[[], bool]] = lambda: True, trigger_interval: float = TRIGGER_INTERVAL, record_function_calling: bool = False)
-:canonical: agentsociety.agent.block.log_and_check
-
-```{autodoc2-docstring} agentsociety.agent.block.log_and_check
-```
-````
-
-````{py:function} trigger_class()
-:canonical: agentsociety.agent.block.trigger_class
-
-```{autodoc2-docstring} agentsociety.agent.block.trigger_class
-```
-````
-
-`````{py:class} Block(llm: typing.Optional[agentsociety.llm.LLM] = None, environment: typing.Optional[agentsociety.environment.Environment] = None, agent_memory: typing.Optional[agentsociety.memory.Memory] = None, block_params: typing.Optional[typing.Any] = None)
+`````{py:class} Block(toolbox: agentsociety.agent.toolbox.AgentToolbox, agent_memory: typing.Optional[agentsociety.memory.Memory] = None, block_params: typing.Optional[typing.Any] = None)
 :canonical: agentsociety.agent.block.Block
 
 ```{autodoc2-docstring} agentsociety.agent.block.Block
@@ -257,6 +216,15 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
+````{py:property} toolbox
+:canonical: agentsociety.agent.block.Block.toolbox
+:type: agentsociety.agent.toolbox.AgentToolbox
+
+```{autodoc2-docstring} agentsociety.agent.block.Block.toolbox
+```
+
+````
+
 ````{py:property} llm
 :canonical: agentsociety.agent.block.Block.llm
 :type: agentsociety.llm.LLM
@@ -286,7 +254,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````{py:property} block_memory
 :canonical: agentsociety.agent.block.Block.block_memory
-:type: agentsociety.memory.state.StateMemory
+:type: agentsociety.memory.KVMemory
 
 ```{autodoc2-docstring} agentsociety.agent.block.Block.block_memory
 ```

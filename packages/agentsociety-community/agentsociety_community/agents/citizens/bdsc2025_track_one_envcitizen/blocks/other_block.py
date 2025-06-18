@@ -1,12 +1,10 @@
-import logging
+
 import random
 from typing import Optional
 
-import jsonc
+import json_repair
 
-from agentsociety.agent import Block, FormatPrompt, BlockParams, DotDict
-from agentsociety.environment import Environment
-from agentsociety.llm import LLM
+from agentsociety.agent import AgentToolbox, Block, FormatPrompt, BlockParams, DotDict
 from agentsociety.logger import get_logger
 from agentsociety.memory import Memory
 from agentsociety.agent.dispatcher import BlockDispatcher
@@ -23,9 +21,9 @@ class SleepBlock(Block):
     name = "SleepBlock"
     description = "Handles sleep-related actions"
 
-    def __init__(self, llm: LLM, agent_memory: Optional[Memory] = None):
+    def __init__(self, toolbox: AgentToolbox, agent_memory: Memory):
         super().__init__(
-            llm=llm,
+            toolbox=toolbox,
             agent_memory=agent_memory,
         )
         self.guidance_prompt = FormatPrompt(template=TIME_ESTIMATE_PROMPT)
@@ -40,7 +38,10 @@ class SleepBlock(Block):
         Returns:
             Dictionary with execution status, evaluation, time consumed, and node ID.
         """
-        node_id = await self.memory.stream.add_other(description=f"I slept for a while.")
+        node_id = await self.memory.stream.add(
+            topic="other",
+            description="I slept for a while."
+        )
         return {
             "success": True,
             "evaluation": f'Sleep: {step["intention"]}',
@@ -56,9 +57,12 @@ class SleepBlock(Block):
             self.guidance_prompt.to_dialog(), response_format={"type": "json_object"}
         )
         result = clean_json_response(result)
-        node_id = await self.memory.stream.add_other(description=f"I slept")
+        node_id = await self.memory.stream.add(
+            topic="other",
+            description="I slept"
+        )
         try:
-            result = jsonc.loads(result)
+            result = json_repair.loads(result)
             return {
                 "success": True,
                 "evaluation": f'Sleep: {step["intention"]}',
@@ -87,15 +91,18 @@ class OtherNoneBlock(Block):
     name = "OtherNoneBlock"
     description = "Handles other cases"
 
-    def __init__(self, llm: LLM, agent_memory: Optional[Memory] = None):
+    def __init__(self, toolbox: AgentToolbox, agent_memory: Memory):
         super().__init__(
-            llm=llm,
+            toolbox=toolbox,
             agent_memory=agent_memory,
         )
         self.guidance_prompt = FormatPrompt(template=TIME_ESTIMATE_PROMPT)
 
     async def forward(self, step, plan_context):
-        node_id = await self.memory.stream.add_other(description=f"I {step['intention']}")
+        node_id = await self.memory.stream.add(
+            topic="other",
+            description=f"I {step['intention']}"
+        )
         return {
             "success": True,
             "evaluation": f'Finished executing {step["intention"]}',
@@ -111,11 +118,12 @@ class OtherNoneBlock(Block):
             self.guidance_prompt.to_dialog(), response_format={"type": "json_object"}
         )
         result = clean_json_response(result)
-        node_id = await self.memory.stream.add_other(
+        node_id = await self.memory.stream.add(
+            topic="other",
             description=f"I {step['intention']}"
         )
         try:
-            result = jsonc.loads(result)
+            result = json_repair.loads(result)
             return {
                 "success": True,
                 "evaluation": f'Finished executing {step["intention"]}',
@@ -158,19 +166,18 @@ class EnvOtherBlock(Block):
 
     def __init__(
             self, 
-            llm: LLM,
-            environment: Optional[Environment] = None,
-            agent_memory: Optional[Memory] = None,
+            toolbox: AgentToolbox,
+            agent_memory: Memory,
             block_params: Optional[EnvOtherBlockParams] = None
         ):
-        super().__init__(llm=llm, agent_memory=agent_memory, block_params=block_params)
+        super().__init__(toolbox=toolbox, agent_memory=agent_memory, block_params=block_params)
         # init all blocks
-        self.sleep_block = SleepBlock(llm, agent_memory)
-        self.other_none_block = OtherNoneBlock(llm, agent_memory)
+        self.sleep_block = SleepBlock(toolbox, agent_memory)
+        self.other_none_block = OtherNoneBlock(toolbox, agent_memory)
         self.trigger_time = 0
         self.token_consumption = 0
         # init dispatcher
-        self.dispatcher = BlockDispatcher(llm, agent_memory)
+        self.dispatcher = BlockDispatcher(toolbox, agent_memory)
         # register all blocks
         self.dispatcher.register_blocks([self.sleep_block, self.other_none_block])
 
@@ -194,7 +201,10 @@ class EnvOtherBlock(Block):
         selected_block = await self.dispatcher.dispatch(dispatch_context)
 
         if selected_block is None:
-            node_id = await self.memory.stream.add_other(description=f"I finished {step['intention']}")
+            node_id = await self.memory.stream.add(
+                topic="other",
+                description=f"I finished {step['intention']}"
+            )
             return {
                 "success": True,
                 "evaluation": f'Finished {step["intention"]}',
@@ -202,7 +212,7 @@ class EnvOtherBlock(Block):
                 "node_id": node_id,
             }
         # Execute the selected sub-block and get the result
-        result = await selected_block.forward(step, plan_context)
+        result = await selected_block.forward(step, plan_context) # type: ignore
 
         consumption_end = self.llm.prompt_tokens_used + self.llm.completion_tokens_used
         self.token_consumption += consumption_end - consumption_start

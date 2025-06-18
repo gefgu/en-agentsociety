@@ -1,12 +1,7 @@
-import logging
-from typing import cast
+import json_repair
+from typing import Any
 
-import jsonc
-
-from agentsociety.agent import Block, FormatPrompt
-from agentsociety.environment import Environment
-from agentsociety.llm import LLM
-from agentsociety.logger import get_logger
+from agentsociety.agent import AgentToolbox, Block, FormatPrompt
 from agentsociety.memory import Memory
 from .utils import clean_json_response
 
@@ -119,8 +114,7 @@ class EnvNeedsBlock(Block):
 
     def __init__(
             self, 
-            llm: LLM, 
-            environment: Environment, 
+            toolbox: AgentToolbox, 
             agent_memory: Memory,
             evaluation_prompt: str = EVALUATION_PROMPT,
             reflection_prompt: str = REFLECTION_PROMPT,
@@ -144,7 +138,7 @@ class EnvNeedsBlock(Block):
             T_P: Safety threshold for triggering need (default: 0.2)
             T_C: Social threshold for triggering need (default: 0.3)
         """
-        super().__init__(llm=llm, environment=environment, agent_memory=agent_memory)
+        super().__init__(toolbox=toolbox, agent_memory=agent_memory)
         self.evaluation_prompt = FormatPrompt(evaluation_prompt)
         self.initial_prompt = FormatPrompt(initial_prompt)
         self.reflection_prompt = FormatPrompt(reflection_prompt)
@@ -210,7 +204,7 @@ class EnvNeedsBlock(Block):
             retry = 3
             while retry > 0:
                 try:
-                    satisfaction = jsonc.loads(response)
+                    satisfaction: Any = json_repair.loads(response)
                     satisfactions = satisfaction["current_satisfaction"]
                     await self.memory.status.update(
                         "hunger_satisfaction", satisfactions["hunger_satisfaction"]
@@ -225,13 +219,7 @@ class EnvNeedsBlock(Block):
                         "social_satisfaction", satisfactions["social_satisfaction"]
                     )
                     break
-                except jsonc.JSONDecodeError:
-                    get_logger().warning(
-                        f"Initial response is not a valid JSON format: {response}"
-                    )
-                    retry -= 1
-                except Exception as e:
-                    get_logger().warning(f"Initial response error: {e}")
+                except Exception:
                     retry -= 1
 
             current_plan = await self.memory.status.get("current_plan")
@@ -269,7 +257,7 @@ class EnvNeedsBlock(Block):
             self.reflection_prompt.to_dialog(), response_format={"type": "json_object"}
         )
         try:
-            reflection = jsonc.loads(clean_json_response(response))  #
+            reflection: Any = json_repair.loads(clean_json_response(response))  #
             if "do_something" in reflection:
                 self._need_to_do = reflection["description"]
             else:
@@ -282,14 +270,7 @@ class EnvNeedsBlock(Block):
                         "social_satisfaction",
                     ]:
                         await self.memory.status.update(need_type, new_value)
-        except jsonc.JSONDecodeError:
-            get_logger().warning(
-                f"Reflection response is not a valid JSON format: {response}"
-            )
-            return None
-        except Exception as e:
-            get_logger().warning(f"Error processing reflection response: {str(e)}")
-            get_logger().warning(f"Original response: {response}")
+        except Exception:
             return None
 
     async def time_decay(self):
@@ -374,39 +355,48 @@ class EnvNeedsBlock(Block):
             # check needs in priority order
             if self._need_to_do:
                 await self.memory.status.update("current_need", self._need_to_do)
-                await self.memory.stream.add_cognition(
-                    description=f"I need to do: {self._need_to_do}"
+                await self.memory.stream.add(
+                    topic="cognition", description=f"I need to do: {self._need_to_do}"
                 )
                 cognition = f"I need to do: {self._need_to_do}"
                 self._need_to_do_checked = True
             elif hunger_satisfaction <= self.T_H:
                 await self.memory.status.update("current_need", "hungry")
-                await self.memory.stream.add_cognition(description="I feel hungry")
+                await self.memory.stream.add(
+                    topic="cognition", description="I feel hungry"
+                )
                 cognition = "I feel hungry"
             elif energy_satisfaction <= self.T_D:
                 await self.memory.status.update("current_need", "tired")
-                await self.memory.stream.add_cognition(description="I feel tired")
+                await self.memory.stream.add(
+                    topic="cognition", description="I feel tired"
+                )
                 cognition = "I feel tired"
             elif self.need_work:
                 await self.memory.status.update("current_need", "safe")
-                await self.memory.stream.add_cognition(description="I need to work")
+                await self.memory.stream.add(
+                    topic="cognition", description="I need to work"
+                )
                 cognition = "I need to work"
                 self.need_work = False
             elif safety_satisfaction <= self.T_P:
                 await self.memory.status.update("current_need", "safe")
-                await self.memory.stream.add_cognition(
+                await self.memory.stream.add(
+                    topic="cognition",
                     description="I have safe needs right now"
                 )
                 cognition = "I have safe needs right now"
             elif social_satisfaction <= self.T_C:
                 await self.memory.status.update("current_need", "social")
-                await self.memory.stream.add_cognition(
+                await self.memory.stream.add(
+                    topic="cognition",
                     description="I have social needs right now"
                 )
                 cognition = "I have social needs right now"
             else:
                 await self.memory.status.update("current_need", "whatever")
-                await self.memory.stream.add_cognition(
+                await self.memory.stream.add(
+                    topic="cognition",
                     description="I have no specific needs right now"
                 )
                 cognition = "I have no specific needs right now"
@@ -452,7 +442,8 @@ class EnvNeedsBlock(Block):
                 await self.evaluate_and_adjust_needs(current_plan)
                 history = await self.memory.status.get("plan_history")
                 history.append(current_plan)
-                await self.memory.stream.add_cognition(
+                await self.memory.stream.add(
+                    topic="cognition",
                     description=f"I need to change my plan because the need of [{new_need}] is more important than [{current_need}]"
                 )
                 cognition = f"I need to change my plan because the need of [{new_need}] is more important than [{current_need}]"
@@ -499,7 +490,7 @@ class EnvNeedsBlock(Block):
                 response_format={"type": "json_object"},
             )
             try:
-                new_satisfaction = jsonc.loads(clean_json_response(response))  #
+                new_satisfaction: Any = json_repair.loads(clean_json_response(response))  #
                 # Update values of all needs
                 for need_type, new_value in new_satisfaction.items():
                     if need_type in [
@@ -510,14 +501,7 @@ class EnvNeedsBlock(Block):
                     ]:
                         await self.memory.status.update(need_type, new_value)
                 return
-            except jsonc.JSONDecodeError:
-                get_logger().warning(
-                    f"Evaluation response is not a valid JSON format: {response}"
-                )
-                retry -= 1
-            except Exception as e:
-                get_logger().warning(f"Error processing evaluation response: {str(e)}")
-                get_logger().warning(f"Original response: {response}")
+            except Exception:
                 retry -= 1
 
     async def forward(self):

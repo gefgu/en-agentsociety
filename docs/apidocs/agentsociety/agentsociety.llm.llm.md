@@ -23,24 +23,12 @@
   - ```{autodoc2-docstring} agentsociety.llm.llm.LLMConfig
     :summary:
     ```
+* - {py:obj}`LLMActor <agentsociety.llm.llm.LLMActor>`
+  - ```{autodoc2-docstring} agentsociety.llm.llm.LLMActor
+    :summary:
+    ```
 * - {py:obj}`LLM <agentsociety.llm.llm.LLM>`
   - ```{autodoc2-docstring} agentsociety.llm.llm.LLM
-    :summary:
-    ```
-````
-
-### Functions
-
-````{list-table}
-:class: autosummary longtable
-:align: left
-
-* - {py:obj}`record_active_request <agentsociety.llm.llm.record_active_request>`
-  - ```{autodoc2-docstring} agentsociety.llm.llm.record_active_request
-    :summary:
-    ```
-* - {py:obj}`monitor_requests <agentsociety.llm.llm.monitor_requests>`
-  - ```{autodoc2-docstring} agentsociety.llm.llm.monitor_requests
     :summary:
     ```
 ````
@@ -55,6 +43,10 @@
   - ```{autodoc2-docstring} agentsociety.llm.llm.__all__
     :summary:
     ```
+* - {py:obj}`MAX_TIMEOUT <agentsociety.llm.llm.MAX_TIMEOUT>`
+  - ```{autodoc2-docstring} agentsociety.llm.llm.MAX_TIMEOUT
+    :summary:
+    ```
 ````
 
 ### API
@@ -62,9 +54,19 @@
 ````{py:data} __all__
 :canonical: agentsociety.llm.llm.__all__
 :value: >
-   ['LLM', 'LLMConfig', 'monitor_requests']
+   ['LLM', 'LLMConfig', 'LLMProviderType']
 
 ```{autodoc2-docstring} agentsociety.llm.llm.__all__
+```
+
+````
+
+````{py:data} MAX_TIMEOUT
+:canonical: agentsociety.llm.llm.MAX_TIMEOUT
+:value: >
+   60
+
+```{autodoc2-docstring} agentsociety.llm.llm.MAX_TIMEOUT
 ```
 
 ````
@@ -213,13 +215,24 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:attribute} semaphore
-:canonical: agentsociety.llm.llm.LLMConfig.semaphore
+````{py:attribute} concurrency
+:canonical: agentsociety.llm.llm.LLMConfig.concurrency
 :type: int
 :value: >
    'Field(...)'
 
-```{autodoc2-docstring} agentsociety.llm.llm.LLMConfig.semaphore
+```{autodoc2-docstring} agentsociety.llm.llm.LLMConfig.concurrency
+```
+
+````
+
+````{py:attribute} timeout
+:canonical: agentsociety.llm.llm.LLMConfig.timeout
+:type: float
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.llm.llm.LLMConfig.timeout
 ```
 
 ````
@@ -242,14 +255,30 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-````{py:function} record_active_request(func: collections.abc.Callable)
-:canonical: agentsociety.llm.llm.record_active_request
+`````{py:class} LLMActor()
+:canonical: agentsociety.llm.llm.LLMActor
 
-```{autodoc2-docstring} agentsociety.llm.llm.record_active_request
+```{autodoc2-docstring} agentsociety.llm.llm.LLMActor
 ```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.llm.llm.LLMActor.__init__
+```
+
+````{py:method} call(config: agentsociety.llm.llm.LLMConfig, dialog: list[openai.types.chat.ChatCompletionMessageParam], response_format: typing.Union[openai.types.chat.completion_create_params.ResponseFormat, openai.NotGiven] = NOT_GIVEN, temperature: float = 1, max_tokens: typing.Optional[int] = None, top_p: typing.Optional[float] = None, frequency_penalty: typing.Optional[float] = None, presence_penalty: typing.Optional[float] = None, timeout: int = 300, retries: int = 10, tools: typing.Union[typing.List[openai.types.chat.ChatCompletionToolParam], openai.NotGiven] = NOT_GIVEN, tool_choice: typing.Union[openai.types.chat.ChatCompletionToolChoiceOptionParam, openai.NotGiven] = NOT_GIVEN)
+:canonical: agentsociety.llm.llm.LLMActor.call
+:async:
+
+```{autodoc2-docstring} agentsociety.llm.llm.LLMActor.call
+```
+
 ````
 
-`````{py:class} LLM(configs: typing.List[agentsociety.llm.llm.LLMConfig])
+`````
+
+`````{py:class} LLM(configs: typing.List[agentsociety.llm.llm.LLMConfig], num_actors: int = min(cpu_count(), 8))
 :canonical: agentsociety.llm.llm.LLM
 
 ```{autodoc2-docstring} agentsociety.llm.llm.LLM
@@ -260,23 +289,6 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.llm.llm.LLM.__init__
 ```
-
-````{py:method} check_active_requests(timeout_threshold: float = 300)
-:canonical: agentsociety.llm.llm.LLM.check_active_requests
-
-```{autodoc2-docstring} agentsociety.llm.llm.LLM.check_active_requests
-```
-
-````
-
-````{py:method} close()
-:canonical: agentsociety.llm.llm.LLM.close
-:async:
-
-```{autodoc2-docstring} agentsociety.llm.llm.LLM.close
-```
-
-````
 
 ````{py:method} get_log_list()
 :canonical: agentsociety.llm.llm.LLM.get_log_list
@@ -294,34 +306,10 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:method} clear_used()
-:canonical: agentsociety.llm.llm.LLM.clear_used
+````{py:method} _get_index()
+:canonical: agentsociety.llm.llm.LLM._get_index
 
-```{autodoc2-docstring} agentsociety.llm.llm.LLM.clear_used
-```
-
-````
-
-````{py:method} get_consumption()
-:canonical: agentsociety.llm.llm.LLM.get_consumption
-
-```{autodoc2-docstring} agentsociety.llm.llm.LLM.get_consumption
-```
-
-````
-
-````{py:method} show_consumption(input_price: typing.Optional[float] = None, output_price: typing.Optional[float] = None)
-:canonical: agentsociety.llm.llm.LLM.show_consumption
-
-```{autodoc2-docstring} agentsociety.llm.llm.LLM.show_consumption
-```
-
-````
-
-````{py:method} _get_next_client()
-:canonical: agentsociety.llm.llm.LLM._get_next_client
-
-```{autodoc2-docstring} agentsociety.llm.llm.LLM._get_next_client
+```{autodoc2-docstring} agentsociety.llm.llm.LLM._get_index
 ```
 
 ````
@@ -335,20 +323,4 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:method} get_error_statistics()
-:canonical: agentsociety.llm.llm.LLM.get_error_statistics
-
-```{autodoc2-docstring} agentsociety.llm.llm.LLM.get_error_statistics
-```
-
-````
-
 `````
-
-````{py:function} monitor_requests(llm_instance: agentsociety.llm.llm.LLM, interval: float = 60, timeout_threshold: float = 300)
-:canonical: agentsociety.llm.llm.monitor_requests
-:async:
-
-```{autodoc2-docstring} agentsociety.llm.llm.monitor_requests
-```
-````

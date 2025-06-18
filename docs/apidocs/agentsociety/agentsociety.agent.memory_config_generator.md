@@ -15,8 +15,12 @@
 :class: autosummary longtable
 :align: left
 
-* - {py:obj}`StatusAttribute <agentsociety.agent.memory_config_generator.StatusAttribute>`
+* - {py:obj}`MemoryAttribute <agentsociety.agent.memory_config_generator.MemoryAttribute>`
   -
+* - {py:obj}`MemoryConfig <agentsociety.agent.memory_config_generator.MemoryConfig>`
+  - ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryConfig
+    :summary:
+    ```
 * - {py:obj}`MemoryConfigGenerator <agentsociety.agent.memory_config_generator.MemoryConfigGenerator>`
   - ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryConfigGenerator
     :summary:
@@ -29,6 +33,14 @@
 :class: autosummary longtable
 :align: left
 
+* - {py:obj}`_create_default_citizen_attributes <agentsociety.agent.memory_config_generator._create_default_citizen_attributes>`
+  - ```{autodoc2-docstring} agentsociety.agent.memory_config_generator._create_default_citizen_attributes
+    :summary:
+    ```
+* - {py:obj}`_create_default_supervisor_attributes <agentsociety.agent.memory_config_generator._create_default_supervisor_attributes>`
+  - ```{autodoc2-docstring} agentsociety.agent.memory_config_generator._create_default_supervisor_attributes
+    :summary:
+    ```
 * - {py:obj}`default_memory_config_citizen <agentsociety.agent.memory_config_generator.default_memory_config_citizen>`
   - ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.default_memory_config_citizen
     :summary:
@@ -57,10 +69,6 @@
   - ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.__all__
     :summary:
     ```
-* - {py:obj}`MemoryT <agentsociety.agent.memory_config_generator.MemoryT>`
-  - ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryT
-    :summary:
-    ```
 ````
 
 ### API
@@ -68,111 +76,151 @@
 ````{py:data} __all__
 :canonical: agentsociety.agent.memory_config_generator.__all__
 :value: >
-   ['MemoryConfigGenerator', 'MemoryT', 'StatusAttribute', 'default_memory_config_citizen']
+   ['MemoryConfigGenerator', 'MemoryAttribute', 'MemoryConfig', 'default_memory_config_citizen', 'defau...
 
 ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.__all__
 ```
 
 ````
 
-`````{py:class} StatusAttribute(**data: typing.Any)
-:canonical: agentsociety.agent.memory_config_generator.StatusAttribute
+`````{py:class} MemoryAttribute(**data: typing.Any)
+:canonical: agentsociety.agent.memory_config_generator.MemoryAttribute
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ````{py:attribute} name
-:canonical: agentsociety.agent.memory_config_generator.StatusAttribute.name
+:canonical: agentsociety.agent.memory_config_generator.MemoryAttribute.name
 :type: str
 :value: >
    None
 
-```{autodoc2-docstring} agentsociety.agent.memory_config_generator.StatusAttribute.name
+```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryAttribute.name
 ```
 
 ````
 
 ````{py:attribute} type
-:canonical: agentsociety.agent.memory_config_generator.StatusAttribute.type
-:type: agentsociety.agent.memory_config_generator.StatusAttribute.type
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.agent.memory_config_generator.StatusAttribute.type
-```
-
-````
-
-````{py:attribute} default
-:canonical: agentsociety.agent.memory_config_generator.StatusAttribute.default
+:canonical: agentsociety.agent.memory_config_generator.MemoryAttribute.type
 :type: typing.Any
 :value: >
    None
 
-```{autodoc2-docstring} agentsociety.agent.memory_config_generator.StatusAttribute.default
+```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryAttribute.type
+```
+
+````
+
+````{py:attribute} default_or_value
+:canonical: agentsociety.agent.memory_config_generator.MemoryAttribute.default_or_value
+:type: typing.Any
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryAttribute.default_or_value
 ```
 
 ````
 
 ````{py:attribute} description
-:canonical: agentsociety.agent.memory_config_generator.StatusAttribute.description
+:canonical: agentsociety.agent.memory_config_generator.MemoryAttribute.description
 :type: str
 :value: >
    None
 
-```{autodoc2-docstring} agentsociety.agent.memory_config_generator.StatusAttribute.description
+```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryAttribute.description
 ```
 
 ````
 
 ````{py:attribute} whether_embedding
-:canonical: agentsociety.agent.memory_config_generator.StatusAttribute.whether_embedding
+:canonical: agentsociety.agent.memory_config_generator.MemoryAttribute.whether_embedding
 :type: bool
 :value: >
    False
 
-```{autodoc2-docstring} agentsociety.agent.memory_config_generator.StatusAttribute.whether_embedding
+```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryAttribute.whether_embedding
 ```
 
 ````
 
 ````{py:attribute} embedding_template
-:canonical: agentsociety.agent.memory_config_generator.StatusAttribute.embedding_template
+:canonical: agentsociety.agent.memory_config_generator.MemoryAttribute.embedding_template
 :type: typing.Optional[str]
 :value: >
    None
 
-```{autodoc2-docstring} agentsociety.agent.memory_config_generator.StatusAttribute.embedding_template
+```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryAttribute.embedding_template
 ```
 
 ````
 
 `````
 
-````{py:data} MemoryT
-:canonical: agentsociety.agent.memory_config_generator.MemoryT
+`````{py:class} MemoryConfig(**data: typing.Any)
+:canonical: agentsociety.agent.memory_config_generator.MemoryConfig
+
+Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryConfig
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryConfig.__init__
+```
+
+````{py:attribute} attributes
+:canonical: agentsociety.agent.memory_config_generator.MemoryConfig.attributes
+:type: dict[str, agentsociety.agent.memory_config_generator.MemoryAttribute]
 :value: >
    None
 
-```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryT
+```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryConfig.attributes
 ```
 
 ````
 
-````{py:function} default_memory_config_citizen(distributions: dict[str, agentsociety.agent.distribution.Distribution], class_config: typing.Optional[list[agentsociety.agent.memory_config_generator.StatusAttribute]] = None) -> tuple[dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, typing.Any]]
+````{py:method} from_list(attributes: list[agentsociety.agent.memory_config_generator.MemoryAttribute]) -> agentsociety.agent.memory_config_generator.MemoryConfig
+:canonical: agentsociety.agent.memory_config_generator.MemoryConfig.from_list
+:staticmethod:
+
+```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryConfig.from_list
+```
+
+````
+
+`````
+
+````{py:function} _create_default_citizen_attributes() -> agentsociety.agent.memory_config_generator.MemoryConfig
+:canonical: agentsociety.agent.memory_config_generator._create_default_citizen_attributes
+
+```{autodoc2-docstring} agentsociety.agent.memory_config_generator._create_default_citizen_attributes
+```
+````
+
+````{py:function} _create_default_supervisor_attributes() -> agentsociety.agent.memory_config_generator.MemoryConfig
+:canonical: agentsociety.agent.memory_config_generator._create_default_supervisor_attributes
+
+```{autodoc2-docstring} agentsociety.agent.memory_config_generator._create_default_supervisor_attributes
+```
+````
+
+````{py:function} default_memory_config_citizen(distributions: dict[str, agentsociety.agent.distribution.Distribution], class_config: typing.Optional[list[agentsociety.agent.memory_config_generator.MemoryAttribute]] = None) -> agentsociety.agent.memory_config_generator.MemoryConfig
 :canonical: agentsociety.agent.memory_config_generator.default_memory_config_citizen
 
 ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.default_memory_config_citizen
 ```
 ````
 
-````{py:function} default_memory_config_supervisor(distributions: dict[str, agentsociety.agent.distribution.Distribution], class_config: typing.Optional[list[agentsociety.agent.memory_config_generator.StatusAttribute]] = None) -> tuple[dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, typing.Any]]
+````{py:function} default_memory_config_supervisor(distributions: dict[str, agentsociety.agent.distribution.Distribution], class_config: typing.Optional[list[agentsociety.agent.memory_config_generator.MemoryAttribute]] = None) -> agentsociety.agent.memory_config_generator.MemoryConfig
 :canonical: agentsociety.agent.memory_config_generator.default_memory_config_supervisor
 
 ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.default_memory_config_supervisor
 ```
 ````
 
-`````{py:class} MemoryConfigGenerator(config_func: typing.Callable[[dict[str, agentsociety.agent.distribution.Distribution], typing.Optional[list[agentsociety.agent.memory_config_generator.StatusAttribute]]], tuple[dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, agentsociety.agent.memory_config_generator.MemoryT], dict[str, typing.Any]]], class_config: typing.Optional[list[agentsociety.agent.memory_config_generator.StatusAttribute]] = None, number: typing.Optional[int] = None, file: typing.Optional[str] = None, distributions: dict[str, typing.Union[agentsociety.agent.distribution.Distribution, agentsociety.agent.distribution.DistributionConfig]] = {}, s3config: agentsociety.s3.S3Config = S3Config.model_validate({}))
+`````{py:class} MemoryConfigGenerator(config_func: typing.Callable[[dict[str, agentsociety.agent.distribution.Distribution], typing.Optional[list[agentsociety.agent.memory_config_generator.MemoryAttribute]]], agentsociety.agent.memory_config_generator.MemoryConfig], class_config: typing.Optional[list[agentsociety.agent.memory_config_generator.MemoryAttribute]] = None, number: typing.Optional[int] = None, file: typing.Optional[str] = None, distributions: dict[str, typing.Union[agentsociety.agent.distribution.Distribution, agentsociety.agent.distribution.DistributionConfig]] = {}, s3config: agentsociety.s3.S3Config = S3Config.model_validate({}))
 :canonical: agentsociety.agent.memory_config_generator.MemoryConfigGenerator
 
 ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryConfigGenerator
@@ -192,7 +240,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:method} generate(i: int)
+````{py:method} generate(i: int) -> agentsociety.agent.memory_config_generator.MemoryConfig
 :canonical: agentsociety.agent.memory_config_generator.MemoryConfigGenerator.generate
 
 ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryConfigGenerator.generate
@@ -217,7 +265,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 ```
 ````
 
-````{py:function} _memory_config_merge(file_data: dict, base_extra_attrs: dict[str, agentsociety.agent.memory_config_generator.MemoryT], base_profile: dict[str, agentsociety.agent.memory_config_generator.MemoryT], base_base: dict[str, typing.Any]) -> dict[str, typing.Any]
+````{py:function} _memory_config_merge(file_data: dict, memory_config: agentsociety.agent.memory_config_generator.MemoryConfig) -> agentsociety.agent.memory_config_generator.MemoryConfig
 :canonical: agentsociety.agent.memory_config_generator._memory_config_merge
 
 ```{autodoc2-docstring} agentsociety.agent.memory_config_generator._memory_config_merge

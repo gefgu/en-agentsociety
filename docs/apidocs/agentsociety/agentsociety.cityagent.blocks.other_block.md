@@ -56,7 +56,7 @@
 
 ````
 
-`````{py:class} SleepBlock(llm: agentsociety.llm.LLM, agent_memory: typing.Optional[agentsociety.memory.Memory] = None, sleep_time_estimation_prompt: str = SLEEP_TIME_ESTIMATION_PROMPT)
+`````{py:class} SleepBlock(toolbox: agentsociety.agent.AgentToolbox, agent_memory: typing.Optional[agentsociety.memory.Memory] = None, sleep_time_estimation_prompt: str = SLEEP_TIME_ESTIMATION_PROMPT)
 :canonical: agentsociety.cityagent.blocks.other_block.SleepBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -101,7 +101,7 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 `````
 
-`````{py:class} OtherNoneBlock(llm: agentsociety.llm.LLM, agent_memory: typing.Optional[agentsociety.memory.Memory] = None)
+`````{py:class} OtherNoneBlock(toolbox: agentsociety.agent.AgentToolbox, agent_memory: typing.Optional[agentsociety.memory.Memory] = None)
 :canonical: agentsociety.cityagent.blocks.other_block.OtherNoneBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`
@@ -168,7 +168,7 @@ Bases: {py:obj}`agentsociety.agent.BlockContext`
 
 ```
 
-`````{py:class} OtherBlock(llm: agentsociety.llm.LLM, environment: agentsociety.environment.Environment, agent_memory: agentsociety.memory.Memory, block_params: typing.Optional[agentsociety.cityagent.blocks.other_block.OtherBlockParams] = None)
+`````{py:class} OtherBlock(toolbox: agentsociety.agent.AgentToolbox, agent_memory: agentsociety.memory.Memory, block_params: typing.Optional[agentsociety.cityagent.blocks.other_block.OtherBlockParams] = None)
 :canonical: agentsociety.cityagent.blocks.other_block.OtherBlock
 
 Bases: {py:obj}`agentsociety.agent.Block`

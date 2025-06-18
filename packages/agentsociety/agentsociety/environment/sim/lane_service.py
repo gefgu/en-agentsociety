@@ -33,7 +33,7 @@ class LaneService:
         - **Returns**:
         - https://cityproto.sim.fiblab.net/#city.map.v2.GetLaneResponse
         """
-        if type(req) != lane_service.GetLaneRequest:
+        if not isinstance(req, lane_service.GetLaneRequest):
             req = ParseDict(req, lane_service.GetLaneRequest())
         res = cast(Awaitable[lane_service.GetLaneResponse], self._aio_stub.GetLane(req))
         return async_parse(res, dict_return)
@@ -53,7 +53,7 @@ class LaneService:
         - **Returns**:
         - https://cityproto.sim.fiblab.net/#city.map.v2.SetLaneMaxVResponse
         """
-        if type(req) != lane_service.SetLaneMaxVRequest:
+        if not isinstance(req, lane_service.SetLaneMaxVRequest):
             req = ParseDict(req, lane_service.SetLaneMaxVRequest())
         res = cast(
             Awaitable[lane_service.SetLaneMaxVResponse], self._aio_stub.SetLaneMaxV(req)
@@ -77,7 +77,7 @@ class LaneService:
         - **Returns**:
         - https://cityproto.sim.fiblab.net/#city.map.v2.SetLaneRestrictionResponse
         """
-        if type(req) != lane_service.SetLaneRestrictionRequest:
+        if not isinstance(req, lane_service.SetLaneRestrictionRequest):
             req = ParseDict(req, lane_service.SetLaneRestrictionRequest())
         res = cast(
             Awaitable[lane_service.SetLaneRestrictionResponse],
@@ -102,7 +102,7 @@ class LaneService:
         - **Returns**:
         - https://cityproto.sim.fiblab.net/#city.map.v2.GetLaneByLongLatBBoxResponse
         """
-        if type(req) != lane_service.GetLaneByLongLatBBoxRequest:
+        if not isinstance(req, lane_service.GetLaneByLongLatBBoxRequest):
             req = ParseDict(req, lane_service.GetLaneByLongLatBBoxRequest())
         res = cast(
             Awaitable[lane_service.GetLaneByLongLatBBoxResponse],

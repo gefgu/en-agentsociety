@@ -33,7 +33,7 @@ class RoadService:
         - **Returns**:
         - https://cityproto.sim.fiblab.net/#city.map.v2.GetRoadResponse
         """
-        if type(req) != road_service.GetRoadRequest:
+        if not isinstance(req, road_service.GetRoadRequest):
             req = ParseDict(req, road_service.GetRoadRequest())
         res = cast(Awaitable[road_service.GetRoadResponse], self._aio_stub.GetRoad(req))
         return async_parse(res, dict_return)

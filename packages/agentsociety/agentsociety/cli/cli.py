@@ -3,13 +3,12 @@ import importlib.metadata
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Optional
 from urllib.parse import urlsplit
 
 import click
-from fastapi import APIRouter
 import yaml
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 version_string_of_agentsociety = importlib.metadata.version("agentsociety")
 
@@ -150,7 +149,6 @@ def ui(config: Optional[str], config_base64: Optional[str]):
 @cli.command()
 @common_options
 def check(config: str, config_base64: str):
-    import os
     from pathlib import Path
 
     """Pre-check the config"""
@@ -199,19 +197,19 @@ def check(config: str, config_base64: str):
                 error_msg = str(e)
                 if "password authentication failed" in error_msg:
                     click.echo(
-                        f"Explanation: The username or password of the PostgreSQL server is incorrect."
+                        "Explanation: The username or password of the PostgreSQL server is incorrect."
                     )
                 elif "Temporary failure in name resolution" in error_msg:
                     click.echo(
-                        f"Explanation: The host of the PostgreSQL server is invalid. Maybe you should use `localhost` or `127.0.0.1` instead if you are running the simulation on a single machine (used to run docker compose)."
+                        "Explanation: The host of the PostgreSQL server is invalid. Maybe you should use `localhost` or `127.0.0.1` instead if you are running the simulation on a single machine (used to run docker compose)."
                     )
                 elif "Connection refused" in error_msg:
                     click.echo(
-                        f"Explanation: The host or port of the PostgreSQL server is incorrect."
+                        "Explanation: The host or port of the PostgreSQL server is incorrect."
                     )
             elif c.env.db.db_type == "sqlite":
                 click.echo(
-                    f"Explanation: SQLite database connection failed. Please check the file path and permissions."
+                    "Explanation: SQLite database connection failed. Please check the file path and permissions."
                 )
         except Exception as e:
             click.echo(f"Database connection check. {click.style('Failed:', fg='red')} {e}")

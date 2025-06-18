@@ -4,7 +4,8 @@ import random
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-import jsonc
+import json
+import json_repair
 from pycityproto.city.person.v2 import person_pb2 as person_pb2
 
 from ..environment.sim.person_service import PersonService
@@ -23,6 +24,7 @@ __all__ = [
     "BankAgentBase",
     "NBSAgentBase",
     "GovernmentAgentBase",
+    "SupervisorBase",
 ]
 
 
@@ -53,6 +55,8 @@ class CitizenAgentBase(Agent):
             - `name` (`str`): The name or identifier of the agent.
             - `toolbox` (`AgentToolbox`): The toolbox of the agent.
             - `memory` (`Memory`): The memory of the agent.
+            - `agent_params` (`Optional[Any]`): Additional parameters for the agent. Defaults to None.
+            - `blocks` (`Optional[list[Block]]`): List of blocks for the agent. Defaults to None.
 
         - **Description**:
             - Initializes the CitizenAgent with the provided parameters and sets up necessary internal states.
@@ -101,12 +105,12 @@ class CitizenAgentBase(Agent):
         status = self.status
         dict_person = PersonService.default_person(return_dict=True)
         dict_person["id"] = self.id
-        for _key in FROM_MEMORY_KEYS:
+        for key in FROM_MEMORY_KEYS:
             try:
-                _value = await status.get(_key)
-                if _value:
-                    dict_person[_key] = _value
-            except KeyError as e:
+                value = await status.get(key)
+                if value:
+                    dict_person[key] = value
+            except KeyError:
                 continue
         await simulator.add_person(dict_person)
 
@@ -136,16 +140,7 @@ class CitizenAgentBase(Agent):
         resp = await self.environment.get_person(self.id)
         resp_dict = resp["person"]
         for k, v in resp_dict.get("motion", {}).items():
-            try:
-                await self.status.get(k)
-                await self.status.update(
-                    k, v, mode="replace", protect_llm_read_only_fields=False
-                )
-            except KeyError as e:
-                get_logger().debug(
-                    f"KeyError: {e} when updating motion of agent {self.id}"
-                )
-                continue
+            await self.status.update(k, v, mode="replace")
 
     async def do_survey(self, survey: Survey) -> str:
         """
@@ -164,50 +159,99 @@ class CitizenAgentBase(Agent):
             - If the LLM client is not available, it returns a default message indicating unavailability.
             - This method can be overridden by subclasses to customize survey response generation.
         """
-        survey_prompt = survey.to_prompt()
+        survey_prompts = survey.to_prompt()
         dialog = []
 
         # Add system prompt
         system_prompt = "Please answer the survey question in first person. Follow the format requirements strictly and provide clear and specific answers (In JSON format)."
         dialog.append({"role": "system", "content": system_prompt})
 
-        # Add memory context
-        if self.memory:
-            profile_and_states = await self.status.search(survey_prompt)
-            relevant_activities = await self.stream.search(survey_prompt)
+        all_responses = []
+        for survey_prompt in survey_prompts:
+            dialog = dialog[:1]
+            
+            # First, analyze what information is needed to answer this question
+            analysis_prompt = f"""If a person wants to answer this survey question, what specific questions should they ask themselves to gather the necessary information?
+
+Please provide your analysis in the following JSON format:
+
+{{
+    "profile_query": "A specific question about basic profile information (e.g., 'What is my background story?', 'What is my age?', 'What is my gender?' or their combination, for example, 'What is my age and gender?')",
+    "memory_query": "A specific question about experiences, activities, preferences, or behaviors (e.g., 'What recent activities have I done?', 'What are my preferences?', 'What experiences have I had?', 'What behaviors have I shown?')"
+}}
+
+Note: profile_query should only focus on basic demographic and background information. memory_query should focus on experiences, activities, and behaviors.
+
+Question: {survey_prompt}"""
+            
+            analysis_dialog = [
+                {"role": "system", "content": "You are an expert at analyzing survey questions and determining what specific questions need to be asked to gather relevant information. Profile queries should focus on basic demographic and background information only. Memory queries should focus on experiences, activities, and behaviors. Please respond in JSON format with specific questions."},
+                {"role": "user", "content": analysis_prompt}
+            ]
+            
+            # Get analysis from LLM
+            profile_query = "What is my background story?"
+            memory_query = "What recent activities have I done?"
+            
+            for retry in range(5):
+                try:
+                    analysis_response = await self.llm.atext_request(
+                        analysis_dialog, response_format={"type": "json_object"} # type: ignore
+                    ) # type: ignore
+                    json_str = extract_json(analysis_response)
+                    if json_str:
+                        analysis_dict = json_repair.loads(json_str)
+                        profile_query = analysis_dict.get("profile_query", survey_prompt) # type: ignore
+                        memory_query = analysis_dict.get("memory_query", survey_prompt) # type: ignore
+                        break
+                except Exception as e:
+                    get_logger().warning(f"Analysis retry {retry + 1}/5 failed: {str(e)}")
+                    if retry == 4:  # Last retry
+                        get_logger().error("Failed to analyze survey question, using original question as fallback")
+            
+            # Use the analysis results as separate search queries
+            background_story = await self.status.get("background_story")
+            profile_and_states = await self.status.search(profile_query)
+            relevant_memory = await self.stream.search(memory_query)
+
+            get_logger().info(f"background_story: {background_story}\nprofile_and_states: {profile_and_states}\nrelevant_memory: {relevant_memory}")
 
             dialog.append(
                 {
                     "role": "system",
-                    "content": f"Answer based on following profile and states:\n{profile_and_states}\n Related activities:\n{relevant_activities}",
+                    "content": f"Answer the survey question based on following information:- My background story: {background_story}\n\n- My Profile: \n{profile_and_states}\n\n- My Related Memory: \n{relevant_memory}",
                 }
             )
 
-        # Add survey question
-        dialog.append({"role": "user", "content": survey_prompt})
+            # Add survey question
+            dialog.append({"role": "user", "content": survey_prompt})
 
-        for retry in range(10):
-            try:
-                # Use LLM to generate a response
-                # print(f"dialog: {dialog}")
-                _response = await self.llm.atext_request(
-                    dialog, response_format={"type": "json_object"}
-                )
-                # print(f"response: {_response}")
-                json_str = extract_json(_response)
-                if json_str:
-                    json_dict = jsonc.loads(json_str)
-                    json_str = jsonc.dumps(json_dict, ensure_ascii=False)
-                    break
-            except:
-                pass
-        else:
-            import traceback
-
-            traceback.print_exc()
-            get_logger().error("Failed to generate survey response")
             json_str = ""
-        return json_str
+            for retry in range(10):
+                try:
+                    # Use LLM to generate a response
+                    # print(f"dialog: {dialog}")
+                    _response = await self.llm.atext_request(
+                        dialog, response_format={"type": "json_object"}
+                    )
+                    # print(f"response: {_response}")
+                    json_str = extract_json(_response)
+                    if json_str:
+                        json_dict = json_repair.loads(json_str)
+                        json_str = json.dumps(json_dict, ensure_ascii=False)
+                        break
+                except Exception as e:
+                    get_logger().warning(f"Retry {retry + 1}/10 failed: {str(e)}")
+                    if retry == 9:  # Last retry
+                        import traceback
+                        traceback.print_exc()
+                        get_logger().error("Failed to generate survey response after all retries")
+                        json_str = ""
+            
+            all_responses.append(json_str)
+        
+        # Return all responses as a combined JSON string
+        return json.dumps(all_responses, ensure_ascii=False)
 
     async def _handle_survey_with_storage(
         self,
@@ -241,21 +285,22 @@ class CitizenAgentBase(Agent):
             id=self.id,
             day=survey_day if survey_day is not None else day,
             t=survey_t if survey_t is not None else t,
-            survey_id=str(survey.id),
+            survey_id=survey.id,
             result=survey_response,
             created_at=date_time,
         )
         # Database
         if self.database_writer is not None:
             if is_pending_survey:
-                await self.database_writer.write_surveys.remote(  # type:ignore
+                assert pending_survey_id is not None
+                await self.database_writer.write_surveys(  # type:ignore
                     [storage_survey]
                 )
-                await self.database_writer.mark_surveys_as_processed.remote(  # type:ignore
+                await self.database_writer.mark_surveys_as_processed(  # type:ignore
                     [pending_survey_id]
                 )
             else:
-                await self.database_writer.write_surveys.remote(  # type:ignore
+                await self.database_writer.write_surveys(  # type:ignore
                     [storage_survey]
                 )
         # status memory
@@ -264,7 +309,6 @@ class CitizenAgentBase(Agent):
         await self.memory.status.update(
             "survey_responses",
             new_survey_responses,
-            protect_llm_read_only_fields=False,
         )
         return survey_response
 
@@ -292,16 +336,15 @@ class CitizenAgentBase(Agent):
         dialog.append({"role": "system", "content": system_prompt})
 
         # Add memory context
-        if self._memory:
-            profile_and_states = await self.status.search(question, top_k=10)
-            relevant_activities = await self.stream.search(question, top_k=10)
+        profile_and_states = await self.status.search(question, top_k=10)
+        relevant_activities = await self.stream.search(question, top_k=10)
 
-            dialog.append(
-                {
-                    "role": "system",
-                    "content": f"Answer based on following profile and states:\n{profile_and_states}\n Related activities:\n{relevant_activities}",
-                }
-            )
+        dialog.append(
+            {
+                "role": "system",
+                "content": f"Answer based on following profile and states:\n{profile_and_states}\n Related activities:\n{relevant_activities}",
+            }
+        )
 
         # Add user question
         dialog.append({"role": "user", "content": question})
@@ -330,7 +373,7 @@ class CitizenAgentBase(Agent):
             created_at=datetime.now(timezone.utc),
         )
         if self.database_writer is not None:
-            await self.database_writer.write_dialogs.remote(  # type:ignore
+            await self.database_writer.write_dialogs(  # type:ignore
                 [storage_dialog]
             )
         response = await self.do_interview(question)
@@ -345,11 +388,11 @@ class CitizenAgentBase(Agent):
         )
         # Database
         if self.database_writer is not None:
-            await self.database_writer.write_dialogs.remote(  # type:ignore
+            await self.database_writer.write_dialogs(  # type:ignore
                 [storage_dialog]
             )
             if message.extra is not None and "pending_dialog_id" in message.extra:
-                await self.database_writer.mark_dialogs_as_processed.remote(  # type:ignore
+                await self.database_writer.mark_dialogs_as_processed(  # type:ignore
                     [message.extra["pending_dialog_id"]]
                 )
         return response
@@ -365,7 +408,7 @@ class CitizenAgentBase(Agent):
             - Saves the thought data to the memory.
         """
         day, t = self.environment.get_datetime()
-        await self.memory.stream.add_cognition(thought)
+        await self.memory.stream.add(topic="cognition", description=thought)
         storage_thought = StorageDialog(
             id=self.id,
             day=day,
@@ -377,9 +420,7 @@ class CitizenAgentBase(Agent):
         )
         # Database
         if self.database_writer is not None:
-            await self.database_writer.write_dialogs.remote(  # type:ignore
-                [storage_thought]
-            )
+            await self.database_writer.write_dialogs([storage_thought])
 
     async def do_chat(self, message: Message) -> str:
         """
@@ -405,8 +446,8 @@ class CitizenAgentBase(Agent):
             - Writes the chat message and metadata into Database.
         """
         try:
-            content = jsonc.dumps(message.payload, ensure_ascii=False)
-        except:
+            content = json.dumps(message.payload, ensure_ascii=False)
+        except Exception:
             content = str(message.payload)
         storage_dialog = StorageDialog(
             id=self.id,
@@ -420,7 +461,7 @@ class CitizenAgentBase(Agent):
         await self.do_chat(message)
         # Database
         if self.database_writer is not None:
-            await self.database_writer.write_dialogs.remote(  # type:ignore
+            await self.database_writer.write_dialogs(  # type:ignore
                 [storage_dialog]
             )
 
@@ -472,9 +513,12 @@ class InstitutionAgentBase(Agent):
         Initialize a new instance of the InstitutionAgent.
 
         - **Args**:
+            - `id` (`int`): The ID of the agent.
             - `name` (`str`): The name or identifier of the agent.
             - `toolbox` (`AgentToolbox`): The toolbox of the agent.
             - `memory` (`Memory`): The memory of the agent.
+            - `agent_params` (`Optional[Any]`): Additional parameters for the agent. Defaults to None.
+            - `blocks` (`Optional[list[Block]]`): List of blocks for the agent. Defaults to None.
 
         - **Description**:
             - Initializes the InstitutionAgent with the provided parameters and sets up necessary internal states.
@@ -527,7 +571,6 @@ class InstitutionAgentBase(Agent):
                     ),
                 }
             },
-            protect_llm_read_only_fields=False,
         )
         _type = None
         _status = self.status
@@ -636,16 +679,18 @@ class SupervisorBase(Agent):
         blocks: Optional[list[Block]] = None,
     ) -> None:
         """
-        Initialize a new instance of the CitizenAgent.
+        Initialize a new instance of the SupervisorAgent.
 
         - **Args**:
             - `id` (`int`): The ID of the agent.
             - `name` (`str`): The name or identifier of the agent.
             - `toolbox` (`AgentToolbox`): The toolbox of the agent.
             - `memory` (`Memory`): The memory of the agent.
+            - `agent_params` (`Optional[Any]`): Additional parameters for the agent. Defaults to None.
+            - `blocks` (`Optional[list[Block]]`): List of blocks for the agent. Defaults to None.
 
         - **Description**:
-            - Initializes the CitizenAgent with the provided parameters and sets up necessary internal states.
+            - Initializes the SupervisorAgent with the provided parameters and sets up necessary internal states.
         """
         super().__init__(
             id=id,
@@ -679,12 +724,13 @@ class SupervisorBase(Agent):
         """
         Process and validate messages from the current round, performing validation and intervention
 
-        Args:
-            current_round_messages: List of messages for the current round, each element is a tuple of (sender_id, receiver_id, content)
+        - **Args**:
+            - `current_round_messages` (`list[Message]`): List of messages for the current round, each element is a tuple of (sender_id, receiver_id, content).
 
-        Returns:
-            validation_dict: Dictionary of message validation results, key is message tuple, value is whether validation passed
-            persuasion_messages: List of persuasion messages
+        - **Returns**:
+            - `tuple[dict[Message, bool], list[Message]]`: A tuple containing:
+                - `validation_dict`: Dictionary of message validation results, key is message tuple, value is whether validation passed.
+                - `persuasion_messages`: List of persuasion messages.
         """
         raise NotImplementedError(
             "This method `forward` should be implemented by the subclass"
