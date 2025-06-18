@@ -206,7 +206,6 @@ class AgentSociety:
         self._message_interceptor: Optional[MessageInterceptor] = None
         self._database_writer: Optional[DatabaseWriter] = None
         self._embedding: Optional[SparseTextEmbedding] = None
-        self._agents: list[Agent] = []
         self._id2agent: dict[int, Agent] = {}
         yaml_config = yaml.dump(
             self._config.model_dump(
@@ -903,18 +902,17 @@ class AgentSociety:
                     agent_params=agent_params,
                     blocks=blocks,
                 )
-                self._agents.append(agent)
                 self._id2agent[id] = agent
             get_logger().info("-----Initializing by running agent.init() ...")
             tasks = []
             channels = []
-            for agent in self._agents:
+            for agent in self._id2agent.values():
                 tasks.append(agent.init())
                 channels.append(f"exps:{self.exp_id}:agents:{agent.id}:*")
             await asyncio.gather(*tasks)
             get_logger().info("-----Initializing by exporting profiles ...")
             profiles = []
-            for agent in self._agents:
+            for agent in self._id2agent.values():
                 profile = await agent.status.export(
                     [
                         "name",
@@ -946,7 +944,7 @@ class AgentSociety:
                 await self._database_writer.write_profiles(profiles)  # type:ignore
             get_logger().info("-----Initializing embeddings ...")
             embedding_tasks = []
-            for agent in self._agents:
+            for agent in self._id2agent.values():
                 embedding_tasks.append(agent.memory.initialize_embeddings())
             await asyncio.gather(*embedding_tasks)
 
@@ -996,7 +994,7 @@ class AgentSociety:
 
         get_logger().info("Closing agent groups...")
         close_tasks = []
-        for agent in self._agents:
+        for agent in self._id2agent.values():
             close_tasks.append(agent.close())  # type:ignore
         await asyncio.gather(*close_tasks)
         get_logger().info("Agents closed")
@@ -1077,11 +1075,11 @@ class AgentSociety:
         if target_agent_ids is None:
             target_agent_ids = list(self._id2agent.keys())
         if content == "stream_memory":
-            for agent in self._agents:
+            for agent in self._id2agent.values():
                 if agent.id in target_agent_ids:
                     results[agent.id] = await agent.stream.get_all()
         else:
-            for agent in self._agents:
+            for agent in self._id2agent.values():
                 if agent.id in target_agent_ids:
                     results[agent.id] = await agent.status.get(content)
         if flatten:
@@ -1486,7 +1484,7 @@ class AgentSociety:
         # build statuses data
         # =========================
         statuses = []
-        for agent in self._agents:
+        for agent in self._id2agent.values():
             if isinstance(agent, CitizenAgentBase):
                 position = await agent.status.get("position")
                 x = position["xy_position"]["x"]
@@ -1622,7 +1620,7 @@ class AgentSociety:
         """
         get_logger().info("Start entering the next round of the simulation")
         tasks = []
-        for agent in self._agents:
+        for agent in self._id2agent.values():
             tasks.append(agent.reset())  # type:ignore
         await asyncio.gather(*tasks)
         await self.environment.step(1)
@@ -1657,7 +1655,7 @@ class AgentSociety:
             )
             await self._message_dispatch()
             # main agent workflow
-            tasks = [agent.run() for agent in self._agents]
+            tasks = [agent.run() for agent in self._id2agent.values()]
             agent_time_log = await asyncio.gather(*tasks)
             simulator_log = (
                 self.environment.get_log_list()
@@ -1674,7 +1672,7 @@ class AgentSociety:
 
             # gather query
             gather_queries = {}
-            for agent in self._agents:
+            for agent in self._id2agent.values():
                 if agent.gather_query:
                     gather_queries[agent.id] = agent.gather_query
 
