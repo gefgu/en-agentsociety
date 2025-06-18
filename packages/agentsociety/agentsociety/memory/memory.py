@@ -541,9 +541,6 @@ class StreamMemory:
             if memory.id in memory_ids:
                 target_memories.append(memory)
 
-        if not target_memories:
-            raise ValueError(f"No memories found with ids {memory_ids}")
-
         # Add cognitive memory
         cognition_id = await self.add(topic="cognition", description=cognition)
 

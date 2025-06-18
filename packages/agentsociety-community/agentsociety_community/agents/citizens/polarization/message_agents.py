@@ -11,6 +11,7 @@ from agentsociety.agent.prompt import FormatPrompt
 from agentsociety.memory import Memory
 from agentsociety.logger import get_logger
 from agentsociety.cityagent.societyagent import SocietyAgentConfig, MemoryAttribute
+from agentsociety.message import Message
 
 AGREE_PROMPT = """
 You are an agent who always agrees with the topic: Whether to support stronger gun control? (You think it is a good idea)
@@ -117,7 +118,9 @@ class AgreeAgent(CitizenAgentBase):
             await asyncio.gather(*send_tasks)
             get_logger().info("AgreeAgent forward end")
 
-    async def do_chat(self, payload: dict) -> str:
+    async def do_chat(self, message: Message) -> str:
+        """Process incoming social/economic messages and generate responses."""
+        payload = message.payload
         try:
             # Extract basic info
             sender_id = payload.get("from")
@@ -151,7 +154,7 @@ class AgreeAgent(CitizenAgentBase):
             return response
 
         except Exception as e:
-            get_logger().warning(f"Error in process_agent_chat_response: {str(e)}")
+            get_logger().warning(f"AgreeAgent Error in do_chat: {str(e)}")
             return ""
 
 
@@ -229,7 +232,9 @@ class DisagreeAgent(CitizenAgentBase):
             await asyncio.gather(*send_tasks)
             get_logger().info("DisagreeAgent forward end")
 
-    async def do_chat(self, payload: dict) -> str:
+    async def do_chat(self, message: Message) -> str:
+        """Process incoming social/economic messages and generate responses."""
+        payload = message.payload
         try:
             # Extract basic info
             sender_id = payload.get("from")
@@ -263,5 +268,5 @@ class DisagreeAgent(CitizenAgentBase):
             return response
 
         except Exception as e:
-            get_logger().warning(f"Error in process_agent_chat_response: {str(e)}")
+            get_logger().warning(f"DisagreeAgent Error in do_chat: {str(e)}")
             return ""

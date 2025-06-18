@@ -657,21 +657,29 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
                     get_logger().warning(
                         f"There is no appropriate block found for {self.context['current_intention']}"
                     )
+                    node_id = await self.memory.stream.add(
+                        topic="activity",
+                        description=f"I finished: {self.context['current_intention']}",
+                    )
                     result = {
-                        "success": False,
-                        "evaluation": f"Failed to {self.context['current_intention']}",
+                        "success": True,
+                        "evaluation": f"I finished: {self.context['current_intention']}",
                         "consumed_time": random.randint(1, 100),
-                        "node_id": None,
+                        "node_id": node_id,
                     }
             else:
                 get_logger().warning(
                     f"There is no block found for {self.context['current_intention']}"
                 )
+                node_id = await self.memory.stream.add(
+                    topic="activity",
+                    description=f"I finished: {self.context['current_intention']}",
+                )
                 result = {
                     "success": True,
-                    "evaluation": f"Successfully {self.context['current_intention']}",
+                    "evaluation": f"I finished: {self.context['current_intention']}",
                     "consumed_time": random.randint(1, 100),
-                    "node_id": None,
+                    "node_id": node_id,
                 }
             if result is not None:
                 current_step["evaluation"] = result
