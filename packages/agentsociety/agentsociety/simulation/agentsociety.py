@@ -724,9 +724,12 @@ class AgentSociety:
                     else:
                         blocks = None
                     # build agent
-                    agent_params = agent_config.agent_class.ParamsType.model_validate(
-                        agent_config.agent_params
-                    )
+                    if agent_config.agent_params is None:
+                        agent_params = agent_config.agent_class.ParamsType()
+                    else:
+                        agent_params = agent_config.agent_class.ParamsType.model_validate(
+                            agent_config.agent_params
+                        )
                     supervisor = agent_config.agent_class(
                         id=agent_id,
                         name=f"{agent_config.agent_class.__name__}_{agent_id}",
