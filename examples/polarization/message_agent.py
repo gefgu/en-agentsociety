@@ -5,13 +5,13 @@ from typing import Any
 import json_repair
 from typing import Optional
 
-from agentsociety.agent import CitizenAgentBase, Block
+from agentsociety.agent import CitizenAgentBase, Block, MemoryAttribute
 from agentsociety.message import Message
 from agentsociety.agent.agent_base import AgentToolbox
 from agentsociety.agent.prompt import FormatPrompt
 from agentsociety.memory import Memory
 from agentsociety.logger import get_logger
-from agentsociety.cityagent.societyagent import SocietyAgentConfig, MemoryAttribute
+from agentsociety.cityagent.societyagent import SocietyAgentConfig
 
 AGREE_PROMPT = """
 You are an agent who always agrees with the topic: Whether to support stronger gun control? (You think it is a good idea)
