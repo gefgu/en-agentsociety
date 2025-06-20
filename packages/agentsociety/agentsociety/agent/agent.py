@@ -214,8 +214,6 @@ Question: {survey_prompt}"""
             profile_and_states = await self.status.search(profile_query)
             relevant_memory = await self.stream.search(memory_query)
 
-            get_logger().info(f"background_story: {background_story}\nprofile_and_states: {profile_and_states}\nrelevant_memory: {relevant_memory}")
-
             dialog.append(
                 {
                     "role": "system",

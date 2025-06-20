@@ -168,16 +168,31 @@ class VectorStore:
         )
 
         # Perform search
+        must_conditions = []
+        for key, value in search_filter.items():
+            if isinstance(value, dict):
+                must_conditions.append(
+                    models.FieldCondition(
+                        key=key,
+                        range=models.Range(
+                            gte=value.get("gte"),
+                            lte=value.get("lte"),
+                            gt=value.get("gt"),
+                            lt=value.get("lt"),
+                        ),
+                    )
+                )
+            else:
+                # Handle exact match filter
+                must_conditions.append(
+                    models.FieldCondition(key=key, match=models.MatchValue(value=value))
+                )
+
         search_result = self._client.search(
             collection_name=self._collection_name,
             query_vector=named_vector,
             limit=k,
-            query_filter=models.Filter(
-                must=[
-                    models.FieldCondition(key=key, match=models.MatchValue(value=value))
-                    for key, value in search_filter.items()
-                ]
-            ),
+            query_filter=models.Filter(must=must_conditions),
         )
 
         # Format results

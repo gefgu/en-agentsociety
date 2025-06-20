@@ -451,11 +451,11 @@ class StreamMemory:
         # Add time range filter
         if day_range:
             start_day, end_day = day_range
-            filter_dict["day"] = lambda x: start_day <= x <= end_day
+            filter_dict["day"] = {"gte": start_day, "lte": end_day}
 
         if time_range:
             start_time, end_time = time_range
-            filter_dict["time"] = lambda x: start_time <= x <= end_time
+            filter_dict["time"] = {"gte": start_time, "lte": end_time}
 
         top_results = await self._vectorstore.similarity_search(
             query=query,
