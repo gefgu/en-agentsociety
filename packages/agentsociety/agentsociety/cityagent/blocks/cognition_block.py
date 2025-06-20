@@ -76,7 +76,7 @@ class CognitionBlock(Block):
             agent_memory=agent_memory,
             block_params=block_params,
         )
-        self.last_check_day = 0
+        self.last_check_day = None
 
     async def set_status(self, status):
         """Update multiple status fields in memory.
@@ -292,13 +292,14 @@ class CognitionBlock(Block):
             True if a new day is detected, False otherwise.
         """
         day, _ = self.environment.get_datetime()
-        if self.last_check_day == 0:
+        if self.last_check_day is None:
             self.last_check_day = day
             return False
         if day > self.last_check_day:
             self.last_check_day = day
             return True
-        return False
+        else:
+            return False
 
     async def forward(self):
         """Main daily cognitive update entry point.
