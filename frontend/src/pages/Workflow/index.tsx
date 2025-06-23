@@ -8,6 +8,7 @@ import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import MonacoPromptEditor from '../../components/MonacoPromptEditor';
 import { profileOptions } from '../AgentTemplate/AgentTemplateForm';
+import { Survey } from '../../components/type';
 
 interface FormValues {
     name: string;
@@ -52,8 +53,45 @@ const WorkflowList: React.FC = () => {
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [currentWorkflow, setCurrentWorkflow] = useState<ConfigWrapper<WorkflowStepConfig[]> | null>(null);
     const [functionList, setFunctionList] = useState<string[]>([]);
+    const [surveyList, setSurveyList] = useState<Survey[]>([]);
     const [form] = Form.useForm<FormValues>();
     const [targetAgentModes, setTargetAgentModes] = useState<{ [key: string]: 'list' | 'expression' }>({});
+    const [agentClasses, setAgentClasses] = useState<{ [agentType: string]: { value: string; label: string }[] }>({});
+    const [loadingAgentClasses, setLoadingAgentClasses] = useState<{ [agentType: string]: boolean }>({});
+
+    // 获取agent classes的函数
+    const fetchAgentClasses = async () => {
+        if (agentClasses['citizen'] && agentClasses['supervisor']) return; // 如果已经加载过，直接返回
+        
+        setLoadingAgentClasses({ citizen: true, supervisor: true });
+        try {
+            const [citizenResponse, supervisorResponse] = await Promise.all([
+                fetchCustom('/api/agent-classes?agent_type=citizen'),
+                fetchCustom('/api/agent-classes?agent_type=supervisor')
+            ]);
+            
+            const citizenData = citizenResponse.ok ? await citizenResponse.json() : { data: [] };
+            const supervisorData = supervisorResponse.ok ? await supervisorResponse.json() : { data: [] };
+            
+            setAgentClasses({
+                citizen: citizenData.data || [],
+                supervisor: supervisorData.data || []
+            });
+        } catch (error) {
+            console.error('获取agent classes失败:', error);
+            setAgentClasses({
+                citizen: [],
+                supervisor: []
+            });
+        } finally {
+            setLoadingAgentClasses({ citizen: false, supervisor: false });
+        }
+    };
+
+    // 初始化时获取所有agent classes
+    useEffect(() => {
+        fetchAgentClasses();
+    }, []);
 
     // 获取函数列表
     useEffect(() => {
@@ -67,6 +105,23 @@ const WorkflowList: React.FC = () => {
             }
         };
         fetchFunctionList();
+    }, []);
+
+    // 获取survey列表
+    useEffect(() => {
+        const fetchSurveyList = async () => {
+            try {
+                const response = await fetchCustom('/api/surveys');
+                if (!response.ok) {
+                    throw new Error(await response.text());
+                }
+                const data = await response.json();
+                setSurveyList(data.data);
+            } catch (error) {
+                console.error('Failed to fetch survey list:', error);
+            }
+        };
+        fetchSurveyList();
     }, []);
 
     // Load workflow configurations
@@ -124,10 +179,69 @@ const WorkflowList: React.FC = () => {
     const handleEdit = (workflow: ConfigWrapper<WorkflowStepConfig[]>) => {
         setCurrentWorkflow(workflow);
 
+        // 处理配置数据，将AgentFilterConfig转换为表单格式
+        const processedConfig = workflow.config?.map((step: any, index: number) => {
+            if ([WorkflowType.INTERVIEW, WorkflowType.SURVEY, WorkflowType.UPDATE_STATE_INTERVENE, WorkflowType.MESSAGE_INTERVENE, WorkflowType.SAVE_CONTEXT].includes(step.type)) {
+                if (step.target_agent && typeof step.target_agent === 'object') {
+                    // 如果是AgentFilterConfig对象
+                    if (step.target_agent.filter_str) {
+                        // 表达式模式
+                        handleTargetAgentModeChange(index, 'expression');
+                        return {
+                            ...step,
+                            target_agent: step.target_agent.filter_str
+                        };
+                    } else if (step.target_agent.agent_class) {
+                        // 列表模式，使用agent_class
+                        handleTargetAgentModeChange(index, 'expression');
+                        // 加载agent classes
+                        if (Array.isArray(step.target_agent.agent_class)) {
+                            step.target_agent.agent_class.forEach((agentClass: string) => {
+                                if (agentClass.includes('citizen')) {
+                                    fetchAgentClasses();
+                                } else if (agentClass.includes('supervisor')) {
+                                    fetchAgentClasses();
+                                }
+                            });
+                        }
+                        return {
+                            ...step,
+                            agent_class: step.target_agent.agent_class
+                        };
+                    } else if (step.target_agent.filter_str && step.target_agent.agent_class) {
+                        // 过滤模式，同时使用filter_str和agent_class
+                        handleTargetAgentModeChange(index, 'expression');
+                        // 加载agent classes
+                        if (Array.isArray(step.target_agent.agent_class)) {
+                            step.target_agent.agent_class.forEach((agentClass: string) => {
+                                if (agentClass.includes('citizen')) {
+                                    fetchAgentClasses();
+                                } else if (agentClass.includes('supervisor')) {
+                                    fetchAgentClasses();
+                                }
+                            });
+                        }
+                        return {
+                            ...step,
+                            target_agent: step.target_agent.filter_str,
+                            agent_class: step.target_agent.agent_class
+                        };
+                    }
+                } else if (Array.isArray(step.target_agent)) {
+                    // 原有的数组格式
+                    handleTargetAgentModeChange(index, 'list');
+                } else if (typeof step.target_agent === 'string') {
+                    // 字符串格式，可能是表达式
+                    handleTargetAgentModeChange(index, 'expression');
+                }
+            }
+            return step;
+        }) || [];
+
         form.setFieldsValue({
             name: workflow.name,
             description: workflow.description || '',
-            config: workflow.config || []
+            config: processedConfig
         });
         setIsModalVisible(true);
     };
@@ -136,10 +250,69 @@ const WorkflowList: React.FC = () => {
     const handleDuplicate = (workflow: ConfigWrapper<WorkflowStepConfig[]>) => {
         setCurrentWorkflow(null);
 
+        // 处理配置数据，将AgentFilterConfig转换为表单格式
+        const processedConfig = workflow.config?.map((step: any, index: number) => {
+            if ([WorkflowType.INTERVIEW, WorkflowType.SURVEY, WorkflowType.UPDATE_STATE_INTERVENE, WorkflowType.MESSAGE_INTERVENE, WorkflowType.SAVE_CONTEXT].includes(step.type)) {
+                if (step.target_agent && typeof step.target_agent === 'object') {
+                    // 如果是AgentFilterConfig对象
+                    if (step.target_agent.filter_str) {
+                        // 表达式模式
+                        handleTargetAgentModeChange(index, 'expression');
+                        return {
+                            ...step,
+                            target_agent: step.target_agent.filter_str
+                        };
+                    } else if (step.target_agent.agent_class) {
+                        // 列表模式，使用agent_class
+                        handleTargetAgentModeChange(index, 'expression');
+                        // 加载agent classes
+                        if (Array.isArray(step.target_agent.agent_class)) {
+                            step.target_agent.agent_class.forEach((agentClass: string) => {
+                                if (agentClass.includes('citizen')) {
+                                    fetchAgentClasses();
+                                } else if (agentClass.includes('supervisor')) {
+                                    fetchAgentClasses();
+                                }
+                            });
+                        }
+                        return {
+                            ...step,
+                            agent_class: step.target_agent.agent_class
+                        };
+                    } else if (step.target_agent.filter_str && step.target_agent.agent_class) {
+                        // 过滤模式，同时使用filter_str和agent_class
+                        handleTargetAgentModeChange(index, 'expression');
+                        // 加载agent classes
+                        if (Array.isArray(step.target_agent.agent_class)) {
+                            step.target_agent.agent_class.forEach((agentClass: string) => {
+                                if (agentClass.includes('citizen')) {
+                                    fetchAgentClasses();
+                                } else if (agentClass.includes('supervisor')) {
+                                    fetchAgentClasses();
+                                }
+                            });
+                        }
+                        return {
+                            ...step,
+                            target_agent: step.target_agent.filter_str,
+                            agent_class: step.target_agent.agent_class
+                        };
+                    }
+                } else if (Array.isArray(step.target_agent)) {
+                    // 原有的数组格式
+                    handleTargetAgentModeChange(index, 'list');
+                } else if (typeof step.target_agent === 'string') {
+                    // 字符串格式，可能是表达式
+                    handleTargetAgentModeChange(index, 'expression');
+                }
+            }
+            return step;
+        }) || [];
+
         form.setFieldsValue({
             name: `${workflow.name} (Copy)`,
             description: workflow.description || '',
-            config: workflow.config,
+            config: processedConfig,
         });
         setIsModalVisible(true);
     };
@@ -188,13 +361,40 @@ const WorkflowList: React.FC = () => {
                             WorkflowType.INTERVIEW,
                             WorkflowType.SURVEY,
                             WorkflowType.UPDATE_STATE_INTERVENE,
-                            WorkflowType.MESSAGE_INTERVENE
+                            WorkflowType.MESSAGE_INTERVENE,
+                            WorkflowType.SAVE_CONTEXT
                         ].includes(step.type)
                     ) {
-                        if (targetAgentModes[idx] === 'expression' && typeof step.target_agent === 'string') {
+                        if (targetAgentModes[idx] === 'expression' && typeof step.target_agent === 'string' && step.target_agent.trim()) {
+                            // 表达式模式：使用filter_str
                             step.target_agent = {
                                 filter_str: step.target_agent
                             };
+                        } else if (targetAgentModes[idx] === 'expression' && step.agent_class && step.agent_class.length > 0) {
+                            // 过滤模式：使用agent_class
+                            step.target_agent = {
+                                agent_class: step.agent_class
+                            };
+                            // 删除临时的agent_class字段
+                            delete step.agent_class;
+                        } else if (targetAgentModes[idx] === 'expression' && step.target_agent && step.agent_class && step.agent_class.length > 0) {
+                            // 过滤模式：同时使用filter_str和agent_class
+                            step.target_agent = {
+                                filter_str: step.target_agent,
+                                agent_class: step.agent_class
+                            };
+                            // 删除临时的agent_class字段
+                            delete step.agent_class;
+                        } else if (targetAgentModes[idx] === 'list') {
+                            // 列表模式：使用agent_class
+                            if (step.agent_class && step.agent_class.length > 0) {
+                                step.target_agent = {
+                                    agent_class: step.agent_class
+                                };
+                                // 删除临时的agent_class字段
+                                delete step.agent_class;
+                            }
+                            // 如果没有选择agent_class，保持原有的target_agent数组格式
                         }
                     }
                     return step;
@@ -250,15 +450,25 @@ const WorkflowList: React.FC = () => {
         if (changedValues.config) {
             const config = allValues.config;
             config.forEach((step, index) => {
-                if (step.type === WorkflowType.INTERVIEW && !targetAgentModes[index]) {
-                    // 如果是 interview 类型且没有设置过 mode，则根据 target_agent 的值类型设置默认 mode
-                    const targetAgent = step.target_agent;
-                    if (Array.isArray(targetAgent)) {
-                        handleTargetAgentModeChange(index, 'list');
-                    } else if (typeof targetAgent === 'string') {
-                        handleTargetAgentModeChange(index, 'expression');
-                    } else {
-                        handleTargetAgentModeChange(index, 'list');
+                if ([WorkflowType.INTERVIEW, WorkflowType.SURVEY, WorkflowType.UPDATE_STATE_INTERVENE, WorkflowType.MESSAGE_INTERVENE, WorkflowType.SAVE_CONTEXT].includes(step.type)) {
+                    if (!targetAgentModes[index]) {
+                        // 根据 target_agent 的值类型设置默认 mode
+                        const targetAgent = step.target_agent;
+                        if (Array.isArray(targetAgent)) {
+                            handleTargetAgentModeChange(index, 'list');
+                        } else if (typeof targetAgent === 'string') {
+                            handleTargetAgentModeChange(index, 'expression');
+                        } else if (targetAgent && typeof targetAgent === 'object') {
+                            // 如果是AgentFilterConfig对象
+                            const agentFilter = targetAgent as any;
+                            if (agentFilter.filter_str) {
+                                handleTargetAgentModeChange(index, 'expression');
+                            } else if (agentFilter.agent_class) {
+                                handleTargetAgentModeChange(index, 'list');
+                            }
+                        } else {
+                            handleTargetAgentModeChange(index, 'list');
+                        }
                     }
                 }
             });
@@ -467,17 +677,17 @@ const WorkflowList: React.FC = () => {
                                                                         </Space>
                                                                     )
                                                                 },
-                                                                // {
-                                                                //     value: WorkflowType.SURVEY,
-                                                                //     label: (
-                                                                //         <Space size={4}>
-                                                                //             {t('workflow.survey')}
-                                                                //             <Tooltip title={t('workflow.survey')}>
-                                                                //                 <QuestionCircleOutlined style={{ color: '#1890ff' }} />
-                                                                //             </Tooltip>
-                                                                //         </Space>
-                                                                //     )
-                                                                // },
+                                                                {
+                                                                    value: WorkflowType.SURVEY,
+                                                                    label: (
+                                                                        <Space size={4}>
+                                                                            {t('workflow.survey')}
+                                                                            <Tooltip title={t('workflow.survey')}>
+                                                                                <QuestionCircleOutlined style={{ color: '#1890ff' }} />
+                                                                            </Tooltip>
+                                                                        </Space>
+                                                                    )
+                                                                },
                                                                 {
                                                                     value: WorkflowType.NEXT_ROUND,
                                                                     label: (
@@ -506,6 +716,17 @@ const WorkflowList: React.FC = () => {
                                                                         <Space size={4}>
                                                                             {t('workflow.function')}
                                                                             <Tooltip title={t('workflow.functionTooltip')}>
+                                                                                <QuestionCircleOutlined style={{ color: '#1890ff' }} />
+                                                                            </Tooltip>
+                                                                        </Space>
+                                                                    )
+                                                                },
+                                                                {
+                                                                    value: WorkflowType.SAVE_CONTEXT,
+                                                                    label: (
+                                                                        <Space size={4}>
+                                                                            {t('workflow.saveContext')}
+                                                                            <Tooltip title={t('workflow.saveContextTooltip')}>
                                                                                 <QuestionCircleOutlined style={{ color: '#1890ff' }} />
                                                                             </Tooltip>
                                                                         </Space>
@@ -627,7 +848,7 @@ const WorkflowList: React.FC = () => {
                                                             );
                                                         }
 
-                                                        if ([WorkflowType.INTERVIEW, WorkflowType.SURVEY, WorkflowType.UPDATE_STATE_INTERVENE, WorkflowType.MESSAGE_INTERVENE].includes(stepType)) {
+                                                        if ([WorkflowType.INTERVIEW, WorkflowType.SURVEY, WorkflowType.UPDATE_STATE_INTERVENE, WorkflowType.MESSAGE_INTERVENE, WorkflowType.SAVE_CONTEXT].includes(stepType)) {
                                                             return (
                                                                 <>
                                                                     <Col span={12}>
@@ -646,23 +867,16 @@ const WorkflowList: React.FC = () => {
                                                                             />
                                                                         </Form.Item>
                                                                     </Col>
-                                                                    <Col span={12}>
-                                                                        <Form.Item
-                                                                            {...restField}
-                                                                            name={[name, 'target_agent']}
-                                                                            label={targetAgentModes[name] === 'expression' ? t('workflow.targetAgentExpression') : t('workflow.targetAgentIds')}
-                                                                            rules={[{ required: true, message: t('workflow.pleaseEnterTargetAgent') }]}
-                                                                            tooltip={targetAgentModes[name] === 'expression' ? t('workflow.targetAgentExpressionTooltip') : t('workflow.targetAgentIdsTooltip')}
-                                                                            style={{ marginBottom: 8 }}
-                                                                        >
-                                                                            {targetAgentModes[name] === 'expression' ? (
-                                                                                <MonacoPromptEditor
-                                                                                    height="40px"
-                                                                                    suggestions={getTargetAgentSuggestions()}
-                                                                                    editorId={`target-agent-${name}`}
-                                                                                    key={`target-agent-${name}-${targetAgentModes[name]}`}
-                                                                                />
-                                                                            ) : (
+                                                                    {targetAgentModes[name] === 'list' ? (
+                                                                        <Col span={12}>
+                                                                            <Form.Item
+                                                                                {...restField}
+                                                                                name={[name, 'target_agent']}
+                                                                                label={t('workflow.targetAgentIds')}
+                                                                                rules={[{ required: true, message: t('workflow.pleaseEnterTargetAgent') }]}
+                                                                                tooltip={t('workflow.targetAgentIdsTooltip')}
+                                                                                style={{ marginBottom: 8 }}
+                                                                            >
                                                                                 <Input 
                                                                                     placeholder="1,2,3" 
                                                                                     onChange={(e) => {
@@ -671,9 +885,59 @@ const WorkflowList: React.FC = () => {
                                                                                         form.setFieldValue(['config', name, 'target_agent'], value);
                                                                                     }}
                                                                                 />
-                                                                            )}
-                                                                        </Form.Item>
-                                                                    </Col>
+                                                                            </Form.Item>
+                                                                        </Col>
+                                                                    ) : (
+                                                                        <>
+                                                                            <Col span={12}>
+                                                                                <Form.Item
+                                                                                    {...restField}
+                                                                                    name={[name, 'target_agent']}
+                                                                                    label={t('workflow.targetAgentExpression')}
+                                                                                    tooltip={t('workflow.targetAgentExpressionTooltip')}
+                                                                                    style={{ marginBottom: 8 }}
+                                                                                >
+                                                                                    <MonacoPromptEditor
+                                                                                        height="40px"
+                                                                                        suggestions={getTargetAgentSuggestions()}
+                                                                                        editorId={`target-agent-${name}`}
+                                                                                        key={`target-agent-${name}-${targetAgentModes[name]}`}
+                                                                                    />
+                                                                                </Form.Item>
+                                                                            </Col>
+                                                                            <Col span={12}>
+                                                                                <Form.Item
+                                                                                    {...restField}
+                                                                                    name={[name, 'agent_class']}
+                                                                                    label={t('workflow.agentClass')}
+                                                                                    tooltip={t('workflow.agentClassTooltip')}
+                                                                                    style={{ marginBottom: 8 }}
+                                                                                >
+                                                                                    <Select
+                                                                                        mode="multiple"
+                                                                                        placeholder={t('workflow.selectAgentClass')}
+                                                                                        loading={loadingAgentClasses['citizen'] || loadingAgentClasses['supervisor']}
+                                                                                        options={[
+                                                                                            {
+                                                                                                label: t('workflow.agentClassGroups.citizen'),
+                                                                                                options: (agentClasses['citizen'] || []).map(item => ({
+                                                                                                    ...item,
+                                                                                                    label: item.label
+                                                                                                }))
+                                                                                            },
+                                                                                            {
+                                                                                                label: t('workflow.agentClassGroups.supervisor'),
+                                                                                                options: (agentClasses['supervisor'] || []).map(item => ({
+                                                                                                    ...item,
+                                                                                                    label: item.label
+                                                                                                }))
+                                                                                            }
+                                                                                        ]}
+                                                                                    />
+                                                                                </Form.Item>
+                                                                            </Col>
+                                                                        </>
+                                                                    )}
                                                                     {stepType === WorkflowType.INTERVIEW && (
                                                                         <Col span={12}>
                                                                             <Form.Item
@@ -698,7 +962,13 @@ const WorkflowList: React.FC = () => {
                                                                                 tooltip={t('workflow.surveyTooltip')}
                                                                                 style={{ marginBottom: 8 }}
                                                                             >
-                                                                                <Input.TextArea rows={1} style={{ height: '32px' }} />
+                                                                                <Select
+                                                                                    placeholder={t('workflow.selectSurvey')}
+                                                                                    options={surveyList.map(survey => ({
+                                                                                        value: survey.id,
+                                                                                        label: survey.name
+                                                                                    }))}
+                                                                                />
                                                                             </Form.Item>
                                                                         </Col>
                                                                     )}
@@ -743,6 +1013,34 @@ const WorkflowList: React.FC = () => {
                                                                                 <Input.TextArea rows={1} style={{ height: '32px' }} />
                                                                             </Form.Item>
                                                                         </Col>
+                                                                    )}
+                                                                    {stepType === WorkflowType.SAVE_CONTEXT && (
+                                                                        <>
+                                                                            <Col span={6}>
+                                                                                <Form.Item
+                                                                                    {...restField}
+                                                                                    name={[name, 'key']}
+                                                                                    label={t('workflow.contextKey')}
+                                                                                    rules={[{ required: true, message: t('workflow.pleaseEnterContextKey') }]}
+                                                                                    tooltip={t('workflow.contextKeyTooltip')}
+                                                                                    style={{ marginBottom: 8 }}
+                                                                                >
+                                                                                    <Input placeholder={t('workflow.enterContextKey')} />
+                                                                                </Form.Item>
+                                                                            </Col>
+                                                                            <Col span={6}>
+                                                                                <Form.Item
+                                                                                    {...restField}
+                                                                                    name={[name, 'save_as']}
+                                                                                    label={t('workflow.saveAs')}
+                                                                                    rules={[{ required: true, message: t('workflow.pleaseEnterSaveAs') }]}
+                                                                                    tooltip={t('workflow.saveAsTooltip')}
+                                                                                    style={{ marginBottom: 8 }}
+                                                                                >
+                                                                                    <Input placeholder={t('workflow.enterSaveAs')} />
+                                                                                </Form.Item>
+                                                                            </Col>
+                                                                        </>
                                                                     )}
                                                                 </>
                                                             );

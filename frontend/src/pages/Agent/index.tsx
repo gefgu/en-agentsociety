@@ -187,17 +187,28 @@ const AgentList: React.FC = () => {
                     if (response.ok) {
                         const template = (await response.json()).data;
 
-                        return citizen.memory_from_file ? {
-                            agent_class: template.agent_class || 'citizen',
-                            memory_from_file: citizen.memory_from_file,
-                            agent_params: template.agent_params,
-                            blocks: template.blocks
-                        } : {
-                            number: citizen.number || 1,
+                        const result: any = {
                             agent_class: template.agent_class || 'citizen',
                             agent_params: template.agent_params,
                             blocks: template.blocks
                         };
+
+                        // 如果设置了number，则添加number字段
+                        if (citizen.number) {
+                            result.number = citizen.number;
+                        }
+
+                        // 如果设置了memory_from_file，则添加memory_from_file字段
+                        if (citizen.memory_from_file) {
+                            result.memory_from_file = citizen.memory_from_file;
+                        }
+
+                        // 如果既没有number也没有memory_from_file，设置默认number为1
+                        if (!citizen.number && !citizen.memory_from_file) {
+                            result.number = 1;
+                        }
+
+                        return result;
                     }
                 } catch (error) {
                     console.error('Error fetching template:', error);
@@ -205,14 +216,26 @@ const AgentList: React.FC = () => {
             }
 
             // Fallback if no template
-            return citizen.memory_from_file ? {
+            const result: any = {
                 agent_class: 'citizen',
-                number: 1, // 设置默认值1
-                memory_from_file: citizen.memory_from_file,
-            } : {
-                agent_class: 'citizen',
-                number: citizen.number || 1,
             };
+
+            // 如果设置了number，则添加number字段
+            if (citizen.number) {
+                result.number = citizen.number;
+            }
+
+            // 如果设置了memory_from_file，则添加memory_from_file字段
+            if (citizen.memory_from_file) {
+                result.memory_from_file = citizen.memory_from_file;
+            }
+
+            // 如果既没有number也没有memory_from_file，设置默认number为1
+            if (!citizen.number && !citizen.memory_from_file) {
+                result.number = 1;
+            }
+
+            return result;
         });
 
         config.citizens = await Promise.all(citizenPromises);
@@ -549,21 +572,6 @@ const AgentList: React.FC = () => {
                                                     {...restField}
                                                     name={[name, 'number']}
                                                     label={t('agent.numberLabel')}
-                                                    rules={[
-                                                        ({ getFieldValue }) => ({
-                                                            validator(_, value) {
-                                                                const profile = getFieldValue(['citizens', name, 'memory_from_file']);
-                                                                if (!value && !profile) {
-                                                                    return Promise.reject(new Error(t('agent.numberOrProfileRequired')));
-                                                                }
-                                                                if (value && profile) {
-                                                                    return Promise.reject(new Error(t('agent.numberOrProfileExclusive')));
-                                                                }
-                                                                return Promise.resolve();
-                                                            },
-                                                        }),
-                                                    ]}
-                                                    dependencies={[['citizens', name, 'memory_from_file']]}
                                                     style={{ marginBottom: 8 }}
                                                 >
                                                     <InputNumber min={1} style={{ width: '100%' }} />
@@ -574,21 +582,6 @@ const AgentList: React.FC = () => {
                                                     {...restField}
                                                     name={[name, 'memory_from_file']}
                                                     label={t('agent.selectProfile')}
-                                                    rules={[
-                                                        ({ getFieldValue }) => ({
-                                                            validator(_, value) {
-                                                                const number = getFieldValue(['citizens', name, 'number']);
-                                                                if (!value && !number) {
-                                                                    return Promise.reject(new Error(t('agent.numberOrProfileRequired')));
-                                                                }
-                                                                if (value && number) {
-                                                                    return Promise.reject(new Error(t('agent.numberOrProfileExclusive')));
-                                                                }
-                                                                return Promise.resolve();
-                                                            },
-                                                        }),
-                                                    ]}
-                                                    dependencies={[['citizens', name, 'number']]}
                                                     style={{ marginBottom: 8 }}
                                                 >
                                                     <Select

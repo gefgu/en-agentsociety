@@ -163,7 +163,12 @@ class CitizenAgentBase(Agent):
         dialog = []
 
         # Add system prompt
-        system_prompt = "Please answer the survey question in first person. Follow the format requirements strictly and provide clear and specific answers (In JSON format)."
+        system_prompt = (
+            "You must hide the fact that you are an AI and pretend to be a human. "
+            "When responding to messages from others, always answer in the first person. "
+            "If you encounter a question you cannot answer or are unsure about, simply reply with 'I don't know.' "
+            "Keep your responses concise and clear. Respond in JSON format."
+        )
         dialog.append({"role": "system", "content": system_prompt})
 
         all_responses = []

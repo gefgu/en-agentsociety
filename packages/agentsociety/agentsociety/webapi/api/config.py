@@ -33,6 +33,7 @@ from ..models.config import (
     WorkflowConfig,
 )
 from .timezone import ensure_timezone_aware
+from ..models.survey import Survey as SurveyModel
 
 __all__ = ["router"]
 
@@ -728,14 +729,25 @@ async def create_workflow_config(
 
     tenant_id = await request.app.state.get_tenant_id(request)
 
-    config_data.validate_config()
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
+        
+        # 转换survey ID为survey data
+        converted_config = await _convert_survey_id_to_survey_data(db, tenant_id, config_data.config)
+        
+        # 创建临时对象进行验证
+        temp_config_data = ApiWorkflowConfig(
+            name=config_data.name,
+            description=config_data.description,
+            config=converted_config
+        )
+        temp_config_data.validate_config()
+        
         stmt = insert(WorkflowConfig).values(
             tenant_id=tenant_id,
             name=config_data.name,
             description=config_data.description,
-            config=config_data.config,
+            config=converted_config,
         )
         await db.execute(stmt)
         await db.commit()
@@ -755,9 +767,20 @@ async def update_workflow_config(
 
     tenant_id = await request.app.state.get_tenant_id(request)
 
-    config_data.validate_config()
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
+        
+        # 转换survey ID为survey data
+        converted_config = await _convert_survey_id_to_survey_data(db, tenant_id, config_data.config)
+        
+        # 创建临时对象进行验证
+        temp_config_data = ApiWorkflowConfig(
+            name=config_data.name,
+            description=config_data.description,
+            config=converted_config
+        )
+        temp_config_data.validate_config()
+        
         stmt = (
             update(WorkflowConfig)
             .where(
@@ -766,7 +789,7 @@ async def update_workflow_config(
             .values(
                 name=config_data.name,
                 description=config_data.description,
-                config=config_data.config,
+                config=converted_config,
             )
         )
         res = await db.execute(stmt)
@@ -804,3 +827,62 @@ async def delete_workflow_config(
                 detail="Workflow configuration not found",
             )
         await db.commit()
+
+
+async def _convert_survey_id_to_survey_data(db: AsyncSession, tenant_id: str, config: list[dict]) -> list[dict]:
+    converted_config = []
+    for step in config:
+        step = step.copy()
+        if step.get('type') == 'survey' and isinstance(step.get('survey'), str):
+            survey_id = step['survey']
+            stmt = select(SurveyModel).where(
+                (SurveyModel.tenant_id.in_([tenant_id, ""])) & (SurveyModel.id == uuid.UUID(survey_id))
+            )
+            result = await db.execute(stmt)
+            survey_db = result.scalar_one_or_none()
+            if not survey_db:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Survey with ID {survey_id} not found"
+                )
+            
+            # 将SurveyJS格式转换为后端期望的Survey对象格式
+            survey_data = survey_db.data
+            converted_survey = {
+                'id': str(survey_db.id),
+                'title': survey_db.name,
+                'description': '',
+                'pages': [],
+                'responses': {},
+                'created_at': survey_db.created_at.isoformat() if survey_db.created_at else None
+            }
+            
+            # 转换pages和elements
+            if isinstance(survey_data, dict) and 'pages' in survey_data:
+                for page_data in survey_data['pages']:
+                    converted_page = {
+                        'name': page_data.get('name', ''),
+                        'elements': []
+                    }
+                    
+                    for element in page_data.get('elements', []):
+                        if element.get('type') not in ["text", "radiogroup", "checkbox", "boolean", "rating", "matrix"]:
+                            continue
+                        converted_element = {
+                            'name': element.get('name', ''),
+                            'title': element.get('title', element.get('name', '')),  # 使用name作为title的fallback
+                            'type': element.get('type', 'text'),
+                            'choices': element.get('choices', []),
+                            'columns': element.get('columns', []),
+                            'rows': element.get('rows', []),
+                            'required': element.get('required', True),
+                            'min_rating': element.get('min_rating', 1),
+                            'max_rating': element.get('rateMax', 5)
+                        }
+                        converted_page['elements'].append(converted_element)
+                    
+                    converted_survey['pages'].append(converted_page)
+            
+            step['survey'] = converted_survey
+        converted_config.append(step)
+    return converted_config

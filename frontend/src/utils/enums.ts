@@ -20,6 +20,7 @@ export enum WorkflowType {
   UPDATE_STATE_INTERVENE = "update_state",
   MESSAGE_INTERVENE = "message",
   NEXT_ROUND = "next_round",
+  SAVE_CONTEXT = "save_context",
   // INTERVENE = "other",
   FUNCTION = "function"
 }

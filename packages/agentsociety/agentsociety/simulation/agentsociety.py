@@ -1045,7 +1045,9 @@ class AgentSociety:
         elif isinstance(target_agent, list):
             return target_agent
         elif isinstance(target_agent, AgentFilterConfig):
-            return await self.filter(target_agent.agent_class, target_agent.filter_str)
+            return await self.filter(
+                types=target_agent.agent_class, filter_str=target_agent.filter_str # type: ignore
+            )
         else:
             raise ValueError("target_agent must be a list of int or AgentFilterConfig")
 
@@ -1116,7 +1118,6 @@ class AgentSociety:
         """
         if not types and not filter_str:
             return list(self._id2agent.keys())
-
         # filter by types first
         if types:
             filtered_ids = [

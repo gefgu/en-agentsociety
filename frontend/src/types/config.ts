@@ -72,16 +72,22 @@ export interface MessageInterceptConfig {
   listener?: string;
 }
 
+export interface AgentFilterConfig {
+  agent_class?: string[];
+  filter_str?: string;
+}
+
 export interface WorkflowStepConfig {
   type: WorkflowType;
   func?: string;
   days?: number;
   steps?: number;
   ticks_per_step?: number;
-  target_agent?: number[] | string;
+  target_agent?: number[] | string | AgentFilterConfig;
   interview_message?: string;
   survey?: any;
   key?: string;
+  save_as?: string;
   value?: any;
   intervene_message?: string;
   description?: string;

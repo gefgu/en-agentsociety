@@ -10,6 +10,8 @@ import click
 import yaml
 from pydantic import BaseModel, Field
 
+from ..cityagent import SocietyAgent
+
 version_string_of_agentsociety = importlib.metadata.version("agentsociety")
 
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
@@ -244,6 +246,7 @@ def run(
     from ..configs import Config
     from ..simulation import AgentSociety
     from ..cityagent import default
+    from ..configs.exp import AgentFilterConfig
 
     c = Config.model_validate(config_dict)
 
@@ -269,6 +272,12 @@ def run(
     if c.exp.workflow:
         for step in c.exp.workflow:
             if step.func is not None and isinstance(step.func, str):
+                need_community = True
+                break
+            # Check if target_agent is AgentFilterConfig with agent_class
+            if (step.target_agent is not None and 
+                isinstance(step.target_agent, AgentFilterConfig) and 
+                step.target_agent.agent_class is not None):
                 need_community = True
                 break
 
@@ -319,6 +328,43 @@ def run(
                     # if func is a string, try to get the corresponding function from function_map
                     imported_func = workflow_function_map[step.func]()
                     step.func = imported_func
+                
+                # process the agent_class in target_agent if it's an AgentFilterConfig
+                if step.target_agent is not None and isinstance(step.target_agent, AgentFilterConfig):
+                    agent_filter = step.target_agent
+                    if agent_filter.agent_class is not None:
+                        if isinstance(agent_filter.agent_class, list):
+                            # Convert string list to class list
+                            converted_classes = []
+                            for agent_class_str in agent_filter.agent_class:
+                                if isinstance(agent_class_str, str):
+                                    if agent_class_str == "citizen":
+                                        converted_classes.append(SocietyAgent)
+                                    elif agent_class_str == "SocietyAgent":
+                                        converted_classes.append(SocietyAgent)
+                                    elif agent_class_str in citizens_class_map:
+                                        converted_classes.append(citizens_class_map[agent_class_str]())
+                                    elif agent_class_str in supervisors_class_map:
+                                        converted_classes.append(supervisors_class_map[agent_class_str]())
+                                    else:
+                                        # Keep as string if not found in maps
+                                        converted_classes.append(agent_class_str)
+                                else:
+                                    # Already a class, keep as is
+                                    converted_classes.append(agent_class_str)
+                            agent_filter.agent_class = tuple(converted_classes)  # type: ignore
+                        elif isinstance(agent_filter.agent_class, str):
+                            # Convert single string to class
+                            if agent_filter.agent_class == "citizen":
+                                agent_filter.agent_class = tuple(SocietyAgent,) # type: ignore
+                            elif agent_filter.agent_class == "SocietyAgent":
+                                # For default config compatible
+                                agent_filter.agent_class = tuple(SocietyAgent,) # type: ignore
+                            if agent_filter.agent_class in citizens_class_map:
+                                agent_filter.agent_class = tuple(citizens_class_map[agent_filter.agent_class](),)  # type: ignore
+                            elif agent_filter.agent_class in supervisors_class_map:
+                                agent_filter.agent_class = tuple(supervisors_class_map[agent_filter.agent_class](),)  # type: ignore
+                            # If not found in maps, keep as string
         except ImportError as e:
             import traceback
 
@@ -329,7 +375,6 @@ def run(
             raise e
 
     c = default(c)
-    print(c.agents.citizens[0].blocks)
     society = AgentSociety(c, tenant_id)
 
     async def _run():

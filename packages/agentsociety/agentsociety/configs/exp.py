@@ -60,7 +60,7 @@ class WorkflowType(str, Enum):
 class AgentFilterConfig(BaseModel):
     """Configuration for filtering agents."""
 
-    agent_class: Optional[tuple[type[Agent]]] = None
+    agent_class: Optional[Union[tuple[type[Agent]], list[str]]] = None
     """The class of the agent to filter"""
 
     filter_str: Optional[str] = None

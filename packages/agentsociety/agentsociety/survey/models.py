@@ -103,28 +103,34 @@ Please answer the following question in the specified format:
                 if question.type == QuestionType.RADIO:
                     prompt += "Options: " + ", ".join(question.choices) + "\n"
                     prompt += "Please select ONE option\n"
+                    prompt += "Format: Please reply with ONLY the selected option text, no additional content.\n"
 
                 elif question.type == QuestionType.CHECKBOX:
                     prompt += "Options: " + ", ".join(question.choices) + "\n"
                     prompt += "You can select MULTIPLE options\n"
+                    prompt += "Format: Please reply with ONLY the selected option texts separated by commas, no additional content.\n"
 
                 elif question.type == QuestionType.RATING:
                     prompt += (
                         f"Rating range: {question.min_rating} - {question.max_rating}\n"
                     )
                     prompt += "Please provide a rating within the range\n"
+                    prompt += f"Format: Please reply with ONLY a number between {question.min_rating} and {question.max_rating}, no additional content.\n"
 
                 elif question.type == QuestionType.MATRIX:
                     prompt += "Rows: " + ", ".join(question.rows) + "\n"
                     prompt += "Columns: " + ", ".join(question.columns) + "\n"
                     prompt += "Please select ONE column option for EACH row\n"
+                    prompt += "Format: Please reply with ONLY the row-column pairs in format 'Row: Column', one per line, no additional content.\n"
 
                 elif question.type == QuestionType.TEXT:
                     prompt += "Please provide a text response\n"
+                    prompt += "Format: Please provide your text response directly, no additional formatting.\n"
 
                 elif question.type == QuestionType.BOOLEAN:
                     prompt += "Options: Yes, No\n"
                     prompt += "Please select either Yes or No\n"
+                    prompt += "Format: Please reply with ONLY 'Yes' or 'No', no additional content.\n"
 
                 prompt += "\nAnswer: [Your response here]\n"
                 
