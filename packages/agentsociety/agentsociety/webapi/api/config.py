@@ -278,7 +278,11 @@ async def upload_map_file(
     # Generate a unique map ID
     map_id = str(uuid.uuid4())
     # Construct S3 path
-    path = f"maps/{tenant_id}/{map_id}.pb"
+    path = (
+        f"maps/{tenant_id}/{map_id}.pb"
+        if tenant_id
+        else f"maps/{map_id}.pb"
+    )
 
     # Upload to S3
     fs_client = env.fs_client

@@ -279,7 +279,11 @@ async def upload_agent_profile(
 
     # Generate a unique ID for the file
     file_id = str(uuid.uuid4())
-    s3_path = f"agent_profiles/{tenant_id}/{file_id}.json"
+    s3_path = (
+        f"agent_profiles/{tenant_id}/{file_id}.json"
+        if tenant_id
+        else f"agent_profiles/{file_id}.json"
+    )
 
     # Convert to JSON and upload to S3
     data_json = json.dumps(data)
