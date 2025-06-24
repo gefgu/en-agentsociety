@@ -57,6 +57,8 @@ async def get_agent_dialog_by_exp_id_and_agent_id(
         dialogs: List[ApiAgentDialog] = []
         for row in rows:
             dialog = {columns[i]: row[i] for i in range(len(columns))}
+            if "created_at" in dialog:
+                dialog["created_at"] = ensure_timezone_aware(dialog["created_at"])
             dialogs.append(ApiAgentDialog(**dialog))
 
         # Get pending dialogs
@@ -169,6 +171,8 @@ async def list_agent_status_by_day_and_t(
             s = {columns[i]: row[i] for i in range(len(columns))}
             if "status" in s and isinstance(s["status"], str):
                 s["status"] = json.loads(s["status"])
+            if "created_at" in s:
+                s["created_at"] = ensure_timezone_aware(s["created_at"])
             statuses.append(ApiAgentStatus(**s))
 
         return ApiResponseWrapper(data=statuses)
@@ -197,6 +201,8 @@ async def get_agent_status_by_exp_id_and_agent_id(
             s = {columns[i]: row[i] for i in range(len(columns))}
             if "status" in s and isinstance(s["status"], str):
                 s["status"] = json.loads(s["status"])
+            if "created_at" in s:
+                s["created_at"] = ensure_timezone_aware(s["created_at"])
             statuses.append(ApiAgentStatus(**s))
 
         return ApiResponseWrapper(data=statuses)
@@ -225,6 +231,8 @@ async def get_agent_survey_by_exp_id_and_agent_id(
             survey = {columns[i]: row[i] for i in range(len(columns))}
             if "data" in survey and isinstance(survey["data"], str):
                 survey["data"] = json.loads(survey["data"])
+            if "created_at" in survey:
+                survey["created_at"] = ensure_timezone_aware(survey["created_at"])
             surveys.append(ApiAgentSurvey(**survey))
 
         # Get pending surveys
@@ -277,7 +285,10 @@ async def get_global_prompt_by_day_t(
         row = (await db.execute(stmt)).first()
         if row is None:
             return ApiResponseWrapper(data=None)
-        prompt = ApiGlobalPrompt(**{columns[i]: row[i] for i in range(len(columns))})
+        prompt_data = {columns[i]: row[i] for i in range(len(columns))}
+        if "created_at" in prompt_data:
+            prompt_data["created_at"] = ensure_timezone_aware(prompt_data["created_at"])
+        prompt = ApiGlobalPrompt(**prompt_data)
 
         return ApiResponseWrapper(data=prompt)
 

@@ -36,7 +36,7 @@ async def _find_started_experiment_by_id(
     """Find an experiment by ID and check if it has started"""
     tenant_id = await request.app.state.get_tenant_id(request)
     stmt = select(Experiment).where(
-        Experiment.tenant_id == tenant_id, Experiment.id == exp_id
+        Experiment.tenant_id.in_([tenant_id, "default"]), Experiment.id == exp_id
     )
     result = await db.execute(stmt)
     row = result.first()
@@ -62,7 +62,7 @@ async def list_experiments(
         db = cast(AsyncSession, db)
         stmt = (
             select(Experiment)
-            .where(Experiment.tenant_id == tenant_id)
+            .where(Experiment.tenant_id.in_([tenant_id, "default"]))
             .order_by(Experiment.created_at.desc())
         )
         results = await db.execute(stmt)
@@ -88,7 +88,7 @@ async def get_experiment_by_id(
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
         stmt = select(Experiment).where(
-            Experiment.tenant_id == tenant_id, Experiment.id == exp_id
+            Experiment.tenant_id.in_([tenant_id, "default"]), Experiment.id == exp_id
         )
         result = await db.execute(stmt)
         row = result.first()
@@ -114,7 +114,7 @@ async def get_experiment_status_timeline_by_id(
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
         stmt = select(Experiment).where(
-            Experiment.tenant_id == tenant_id, Experiment.id == exp_id
+            Experiment.tenant_id.in_([tenant_id, "default"]), Experiment.id == exp_id
         )
         result = await db.execute(stmt)
         row = result.first()

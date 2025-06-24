@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 async def empty_get_tenant_id(_: Request) -> str:
-    return ""
+    return "default"
 
 
 def _try_load_commercial_features(
