@@ -121,12 +121,12 @@ class ApiMapConfig(BaseModel):
 
     def validate_config(self):
         real_config = RealMapConfig.model_validate(self.config)
-        # more check
-        # 1. the map file path must have prefix: maps/{tenant_id}/
-        if not real_config.file_path.startswith(f"maps/{self.tenant_id}/"):
+        # the map file path must have prefix: maps/{tenant_id}/
+        check_path = f"maps/{self.tenant_id}/" if self.tenant_id else "maps/"
+        if not real_config.file_path.startswith(check_path):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"the map file path must have prefix: maps/{self.tenant_id}/, but got {real_config.file_path}",
+                detail=f"the map file path must have prefix: {check_path}, but got {real_config.file_path}",
             )
         self.config = real_config.model_dump()
 
