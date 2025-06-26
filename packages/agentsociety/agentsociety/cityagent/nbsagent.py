@@ -189,3 +189,5 @@ The National Bureau of Statistics Agent simulating economic data collection and 
                 except Exception as e:
                     get_logger().error(f"Agent {self.id}: Error in nbs forward: {e}")
                     return
+                finally:
+                    self.gather_flag = False

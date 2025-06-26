@@ -129,3 +129,5 @@ A government institution agent that handles periodic economic operations such as
                         f"Agent {self.id}: Error in government forward: {e}"
                     )
                     return
+                finally:
+                    self.gather_flag = False
