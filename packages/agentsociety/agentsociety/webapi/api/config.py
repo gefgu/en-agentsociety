@@ -52,7 +52,7 @@ async def list_llm_configs(
         db = cast(AsyncSession, db)
         stmt = (
             select(LLMConfig)
-            .where(LLMConfig.tenant_id.in_([tenant_id, ""]))
+            .where(LLMConfig.tenant_id.in_([tenant_id, "", "default"]))
             .order_by(LLMConfig.created_at.desc())
         )
         results = await db.execute(stmt)
@@ -88,7 +88,7 @@ async def get_llm_config_by_id(
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
         stmt = select(LLMConfig).where(
-            LLMConfig.tenant_id.in_([tenant_id, ""]),
+            LLMConfig.tenant_id.in_([tenant_id, "", "default"]),
             LLMConfig.id == config_id,
         )
         result = await db.execute(stmt)
@@ -215,7 +215,7 @@ async def list_map_configs(
         db = cast(AsyncSession, db)
         stmt = (
             select(MapConfig)
-            .where(MapConfig.tenant_id.in_([tenant_id, ""]))
+            .where(MapConfig.tenant_id.in_([tenant_id, "", "default"]))
             .order_by(MapConfig.created_at.desc())
         )
         results = await db.execute(stmt)
@@ -241,7 +241,7 @@ async def get_map_config_by_id(
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
         stmt = select(MapConfig).where(
-            MapConfig.tenant_id.in_([tenant_id, ""]),
+            MapConfig.tenant_id.in_([tenant_id, "", "default"]),
             MapConfig.id == config_id,
         )
         result = await db.execute(stmt)
@@ -395,7 +395,7 @@ async def export_map_config(
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
         stmt = select(MapConfig).where(
-            MapConfig.tenant_id.in_([tenant_id, ""]),
+            MapConfig.tenant_id.in_([tenant_id, "", "default"]),
             MapConfig.id == config_id,
         )
         result = await db.execute(stmt)
@@ -445,7 +445,7 @@ async def create_temp_download_link(
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
         stmt = select(MapConfig).where(
-            MapConfig.tenant_id.in_([tenant_id, ""]),
+            MapConfig.tenant_id.in_([tenant_id, "", "default"]),
             MapConfig.id == config_id,
         )
         result = await db.execute(stmt)
@@ -530,7 +530,7 @@ async def list_agent_configs(
         db = cast(AsyncSession, db)
         stmt = (
             select(AgentConfig)
-            .where(AgentConfig.tenant_id.in_([tenant_id, ""]))
+            .where(AgentConfig.tenant_id.in_([tenant_id, "", "default"]))
             .order_by(AgentConfig.created_at.desc())
         )
         results = await db.execute(stmt)
@@ -556,7 +556,7 @@ async def get_agent_config_by_id(
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
         stmt = select(AgentConfig).where(
-            AgentConfig.tenant_id.in_([tenant_id, ""]),
+            AgentConfig.tenant_id.in_([tenant_id, "", "default"]),
             AgentConfig.id == config_id,
         )
         result = await db.execute(stmt)
@@ -673,7 +673,7 @@ async def list_workflow_configs(
         db = cast(AsyncSession, db)
         stmt = (
             select(WorkflowConfig)
-            .where(WorkflowConfig.tenant_id.in_([tenant_id, ""]))
+            .where(WorkflowConfig.tenant_id.in_([tenant_id, "", "default"]))
             .order_by(WorkflowConfig.created_at.desc())
         )
         results = await db.execute(stmt)
@@ -699,7 +699,7 @@ async def get_workflow_config_by_id(
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
         stmt = select(WorkflowConfig).where(
-            WorkflowConfig.tenant_id.in_([tenant_id, ""]),
+            WorkflowConfig.tenant_id.in_([tenant_id, "", "default"]),
             WorkflowConfig.id == config_id,
         )
         result = await db.execute(stmt)
@@ -836,7 +836,7 @@ async def _convert_survey_id_to_survey_data(db: AsyncSession, tenant_id: str, co
         if step.get('type') == 'survey' and isinstance(step.get('survey'), str):
             survey_id = step['survey']
             stmt = select(SurveyModel).where(
-                (SurveyModel.tenant_id.in_([tenant_id, ""])) & (SurveyModel.id == uuid.UUID(survey_id))
+                (SurveyModel.tenant_id.in_([tenant_id, "", "default"])) & (SurveyModel.id == uuid.UUID(survey_id))
             )
             result = await db.execute(stmt)
             survey_db = result.scalar_one_or_none()

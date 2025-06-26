@@ -54,7 +54,7 @@ async def list_agent_profiles(
         # Query profiles from database
         stmt = (
             select(AgentProfile)
-            .where(AgentProfile.tenant_id.in_([tenant_id, ""]))
+            .where(AgentProfile.tenant_id.in_([tenant_id, "", "default"]))
             .order_by(AgentProfile.created_at.desc())
         )
 
@@ -83,7 +83,7 @@ async def get_agent_profile(
 
         # Find the profile
         stmt = select(AgentProfile).where(
-            AgentProfile.tenant_id.in_([tenant_id, ""]), AgentProfile.id == profile_id
+            AgentProfile.tenant_id.in_([tenant_id, "", "default"]), AgentProfile.id == profile_id
         )
         result = await db.execute(stmt)
         profile = result.scalar_one_or_none()

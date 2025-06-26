@@ -61,7 +61,7 @@ async def list_agent_templates(
         db = cast(AsyncSession, db)
         stmt = (
             select(AgentTemplateDB)
-            .where(AgentTemplateDB.tenant_id.in_([tenant_id, ""]))
+            .where(AgentTemplateDB.tenant_id.in_([tenant_id, "", "default"]))
             .order_by(AgentTemplateDB.created_at.desc())
         )
         result = await db.execute(stmt)
@@ -90,7 +90,7 @@ async def get_agent_template(
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
         stmt = select(AgentTemplateDB).where(
-            AgentTemplateDB.tenant_id.in_([tenant_id, ""]),
+            AgentTemplateDB.tenant_id.in_([tenant_id, "", "default"]),
             AgentTemplateDB.id == template_id,
         )
 

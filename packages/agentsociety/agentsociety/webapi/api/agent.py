@@ -386,7 +386,7 @@ async def post_agent_survey(
 
         # Check whether the survey exists
         stmt = select(Survey).where(
-            Survey.tenant_id.in_([tenant_id, ""]), Survey.id == message.survey_id
+            Survey.tenant_id.in_([tenant_id, "", "default"]), Survey.id == message.survey_id
         )
         result = await db.execute(stmt)
         survey = result.scalar_one_or_none()
