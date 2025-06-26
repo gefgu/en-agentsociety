@@ -1701,11 +1701,10 @@ class AgentSociety:
             # ======================
             # process gather queries
             # ======================
-            for group_queries in gather_queries:
-                for agent_id, queries in group_queries.items():
-                    for query in queries:
-                        result = await self.gather(query.key, query.target_agent_ids, flatten=query.flatten, keep_id=query.keep_id)  # type: ignore
-                        await self.update([agent_id], query.key, result, query=True)  # type: ignore
+            for agent_id, group_queries in gather_queries.items():
+                for query_key, query in group_queries.items():
+                    result = await self.gather(query.key, query.target_agent_ids, flatten=query.flatten, keep_id=query.keep_id)  # type: ignore
+                    await self.update([agent_id], query.key, result, query=True)  # type: ignore
 
             # ======================
             # save the simulation results
