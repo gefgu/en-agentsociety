@@ -52,11 +52,12 @@ def agent_status(table_name: str):
         Column("t", Float),
         Column("lng", Float, nullable=True),
         Column("lat", Float, nullable=True),
+        Column("friend_ids", JSON),
         Column("parent_id", Integer),
         Column("action", String),
         Column("status", JSON),
         Column("created_at", TIMESTAMP(timezone=True)),
-    ), ["id", "day", "t", "lng", "lat", "parent_id", "action", "status", "created_at"]
+    ), ["id", "day", "t", "lng", "lat", "friend_ids", "parent_id", "action", "status", "created_at"]
 
 
 def agent_survey(table_name: str):

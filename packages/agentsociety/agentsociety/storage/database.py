@@ -237,6 +237,7 @@ class DatabaseWriter:
                             "t": row.t,
                             "lng": row.lng,
                             "lat": row.lat,
+                            "friend_ids": row.friend_ids,
                             "parent_id": row.parent_id,
                             "action": row.action,
                             "status": row.status,
