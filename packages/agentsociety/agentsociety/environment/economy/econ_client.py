@@ -360,6 +360,9 @@ class EconomyClient:
             raise ValueError(f"Invalid id {id}, this id does not exist!")
         if isinstance(id, Sequence):
             response = cast(list[dict[str, Any]], response)
+            if isinstance(response, dict):
+                response = [response]
+
             if not isinstance(key, list):
                 results = [res[key] for res in response]
             else:
