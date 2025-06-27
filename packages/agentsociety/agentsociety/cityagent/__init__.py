@@ -76,15 +76,15 @@ def _fill_in_agent_class_and_memory_config(self: AgentConfig):
                     OtherBlock: OtherBlockParams(),
                 }
             else:
+                blocks = {}
                 for key, value in self.blocks.items():
-                    blocks = {}
                     if isinstance(key, str):
                         blocks[BLOCK_MAPPING[key]] = BLOCK_MAPPING[key].ParamsType(
                             **value
                         )
                     else:
                         blocks[key] = value
-                    self.blocks = blocks
+                self.blocks = blocks
         elif self.agent_class == InstitutionAgentClass.FIRM.value:
             self.agent_class = FirmAgent
             if self.agent_params is not None:
