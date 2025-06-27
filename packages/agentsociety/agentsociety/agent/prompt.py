@@ -99,7 +99,10 @@ class FormatPrompt:
 
         try:
             # Parse the expression to handle profile and status differently
-            if expr.startswith(("profile.", "status.")):
+            if expr.startswith("context."):
+                key = expr.split(".", 1)[1]
+                return eval_context["context"].get(key, "Don't know")
+            elif expr.startswith(("profile.", "status.")):
                 # Get the base value using async get method
                 base_key = expr.split(".", 1)[1].split("[")[0]
                 base_value = (
