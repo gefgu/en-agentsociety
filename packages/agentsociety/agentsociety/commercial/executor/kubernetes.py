@@ -140,7 +140,7 @@ class KubernetesExecutor:
                     containers=[
                         client.V1Container(
                             name="runner",
-                            image="swr.cn-north-4.myhuaweicloud.com/tsinghua-fib-lab/agentsociety:commercial",
+                            image="swr.cn-north-4.myhuaweicloud.com/tsinghua-fib-lab/agentsociety:main",
                             image_pull_policy="Always",
                             command=[
                                 "agentsociety",
