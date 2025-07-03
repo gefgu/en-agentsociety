@@ -22,7 +22,7 @@ dev = [
 
 [[package]]
 name = "agentsociety"
-version = "1.5.0a8"
+version = "1.5.0a20"
 source = { editable = "packages/agentsociety" }
 dependencies = [
     { name = "aiodocker" },
@@ -85,7 +85,7 @@ requires-dist = [
 
 [[package]]
 name = "agentsociety-community"
-version = "0.2.11"
+version = "0.3.0"
 source = { editable = "packages/agentsociety-community" }
 dependencies = [
     { name = "agentsociety" },

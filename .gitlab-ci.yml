@@ -1,0 +1,31 @@
+stages:
+- build
+
+variables:
+  # 定义华为云 SWR 相关变量
+  HW_REGISTRY: swr.cn-north-4.myhuaweicloud.com
+  HW_NAMESPACE: tsinghua-fib-lab
+  HW_IMAGE_NAME: agentsociety
+  HW_REGISTRY_IMAGE: ${HW_REGISTRY}/${HW_NAMESPACE}/${HW_IMAGE_NAME}
+
+build-docker-image:
+  tags:
+  - dind
+  stage: build
+  only:
+  - main
+
+  before_script:
+  - docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY}
+  - docker login -u cn-north-4@${HW_AK} -p ${HW_PASSWORD} ${HW_REGISTRY}
+  script:
+  - export TIME=$(date +%s)
+  - docker build -t ${CI_REGISTRY_IMAGE}:main-${CI_COMMIT_SHORT_SHA}-${TIME} -t ${CI_REGISTRY_IMAGE}:main -t ${HW_REGISTRY_IMAGE}:main-${CI_COMMIT_SHORT_SHA}-${TIME} -t ${HW_REGISTRY_IMAGE}:main .
+
+  # 推送到GitLab容器注册表
+  - docker push ${CI_REGISTRY_IMAGE}:main-${CI_COMMIT_SHORT_SHA}-${TIME}
+  - docker push ${CI_REGISTRY_IMAGE}:main
+
+  # 推送到华为云SWR
+  - docker push ${HW_REGISTRY_IMAGE}:main-${CI_COMMIT_SHORT_SHA}-${TIME}
+  - docker push ${HW_REGISTRY_IMAGE}:main

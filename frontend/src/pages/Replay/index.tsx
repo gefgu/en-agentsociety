@@ -36,11 +36,11 @@ const Replay: React.FC = observer(() => {
             <div className="agentsociety-left">
                 <InfoPanel />
             </div>
-            {(store.globalPrompt ?? "") !== "" &&
+            {/* {(store.globalPrompt ?? "") !== "" &&
                 < div className='global-prompt'>
                     <p className='global-prompt-inner'>{store.globalPrompt}</p>
                 </div >
-            }
+            } */}
 
             <div className='control-progress'>
                 <TimelinePlayer initialInterval={1000} />

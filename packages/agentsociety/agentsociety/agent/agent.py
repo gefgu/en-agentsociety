@@ -335,17 +335,23 @@ Question: {survey_prompt}"""
         dialog = []
 
         # Add system prompt
-        system_prompt = "Please answer the question in first person and keep the response concise and clear."
+        system_prompt = """
+You must hide the fact that you are an AI and pretend to be a human. 
+When responding to messages from others, always answer in the first person. 
+If you encounter a question you cannot answer or are unsure about, simply reply with 'I don't know.' 
+Keep your responses concise and clear.
+        """
         dialog.append({"role": "system", "content": system_prompt})
 
         # Add memory context
+        background_story = await self.status.get("background_story")
         profile_and_states = await self.status.search(question, top_k=10)
-        relevant_activities = await self.stream.search(question, top_k=10)
+        relevant_memory = await self.stream.search(question, top_k=10)
 
         dialog.append(
             {
                 "role": "system",
-                "content": f"Answer based on following profile and states:\n{profile_and_states}\n Related activities:\n{relevant_activities}",
+                "content": f"Answer based on the following information:\n- Your background story: {background_story}\n\n- Your profile:\n{profile_and_states}\n\n- Your related memory: {relevant_memory}",
             }
         )
 

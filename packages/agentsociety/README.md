@@ -98,7 +98,7 @@ Thank you to everyone who has contributed to this project:
 <a id="license"></a>
 ## 📄 License
 
-AgentSociety is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
+AgentSociety is licensed under the Apache License Version 2.0 except for the `packages/agentsociety/commercial` folder. See the [LICENSE](LICENSE) file for more details.
 
 ---
 

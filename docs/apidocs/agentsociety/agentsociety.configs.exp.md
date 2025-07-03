@@ -217,7 +217,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````{py:attribute} agent_class
 :canonical: agentsociety.configs.exp.AgentFilterConfig.agent_class
-:type: typing.Optional[tuple[type[agentsociety.agent.Agent]]]
+:type: typing.Optional[typing.Union[tuple[type[agentsociety.agent.Agent]], list[str]]]
 :value: >
    None
 

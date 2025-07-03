@@ -123,6 +123,10 @@
   - ```{autodoc2-docstring} agentsociety.webapi.api.config.delete_workflow_config
     :summary:
     ```
+* - {py:obj}`_convert_survey_id_to_survey_data <agentsociety.webapi.api.config._convert_survey_id_to_survey_data>`
+  - ```{autodoc2-docstring} agentsociety.webapi.api.config._convert_survey_id_to_survey_data
+    :summary:
+    ```
 ````
 
 ### Data
@@ -388,5 +392,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 :async:
 
 ```{autodoc2-docstring} agentsociety.webapi.api.config.delete_workflow_config
+```
+````
+
+````{py:function} _convert_survey_id_to_survey_data(db: sqlalchemy.ext.asyncio.AsyncSession, tenant_id: str, config: list[dict]) -> list[dict]
+:canonical: agentsociety.webapi.api.config._convert_survey_id_to_survey_data
+:async:
+
+```{autodoc2-docstring} agentsociety.webapi.api.config._convert_survey_id_to_survey_data
 ```
 ````

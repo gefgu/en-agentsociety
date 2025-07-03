@@ -269,7 +269,7 @@ class EnvNeedsBlock(Block):
                         "safety_satisfaction",
                         "social_satisfaction",
                     ]:
-                        await self.memory.status.update(need_type, new_value)
+                        await self.memory.status.update(need_type, float(new_value))
         except Exception:
             return None
 
@@ -499,7 +499,7 @@ class EnvNeedsBlock(Block):
                         "safety_satisfaction",
                         "social_satisfaction",
                     ]:
-                        await self.memory.status.update(need_type, new_value)
+                        await self.memory.status.update(need_type, float(new_value))
                 return
             except Exception:
                 retry -= 1
