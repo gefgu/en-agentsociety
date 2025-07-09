@@ -5,8 +5,9 @@ from .agent import (
     GovernmentAgentBase,
     NBSAgentBase,
     SupervisorBase,
+    IndividualAgentBase,
 )
-from .toolbox import AgentToolbox
+from .toolbox import AgentToolbox, CustomTool
 from .agent_base import Agent, AgentType, AgentParams
 from .block import (
     Block,
@@ -33,6 +34,7 @@ __all__ = [
     "SupervisorBase",
     "AgentType",
     "AgentToolbox",
+    "CustomTool",
     "FirmAgentBase",
     "BankAgentBase",
     "NBSAgentBase",
@@ -49,4 +51,5 @@ __all__ = [
     "context_to_dot_dict",
     "DotDict",
     "auto_deepcopy_dotdict",
+    "IndividualAgentBase",
 ]

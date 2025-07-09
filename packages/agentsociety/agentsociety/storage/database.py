@@ -1,11 +1,11 @@
 import asyncio
 from datetime import datetime
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal, Optional, Dict, List, Any
 import uuid
 
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import select, update, text
+from sqlalchemy import select, update, text, and_, desc, asc
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -23,6 +23,7 @@ from .model import (
     pending_dialog,
     pending_survey,
     metric,
+    task_result,
 )
 from ._base import Base, TABLE_PREFIX
 from .type import (
@@ -34,6 +35,7 @@ from .type import (
     StorageProfile,
     StorageStatus,
     StorageSurvey,
+    StorageTaskResult,
 )
 
 __all__ = ["DatabaseWriter", "DatabaseConfig"]
@@ -99,6 +101,7 @@ async def _create_tables(exp_id: str, config: DatabaseConfig, sqlite_path: Path)
                 "pending_dialog": pending_dialog,
                 "pending_survey": pending_survey,
                 "metric": metric,
+                "task_result": task_result,
             }
             
             for table_type, table_func in table_functions.items():
@@ -158,6 +161,7 @@ class DatabaseWriter:
             "pending_dialog": pending_dialog,
             "pending_survey": pending_survey,
             "metric": metric,
+            "task_result": task_result,
         }
         
         for table_type, table_func in table_functions.items():
@@ -187,6 +191,490 @@ class DatabaseWriter:
     def storage_path(self):
         """Storage path"""
         return self._storage_path
+
+    # ==================== READ METHODS ====================
+
+    async def read_dialogs(
+        self, 
+        day: Optional[int] = None, 
+        speaker: Optional[str] = None, 
+        dialog_type: Optional[int] = None,
+        start_t: Optional[float] = None,
+        end_t: Optional[float] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        order_by: str = "created_at",
+        order_direction: str = "asc"
+    ) -> List[Dict[str, Any]]:
+        """
+        Read dialog records with filtering and pagination.
+
+        - **Args**:
+            - `day` (Optional[int]): Filter by day.
+            - `speaker` (Optional[str]): Filter by speaker.
+            - `dialog_type` (Optional[int]): Filter by dialog type.
+            - `start_t` (Optional[float]): Filter by start time.
+            - `end_t` (Optional[float]): Filter by end time.
+            - `limit` (Optional[int]): Limit number of records.
+            - `offset` (Optional[int]): Offset for pagination.
+            - `order_by` (str): Column to order by.
+            - `order_direction` (str): Order direction ('asc' or 'desc').
+
+        - **Returns**:
+            - `List[Dict[str, Any]]`: List of dialog records.
+        """
+        table_obj = self._tables["agent_dialog"]["table"]
+        
+        async with self._async_session() as session:
+            try:
+                # Build query
+                stmt = select(table_obj)
+                
+                # Add filters
+                conditions = []
+                if day is not None:
+                    conditions.append(table_obj.c.day == day)
+                if speaker is not None:
+                    conditions.append(table_obj.c.speaker == speaker)
+                if dialog_type is not None:
+                    conditions.append(table_obj.c.type == dialog_type)
+                if start_t is not None:
+                    conditions.append(table_obj.c.t >= start_t)
+                if end_t is not None:
+                    conditions.append(table_obj.c.t <= end_t)
+                
+                if conditions:
+                    stmt = stmt.where(and_(*conditions))
+                
+                # Add ordering
+                order_column = getattr(table_obj.c, order_by, table_obj.c.created_at)
+                if order_direction.lower() == "desc":
+                    stmt = stmt.order_by(desc(order_column))
+                else:
+                    stmt = stmt.order_by(asc(order_column))
+                
+                # Add pagination
+                if limit is not None:
+                    stmt = stmt.limit(limit)
+                if offset is not None:
+                    stmt = stmt.offset(offset)
+                
+                result = await session.execute(stmt)
+                rows = result.fetchall()
+                
+                # Convert to list of dictionaries
+                return [dict(row._mapping) for row in rows]
+                
+            except Exception as e:
+                get_logger().error(f"Error reading dialogs from {self._config.db_type}: {e}")
+                raise
+
+    async def read_statuses(
+        self,
+        day: Optional[int] = None,
+        agent_id: Optional[int] = None,
+        start_t: Optional[float] = None,
+        end_t: Optional[float] = None,
+        action: Optional[str] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        order_by: str = "created_at",
+        order_direction: str = "asc"
+    ) -> List[Dict[str, Any]]:
+        """
+        Read status records with filtering and pagination.
+
+        - **Args**:
+            - `day` (Optional[int]): Filter by day.
+            - `agent_id` (Optional[int]): Filter by agent ID.
+            - `start_t` (Optional[float]): Filter by start time.
+            - `end_t` (Optional[float]): Filter by end time.
+            - `action` (Optional[str]): Filter by action.
+            - `limit` (Optional[int]): Limit number of records.
+            - `offset` (Optional[int]): Offset for pagination.
+            - `order_by` (str): Column to order by.
+            - `order_direction` (str): Order direction ('asc' or 'desc').
+
+        - **Returns**:
+            - `List[Dict[str, Any]]`: List of status records.
+        """
+        table_obj = self._tables["agent_status"]["table"]
+        
+        async with self._async_session() as session:
+            try:
+                stmt = select(table_obj)
+                
+                conditions = []
+                if day is not None:
+                    conditions.append(table_obj.c.day == day)
+                if agent_id is not None:
+                    conditions.append(table_obj.c.id == agent_id)
+                if start_t is not None:
+                    conditions.append(table_obj.c.t >= start_t)
+                if end_t is not None:
+                    conditions.append(table_obj.c.t <= end_t)
+                if action is not None:
+                    conditions.append(table_obj.c.action == action)
+                
+                if conditions:
+                    stmt = stmt.where(and_(*conditions))
+                
+                order_column = getattr(table_obj.c, order_by, table_obj.c.created_at)
+                if order_direction.lower() == "desc":
+                    stmt = stmt.order_by(desc(order_column))
+                else:
+                    stmt = stmt.order_by(asc(order_column))
+                
+                if limit is not None:
+                    stmt = stmt.limit(limit)
+                if offset is not None:
+                    stmt = stmt.offset(offset)
+                
+                result = await session.execute(stmt)
+                rows = result.fetchall()
+                
+                return [dict(row._mapping) for row in rows]
+                
+            except Exception as e:
+                get_logger().error(f"Error reading statuses from {self._config.db_type}: {e}")
+                raise
+
+    async def read_surveys(
+        self,
+        day: Optional[int] = None,
+        survey_id: Optional[str] = None,
+        start_t: Optional[float] = None,
+        end_t: Optional[float] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        order_by: str = "created_at",
+        order_direction: str = "asc"
+    ) -> List[Dict[str, Any]]:
+        """
+        Read survey records with filtering and pagination.
+
+        - **Args**:
+            - `day` (Optional[int]): Filter by day.
+            - `survey_id` (Optional[str]): Filter by survey ID.
+            - `start_t` (Optional[float]): Filter by start time.
+            - `end_t` (Optional[float]): Filter by end time.
+            - `limit` (Optional[int]): Limit number of records.
+            - `offset` (Optional[int]): Offset for pagination.
+            - `order_by` (str): Column to order by.
+            - `order_direction` (str): Order direction ('asc' or 'desc').
+
+        - **Returns**:
+            - `List[Dict[str, Any]]`: List of survey records.
+        """
+        table_obj = self._tables["agent_survey"]["table"]
+        
+        async with self._async_session() as session:
+            try:
+                stmt = select(table_obj)
+                
+                conditions = []
+                if day is not None:
+                    conditions.append(table_obj.c.day == day)
+                if survey_id is not None:
+                    conditions.append(table_obj.c.survey_id == uuid.UUID(survey_id))
+                if start_t is not None:
+                    conditions.append(table_obj.c.t >= start_t)
+                if end_t is not None:
+                    conditions.append(table_obj.c.t <= end_t)
+                
+                if conditions:
+                    stmt = stmt.where(and_(*conditions))
+                
+                order_column = getattr(table_obj.c, order_by, table_obj.c.created_at)
+                if order_direction.lower() == "desc":
+                    stmt = stmt.order_by(desc(order_column))
+                else:
+                    stmt = stmt.order_by(asc(order_column))
+                
+                if limit is not None:
+                    stmt = stmt.limit(limit)
+                if offset is not None:
+                    stmt = stmt.offset(offset)
+                
+                result = await session.execute(stmt)
+                rows = result.fetchall()
+                
+                # Convert UUID to string for JSON serialization
+                results = []
+                for row in rows:
+                    row_dict = dict(row._mapping)
+                    row_dict["survey_id"] = str(row_dict["survey_id"])
+                    results.append(row_dict)
+                
+                return results
+                
+            except Exception as e:
+                get_logger().error(f"Error reading surveys from {self._config.db_type}: {e}")
+                raise
+
+    async def read_profiles(self) -> List[Dict[str, Any]]:
+        """
+        Read all agent profiles.
+
+        - **Returns**:
+            - `List[Dict[str, Any]]`: List of agent profile records.
+        """
+        table_obj = self._tables["agent_profile"]["table"]
+        
+        async with self._async_session() as session:
+            try:
+                stmt = select(table_obj)
+                result = await session.execute(stmt)
+                rows = result.fetchall()
+                
+                return [dict(row._mapping) for row in rows]
+                
+            except Exception as e:
+                get_logger().error(f"Error reading profiles from {self._config.db_type}: {e}")
+                raise
+
+    async def read_global_prompts(
+        self,
+        day: Optional[int] = None,
+        start_t: Optional[float] = None,
+        end_t: Optional[float] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        order_by: str = "created_at",
+        order_direction: str = "asc"
+    ) -> List[Dict[str, Any]]:
+        """
+        Read global prompt records with filtering and pagination.
+
+        - **Args**:
+            - `day` (Optional[int]): Filter by day.
+            - `start_t` (Optional[float]): Filter by start time.
+            - `end_t` (Optional[float]): Filter by end time.
+            - `limit` (Optional[int]): Limit number of records.
+            - `offset` (Optional[int]): Offset for pagination.
+            - `order_by` (str): Column to order by.
+            - `order_direction` (str): Order direction ('asc' or 'desc').
+
+        - **Returns**:
+            - `List[Dict[str, Any]]`: List of global prompt records.
+        """
+        table_obj = self._tables["global_prompt"]["table"]
+        
+        async with self._async_session() as session:
+            try:
+                stmt = select(table_obj)
+                
+                conditions = []
+                if day is not None:
+                    conditions.append(table_obj.c.day == day)
+                if start_t is not None:
+                    conditions.append(table_obj.c.t >= start_t)
+                if end_t is not None:
+                    conditions.append(table_obj.c.t <= end_t)
+                
+                if conditions:
+                    stmt = stmt.where(and_(*conditions))
+                
+                order_column = getattr(table_obj.c, order_by, table_obj.c.created_at)
+                if order_direction.lower() == "desc":
+                    stmt = stmt.order_by(desc(order_column))
+                else:
+                    stmt = stmt.order_by(asc(order_column))
+                
+                if limit is not None:
+                    stmt = stmt.limit(limit)
+                if offset is not None:
+                    stmt = stmt.offset(offset)
+                
+                result = await session.execute(stmt)
+                rows = result.fetchall()
+                
+                return [dict(row._mapping) for row in rows]
+                
+            except Exception as e:
+                get_logger().error(f"Error reading global prompts from {self._config.db_type}: {e}")
+                raise
+
+    async def read_task_results(
+        self,
+        agent_id: Optional[int] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        order_by: str = "created_at",
+        order_direction: str = "asc"
+    ) -> List[Dict[str, Any]]:
+        """
+        Read task result records with filtering and pagination.
+
+        - **Args**:
+            - `agent_id` (Optional[int]): Filter by agent ID.
+            - `limit` (Optional[int]): Limit number of records.
+            - `offset` (Optional[int]): Offset for pagination.
+            - `order_by` (str): Column to order by.
+            - `order_direction` (str): Order direction ('asc' or 'desc').
+
+        - **Returns**:
+            - `List[Dict[str, Any]]`: List of task result records.
+        """
+        table_obj = self._tables["task_result"]["table"]
+        
+        async with self._async_session() as session:
+            try:
+                stmt = select(table_obj)
+                
+                if agent_id is not None:
+                    stmt = stmt.where(table_obj.c.agent_id == agent_id)
+                
+                order_column = getattr(table_obj.c, order_by, table_obj.c.created_at)
+                if order_direction.lower() == "desc":
+                    stmt = stmt.order_by(desc(order_column))
+                else:
+                    stmt = stmt.order_by(asc(order_column))
+                
+                if limit is not None:
+                    stmt = stmt.limit(limit)
+                if offset is not None:
+                    stmt = stmt.offset(offset)
+                
+                result = await session.execute(stmt)
+                rows = result.fetchall()
+                
+                return [dict(row._mapping) for row in rows]
+                
+            except Exception as e:
+                get_logger().error(f"Error reading task results from {self._config.db_type}: {e}")
+                raise
+
+    async def read_metrics(
+        self,
+        key: Optional[str] = None,
+        step: Optional[int] = None,
+        start_step: Optional[int] = None,
+        end_step: Optional[int] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        order_by: str = "step",
+        order_direction: str = "asc"
+    ) -> List[Dict[str, Any]]:
+        """
+        Read metric records with filtering and pagination.
+
+        - **Args**:
+            - `key` (Optional[str]): Filter by metric key.
+            - `step` (Optional[int]): Filter by specific step.
+            - `start_step` (Optional[int]): Filter by start step.
+            - `end_step` (Optional[int]): Filter by end step.
+            - `limit` (Optional[int]): Limit number of records.
+            - `offset` (Optional[int]): Offset for pagination.
+            - `order_by` (str): Column to order by.
+            - `order_direction` (str): Order direction ('asc' or 'desc').
+
+        - **Returns**:
+            - `List[Dict[str, Any]]`: List of metric records.
+        """
+        table_obj = self._tables["metric"]["table"]
+        
+        async with self._async_session() as session:
+            try:
+                stmt = select(table_obj)
+                
+                conditions = []
+                if key is not None:
+                    conditions.append(table_obj.c.key == key)
+                if step is not None:
+                    conditions.append(table_obj.c.step == step)
+                if start_step is not None:
+                    conditions.append(table_obj.c.step >= start_step)
+                if end_step is not None:
+                    conditions.append(table_obj.c.step <= end_step)
+                
+                if conditions:
+                    stmt = stmt.where(and_(*conditions))
+                
+                order_column = getattr(table_obj.c, order_by, table_obj.c.step)
+                if order_direction.lower() == "desc":
+                    stmt = stmt.order_by(desc(order_column))
+                else:
+                    stmt = stmt.order_by(asc(order_column))
+                
+                if limit is not None:
+                    stmt = stmt.limit(limit)
+                if offset is not None:
+                    stmt = stmt.offset(offset)
+                
+                result = await session.execute(stmt)
+                rows = result.fetchall()
+                
+                return [dict(row._mapping) for row in rows]
+                
+            except Exception as e:
+                get_logger().error(f"Error reading metrics from {self._config.db_type}: {e}")
+                raise
+
+    async def get_statistics(self) -> Dict[str, Any]:
+        """
+        Get comprehensive statistics for the experiment.
+
+        - **Returns**:
+            - `Dict[str, Any]`: Statistics including counts, time ranges, and summaries.
+        """
+        async with self._async_session() as session:
+            try:
+                stats = {}
+                
+                # Get counts for each table
+                for table_type in self._tables.keys():
+                    table_obj = self._tables[table_type]["table"]
+                    count_stmt = select(table_obj).select_from(table_obj)
+                    result = await session.execute(count_stmt)
+                    stats[f"{table_type}_count"] = len(result.fetchall())
+                
+                # Get time range for dialogs
+                dialog_table = self._tables["agent_dialog"]["table"]
+                time_stmt = select(
+                    dialog_table.c.day,
+                    dialog_table.c.t,
+                    dialog_table.c.created_at
+                ).order_by(asc(dialog_table.c.created_at))
+                result = await session.execute(time_stmt)
+                dialog_rows = result.fetchall()
+                
+                if dialog_rows:
+                    stats["dialog_time_range"] = {
+                        "first_day": dialog_rows[0].day,
+                        "last_day": dialog_rows[-1].day,
+                        "first_time": dialog_rows[0].t,
+                        "last_time": dialog_rows[-1].t,
+                        "first_created": dialog_rows[0].created_at.isoformat(),
+                        "last_created": dialog_rows[-1].created_at.isoformat(),
+                    }
+                
+                # Get unique speakers
+                speaker_stmt = select(dialog_table.c.speaker).distinct()
+                result = await session.execute(speaker_stmt)
+                stats["unique_speakers"] = [row.speaker for row in result.fetchall()]
+                
+                # Get dialog type distribution
+                type_stmt = select(dialog_table.c.type)
+                result = await session.execute(type_stmt)
+                type_counts = {}
+                for row in result.fetchall():
+                    type_counts[row.type] = type_counts.get(row.type, 0) + 1
+                stats["dialog_type_distribution"] = type_counts
+                
+                # Get unique agent IDs from status
+                status_table = self._tables["agent_status"]["table"]
+                agent_stmt = select(status_table.c.id).distinct()
+                result = await session.execute(agent_stmt)
+                stats["unique_agents"] = [row.id for row in result.fetchall()]
+                
+                return stats
+                
+            except Exception as e:
+                get_logger().error(f"Error getting statistics from {self._config.db_type}: {e}")
+                raise
+
+    # ==================== WRITE METHODS ====================
 
     @lock_decorator
     async def write_dialogs(self, rows: list[StorageDialog]):
@@ -338,6 +826,37 @@ class DatabaseWriter:
             except Exception as e:
                 await session.rollback()
                 get_logger().error(f"Error writing global prompt to {self._config.db_type}: {e}")
+                raise
+
+    @lock_decorator
+    async def write_task_result(self, rows: list[StorageTaskResult]):
+        table_obj = self._tables["task_result"]["table"]
+        insert_func = self._get_insert_func()
+        
+        async with self._async_session() as session:
+            try:
+                data = []
+                for row in rows:
+                    data.append(
+                        {
+                            "id": row.id,
+                            "agent_id": row.agent_id,
+                            "context": row.context,
+                            "ground_truth": row.ground_truth,
+                            "result": row.result,
+                            "created_at": row.created_at,
+                        }
+                    )
+                
+                stmt = insert_func(table_obj).values(data)
+                await session.execute(stmt)
+                await session.commit()
+
+                get_logger().debug(f"Inserted {len(rows)} task result records to {self._config.db_type}")
+                
+            except Exception as e:
+                await session.rollback()
+                get_logger().error(f"Error writing task results to {self._config.db_type}: {e}")
                 raise
 
     @lock_decorator

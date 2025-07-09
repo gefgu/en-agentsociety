@@ -1,0 +1,20 @@
+name: Upload Python Package - Agentsociety Benchmark
+
+on:
+  push:
+    tags:
+      # Publish on any tag starting with a `v`, e.g. v1.2.3
+      - benchmark-v*.*.*
+
+jobs:
+  pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    # Environment and permissions trusted publishing.
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: cd packages/agentsociety-benchmark && uv build
+      - run: uv publish --trusted-publishing always

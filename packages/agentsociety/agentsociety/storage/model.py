@@ -26,6 +26,7 @@ __all__ = [
     "pending_dialog",
     "pending_survey",
     "metric",
+    "task_result",
 ]
 
 
@@ -137,6 +138,21 @@ def pending_survey(table_name: str):
     ), ["id", "agent_id", "day", "t", "survey_id", "data", "created_at", "processed"]
 
 
+def task_result(table_name: str):
+    """Create task result table"""
+    metadata = MetaData()
+    return Table(
+        table_name,
+        metadata,
+        Column("id", Integer, primary_key=True, autoincrement=True),
+        Column("agent_id", Integer),
+        Column("context", JSON),
+        Column("ground_truth", JSON),
+        Column("result", JSON),
+        Column("created_at", TIMESTAMP(timezone=True)),
+    ), ["id", "agent_id", "context", "ground_truth", "result", "created_at"]
+
+
 def metric(table_name: str):
     """Create metric table"""
     metadata = MetaData()
@@ -206,6 +222,11 @@ class Experiment(Base):
     def pending_survey_tablename(self):
         """Get pending survey table name"""
         return f"{TABLE_PREFIX}{str(self.id).replace('-', '_')}_pending_survey"
+    
+    @property
+    def task_result_tablename(self):
+        """Get task result table name"""
+        return f"{TABLE_PREFIX}{str(self.id).replace('-', '_')}_task_result"
 
     @property
     def metric_tablename(self):

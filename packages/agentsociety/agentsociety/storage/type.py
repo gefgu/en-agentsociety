@@ -13,6 +13,7 @@ __all__ = [
     "StorageStatus",
     "StoragePendingDialog",
     "StoragePendingSurvey",
+    "StorageTaskResult",
 ]
 
 
@@ -123,3 +124,17 @@ class StoragePendingSurvey(BaseModel):
     """Created time"""
     processed: bool
     """Whether the survey has been processed"""
+
+
+class StorageTaskResult(BaseModel):
+    id: int
+    """Task ID"""
+    agent_id: int
+    """Agent ID"""
+    context: dict
+    """Context"""
+    ground_truth: dict
+    """Ground truth"""
+    result: dict
+    """Result"""
+    created_at: datetime

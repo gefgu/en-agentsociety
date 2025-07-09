@@ -4,7 +4,7 @@ from typing import Any, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
 
-from ..agent import Agent, Block
+from ..agent import Agent, Block, CustomTool
 from ..agent.distribution import Distribution, DistributionConfig
 
 __all__ = [
@@ -35,14 +35,17 @@ class AgentConfig(BaseModel):
     agent_class: Union[type[Agent], str]
     """The class of the agent"""
 
-    number: Optional[int] = Field(default=None, ge=0)
-    """The number of agents. Required when using memory_distributions, ignored when using memory_from_file."""
+    number: int = Field(default=1, ge=0)
+    """The number of agents."""
 
     agent_params: Optional[Any] = None
     """Agent configuration"""
 
     blocks: Optional[dict[Union[type[Block], str], Any]] = None
     """Blocks configuration"""
+
+    tools: Optional[list[CustomTool]] = Field(default=[])
+    """Tools configuration"""
 
     # Choose one of the following:
     # 1. memory_config_func: Optional[Callable] = None

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentsociety"
-version = "1.5.0rc1" # change it for each release
+version = "1.5.0rc2" # change it for each release
 description = "LLM-based city environment agent building library"
 authors = [
     { name = "Yuwei Yan", email = "pinkgranite86@gmail.com" },

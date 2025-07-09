@@ -402,6 +402,22 @@ def default_memory_config_supervisor(
     return default_config
 
 
+def default_memory_config_solver(
+    distributions: dict[str, Distribution],
+    class_config: Optional[list[MemoryAttribute]] = None,
+) -> MemoryConfig:
+    """
+    Generate default memory configuration for solver agents.
+    """
+    default_config = MemoryConfig.from_list([])
+    if class_config:
+        for attr in class_config:
+            if attr.name in default_config.attributes:
+                get_logger().info(f"Attribute {attr.name} already exists, replacing it")
+            default_config.attributes[attr.name] = attr
+    return default_config
+
+
 class MemoryConfigGenerator:
     """
     Generate memory configuration using the new unified structure.

@@ -150,15 +150,24 @@ def ui(config: Optional[str], config_base64: Optional[str]):
 
 @cli.command()
 @common_options
-def check(config: str, config_base64: str):
+@click.option("--type", default="simulation", help="Specify the type of the simulation", type=click.Choice(["simulation", "individual"]))
+def check(config: str, config_base64: str, type: str):
     from pathlib import Path
 
     """Pre-check the config"""
     config_dict = load_config(config, config_base64)
 
-    from ..configs import Config
+    if type == "simulation":
+        from ..configs import Config
 
-    c = Config.model_validate(config_dict)
+        c = Config.model_validate(config_dict)
+    elif type == "individual":
+        from ..configs import IndividualConfig
+
+        c = IndividualConfig.model_validate(config_dict)
+    else:
+        raise ValueError(f"Invalid type: {type}")
+
     click.echo(f"Config format check. {click.style('Passed.', fg='green')}")
 
     # =================
@@ -221,161 +230,213 @@ def check(config: str, config_base64: str):
     # =================
     # check whether the map file exists
     # =================
-    if not os.path.exists(c.map.file_path):
-        click.echo(
-            f"Map file {c.map.file_path} does not exist. {click.style('Failed.', fg='red')}"
-        )
-        return
-    click.echo(f"Map file. {click.style('Passed.', fg='green')}")
+    if type == "simulation":
+        if not os.path.exists(c.map.file_path): # type: ignore
+            click.echo(
+                f"Map file {c.map.file_path} does not exist. {click.style('Failed.', fg='red')}" # type: ignore
+            )
+            return
+        click.echo(f"Map file. {click.style('Passed.', fg='green')}")
 
 
 @cli.command()
 @common_options
 @click.option("--tenant-id", default="default", help="Specify tenant ID")
 @click.option("--callback-url", default="", help="Specify callback URL (POST)")
+@click.option("--type", default="simulation", help="Specify the type of the simulation", type=click.Choice(["simulation", "individual"]))
 def run(
     config: str,
     config_base64: str,
     tenant_id: str,
     callback_url: str,
+    type: str,
 ):
     """Run the simulation"""
     config_dict = load_config(config, config_base64)
 
     import requests
-    from ..configs import Config
+    from ..configs import Config, IndividualConfig
     from ..simulation import AgentSociety
     from ..cityagent import default
     from ..configs.exp import AgentFilterConfig
 
-    c = Config.model_validate(config_dict)
+    if type == "simulation":
+        c = Config.model_validate(config_dict)
+        # Check if we need to import community modules
+        need_community = False
+        if c.agents.citizens:
+            for citizen in c.agents.citizens:
+                if isinstance(citizen.agent_class, str):
+                    need_community = True
+                    break
+                # go to check blocks
+                if citizen.blocks is not None:
+                    for block in citizen.blocks.keys():
+                        if isinstance(block, str):
+                            need_community = True
+                            break
 
-    # Check if we need to import community modules
-    need_community = False
-    if c.agents.citizens:
-        for citizen in c.agents.citizens:
-            if isinstance(citizen.agent_class, str):
+        if c.agents.supervisor is not None and isinstance(
+            c.agents.supervisor.agent_class, str
+        ):
+            need_community = True
+
+        if c.exp.workflow:
+            for step in c.exp.workflow:
+                if step.func is not None and isinstance(step.func, str):
+                    need_community = True
+                    break
+                # Check if target_agent is AgentFilterConfig with agent_class
+                if (step.target_agent is not None and 
+                    isinstance(step.target_agent, AgentFilterConfig) and 
+                    step.target_agent.agent_class is not None):
+                    need_community = True
+                    break
+
+        if need_community:
+            try:
+                from agentsociety_community.agents import citizens, supervisors
+                from agentsociety_community.blocks import citizens as citizen_blocks
+                from agentsociety_community.workflows import functions as workflow_functions
+
+                # get the mapping of the agent class
+                workflow_function_map = workflow_functions.get_type_to_cls_dict()
+                citizens_class_map = citizens.get_type_to_cls_dict()
+                citizen_blocks_class_map = citizen_blocks.get_type_to_cls_dict()
+                supervisors_class_map = supervisors.get_type_to_cls_dict()
+
+                # process the agent_class in citizens
+                for citizen in c.agents.citizens:
+                    if isinstance(citizen.agent_class, str):
+                        if citizen.agent_class == "citizen":
+                            # Skip mapping if it's just a citizen
+                            continue
+                        if citizen.agent_class == "SocietyAgent":
+                            # For default config compatible
+                            citizen.agent_class = "citizen"
+                            continue
+                        citizen.agent_class = citizens_class_map[citizen.agent_class]()
+                    if citizen.blocks is not None:
+                        new_blocks = {}
+                        for block_name, block_params in citizen.blocks.items():
+                            if isinstance(block_name, str):
+                                block_class = citizen_blocks_class_map[block_name]()
+                                new_blocks[block_class] = block_params
+                            else:
+                                new_blocks[block_name] = block_params
+                        citizen.blocks = new_blocks
+
+                # process the agent_class in supervisor
+                if c.agents.supervisor is not None and isinstance(
+                    c.agents.supervisor.agent_class, str
+                ):
+                    c.agents.supervisor.agent_class = supervisors_class_map[
+                        c.agents.supervisor.agent_class
+                    ]()
+
+                # process the func in workflow
+                for step in c.exp.workflow:
+                    if step.func is not None and isinstance(step.func, str):
+                        # if func is a string, try to get the corresponding function from function_map
+                        imported_func = workflow_function_map[step.func]()
+                        step.func = imported_func
+                    
+                    # process the agent_class in target_agent if it's an AgentFilterConfig
+                    if step.target_agent is not None and isinstance(step.target_agent, AgentFilterConfig):
+                        agent_filter = step.target_agent
+                        if agent_filter.agent_class is not None:
+                            if isinstance(agent_filter.agent_class, list):
+                                # Convert string list to class list
+                                converted_classes = []
+                                for agent_class_str in agent_filter.agent_class:
+                                    if isinstance(agent_class_str, str):
+                                        if agent_class_str == "citizen":
+                                            converted_classes.append(SocietyAgent)
+                                        elif agent_class_str == "SocietyAgent":
+                                            converted_classes.append(SocietyAgent)
+                                        elif agent_class_str in citizens_class_map:
+                                            converted_classes.append(citizens_class_map[agent_class_str]())
+                                        elif agent_class_str in supervisors_class_map:
+                                            converted_classes.append(supervisors_class_map[agent_class_str]())
+                                        else:
+                                            # Keep as string if not found in maps
+                                            converted_classes.append(agent_class_str)
+                                    else:
+                                        # Already a class, keep as is
+                                        converted_classes.append(agent_class_str)
+                                agent_filter.agent_class = tuple(converted_classes)  # type: ignore
+                            elif isinstance(agent_filter.agent_class, str):
+                                # Convert single string to class
+                                if agent_filter.agent_class == "citizen":
+                                    agent_filter.agent_class = tuple(SocietyAgent,) # type: ignore
+                                elif agent_filter.agent_class == "SocietyAgent":
+                                    # For default config compatible
+                                    agent_filter.agent_class = tuple(SocietyAgent,) # type: ignore
+                                if agent_filter.agent_class in citizens_class_map:
+                                    agent_filter.agent_class = tuple(citizens_class_map[agent_filter.agent_class](),)  # type: ignore
+                                elif agent_filter.agent_class in supervisors_class_map:
+                                    agent_filter.agent_class = tuple(supervisors_class_map[agent_filter.agent_class](),)  # type: ignore
+                                # If not found in maps, keep as string
+            except ImportError as e:
+                import traceback
+                print(traceback.format_exc())
+                print(
+                    "agentsociety_community is not installed. Please install it with `pip install agentsociety-community`"
+                )
+                raise e
+            
+        c = default(c)
+    elif type == "individual":
+        c = IndividualConfig.model_validate(config_dict)
+        # Check if we need to import community modules
+        need_community = False
+        if c.individual.agent_class is not None:
+            if isinstance(c.individual.agent_class, str):
                 need_community = True
-                break
             # go to check blocks
-            if citizen.blocks is not None:
-                for block in citizen.blocks.keys():
+            if c.individual.blocks is not None:
+                for block in c.individual.blocks.keys():
                     if isinstance(block, str):
                         need_community = True
                         break
+        if need_community:
+            try:
+                from agentsociety_community.agents import citizens, supervisors
+                from agentsociety_community.blocks import citizens as citizen_blocks
+                from agentsociety_community.workflows import functions as workflow_functions
 
-    if c.agents.supervisor is not None and isinstance(
-        c.agents.supervisor.agent_class, str
-    ):
-        need_community = True
+                # get the mapping of the agent class
+                workflow_function_map = workflow_functions.get_type_to_cls_dict()
+                citizens_class_map = citizens.get_type_to_cls_dict()
+                citizen_blocks_class_map = citizen_blocks.get_type_to_cls_dict()
+                supervisors_class_map = supervisors.get_type_to_cls_dict()
 
-    if c.exp.workflow:
-        for step in c.exp.workflow:
-            if step.func is not None and isinstance(step.func, str):
-                need_community = True
-                break
-            # Check if target_agent is AgentFilterConfig with agent_class
-            if (step.target_agent is not None and 
-                isinstance(step.target_agent, AgentFilterConfig) and 
-                step.target_agent.agent_class is not None):
-                need_community = True
-                break
+                # process the agent_class in solver
+                if c.individual.agent_class is not None and isinstance(c.individual.agent_class, str):
+                    c.individual.agent_class = citizens_class_map[c.individual.agent_class]()
 
-    if need_community:
-        try:
-            from agentsociety_community.agents import citizens, supervisors
-            from agentsociety_community.blocks import citizens as citizen_blocks
-            from agentsociety_community.workflows import functions as workflow_functions
-
-            # get the mapping of the agent class
-            workflow_function_map = workflow_functions.get_type_to_cls_dict()
-            citizens_class_map = citizens.get_type_to_cls_dict()
-            citizen_blocks_class_map = citizen_blocks.get_type_to_cls_dict()
-            supervisors_class_map = supervisors.get_type_to_cls_dict()
-
-            # process the agent_class in citizens
-            for citizen in c.agents.citizens:
-                if isinstance(citizen.agent_class, str):
-                    if citizen.agent_class == "citizen":
-                        # Skip mapping if it's just a citizen
-                        continue
-                    if citizen.agent_class == "SocietyAgent":
-                        # For default config compatible
-                        citizen.agent_class = "citizen"
-                        continue
-                    citizen.agent_class = citizens_class_map[citizen.agent_class]()
-                if citizen.blocks is not None:
+                # process the blocks in solver
+                if c.individual.blocks is not None:
                     new_blocks = {}
-                    for block_name, block_params in citizen.blocks.items():
+                    for block_name, block_params in c.individual.blocks.items():
                         if isinstance(block_name, str):
                             block_class = citizen_blocks_class_map[block_name]()
                             new_blocks[block_class] = block_params
                         else:
                             new_blocks[block_name] = block_params
-                    citizen.blocks = new_blocks
+                    c.individual.blocks = new_blocks
+            except ImportError as e:
+                import traceback
 
-            # process the agent_class in supervisor
-            if c.agents.supervisor is not None and isinstance(
-                c.agents.supervisor.agent_class, str
-            ):
-                c.agents.supervisor.agent_class = supervisors_class_map[
-                    c.agents.supervisor.agent_class
-                ]()
+                print(traceback.format_exc())
+                print(
+                    "agentsociety_community is not installed. Please install it with `pip install agentsociety-community`"
+                )
+                raise e
+    else:
+        raise ValueError(f"Invalid type: {type}")
 
-            # process the func in workflow
-            for step in c.exp.workflow:
-                if step.func is not None and isinstance(step.func, str):
-                    # if func is a string, try to get the corresponding function from function_map
-                    imported_func = workflow_function_map[step.func]()
-                    step.func = imported_func
-                
-                # process the agent_class in target_agent if it's an AgentFilterConfig
-                if step.target_agent is not None and isinstance(step.target_agent, AgentFilterConfig):
-                    agent_filter = step.target_agent
-                    if agent_filter.agent_class is not None:
-                        if isinstance(agent_filter.agent_class, list):
-                            # Convert string list to class list
-                            converted_classes = []
-                            for agent_class_str in agent_filter.agent_class:
-                                if isinstance(agent_class_str, str):
-                                    if agent_class_str == "citizen":
-                                        converted_classes.append(SocietyAgent)
-                                    elif agent_class_str == "SocietyAgent":
-                                        converted_classes.append(SocietyAgent)
-                                    elif agent_class_str in citizens_class_map:
-                                        converted_classes.append(citizens_class_map[agent_class_str]())
-                                    elif agent_class_str in supervisors_class_map:
-                                        converted_classes.append(supervisors_class_map[agent_class_str]())
-                                    else:
-                                        # Keep as string if not found in maps
-                                        converted_classes.append(agent_class_str)
-                                else:
-                                    # Already a class, keep as is
-                                    converted_classes.append(agent_class_str)
-                            agent_filter.agent_class = tuple(converted_classes)  # type: ignore
-                        elif isinstance(agent_filter.agent_class, str):
-                            # Convert single string to class
-                            if agent_filter.agent_class == "citizen":
-                                agent_filter.agent_class = tuple(SocietyAgent,) # type: ignore
-                            elif agent_filter.agent_class == "SocietyAgent":
-                                # For default config compatible
-                                agent_filter.agent_class = tuple(SocietyAgent,) # type: ignore
-                            if agent_filter.agent_class in citizens_class_map:
-                                agent_filter.agent_class = tuple(citizens_class_map[agent_filter.agent_class](),)  # type: ignore
-                            elif agent_filter.agent_class in supervisors_class_map:
-                                agent_filter.agent_class = tuple(supervisors_class_map[agent_filter.agent_class](),)  # type: ignore
-                            # If not found in maps, keep as string
-        except ImportError as e:
-            import traceback
-
-            print(traceback.format_exc())
-            print(
-                "agentsociety_community is not installed. Please install it with `pip install agentsociety-community`"
-            )
-            raise e
-
-    c = default(c)
-    society = AgentSociety(c, tenant_id)
+    society = AgentSociety.create(c, tenant_id)
 
     async def _run():
         try:

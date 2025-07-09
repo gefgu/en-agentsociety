@@ -42,16 +42,22 @@ class WorkflowType(str, Enum):
         - `INTERVENE`: Represents other intervention methods driven by code.
         - `FUNCTION`: Represents function-based intervention methods.
     """
-
+    # main
     STEP = "step"
     RUN = "run"
+
+    # agent interaction
     INTERVIEW = "interview"
     SURVEY = "survey"
-    ENVIRONMENT_INTERVENE = "environment"
     UPDATE_STATE_INTERVENE = "update_state"
     MESSAGE_INTERVENE = "message"
-    NEXT_ROUND = "next_round"
     DELETE_AGENT = "delete_agent"
+
+    # environment interaction
+    ENVIRONMENT_INTERVENE = "environment"
+
+    # other
+    NEXT_ROUND = "next_round"
     SAVE_CONTEXT = "save_context"
     INTERVENE = "other"
     FUNCTION = "function"

@@ -106,7 +106,7 @@ config = default(config)
 
 
 async def main():
-    agentsociety = AgentSociety(config)
+    agentsociety = AgentSociety.create(config)
     try:
         await agentsociety.init()
         await agentsociety.run()

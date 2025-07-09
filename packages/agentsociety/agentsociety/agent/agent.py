@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 import random
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -14,6 +15,7 @@ from ..memory import Memory
 from ..message import Message
 from ..storage import StorageDialog, StorageDialogType, StorageSurvey
 from ..survey.models import Survey
+from ..taskloader import Task
 from .agent_base import Agent, AgentToolbox, AgentType, extract_json
 from .block import Block
 from .decorator import register_get
@@ -25,6 +27,7 @@ __all__ = [
     "NBSAgentBase",
     "GovernmentAgentBase",
     "SupervisorBase",
+    "IndividualAgentBase",
 ]
 
 
@@ -92,6 +95,8 @@ class CitizenAgentBase(Agent):
             - Updates the agent's status with the newly created person ID from the simulator.
             - Logs the successful binding to the person entity added to the simulator.
         """
+        if self.environment is None:
+            raise ValueError("Environment is not initialized")
         FROM_MEMORY_KEYS = {
             "attribute",
             "home",
@@ -118,6 +123,8 @@ class CitizenAgentBase(Agent):
         """
         Bind the agent to the Economy Simulator.
         """
+        if self.environment is None:
+            raise ValueError("Environment is not initialized")
         person_id = await self.status.get("id")
         currency = await self.status.get("currency")
         skill = await self.status.get("work_skill", 0.0)
@@ -137,6 +144,8 @@ class CitizenAgentBase(Agent):
         """
         Update the motion of the agent. Usually used in the starting of the `forward` method.
         """
+        if self.environment is None:
+            raise ValueError("Environment is not initialized")
         resp = await self.environment.get_person(self.id)
         resp_dict = resp["person"]
         for k, v in resp_dict.get("motion", {}).items():
@@ -283,6 +292,8 @@ Question: {survey_prompt}"""
         survey_response = await self.do_survey(survey)
         date_time = datetime.now(timezone.utc)
 
+        if self.environment is None:
+            raise ValueError("Environment is not initialized")
         day, t = self.environment.get_datetime()
         storage_survey = StorageSurvey(
             id=self.id,
@@ -371,6 +382,8 @@ Keep your responses concise and clear.
             - `question` (`str`): The interview data containing the content of the user's message.
         """
         question = message.payload["content"]
+        if self.environment is None:
+            raise ValueError("Environment is not initialized")
         day, t = self.environment.get_datetime()
         storage_dialog = StorageDialog(
             id=self.id,
@@ -416,6 +429,8 @@ Keep your responses concise and clear.
         - **Description**:
             - Saves the thought data to the memory.
         """
+        if self.environment is None:
+            raise ValueError("Environment is not initialized")
         day, t = self.environment.get_datetime()
         await self.memory.stream.add(topic="cognition", description=thought)
         storage_thought = StorageDialog(
@@ -476,6 +491,8 @@ Keep your responses concise and clear.
 
     async def get_aoi_info(self):
         """Get the surrounding environment information - aoi information"""
+        if self.environment is None:
+            raise ValueError("Environment is not initialized")
         position = await self.status.get("position")
         if "aoi_position" in position:
             parent_id = position["aoi_position"]["aoi_id"]
@@ -486,6 +503,8 @@ Keep your responses concise and clear.
     @register_get("Get the current time in the format of HH:MM:SS")
     async def get_nowtime(self):
         """Get the current time"""
+        if self.environment is None:
+            raise ValueError("Environment is not initialized")
         now_time = self.environment.get_datetime(format_time=True)
         return now_time[1]
 
@@ -560,6 +579,8 @@ class InstitutionAgentBase(Agent):
             - Calls the `_bind_to_economy` method to integrate the agent into the economy system.
             - Note that this method does not bind the agent to the simulator itself; it only handles the economy integration.
         """
+        if self.environment is None:
+            raise ValueError("Environment is not initialized")
         map_header: dict = self.environment.map.get_map_header()
         # TODO: remove random position assignment
         await self.status.update(
@@ -711,18 +732,6 @@ class SupervisorBase(Agent):
             blocks=blocks,
         )
 
-    async def reset(self):
-        """
-        Reset the agent.
-        """
-        pass
-
-    async def react_to_intervention(self, intervention_message: str):
-        """
-        React to an intervention.
-        """
-        pass
-
     async def forward(
         self,
         current_round_messages: list[Message],
@@ -740,6 +749,80 @@ class SupervisorBase(Agent):
             - `tuple[dict[Message, bool], list[Message]]`: A tuple containing:
                 - `validation_dict`: Dictionary of message validation results, key is message tuple, value is whether validation passed.
                 - `persuasion_messages`: List of persuasion messages.
+        """
+        raise NotImplementedError(
+            "This method `forward` should be implemented by the subclass"
+        )
+    
+
+class IndividualAgentBase(Agent):
+    def __init__(
+        self,
+        id: int,
+        name: str,
+        toolbox: AgentToolbox,
+        memory: Memory,
+        agent_params: Optional[Any] = None,
+        blocks: Optional[list[Block]] = None,
+    ) -> None:
+        """
+        Initialize a new instance of the IndividualAgent.
+
+        - **Args**:
+            - `id` (`int`): The ID of the agent.
+            - `name` (`str`): The name or identifier of the agent.
+            - `toolbox` (`AgentToolbox`): The toolbox of the agent.
+            - `memory` (`Memory`): The memory of the agent.
+            - `agent_params` (`Optional[Any]`): Additional parameters for the agent. Defaults to None.
+            - `blocks` (`Optional[list[Block]]`): List of blocks for the agent. Defaults to None.
+
+        - **Description**:
+            - Initializes the IndividualAgent with the provided parameters and sets up necessary internal states.
+        """
+        super().__init__(
+            id=id,
+            name=name,
+            type=AgentType.Individual,
+            toolbox=toolbox,
+            memory=memory,
+            agent_params=agent_params,
+            blocks=blocks,
+        )
+
+    async def run(self, task: Task) -> Any:
+        """
+        Unified entry point for executing the agent's logic.
+
+        - **Description**:
+            - It calls the `forward` method to execute the agent's behavior logic.
+            - Acts as the main control flow for the agent, coordinating when and how the agent performs its actions.
+        """
+        start_time = time.time()
+        # run required methods before agent forward
+        await self.before_forward()
+        await self.before_blocks()
+        # run agent forward
+        result = await self.forward(task.get_task_context())
+        task.set_result(result)
+        # run required methods after agent forward
+        await self.after_blocks()
+        await self.after_forward()
+        end_time = time.time()
+        return end_time - start_time
+
+    async def forward(
+        self,
+        task_context: dict[str, Any],
+    ) -> Any:
+        """
+        Process and validate messages from the current round, performing validation and intervention. 
+        The task context is a dictionary of the context of the task.
+
+        - **Args**:
+            - `task_context` (`dict[str, Any]`): The context of the task.
+
+        - **Returns**:
+            - `Any`: The result of the task.
         """
         raise NotImplementedError(
             "This method `forward` should be implemented by the subclass"

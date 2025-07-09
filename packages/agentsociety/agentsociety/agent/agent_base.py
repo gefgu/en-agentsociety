@@ -56,6 +56,7 @@ class AgentType(Enum):
     Citizen = "Citizen"
     Institution = "Institution"
     Supervisor = "Supervisor"
+    Individual = "Individual"
 
 
 def extract_json(output_str):
@@ -222,12 +223,10 @@ class Agent(ABC):
         """The Agent's Stream Memory"""
         return self.memory.stream
 
-    @abstractmethod
     async def reset(self):
         """Reset the agent."""
         raise NotImplementedError("This method should be implemented by subclasses")
 
-    @abstractmethod
     async def react_to_intervention(self, intervention_message: str):
         """
         React to an intervention.
@@ -260,6 +259,10 @@ class Agent(ABC):
             - Sends the message asynchronously using `_send_message`.
             - Optionally records the message in Database if it's a "social" type message.
         """
+        if self.messager is None:
+            raise ValueError("Messager is not initialized")
+        if self.environment is None:
+            raise ValueError("Environment is not initialized")
         day, t = self.environment.get_datetime()
         # send message with `Messager`
         if type not in ["social", "economy"]:
@@ -331,6 +334,10 @@ class Agent(ABC):
         - **Description**:
             - Register a message to target aoi.
         """
+        if self.messager is None:
+            raise ValueError("Messager is not initialized")
+        if self.environment is None:
+            raise ValueError("Environment is not initialized")
         day, t = self.environment.get_datetime()
         if isinstance(target_aoi, int):
             target_aoi = [target_aoi]
@@ -353,6 +360,10 @@ class Agent(ABC):
         """
         Cancel a message to target aoi
         """
+        if self.messager is None:
+            raise ValueError("Messager is not initialized")
+        if self.environment is None:
+            raise ValueError("Environment is not initialized")
         day, t = self.environment.get_datetime()
         if isinstance(target_aoi, int):
             target_aoi = [target_aoi]

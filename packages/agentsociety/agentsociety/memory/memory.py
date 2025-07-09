@@ -294,7 +294,7 @@ class StreamMemory:
 
     def __init__(
         self,
-        environment: Environment,
+        environment: Optional[Environment],
         status_memory: KVMemory,
         embedding: SparseTextEmbedding,
         max_len: int = 1000,
@@ -325,6 +325,8 @@ class StreamMemory:
         - **Returns**:
             - `int`: The unique ID of the newly added memory node.
         """
+        if self._environment is None:
+            raise ValueError("Environment is not initialized")
         day, t = self._environment.get_datetime()
         position = await self._status_memory.get("position")
         if "aoi_position" in position:
@@ -519,6 +521,8 @@ class StreamMemory:
         - **Returns**:
             - `str`: Formatted text of today's memories.
         """
+        if self._environment is None:
+            raise ValueError("Environment is not initialized")
         current_day, _ = self._environment.get_datetime()
         # Use the search method, setting day_range to today
         return await self.search(
@@ -580,7 +584,7 @@ class Memory:
 
     def __init__(
         self,
-        environment: Environment,
+        environment: Optional[Environment],
         embedding: SparseTextEmbedding,
         memory_config: MemoryConfig,
     ) -> None:
