@@ -12,6 +12,8 @@ class StorageBenchmark(BaseModel):
     benchmark_name: str
     llm: str
     agent: str
+    agent_filename: str
+    result_filename: str
     status: int
     result_info: str
     final_score: float

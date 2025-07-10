@@ -174,26 +174,26 @@ def install_dependencies_with_manager(package_manager: str, requirements_file: O
                     # Extract package name (remove version specifiers)
                     package_name = dep.split('==')[0].split('>=')[0].split('<=')[0].split('~=')[0].split('!=')[0]
                     click.echo(f"Installing {package_name} via conda...")
-                    result = subprocess.run(['conda', 'install', '-y', package_name.strip()], 
+                    subprocess.run(['conda', 'install', '-y', package_name.strip()], 
                                           capture_output=True, text=True, check=True)
                     click.echo(f"✓ Installed {package_name} via conda")
             elif dependencies:
                 for dep in dependencies:
                     click.echo(f"Installing {dep} via conda...")
-                    result = subprocess.run(['conda', 'install', '-y', dep], 
+                    subprocess.run(['conda', 'install', '-y', dep], 
                                           capture_output=True, text=True, check=True)
                     click.echo(f"✓ Installed {dep} via conda")
         
         elif package_manager == 'uv':
             if requirements_file and requirements_file.exists():
                 click.echo("Installing from requirements.txt via uv...")
-                result = subprocess.run(['uv', 'pip', 'install', '-r', str(requirements_file)], 
+                subprocess.run(['uv', 'pip', 'install', '-r', str(requirements_file)], 
                                       capture_output=True, text=True, check=True)
                 click.echo("✓ Dependencies installed successfully via uv")
             elif dependencies:
                 for dep in dependencies:
                     click.echo(f"Installing {dep} via uv...")
-                    result = subprocess.run(['uv', 'pip', 'install', dep], 
+                    subprocess.run(['uv', 'pip', 'install', dep], 
                                           capture_output=True, text=True, check=True)
                     click.echo(f"✓ Installed {dep} via uv")
         
@@ -204,39 +204,39 @@ def install_dependencies_with_manager(package_manager: str, requirements_file: O
                     deps = [line.strip() for line in f if line.strip() and not line.startswith('#')]
                 for dep in deps:
                     click.echo(f"Adding {dep} via poetry...")
-                    result = subprocess.run(['poetry', 'add', dep], 
+                    subprocess.run(['poetry', 'add', dep], 
                                           capture_output=True, text=True, check=True)
                     click.echo(f"✓ Added {dep} via poetry")
             elif dependencies:
                 for dep in dependencies:
                     click.echo(f"Adding {dep} via poetry...")
-                    result = subprocess.run(['poetry', 'add', dep], 
+                    subprocess.run(['poetry', 'add', dep], 
                                           capture_output=True, text=True, check=True)
                     click.echo(f"✓ Added {dep} via poetry")
         
         elif package_manager == 'pipenv':
             if requirements_file and requirements_file.exists():
                 click.echo("Installing from requirements.txt via pipenv...")
-                result = subprocess.run(['pipenv', 'install', '-r', str(requirements_file)], 
+                subprocess.run(['pipenv', 'install', '-r', str(requirements_file)], 
                                       capture_output=True, text=True, check=True)
                 click.echo("✓ Dependencies installed successfully via pipenv")
             elif dependencies:
                 for dep in dependencies:
                     click.echo(f"Installing {dep} via pipenv...")
-                    result = subprocess.run(['pipenv', 'install', dep], 
+                    subprocess.run(['pipenv', 'install', dep], 
                                           capture_output=True, text=True, check=True)
                     click.echo(f"✓ Installed {dep} via pipenv")
         
         else:  # pip (default)
             if requirements_file and requirements_file.exists():
                 click.echo("Installing from requirements.txt via pip...")
-                result = subprocess.run([sys.executable, '-m', 'pip', 'install', '-r', str(requirements_file)], 
+                subprocess.run([sys.executable, '-m', 'pip', 'install', '-r', str(requirements_file)], 
                                       capture_output=True, text=True, check=True)
                 click.echo("✓ Dependencies installed successfully via pip")
             elif dependencies:
                 for dep in dependencies:
                     click.echo(f"Installing {dep} via pip...")
-                    result = subprocess.run([sys.executable, '-m', 'pip', 'install', dep], 
+                    subprocess.run([sys.executable, '-m', 'pip', 'install', dep], 
                                           capture_output=True, text=True, check=True)
                     click.echo(f"✓ Installed {dep} via pip")
         

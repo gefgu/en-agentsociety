@@ -167,14 +167,8 @@ class BenchmarkRunner:
             
         - **Returns**:
             - `DatabaseWriter`: Initialized database writer
-        """
-        database_config = DatabaseConfig(
-            enabled=True,
-            db_type="sqlite",
-            pg_dsn=None,
-        )
-        
-        database_writer = DatabaseWriter(tenant_id, exp_id, database_config, str(self.home_dir))
+        """        
+        database_writer = DatabaseWriter(tenant_id, exp_id, self.config.env.db, str(self.home_dir))
         await database_writer.init()
         return database_writer
     
@@ -190,7 +184,9 @@ class BenchmarkRunner:
                                      result_info: str = "",
                                      final_score: float = 0.0,
                                      error: str = "",
-                                     official_validated: bool = False):
+                                     official_validated: bool = False,
+                                     agent_filename: str = "",
+                                     result_filename: str = ""):
         """
         Update benchmark status in database.
         
@@ -222,6 +218,8 @@ class BenchmarkRunner:
             final_score=final_score,
             config=config_str,
             error=error,
+            agent_filename=agent_filename,
+            result_filename=result_filename,
             created_at=datetime.now(),
             updated_at=datetime.now()
         )
@@ -232,6 +230,7 @@ class BenchmarkRunner:
                  tenant_id: str,
                  task_name: str,
                  agent_config: AgentConfig,
+                 agent_filename: str = "",
                  datasets_path: Optional[Path] = None,
                  mode: str = "test",
                  official_validated: bool = False,
@@ -326,7 +325,8 @@ class BenchmarkRunner:
                     agent=agent_config_str,
                     config_str=config_str,
                     status=1,  # Running
-                    official_validated=official_validated
+                    official_validated=official_validated,
+                    agent_filename=agent_filename,
                 )
             
             # Execute benchmark
@@ -338,6 +338,9 @@ class BenchmarkRunner:
                 config=prepared_config,
                 tenant_id=tenant_id
             )
+
+            result_filename = self.home_dir / "inference_results" / f"{task_name}_{exp_id}_results.pkl"
+            result_filename.parent.mkdir(parents=True, exist_ok=True)
             
             # Save results
             results_data = {
@@ -349,15 +352,15 @@ class BenchmarkRunner:
                     "exp_id": exp_id,
                     "config": config_str,
                     "agent": agent_config_str,
+                    "agent_filename": agent_filename,
+                    "result_filename": result_filename,
                     "execution_time": datetime.now().isoformat(),
                     "mode": mode
                 }
             }
             
             # Save to file
-            results_file = self.home_dir / "inference_results" / f"{task_name}_{exp_id}_results.pkl"
-            results_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(results_file, "wb") as f:
+            with open(result_filename, "wb") as f:
                 pickle.dump(results_data, f)
             
             # Update database with completion status
@@ -371,7 +374,9 @@ class BenchmarkRunner:
                     agent=agent_config_str,
                     config_str=config_str,
                     status=2,  # Completed
-                    official_validated=official_validated
+                    official_validated=official_validated,
+                    agent_filename=agent_filename,
+                    result_filename=str(result_filename)
                 )
             
             # Run evaluation if in test mode
@@ -386,7 +391,7 @@ class BenchmarkRunner:
             
             return {
                 "success": True,
-                "results_file": str(results_file),
+                "result_filename": str(result_filename),
                 "results": results,
                 "evaluation": evaluation_result,
                 "task_name": task_name,
@@ -406,7 +411,9 @@ class BenchmarkRunner:
                     config_str=config_str,
                     status=3,  # Error
                     error=str(e),
-                    official_validated=official_validated
+                    official_validated=official_validated,
+                    agent_filename=agent_filename,
+                    result_filename=str(result_filename)
                 )
             
             raise e
@@ -418,7 +425,10 @@ class BenchmarkRunner:
                       tenant_id: str,
                       task_name: str,
                       results_file: str,
+                      agent_filename: str = "",
+                      result_filename: str = "",
                       datasets_path: Optional[Path] = None,
+                      official_validated: bool = False,
                       output_file: Optional[Path] = None,
                       save_results: bool = True) -> Dict[str, Any]:
         """
@@ -448,20 +458,24 @@ class BenchmarkRunner:
             with open(results_path, "rb") as f:
                 data = pickle.load(f)
                 results, metadata = data["results"], data["metadata"]
-                tenant_id = metadata["tenant_id"]
-                exp_id = metadata["exp_id"]
                 print(f"Inference Evaluation Metadata: \n{metadata}")
         except Exception as e:
             raise ValueError(f"Failed to load results file: {e}")
-        
-        return await self._evaluate_results(tenant_id, task_name, results, metadata, datasets_path, output_file, save_results)
+        if agent_filename == "":
+            agent_filename = metadata["agent_filename"]
+        if result_filename == "":
+            result_filename = metadata["result_filename"]
+        return await self._evaluate_results(tenant_id, task_name, results, metadata, datasets_path, output_file, save_results, official_validated, agent_filename, result_filename)
 
     async def evaluate_from_file_object(self,
                                        tenant_id: str,
                                        task_name: str,
                                        file_object,
+                                       agent_filename: str = "",
+                                       result_filename: str = "",
                                        datasets_path: Optional[Path] = None,
                                        output_file: Optional[Path] = None,
+                                       official_validated: bool = False,
                                        save_results: bool = True) -> Dict[str, Any]:
         """
         Evaluate benchmark results from file object.
@@ -491,8 +505,11 @@ class BenchmarkRunner:
             print(f"Inference Evaluation Metadata: \n{metadata}")
         except Exception as e:
             raise ValueError(f"Failed to load results from file object: {e}")
-        
-        return await self._evaluate_results(tenant_id, task_name, results, metadata, datasets_path, output_file, save_results)
+        if agent_filename == "":
+            agent_filename = metadata["agent_filename"]
+        if result_filename == "":
+            result_filename = metadata["result_filename"]
+        return await self._evaluate_results(tenant_id, task_name, results, metadata, datasets_path, output_file, save_results, official_validated, agent_filename, result_filename)
 
     async def _evaluate_results(self,
                                tenant_id: str,
@@ -501,7 +518,10 @@ class BenchmarkRunner:
                                metadata: Dict[str, Any],
                                datasets_path: Optional[Path] = None,
                                output_file: Optional[Path] = None,
-                               save_results: bool = True) -> Dict[str, Any]:
+                               official_validated: bool = False,
+                               save_results: bool = True,
+                               agent_filename: str = "",
+                               result_filename: str = "") -> Dict[str, Any]:
         """
         Internal method to evaluate benchmark results.
         
@@ -570,7 +590,9 @@ class BenchmarkRunner:
                     status=4,  # Evaluation-only status
                     result_info=result_info,
                     final_score=final_score,
-                    official_validated=False
+                    official_validated=official_validated,
+                    agent_filename=agent_filename,
+                    result_filename=result_filename
                 )
             
             return {
@@ -591,7 +613,10 @@ class BenchmarkRunner:
                     agent=metadata.get("agent", ""),
                     config_str=metadata.get("config", {}),
                     status=3,  # Error
-                    error=str(e)
+                    error=str(e),
+                    official_validated=official_validated,
+                    agent_filename=agent_filename,
+                    result_filename=result_filename
                 )
             
             raise e

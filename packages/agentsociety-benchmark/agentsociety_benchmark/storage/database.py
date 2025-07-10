@@ -90,6 +90,8 @@ class DatabaseWriter:
                     config=benchmark_info.config,
                     error=benchmark_info.error,
                     official_validated=benchmark_info.official_validated,
+                    agent_filename=benchmark_info.agent_filename,
+                    result_filename=benchmark_info.result_filename,
                     created_at=benchmark_info.created_at,
                     updated_at=benchmark_info.updated_at,
                 )
@@ -108,6 +110,8 @@ class DatabaseWriter:
                             config=stmt.excluded.config,
                             error=stmt.excluded.error,
                             official_validated=stmt.excluded.official_validated,
+                            agent_filename=stmt.excluded.agent_filename,
+                            result_filename=stmt.excluded.result_filename,
                             updated_at=stmt.excluded.updated_at,
                         ),
                     )
@@ -124,6 +128,8 @@ class DatabaseWriter:
                             config=stmt.excluded.config,
                             error=stmt.excluded.error,
                             official_validated=stmt.excluded.official_validated,
+                            agent_filename=stmt.excluded.agent_filename,
+                            result_filename=stmt.excluded.result_filename,
                             updated_at=stmt.excluded.updated_at,
                         )
                     )

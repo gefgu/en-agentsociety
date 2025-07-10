@@ -17,6 +17,8 @@ class Benchmark(Base):
     benchmark_name: Mapped[str] = mapped_column()
     llm: Mapped[str] = mapped_column()
     agent: Mapped[str] = mapped_column()
+    agent_filename: Mapped[str] = mapped_column()
+    result_filename: Mapped[str] = mapped_column()
     status: Mapped[int] = mapped_column()
     result_info: Mapped[str] = mapped_column()
     final_score: Mapped[float] = mapped_column()
@@ -77,11 +79,16 @@ class Benchmark(Base):
         return {
             "id": str(self.id),
             "benchmark_name": self.benchmark_name,
+            "llm": self.llm,
+            "agent": self.agent,
+            "agent_filename": self.agent_filename,
+            "result_filename": self.result_filename,
             "status": self.status,
             "result_info": self.result_info,
             "final_score": self.final_score,
             "config": self.config,
             "error": self.error,
+            "official_validated": self.official_validated,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }

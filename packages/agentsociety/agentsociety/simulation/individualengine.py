@@ -372,53 +372,74 @@ class IndividualEngine:
         
         round_num = 0
         agent_ids = list(self._id2agent.keys())
+        self._exp_info.status = ExperimentStatus.RUNNING
+        await self._save_exp_info()
         
-        while self._task_loader.get_pending_count() > 0: # type: ignore
-            round_num += 1
-            
-            # Start of round progress
-            completed_before = self._task_loader.get_completed_count() # type: ignore
-            progress = (completed_before / total_tasks) * 100
-            get_logger().info(f"Round {round_num} starting - Progress: {completed_before}/{total_tasks} ({progress:.1f}%)")
-            
-            # Get N tasks for N agents
-            tasks = self._task_loader.next(concurrency) # type: ignore
-            if not tasks:
-                break
-            
-            # Ensure tasks is a list
-            if not isinstance(tasks, list):
-                tasks = [tasks]
-            
-            # Execute tasks concurrently
-            task_coroutines = []
-            for i, task in enumerate(tasks):
-                agent_id = agent_ids[i]
-                agent = self._id2agent[agent_id]
+        try:
+            while self._task_loader.get_pending_count() > 0: # type: ignore
+                self.llm.clear_log_list()
+                round_num += 1
                 
-                # Assign this task to the specific agent
-                task.assign_to_agent(agent_id)
+                # Start of round progress
+                completed_before = self._task_loader.get_completed_count() # type: ignore
+                progress = (completed_before / total_tasks) * 100
+                get_logger().info(f"Round {round_num} starting - Progress: {completed_before}/{total_tasks} ({progress:.1f}%)")
                 
-                task_coroutines.append(agent.run(task))
+                # Get N tasks for N agents
+                tasks = self._task_loader.next(concurrency) # type: ignore
+                if not tasks:
+                    break
+                
+                # Ensure tasks is a list
+                if not isinstance(tasks, list):
+                    tasks = [tasks]
+                
+                # Execute tasks concurrently
+                task_coroutines = []
+                for i, task in enumerate(tasks):
+                    agent_id = agent_ids[i]
+                    agent = self._id2agent[agent_id]
+                    
+                    # Assign this task to the specific agent
+                    task.assign_to_agent(agent_id)
+                    
+                    task_coroutines.append(agent.run(task))
+                
+                await asyncio.gather(*task_coroutines)
+
+                # Collect llm logs
+                llm_log=self.llm.get_log_list()
+                for log in llm_log:
+                    self._exp_info.input_tokens += log.get("input_tokens", 0)
+                    self._exp_info.output_tokens += log.get("output_tokens", 0)
+                
+                # Collect only new task results for this round
+                task_results = self._task_loader.get_task_results() # type: ignore
+                await self._database_writer.write_task_result(task_results) # type: ignore
+                
+                # End of round progress
+                completed_after = self._task_loader.get_completed_count() # type: ignore
+                pending_after = self._task_loader.get_pending_count() # type: ignore
+                uncollected_completed = self._task_loader.get_uncollected_completed_count() # type: ignore
+                progress = (completed_after / total_tasks) * 100
+                get_logger().info(
+                    f"Round {round_num} completed - Progress: {completed_after}/{total_tasks} ({progress:.1f}%) "
+                    f"[Completed this round: {completed_after - completed_before}, Remaining: {pending_after}, "
+                    f"New results collected: {len(task_results)}, Uncollected completed: {uncollected_completed}]"
+                )
+
+                # save the experiment info
+                await self._save_exp_info()
             
-            await asyncio.gather(*task_coroutines)
-            
-            # Collect only new task results for this round
-            task_results = self._task_loader.get_task_results() # type: ignore
-            await self._database_writer.write_task_result(task_results) # type: ignore
-            
-            # End of round progress
-            completed_after = self._task_loader.get_completed_count() # type: ignore
-            pending_after = self._task_loader.get_pending_count() # type: ignore
-            uncollected_completed = self._task_loader.get_uncollected_completed_count() # type: ignore
-            progress = (completed_after / total_tasks) * 100
-            get_logger().info(
-                f"Round {round_num} completed - Progress: {completed_after}/{total_tasks} ({progress:.1f}%) "
-                f"[Completed this round: {completed_after - completed_before}, Remaining: {pending_after}, "
-                f"New results collected: {len(task_results)}, Uncollected completed: {uncollected_completed}]"
-            )
-        
-        get_logger().info("-----Individual engine completed successfully")
+            self._exp_info.status = ExperimentStatus.FINISHED
+            await self._save_exp_info()
+            get_logger().info("-----Individual engine completed successfully")
+        except Exception as e:
+            get_logger().error(f"Run error: {str(e)}\n{traceback.format_exc()}")
+            self._exp_info.status = ExperimentStatus.ERROR
+            self._exp_info.error = str(e)
+            await self._save_exp_info()
+            raise e
 
     async def close(self):
         """Close all the components"""

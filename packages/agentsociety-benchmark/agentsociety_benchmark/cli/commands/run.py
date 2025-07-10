@@ -5,16 +5,13 @@ import asyncio
 import json
 from pathlib import Path
 from typing import Optional
-from datetime import datetime
 
 import click
 import requests
 import yaml
 
 from ..config import BenchmarkConfig
-from agentsociety.configs import AgentConfig, Config, IndividualConfig
-from agentsociety_benchmark.storage.database import DatabaseWriter
-from agentsociety_benchmark.storage.type import StorageBenchmark
+from agentsociety.configs import AgentConfig
 from agentsociety_benchmark.runner import BenchmarkRunner
 
 
@@ -167,11 +164,8 @@ def find_task_config(task_dir: Path) -> Optional[Path]:
 )
 @click.option(
     "--official",
-    "-f",
-    required=False,
+    is_flag=True,
     help="Official validation",
-    type=bool,
-    default=False,
 )
 @click.option(
     "--mode",
@@ -251,11 +245,12 @@ def run(ctx: click.Context,
                 datasets_path=datasets_path,
                 mode=mode,
                 official_validated=official,
-                save_results=True
+                save_results=True,
+                agent_filename=f"{agent}"
             )
             
             click.echo("Benchmark task completed successfully")
-            click.echo(f"Results file: {result.get('results_file', 'N/A')}")
+            click.echo(f"Results file: {result.get('result_filename', 'N/A')}")
             
             if result.get('evaluation'):
                 click.echo(f"Evaluation completed: {result['evaluation']}")

@@ -2,16 +2,10 @@
 Evaluate command for executing benchmark evaluation independently
 """
 import asyncio
-import json
 from pathlib import Path
-from typing import Optional
-from datetime import datetime
 
 import click
 
-from agentsociety_benchmark.storage.database import DatabaseWriter
-from agentsociety_benchmark.storage.type import StorageBenchmark
-from agentsociety.storage import DatabaseConfig
 from agentsociety_benchmark.runner import BenchmarkRunner
 
 from .run import load_benchmark_config
@@ -87,7 +81,6 @@ def load_results_from_file_object(file_object):
     """
     try:
         import pickle
-        import io
         
         # Handle bytes object
         if isinstance(file_object, bytes):
@@ -132,9 +125,21 @@ def load_results_from_file_object(file_object):
     type=click.Path(file_okay=True, dir_okay=False),
 )
 @click.option(
+    "--agent_filename",
+    "-af",
+    required=False,
+    default="",
+    help="Specify the filename for the related agent (optional)"
+)
+@click.option(
     "--tenant-id",
     default="",
     help="Specify tenant ID for database storage (optional)"
+)
+@click.option(
+    "--official",
+    is_flag=True,
+    help="Official validation",
 )
 @click.pass_context
 def evaluate(ctx: click.Context, 
@@ -143,7 +148,9 @@ def evaluate(ctx: click.Context,
              datasets: str,
              output: str,
              tenant_id: str,
-             config: str):
+             config: str,
+             official: bool,
+             agent_filename: str):
     """
     Evaluate benchmark results independently
     
@@ -175,8 +182,6 @@ def evaluate(ctx: click.Context,
     except Exception as e:
         click.echo(f"Error loading configuration: {e}")
         return
-    
-    database_path = benchmark_config.env.home_dir
     
     # Validate task
     if not task:
@@ -258,7 +263,10 @@ def evaluate(ctx: click.Context,
                 results_file=str(results_path),
                 datasets_path=datasets_path,
                 output_file=output_path,
-                save_results=True
+                save_results=True,
+                official_validated=official,
+                agent_filename=agent_filename,
+                result_filename=str(results_file)
             )
             
             click.echo("Evaluation completed successfully")
