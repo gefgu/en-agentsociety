@@ -5,19 +5,17 @@ This module provides a standalone BenchmarkRunner class that abstracts
 the core functionality of running benchmarks and evaluating results.
 """
 
-import asyncio
 import json
 import yaml
 import pickle
 from pathlib import Path
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any
 from datetime import datetime
 
 from agentsociety.configs import AgentConfig, Config, IndividualConfig
 from agentsociety_benchmark.cli.config import BenchmarkConfig
 from agentsociety_benchmark.storage.database import DatabaseWriter
-from agentsociety_benchmark.storage.type import StorageBenchmark
-from agentsociety.storage import DatabaseConfig
+from agentsociety_benchmark.storage.type import StorageBenchmark, BenchmarkStatus
 
 
 class BenchmarkRunner:
@@ -39,7 +37,6 @@ class BenchmarkRunner:
                  config: BenchmarkConfig):
         self.config = config
         self.home_dir = Path(config.env.home_dir) if config.env.home_dir else Path.home() / ".agentsociety-benchmark"
-        self.database_writer: Optional[DatabaseWriter] = None
         
     def _load_benchmark_config(self, config_path: Path) -> BenchmarkConfig:
         """
@@ -180,7 +177,7 @@ class BenchmarkRunner:
                                      llm: str,
                                      agent: str,
                                      config_str: str,
-                                     status: int,
+                                     status: BenchmarkStatus,
                                      result_info: str = "",
                                      final_score: float = 0.0,
                                      error: str = "",
@@ -324,7 +321,7 @@ class BenchmarkRunner:
                     llm=llm_name,
                     agent=agent_config_str,
                     config_str=config_str,
-                    status=1,  # Running
+                    status=BenchmarkStatus.RUNNING,
                     official_validated=official_validated,
                     agent_filename=agent_filename,
                 )
@@ -373,7 +370,7 @@ class BenchmarkRunner:
                     llm=llm_name,
                     agent=agent_config_str,
                     config_str=config_str,
-                    status=2,  # Completed
+                    status=BenchmarkStatus.FINISHED,
                     official_validated=official_validated,
                     agent_filename=agent_filename,
                     result_filename=str(result_filename)
@@ -409,11 +406,10 @@ class BenchmarkRunner:
                     llm=llm_name,
                     agent=agent_config_str,
                     config_str=config_str,
-                    status=3,  # Error
+                    status=BenchmarkStatus.ERROR,
                     error=str(e),
                     official_validated=official_validated,
                     agent_filename=agent_filename,
-                    result_filename=str(result_filename)
                 )
             
             raise e
@@ -429,8 +425,7 @@ class BenchmarkRunner:
                       result_filename: str = "",
                       datasets_path: Optional[Path] = None,
                       official_validated: bool = False,
-                      output_file: Optional[Path] = None,
-                      save_results: bool = True) -> Dict[str, Any]:
+                      output_file: Optional[Path] = None) -> Dict[str, Any]:
         """
         Evaluate benchmark results.
         
@@ -444,7 +439,6 @@ class BenchmarkRunner:
             - `results_file` (str): Path to the results file
             - `datasets_path` (Optional[Path]): Path to datasets directory
             - `output_file` (Optional[Path]): Output file for evaluation results
-            - `save_results` (bool): Whether to save results to database
             
         - **Returns**:
             - `Dict[str, Any]`: Evaluation results and metadata
@@ -462,10 +456,10 @@ class BenchmarkRunner:
         except Exception as e:
             raise ValueError(f"Failed to load results file: {e}")
         if agent_filename == "":
-            agent_filename = metadata["agent_filename"]
+            agent_filename = metadata.get("agent_filename", "unknown")
         if result_filename == "":
-            result_filename = metadata["result_filename"]
-        return await self._evaluate_results(tenant_id, task_name, results, metadata, datasets_path, output_file, save_results, official_validated, agent_filename, result_filename)
+            result_filename = metadata.get("result_filename", "unknown")
+        return await self._evaluate_results(tenant_id, task_name, results, metadata, datasets_path, output_file, official_validated, agent_filename, result_filename)
 
     async def evaluate_from_file_object(self,
                                        tenant_id: str,
@@ -475,8 +469,7 @@ class BenchmarkRunner:
                                        result_filename: str = "",
                                        datasets_path: Optional[Path] = None,
                                        output_file: Optional[Path] = None,
-                                       official_validated: bool = False,
-                                       save_results: bool = True) -> Dict[str, Any]:
+                                       official_validated: bool = False) -> Dict[str, Any]:
         """
         Evaluate benchmark results from file object.
         
@@ -491,7 +484,6 @@ class BenchmarkRunner:
             - `file_object` (bytes or file-like): File object containing results data
             - `datasets_path` (Optional[Path]): Path to datasets directory
             - `output_file` (Optional[Path]): Output file for evaluation results
-            - `save_results` (bool): Whether to save results to database
             
         - **Returns**:
             - `Dict[str, Any]`: Evaluation results and metadata
@@ -506,10 +498,10 @@ class BenchmarkRunner:
         except Exception as e:
             raise ValueError(f"Failed to load results from file object: {e}")
         if agent_filename == "":
-            agent_filename = metadata["agent_filename"]
+            agent_filename = metadata.get("agent_filename", "unknown")
         if result_filename == "":
-            result_filename = metadata["result_filename"]
-        return await self._evaluate_results(tenant_id, task_name, results, metadata, datasets_path, output_file, save_results, official_validated, agent_filename, result_filename)
+            result_filename = metadata.get("result_filename", "unknown")
+        return await self._evaluate_results(tenant_id, task_name, results, metadata, datasets_path, output_file, official_validated, agent_filename, result_filename)
 
     async def _evaluate_results(self,
                                tenant_id: str,
@@ -519,7 +511,6 @@ class BenchmarkRunner:
                                datasets_path: Optional[Path] = None,
                                output_file: Optional[Path] = None,
                                official_validated: bool = False,
-                               save_results: bool = True,
                                agent_filename: str = "",
                                result_filename: str = "") -> Dict[str, Any]:
         """
@@ -536,7 +527,6 @@ class BenchmarkRunner:
             - `metadata` (Dict[str, Any]): Metadata from the results file
             - `datasets_path` (Optional[Path]): Path to datasets directory
             - `output_file` (Optional[Path]): Output file for evaluation results
-            - `save_results` (bool): Whether to save results to database
             
         - **Returns**:
             - `Dict[str, Any]`: Evaluation results and metadata
@@ -549,9 +539,7 @@ class BenchmarkRunner:
             raise ValueError(f"Task '{task_name}' does not have an evaluation function")
         
         # Initialize database writer if needed
-        database_writer = None
-        if save_results:
-            database_writer = await self._init_database_writer(tenant_id, str(exp_id))
+        database_writer = await self._init_database_writer(tenant_id, str(exp_id))
         
         try:
             # Run evaluation
@@ -567,33 +555,33 @@ class BenchmarkRunner:
                 with open(output_file, "w") as f:
                     json.dump(evaluation_result, f, ensure_ascii=False, indent=2)
             
-            # Update database if needed
-            if database_writer:
-                result_info = json.dumps(evaluation_result, ensure_ascii=False, indent=2, default=str)
-                
-                # Get final score from result
-                final_score = 0.0
-                if isinstance(evaluation_result, dict) and "final_score" in evaluation_result:
-                    try:
-                        final_score = float(evaluation_result["final_score"])
-                    except (ValueError, TypeError):
-                        final_score = 0.0
-                
-                await self._update_benchmark_status(
-                    database_writer=database_writer,
-                    tenant_id=tenant_id,
-                    exp_id=str(exp_id),
-                    task_name=task_name,
-                    llm=metadata.get("llm", ""),
-                    agent=metadata.get("agent", ""),
-                    config_str=metadata.get("config", {}),
-                    status=4,  # Evaluation-only status
-                    result_info=result_info,
-                    final_score=final_score,
-                    official_validated=official_validated,
-                    agent_filename=agent_filename,
-                    result_filename=result_filename
-                )
+            result_info = json.dumps(evaluation_result, ensure_ascii=False, indent=2, default=str)            
+            # Get final score from result
+            final_score = 0.0
+            if isinstance(evaluation_result, dict) and "final_score" in evaluation_result:
+                try:
+                    final_score = float(evaluation_result["final_score"])
+                except (ValueError, TypeError):
+                    final_score = 0.0
+            
+            print(f"Evaluation Result: \n{evaluation_result}")
+
+            # Update database with evaluation status
+            await self._update_benchmark_status(
+                database_writer=database_writer,
+                tenant_id=tenant_id,
+                exp_id=str(exp_id),
+                task_name=task_name,
+                llm=metadata.get("llm", ""),
+                agent=metadata.get("agent", ""),
+                config_str=metadata.get("config", {}),
+                status=BenchmarkStatus.EVALUATED,
+                result_info=result_info,
+                final_score=final_score,
+                official_validated=official_validated,
+                agent_filename=agent_filename,
+                result_filename=result_filename
+            )
             
             return {
                 "success": True,
@@ -612,7 +600,7 @@ class BenchmarkRunner:
                     llm=metadata.get("llm", ""),
                     agent=metadata.get("agent", ""),
                     config_str=metadata.get("config", {}),
-                    status=3,  # Error
+                    status=BenchmarkStatus.ERROR,
                     error=str(e),
                     official_validated=official_validated,
                     agent_filename=agent_filename,

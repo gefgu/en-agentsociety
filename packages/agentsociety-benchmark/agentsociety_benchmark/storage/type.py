@@ -1,9 +1,19 @@
+import enum
 from pydantic import BaseModel
 from datetime import datetime
 
 __all__ = [
     "StorageBenchmark",
 ]
+
+class BenchmarkStatus(enum.IntEnum):
+    """Benchmark status"""
+
+    NOT_STARTED = 0  # The benchmark is not started
+    RUNNING = 1  # The benchmark is running
+    FINISHED = 2  #  The benchmark is finished
+    EVALUATED = 3  # The benchmark has been evaluated
+    ERROR = 4  # The benchmark has error and stopped
 
 
 class StorageBenchmark(BaseModel):

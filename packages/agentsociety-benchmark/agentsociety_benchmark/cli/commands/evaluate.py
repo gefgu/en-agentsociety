@@ -263,7 +263,6 @@ def evaluate(ctx: click.Context,
                 results_file=str(results_path),
                 datasets_path=datasets_path,
                 output_file=output_path,
-                save_results=True,
                 official_validated=official,
                 agent_filename=agent_filename,
                 result_filename=str(results_file)
