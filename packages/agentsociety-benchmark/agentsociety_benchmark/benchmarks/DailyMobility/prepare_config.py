@@ -29,6 +29,7 @@ def prepare_config(benchmark_config: BenchmarkConfig, agent_config: AgentConfig,
     agent_config.memory_from_file = str(datasets_path / "profiles.json")
     agent_config.number = 100
 
+    assert benchmark_config.llm is not None, "LLM is not provided, please provide LLM in the benchmark config"
     
     # Create solver configuration
     simulation_config = Config(

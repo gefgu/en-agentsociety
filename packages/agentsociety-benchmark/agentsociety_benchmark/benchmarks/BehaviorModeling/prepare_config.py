@@ -37,6 +37,8 @@ def prepare_config(benchmark_config: BenchmarkConfig, agent_config: AgentConfig,
             description="Retrieve information from the internet",
         ),
     ]
+
+    assert benchmark_config.llm is not None, "LLM is not provided, please provide LLM in the benchmark config"
     
     # Create solver configuration
     individual_config = IndividualConfig(

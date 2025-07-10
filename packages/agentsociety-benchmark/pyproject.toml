@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentsociety-benchmark"
-version = "0.1.0a3"
+version = "0.1.0a4"
 description = "A tool for benchmark your agent design in different scenarios."
 authors = [
     { name = "Yuwei Yan", email = "yyan791@connect.hkust-gz.edu.cn" },

@@ -252,6 +252,7 @@ class BenchmarkRunner:
         - **Returns**:
             - `Dict[str, Any]`: Execution results and metadata
         """
+        assert self.config.llm is not None, "LLM is not provided, please provide LLM in the benchmark config"
         
         # Get task functions
         task_functions = self._get_task_functions(task_name)
