@@ -167,7 +167,7 @@ class BaselineSupervisor(BDSC2025SupervisorBase):
                     ]
                 ),
             )
-            await prompt.format(context=temporary_context)  # type: ignore
+            await prompt.format(context=temporary_context.model_dump())
             try:
                 response = await asyncio.wait_for(
                     self.llm.atext_request(
@@ -863,7 +863,7 @@ class BaselineSupervisor(BDSC2025SupervisorBase):
 
         if intervention_count is not None:
             temporary_context.current_agent_intervention_count = intervention_count
-        await prompt.format(context=temporary_context)  # type: ignore
+        await prompt.format(context=temporary_context.model_dump())
         try:
             response = await asyncio.wait_for(
                 self.llm.atext_request(prompt.to_dialog()),
