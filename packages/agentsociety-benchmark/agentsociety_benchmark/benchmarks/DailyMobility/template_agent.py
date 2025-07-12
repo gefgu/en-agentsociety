@@ -18,8 +18,6 @@ class DailyMobilityAgent(CitizenAgentBase):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.movement_gap = 60 * 60
-        self.last_movement_time = -1
         self.movement_status = [Status.STATUS_WALKING, Status.STATUS_DRIVING]
         self.intention_list = [
             "sleep",
@@ -46,21 +44,26 @@ class DailyMobilityAgent(CitizenAgentBase):
         })
 
     async def forward(self):
-        # check my status
-        citizen_status = await self.memory.status.get("status")
-        if citizen_status in self.movement_status:
-            # agent is moving
-            return
-
-        # get the current time
+        # ======================== Result Related API ========================
+        # You need to choose a destination and go to it with intention
+        # 1. Go to a destination with go_to_aoi
+        # randomly select a destination
         assert self.environment is not None
-        _, time = self.environment.get_datetime()
-        if self.last_movement_time == -1 or time - self.last_movement_time > self.movement_gap:
-            self.last_movement_time = time
-            # randomly select a destination
-            aoi_ids = self.environment.get_aoi_ids()
-            destination_aoi_id = random.choice(aoi_ids)
-            # move to the destination
-            await self.go_to_aoi(destination_aoi_id)
-            intention = random.choice(self.intention_list)
-            await self.log_intention(intention)
+        aoi_ids = self.environment.get_aoi_ids()
+        destination_aoi_id = random.choice(aoi_ids)
+        # move to the destination
+        await self.go_to_aoi(destination_aoi_id)
+
+        # 2. Log the intention with log_intention
+        # Notice, you have to choose a intention from the intention_list, which includes:
+        # "sleep",
+        # "home activity",
+        # "other",
+        # "work",
+        # "shopping",
+        # "eating out",
+        # "leisure and entertainment",
+        # Any other intention type will be considered as "other"
+        intention = random.choice(self.intention_list)
+        await self.log_intention(intention)
+        # ======================== Result Related API ========================

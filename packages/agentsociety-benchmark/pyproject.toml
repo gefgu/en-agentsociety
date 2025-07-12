@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentsociety-benchmark"
-version = "0.1.0a4"
+version = "0.1.0"
 description = "A tool for benchmark your agent design in different scenarios."
 authors = [
     { name = "Yuwei Yan", email = "yyan791@connect.hkust-gz.edu.cn" },
@@ -18,7 +18,7 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "agentsociety>=1.5.0rc2",
+    "agentsociety>=1.5.0rc3",
     "click>=8.0.0",
     "requests>=2.25.0",
     "pyyaml>=6.0",

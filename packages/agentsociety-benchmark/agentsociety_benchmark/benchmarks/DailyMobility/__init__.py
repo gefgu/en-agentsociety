@@ -1,3 +1,5 @@
+from .template_agent import DailyMobilityAgent
+
 # Lazy imports to avoid dependency issues during CLI operations
 def _get_prepare_config():
     """Get prepare_config function when needed"""
@@ -28,6 +30,7 @@ DAILY_MOBILITY_CONFIG = {
         "numpy >= 1.26.4",
         "scipy >= 1.13.0",
     ],
+    "agent_class": DailyMobilityAgent,
     "prepare_config_func": _get_prepare_config,
     "entry": _get_entry,
     "evaluation_func": _get_evaluation,
@@ -38,4 +41,4 @@ DAILY_MOBILITY_CONFIG = {
     "supported_modes": ["inference"]
 }
 
-__all__ = ["DAILY_MOBILITY_CONFIG"]
+__all__ = ["DAILY_MOBILITY_CONFIG", "DailyMobilityAgent"]

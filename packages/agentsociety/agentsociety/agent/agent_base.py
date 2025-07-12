@@ -187,6 +187,11 @@ class Agent(ABC):
     def id(self):
         """The Agent's Simulator ID"""
         return self._id
+    
+    @property
+    def toolbox(self):
+        """The Agent's Toolbox"""
+        return self._toolbox
 
     @property
     def llm(self):

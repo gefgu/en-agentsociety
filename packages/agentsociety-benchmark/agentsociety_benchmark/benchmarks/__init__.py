@@ -2,8 +2,8 @@
 Benchmarks module containing task configurations
 """
 from .BehaviorModeling import DAILY_MOBILITY_GENERATION_CONFIG
-from .DailyMobility import DAILY_MOBILITY_CONFIG
-from .HurricaneMobility import HURRICANE_MOBILITY_CONFIG
+from .DailyMobility import DAILY_MOBILITY_CONFIG, DailyMobilityAgent
+from .HurricaneMobility import HURRICANE_MOBILITY_CONFIG, HurricaneMobilityAgent
 
 # Task to config mapping
 TASK_CONFIGS = {
@@ -42,4 +42,4 @@ def list_available_tasks():
     """
     return list(TASK_CONFIGS.keys())
 
-__all__ = ["TASK_CONFIGS", "get_task_config", "get_all_task_configs", "list_available_tasks"] 
+__all__ = ["TASK_CONFIGS", "get_task_config", "get_all_task_configs", "list_available_tasks", "DailyMobilityAgent", "HurricaneMobilityAgent"] 

@@ -1,7 +1,6 @@
 from pathlib import Path
-from agentsociety.agent import IndividualAgentBase, CustomTool
+from agentsociety.agent import CustomTool
 from agentsociety.configs import IndividualConfig, TaskLoaderConfig, AgentConfig
-from agentsociety_benchmark.utils.agent_loader import load_agent_class
 
 from .task import BehaviorModelingTask
 from .interactiontool import InteractionTool
@@ -19,20 +18,10 @@ def prepare_config(benchmark_config: BenchmarkConfig, agent_config: AgentConfig,
     Returns:
         IndividualConfig: Processed configuration
     """
-    # Handle agent_class if it's a string (could be file path or class name)
-    if isinstance(agent_config.agent_class, str):
-        agent_path = Path(agent_config.agent_class)
-        
-        # Check if it's a file path (ends with .py or exists as file)
-        if agent_path.suffix == '.py' or agent_path.exists():
-            # It's a file path, load agent class from file
-            agent_class = load_agent_class(agent_path, IndividualAgentBase)
-            agent_config.agent_class = agent_class
-
     # Add CustomTool for Information Retrieval
     agent_config.tools = [
         CustomTool(
-            name="information_retrieval_tool",
+            name="uir",  # User-Item-Review Network interaction tool
             tool=InteractionTool(data_dir=str(datasets_path)),
             description="Retrieve information from the internet",
         ),

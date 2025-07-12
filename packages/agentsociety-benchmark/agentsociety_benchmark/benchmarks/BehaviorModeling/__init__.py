@@ -1,3 +1,5 @@
+from agentsociety.agent import IndividualAgentBase
+
 # Lazy imports to avoid dependency issues during CLI operations
 def _get_prepare_config():
     """Get prepare_config function when needed"""
@@ -39,6 +41,7 @@ DAILY_MOBILITY_GENERATION_CONFIG = {
         "lmdb >= 1.6.2",
         "datasets >= 2.18.0"
     ],
+    "agent_class": IndividualAgentBase,
     "prepare_config_func": _get_prepare_config,
     "entry": _get_entry,
     "evaluation_func": _get_evaluation,

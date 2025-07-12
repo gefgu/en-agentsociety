@@ -16,7 +16,7 @@ from agentsociety.configs import AgentConfig, Config, IndividualConfig
 from agentsociety_benchmark.cli.config import BenchmarkConfig
 from agentsociety_benchmark.storage.database import DatabaseWriter
 from agentsociety_benchmark.storage.type import StorageBenchmark, BenchmarkStatus
-
+from agentsociety_benchmark.utils.agent_loader import load_agent_class
 
 class BenchmarkRunner:
     """
@@ -107,6 +107,16 @@ class BenchmarkRunner:
             )
         else:
             raise ValueError(f"Unsupported agent config file format: {file_ext}")
+        
+    def _get_task_config(self, task_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get task configuration from the benchmarks module.
+        """
+        try:
+            from agentsociety_benchmark.benchmarks import get_task_config
+            return get_task_config(task_name)
+        except ImportError:
+            return None
     
     def _get_task_functions(self, task_name: str) -> Optional[Dict[str, Any]]:
         """
@@ -123,9 +133,7 @@ class BenchmarkRunner:
             - `Optional[Dict[str, Any]]`: Dictionary containing task functions
         """
         try:
-            from agentsociety_benchmark.benchmarks import get_task_config
-            
-            task_config = get_task_config(task_name)
+            task_config = self._get_task_config(task_name)
             if not task_config:
                 return None
                 
@@ -259,7 +267,21 @@ class BenchmarkRunner:
         if not task_functions:
             raise ValueError(f"Task '{task_name}' not found or invalid")
         
+        task_config = self._get_task_config(task_name)
+        if not task_config:
+            raise ValueError(f"Task '{task_name}' not found or invalid")
+        
         database_writer = None
+
+        # Handle agent_class if it's a string (could be file path or class name)
+        if isinstance(agent_config.agent_class, str):
+            agent_path = Path(agent_config.agent_class)
+            
+            # Check if it's a file path (ends with .py or exists as file)
+            if agent_path.suffix == '.py' or agent_path.exists():
+                # It's a file path, load agent class from file
+                agent_class = load_agent_class(agent_path, task_config["agent_class"])
+                agent_config.agent_class = agent_class
         
         try:
             # Prepare configuration

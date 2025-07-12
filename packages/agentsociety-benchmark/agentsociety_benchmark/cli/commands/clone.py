@@ -17,6 +17,102 @@ except ImportError:
     TQDM_AVAILABLE = False
 
 
+def check_lfc_support() -> bool:
+    """
+    Check if the current environment supports Large File Cache (LFC)
+    
+    This function checks if Git LFS (Large File Storage) is properly configured
+    and available in the current environment. LFC is required for handling
+    large files in Git repositories.
+    
+    Returns:
+        bool: True if LFC is supported, False otherwise
+    """
+    try:
+        # Check if git-lfs is installed
+        result = subprocess.run(['git', 'lfs', 'version'], 
+                              capture_output=True, text=True, timeout=10)
+        if result.returncode != 0:
+            return False
+        
+        # Check if git-lfs is initialized in the current repository
+        result = subprocess.run(['git', 'lfs', 'install'], 
+                              capture_output=True, text=True, timeout=10)
+        if result.returncode != 0:
+            return False
+        
+        # Check if git-lfs hooks are properly set up
+        result = subprocess.run(['git', 'lfs', 'track'], 
+                              capture_output=True, text=True, timeout=10)
+        if result.returncode != 0:
+            return False
+        
+        return True
+        
+    except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
+        return False
+
+
+def show_lfc_installation_guide():
+    """
+    Display installation guide for Large File Cache (LFC)
+    
+    This function provides detailed instructions for installing and configuring
+    Git LFS (Large File Storage) on different operating systems.
+    """
+    click.echo("\n" + "="*60)
+    click.echo(click.style("Large File Cache (LFC) Installation Guide", fg='yellow', bold=True))
+    click.echo("="*60)
+    
+    click.echo("\nGit LFS (Large File Storage) is required to handle large files in Git repositories.")
+    click.echo("Please install Git LFS using one of the following methods:\n")
+    
+    # Linux installation
+    click.echo(click.style("Linux (Ubuntu/Debian):", fg='green', bold=True))
+    click.echo("  curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash")
+    click.echo("  sudo apt-get install git-lfs")
+    click.echo("  git lfs install")
+    
+    click.echo(click.style("\nLinux (CentOS/RHEL/Fedora):", fg='green', bold=True))
+    click.echo("  curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.rpm.sh | sudo bash")
+    click.echo("  sudo yum install git-lfs")
+    click.echo("  git lfs install")
+    
+    # macOS installation
+    click.echo(click.style("\nmacOS:", fg='green', bold=True))
+    click.echo("  # Using Homebrew:")
+    click.echo("  brew install git-lfs")
+    click.echo("  git lfs install")
+    click.echo("  # Using MacPorts:")
+    click.echo("  sudo port install git-lfs")
+    click.echo("  git lfs install")
+    
+    # Windows installation
+    click.echo(click.style("\nWindows:", fg='green', bold=True))
+    click.echo("  # Download from: https://git-lfs.github.com/")
+    click.echo("  # Or using Chocolatey:")
+    click.echo("  choco install git-lfs")
+    click.echo("  git lfs install")
+    click.echo("  # Or using Scoop:")
+    click.echo("  scoop install git-lfs")
+    click.echo("  git lfs install")
+    
+    # Manual installation
+    click.echo(click.style("\nManual Installation:", fg='green', bold=True))
+    click.echo("  1. Download from: https://git-lfs.github.com/")
+    click.echo("  2. Extract and add to PATH")
+    click.echo("  3. Run: git lfs install")
+    
+    click.echo(click.style("\nAfter Installation:", fg='yellow', bold=True))
+    click.echo("  1. Restart your terminal/command prompt")
+    click.echo("  2. Run: git lfs install")
+    click.echo("  3. Try the clone command again")
+    
+    click.echo("\n" + "="*60)
+    click.echo("For more information, visit: https://git-lfs.github.com/")
+    click.echo("="*60 + "\n")
+
+
 class CloneProgress:
     """
     Progress callback for Git clone operations
@@ -391,6 +487,15 @@ def clone(ctx: click.Context, task: str, force: bool, only_install_deps: bool):
     
     TASK: Name of the task to clone (e.g., BehaviorModeling, HurricaneMobility)
     """
+    # Check LFC support before proceeding
+    if not only_install_deps:  # Only check LFC when actually cloning datasets
+        click.echo("Checking Large File Cache (LFC) support...")
+        if not check_lfc_support():
+            click.echo(click.style("Error: Large File Cache (LFC) is not supported in your environment.", fg='red', bold=True))
+            click.echo("LFC is required for downloading large dataset files from Git repositories.")
+            show_lfc_installation_guide()
+            return
+    
     home_dir = ctx.obj["home_dir"]
     datasets_dir = home_dir / "datasets"
     datasets_dir.mkdir(exist_ok=True)

@@ -51,15 +51,21 @@ asbench list-tasks
 ```
 
 ### 下载数据集
-
+- 需要提前安装git lfc
 ```bash
-# 克隆特定benchmark的数据集
+# 克隆特定benchmark的数据集，该操作会同时下载数据集并安装执行benchmark所需的依赖
 asbench clone BehaviorModeling
 asbench clone DailyMobility
 asbench clone HarricaneMobility
 
 # 查看已安装的benchmark
 asbench list-installed
+
+# 强制重新安装对应Benchmark的数据集与依赖
+asbench clone BehaviorModeling --force
+
+# 仅安装对应Benchmark所需的依赖
+asbench clone BehaviorModeling --only-install-deps
 ```
 
 ### 运行评估

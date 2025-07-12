@@ -1,3 +1,5 @@
+from .template_agent import HurricaneMobilityAgent
+
 # Lazy imports to avoid dependency issues during CLI operations
 def _get_prepare_config():
     """Get prepare_config function when needed"""
@@ -16,8 +18,8 @@ def _get_entry():
 
 def _get_template_agent():
     """Get template agent when needed"""
-    from .template_agent import DailyMobilityAgent
-    return DailyMobilityAgent
+    from .template_agent import HurricaneMobilityAgent
+    return HurricaneMobilityAgent
 
 HURRICANE_MOBILITY_CONFIG = {
     "name": "HurricaneMobility",
@@ -27,6 +29,7 @@ HURRICANE_MOBILITY_CONFIG = {
     "dependencies": [
         "numpy >= 1.26.4",
     ],
+    "agent_class": HurricaneMobilityAgent,
     "prepare_config_func": _get_prepare_config,
     "entry": _get_entry,
     "evaluation_func": _get_evaluation,
@@ -37,4 +40,4 @@ HURRICANE_MOBILITY_CONFIG = {
     "supported_modes": ["inference"]
 }
 
-__all__ = ["HURRICANE_MOBILITY_CONFIG"]
+__all__ = ["HURRICANE_MOBILITY_CONFIG", "HurricaneMobilityAgent"]

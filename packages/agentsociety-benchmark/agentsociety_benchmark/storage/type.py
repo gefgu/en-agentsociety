@@ -24,7 +24,7 @@ class StorageBenchmark(BaseModel):
     agent: str
     agent_filename: str
     result_filename: str
-    status: int
+    status: BenchmarkStatus
     result_info: str
     final_score: float
     config: str

@@ -53,35 +53,35 @@ asbench list-tasks
 ```
 
 #### Download Datasets
-
+- You need to install git lfc firstly.
 ```bash
-# Clone datasets for specific benchmarks
+# Clone datasets for specific benchmarks, this will clone the datasets and install dependancies at the same time
 asbench clone BehaviorModeling
 asbench clone DailyMobility
 asbench clone HarricaneMobility
 
 # View installed benchmarks
 asbench list-installed
+
+# Force clone datasets for specific benchmarks
+asbench clone BehaviorModeling --force
+
+# Only install dependancies for specific benchmarks
+asbench clone BehaviorModeling --only-install-deps
 ```
 
 #### Run Evaluation
 
 ```bash
 # Run evaluation for specific benchmark
-asbench run BehaviorModeling --config your_config.yaml
-
-# Run all installed benchmarks
-asbench run all --config your_config.yaml
+asbench run <TASK-NAME> --config your_config.yaml --agent your_agent.py --mode test/inference
 ```
 
 #### Independent Result Evaluation
 
 ```bash
 # Independently evaluate generated result files
-asbench evaluate BehaviorModeling results.json
-
-# View evaluatable tasks
-asbench list-evaluatable-tasks
+asbench evaluate <TASK-NAME> results.json --config your_config.yaml
 ```
 
 #### Update Benchmarks

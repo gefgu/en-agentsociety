@@ -14,6 +14,251 @@ The HurricaneMobility benchmark evaluates LLM agents' capabilities in generating
   - Hourly Travel Times
   - Relative Changes
 
+## Building Your Agent
+
+### Agent Structure
+
+Your agent should inherit from `HurricaneMobilityAgent` and implement the `forward` method. You can use `template_agent.py` as a starting point:
+
+```python
+from agentsociety_benchmark.benchmarks import HurricaneMobilityAgent
+
+class YourHurricaneMobilityAgent(HurricaneMobilityAgent):
+    """
+    Your custom agent for the Hurricane Mobility Generation benchmark.
+    """
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    async def forward(self):
+        # Your implementation here
+        pass
+```
+
+### Core APIs Provided by HurricaneMobilityAgent
+
+The `HurricaneMobilityAgent` base class provides essential APIs for hurricane mobility behavior generation:
+
+#### 1. Movement API: `go_to_aoi(aoi_id: int)`
+"""
+Moves the agent to a specific AOI (Area of Interest). (Description)
+- **Description**:
+    - Moves the agent to a specific AOI destination in the urban environment.
+
+- **Args**:
+    - `aoi_id` (int): The ID of the target AOI to move to.
+
+- **Returns**:
+    - None: The agent will start moving to the specified destination.
+"""
+
+#### 2. Weather Information API: `get_current_weather()`
+"""
+Retrieves current weather information from the environment. (Description)
+- **Description**:
+    - Gets real-time weather data including hurricane conditions, wind speed, precipitation, and other meteorological information.
+
+- **Args**:
+    - None: No parameters required.
+
+- **Returns**:
+    - weather_statement (dict): Current weather information including hurricane status, conditions, and warnings.
+"""
+
+### Environment Information Access
+
+Your agent can access comprehensive urban environment and weather information through the following APIs:
+
+#### Agent Status Information
+
+```python
+# Get agent's home and workplace
+home_aoi_id = await self.status.get("home")
+workplace_aoi_id = await self.status.get("work")
+
+# Get current agent status
+citizen_status = await self.status.get("status")
+
+# Get agent's current position
+agent_position = await self.status.get("position")
+x = agent_position["xy_position"]["x"]
+y = agent_position["xy_position"]["y"]
+
+# Get current time
+day, time = self.environment.get_datetime()
+# time is seconds since midnight (e.g., 10:00:00 = 36000)
+# Alternative: self.environment.get_datetime(format_time=True) returns "HH:MM:SS"
+```
+
+#### Weather Information
+
+```python
+# Get current weather information
+weather_info = await self.get_current_weather()
+# Returns weather data including hurricane conditions, wind speed, precipitation, etc.
+```
+
+#### Map and POI Information
+
+```python
+# Get all AOIs (Areas of Interest)
+all_aois = self.environment.map.get_all_aois()
+"""
+AOI collection contains the following attributes:
+- id (int): AOI ID
+- positions (list[XYPosition]): Polygon shape coordinates
+- area (float): Area in square meters
+- driving_positions (list[LanePosition]): Connection points to driving lanes
+- walking_positions (list[LanePosition]): Connection points to pedestrian lanes
+- driving_gates (list[XYPosition]): AOI boundary positions for driving connections
+- walking_gates (list[XYPosition]): AOI boundary positions for walking connections
+- urban_land_use (Optional[str]): Urban land use classification (GB 50137-2011)
+- poi_ids (list[int]): List of contained POI IDs
+- shapely_xy (shapely.geometry.Polygon): AOI shape in xy coordinates
+- shapely_lnglat (shapely.geometry.Polygon): AOI shape in lat/lng coordinates
+"""
+
+# Get all POIs (Points of Interest)
+all_pois = self.environment.map.get_all_pois()
+"""
+POI collection contains the following attributes:
+- id (int): POI ID
+- name (string): POI name
+- category (string): POI category code
+- position (XYPosition): POI position
+- aoi_id (int): AOI ID to which the POI belongs
+"""
+
+# Get specific AOI information
+aoi_info = self.environment.map.get_aoi(aoi_id)
+
+# Get specific POI information
+poi_info = self.environment.map.get_poi(poi_id)
+
+# Get POI categories
+poi_cates = self.environment.get_poi_cate()
+
+# Get POIs around agent's position
+filtered_pois = self.environment.get_around_poi(
+    center=(x, y),
+    radius=1000,
+    poi_type=["category_1", "category_2"],
+)
+```
+
+### Movement Status Handling
+
+Your agent should check the current movement status before making decisions:
+
+```python
+# Check if agent is currently moving
+if citizen_status in self.movement_status:
+    # Agent is walking or driving, you can interrupt by setting new destination
+    # or return to let the current movement continue
+    return
+```
+
+### Complete Agent Example
+
+Here's a complete example showing how to implement a hurricane-aware agent:
+
+```python
+from agentsociety_benchmark.benchmarks import HurricaneMobilityAgent
+from pycityproto.city.person.v2.motion_pb2 import Status
+import random
+
+class MyHurricaneMobilityAgent(HurricaneMobilityAgent):
+    """
+    A complete example agent for the Hurricane Mobility Generation benchmark.
+    """
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    async def forward(self):
+        # Get agent's home and workplace
+        home_aoi_id = await self.status.get("home")
+        workplace_aoi_id = await self.status.get("work")
+        
+        # Get current agent status
+        citizen_status = await self.status.get("status")
+        if citizen_status in self.movement_status:
+            # Agent is moving, let it continue
+            return
+        
+        # Get current position and time
+        agent_position = await self.status.get("position")
+        x = agent_position["xy_position"]["x"]
+        y = agent_position["xy_position"]["y"]
+        day, time = self.environment.get_datetime()
+        
+        # Get environment information
+        all_aois = self.environment.map.get_all_aois()
+        all_pois = self.environment.map.get_all_pois()
+        
+        # Get current weather information
+        weather_info = await self.get_current_weather()
+        
+        # Hurricane-aware decision logic
+        if "is the weather is not good":
+            # Hurricane is active - implement evacuation behavior
+        else:
+            # Normal weather conditions - regular mobility patterns
+            if 6 <= time // 3600 <= 8:  # 6:00-8:00 AM
+                # Morning: go to work
+                if workplace_aoi_id:
+                    await self.go_to_aoi(workplace_aoi_id)
+            elif 12 <= time // 3600 <= 13:  # 12:00-1:00 PM
+                # Lunch time: eating out
+                await self.go_to_aoi(random.choice(list(all_aois.keys())))
+            elif 18 <= time // 3600 <= 20:  # 6:00-8:00 PM
+                # Evening: leisure or shopping
+                await self.go_to_aoi(random.choice(list(all_aois.keys())))
+            elif 22 <= time // 3600 or time // 3600 <= 6:  # 10:00 PM - 6:00 AM
+                # Night: go home to sleep
+                if home_aoi_id:
+                    await self.go_to_aoi(home_aoi_id)
+            else:
+                # Other times: random activity
+                await self.go_to_aoi(random.choice(list(all_aois.keys())))
+```
+
+### LLM Integration
+
+Your agent can use the integrated LLM for sophisticated hurricane response decision-making:
+
+```python
+# Example of using LLM for hurricane-aware decision making
+messages = [
+    {"role": "system", "content": "You are an urban mobility expert specializing in hurricane response. Decide the next destination based on current weather conditions, time, and location."},
+    {"role": "user", "content": f"""
+    Current time: {time // 3600}:{(time % 3600) // 60:02d}
+    Current position: ({x}, {y})
+    Home AOI: {home_aoi_id}
+    Workplace AOI: {workplace_aoi_id}
+    
+    Weather Information: {weather_info}
+    
+    Decide the next destination AOI ID based on hurricane conditions.
+    Return format: AOI_ID
+    """}
+]
+
+response = await self.llm.atext_request(messages)
+# Parse response and execute movement
+# Implementation details depend on your parsing strategy
+```
+
+### Return Format Requirements
+
+Your agent does not need to return any specific data structure. The benchmark automatically collects:
+- Movement trajectories through the `go_to_aoi` API calls
+- Position data through the environment simulation
+- Weather response patterns through movement frequency analysis
+
+The benchmark will calculate the required metrics (total travel times, hourly travel times, relative changes) from the collected movement data across different hurricane phases.
+
 ## Evaluation Process
 
 ### Data Preparation Phase
@@ -91,6 +336,7 @@ numpy >= 1.26.4
 
 ```shell
 asbench run --config <YOUR-CONFIG-FILE>.yml --agent <YOUR-AGENT-FILE>.py --mode inference HurricaneMobility
+# After running in inference mode, the output result file (e.g., .pkl) in the specified directory is the final result for submission/scoring
 ```
 
 ## Output Data Format
