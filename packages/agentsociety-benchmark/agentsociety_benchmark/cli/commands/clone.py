@@ -480,8 +480,13 @@ def download_dataset_from_repo(repo_url: str, output_dir: Path, branch: str = "m
     is_flag=True,
     help="Only install dependencies without cloning the dataset",
 )
+@click.option(
+    "--no-interaction",
+    is_flag=True,
+    help="Do not interact with the user",
+)
 @click.pass_context
-def clone(ctx: click.Context, task: str, force: bool, only_install_deps: bool):
+def clone(ctx: click.Context, task: str, force: bool, only_install_deps: bool, no_interaction: bool = False):
     """
     Clone a benchmark task's datasets from Git repositories
     
@@ -562,20 +567,23 @@ def clone(ctx: click.Context, task: str, force: bool, only_install_deps: bool):
         marker = " (detected)" if manager == detected_manager else ""
         click.echo(f"  {i}. {manager}{marker}")
     
-    while True:
-        try:
-            choice = click.prompt(
-                "Please select a package manager (1-5)",
-                type=click.IntRange(1, 5),
-                default=available_managers.index(detected_manager) + 1
-            )
-            package_manager = available_managers[choice - 1]
-            break
-        except click.Abort:
-            click.echo("Installation cancelled by user")
-            return
-        except Exception as e:
-            click.echo(f"Invalid input: {e}. Please try again.")
+    if not no_interaction:
+        while True:
+            try:
+                choice = click.prompt(
+                    "Please select a package manager (1-5)",
+                    type=click.IntRange(1, 5),
+                    default=available_managers.index(detected_manager) + 1
+                )
+                package_manager = available_managers[choice - 1]
+                break
+            except click.Abort:
+                click.echo("Installation cancelled by user")
+                return
+            except Exception as e:
+                click.echo(f"Invalid input: {e}. Please try again.")
+    else:
+        package_manager = detected_manager
     
     click.echo(f"Selected package manager: {package_manager}")
     
@@ -599,9 +607,10 @@ def clone(ctx: click.Context, task: str, force: bool, only_install_deps: bool):
         return
     
     # Ask for confirmation
-    if not click.confirm("Do you want to install these dependencies?"):
-        click.echo("Dependency installation skipped")
-        return
+    if not no_interaction:
+        if not click.confirm("Do you want to install these dependencies?"):
+            click.echo("Dependency installation skipped")
+            return
     
     # Install dependencies
     if requirements_file.exists():
