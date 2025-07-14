@@ -74,8 +74,10 @@ Your agent can access comprehensive urban environment and weather information th
 
 ```python
 # Get agent's home and workplace
-home_aoi_id = await self.status.get("home")
-workplace_aoi_id = await self.status.get("work")
+home = await self.status.get("home")
+home_aoi_id = home["aoi_position"]["aoi_id"]
+workplace = await self.status.get("work")
+work_aoi_id = workplace["aoi_position"]["aoi_id"]
 
 # Get current agent status
 citizen_status = await self.status.get("status")
@@ -178,8 +180,10 @@ class MyHurricaneMobilityAgent(HurricaneMobilityAgent):
 
     async def forward(self):
         # Get agent's home and workplace
-        home_aoi_id = await self.status.get("home")
-        workplace_aoi_id = await self.status.get("work")
+        home = await self.status.get("home")
+        home_aoi_id = home["aoi_position"]["aoi_id"]
+        workplace = await self.status.get("work")
+        work_aoi_id = workplace["aoi_position"]["aoi_id"]
         
         # Get current agent status
         citizen_status = await self.status.get("status")
