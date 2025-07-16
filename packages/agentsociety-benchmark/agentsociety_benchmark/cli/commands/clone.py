@@ -19,14 +19,14 @@ except ImportError:
 
 def check_lfc_support() -> bool:
     """
-    Check if the current environment supports Large File Cache (LFC)
+    Check if the current environment supports Large File Storage (LFS)
     
     This function checks if Git LFS (Large File Storage) is properly configured
-    and available in the current environment. LFC is required for handling
+    and available in the current environment. LFS is required for handling
     large files in Git repositories.
     
     Returns:
-        bool: True if LFC is supported, False otherwise
+        bool: True if LFS is supported, False otherwise
     """
     try:
         # Check if git-lfs is installed
@@ -41,12 +41,6 @@ def check_lfc_support() -> bool:
         if result.returncode != 0:
             return False
         
-        # Check if git-lfs hooks are properly set up
-        result = subprocess.run(['git', 'lfs', 'track'], 
-                              capture_output=True, text=True, timeout=10)
-        if result.returncode != 0:
-            return False
-        
         return True
         
     except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
@@ -55,13 +49,13 @@ def check_lfc_support() -> bool:
 
 def show_lfc_installation_guide():
     """
-    Display installation guide for Large File Cache (LFC)
+    Display installation guide for Large File Storage (LFS)
     
     This function provides detailed instructions for installing and configuring
     Git LFS (Large File Storage) on different operating systems.
     """
     click.echo("\n" + "="*60)
-    click.echo(click.style("Large File Cache (LFC) Installation Guide", fg='yellow', bold=True))
+    click.echo(click.style("Large File Storage (LFS) Installation Guide", fg='yellow', bold=True))
     click.echo("="*60)
     
     click.echo("\nGit LFS (Large File Storage) is required to handle large files in Git repositories.")
@@ -492,12 +486,12 @@ def clone(ctx: click.Context, task: str, force: bool, only_install_deps: bool, n
     
     TASK: Name of the task to clone (e.g., BehaviorModeling, HurricaneMobility)
     """
-    # Check LFC support before proceeding
-    if not only_install_deps:  # Only check LFC when actually cloning datasets
-        click.echo("Checking Large File Cache (LFC) support...")
+    # Check LFS support before proceeding
+    if not only_install_deps:  # Only check LFS when actually cloning datasets
+        click.echo("Checking Large File Storage (LFS) support...")
         if not check_lfc_support():
-            click.echo(click.style("Error: Large File Cache (LFC) is not supported in your environment.", fg='red', bold=True))
-            click.echo("LFC is required for downloading large dataset files from Git repositories.")
+            click.echo(click.style("Error: Large File Storage (LFS) is not supported in your environment.", fg='red', bold=True))
+            click.echo("LFS is required for downloading large dataset files from Git repositories.")
             show_lfc_installation_guide()
             return
     
