@@ -81,13 +81,26 @@ def load_results_from_file_object(file_object):
     """
     try:
         import pickle
+        from pathlib import Path
+        class CrossPlatformUnpickler(pickle.Unpickler):
+            """
+            Custom unpickler that handles cross-platform path objects
+            """
+            def find_class(self, module, name):
+                # Handle WindowsPath objects by converting them to the current platform's Path
+                if module == 'pathlib' and name == 'WindowsPath':
+                    return Path
+                if module == 'pathlib' and name == 'PosixPath':
+                    return Path
+                return super().find_class(module, name)
         
         # Handle bytes object
         if isinstance(file_object, bytes):
-            data = pickle.loads(file_object)
+            import io
+            data = CrossPlatformUnpickler(io.BytesIO(file_object)).load()
         # Handle file-like object
         elif hasattr(file_object, 'read'):
-            data = pickle.load(file_object)
+            data = CrossPlatformUnpickler(file_object).load()
         else:
             raise ValueError("file_object must be bytes or a file-like object")
         

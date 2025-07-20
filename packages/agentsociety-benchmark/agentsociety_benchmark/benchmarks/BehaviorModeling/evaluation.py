@@ -11,7 +11,19 @@ import torch
 import nltk
 
 def ensure_nltk_data():
-    """Ensure NLTK data is available"""
+    """
+    Ensure NLTK data is available for sentiment analysis.
+    
+    **Description**:
+        Checks if the VADER lexicon is available for sentiment analysis. If not found,
+        automatically downloads it from NLTK data repository.
+    
+    **Args**:
+        None
+    
+    **Returns**:
+        None
+    """
     try:
         nltk.data.find('sentiment/vader_lexicon.zip')
     except LookupError:
