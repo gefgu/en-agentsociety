@@ -18,9 +18,9 @@ class HurricaneMobilityAgent(CitizenAgentBase):
             target_positions = aoi_id,
         )
 
-    async def get_current_weather(self):
+    def get_current_weather(self):
         assert self.environment is not None
-        weather_statement = await self.environment.sense("weather")
+        weather_statement = self.environment.sense("weather")
         return weather_statement
 
     async def forward(self):

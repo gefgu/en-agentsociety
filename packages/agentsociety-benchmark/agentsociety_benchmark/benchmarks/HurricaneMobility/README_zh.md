@@ -97,7 +97,7 @@ day, time = self.environment.get_datetime()
 
 ```python
 # 获取当前天气信息
-weather_info = await self.get_current_weather()
+weather_info = self.get_current_weather()
 # 返回天气数据，包括飓风条件、风速、降水量等
 ```
 
@@ -202,7 +202,7 @@ class MyHurricaneMobilityAgent(HurricaneMobilityAgent):
         all_pois = self.environment.map.get_all_pois()
         
         # 获取当前天气信息
-        weather_info = await self.get_current_weather()
+        weather_info = self.get_current_weather()
         
         # 飓风感知决策逻辑
         if "飓风天":

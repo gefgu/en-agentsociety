@@ -97,7 +97,7 @@ day, time = self.environment.get_datetime()
 
 ```python
 # Get current weather information
-weather_info = await self.get_current_weather()
+weather_info = self.get_current_weather()
 # Returns weather data including hurricane conditions, wind speed, precipitation, etc.
 ```
 
@@ -202,7 +202,7 @@ class MyHurricaneMobilityAgent(HurricaneMobilityAgent):
         all_pois = self.environment.map.get_all_pois()
         
         # Get current weather information
-        weather_info = await self.get_current_weather()
+        weather_info = self.get_current_weather()
         
         # Hurricane-aware decision logic
         if "is the weather is not good":
