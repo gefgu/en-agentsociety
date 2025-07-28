@@ -217,7 +217,7 @@ class PlaceSelectionBlock(Block):
             levelOneType = json_repair.loads(clean_json_response(levelOneType))["place_type"] # type: ignore
             sub_category = poi_cate[levelOneType]
         except Exception as e:
-            get_logger().warning(f"Level 1 selection failed: {e}")
+            get_logger().warning(f"MobilityBlock: Level 1 selection failed: {e}")
             levelOneType = random.choice(list(poi_cate.keys()))
             sub_category = poi_cate[levelOneType]
 
@@ -237,7 +237,7 @@ class PlaceSelectionBlock(Block):
             )
             levelTwoType = json_repair.loads(clean_json_response(levelTwoType))["place_type"] # type: ignore
         except Exception as e:
-            get_logger().warning(f"Level 2 selection failed: {e}")
+            get_logger().warning(f"MobilityBlock: Level 2 selection failed: {e}")
             levelTwoType = random.choice(sub_category)
 
         # Get travel radius from LLM
@@ -256,7 +256,7 @@ class PlaceSelectionBlock(Block):
             )
             radius = int(json_repair.loads(radius)["radius"]) # type: ignore
         except Exception as e:
-            get_logger().warning(f"Radius selection failed: {e}")
+            get_logger().warning(f"MobilityBlock: Radius selection failed: {e}")
             radius = 10000  # Default 10km
 
         # Query and select POI
@@ -324,7 +324,7 @@ class MoveBlock(Block):
             response = json_repair.loads(response)["place_type"] # type: ignore
         except Exception:
             get_logger().warning(
-                f"Place Analysis: wrong type of place, raw response: {response}"
+                f"MobilityBlock: Place Analysis: wrong type of place, raw response: {response}"
             )
             response = "home"
         if response == "home":
@@ -378,7 +378,7 @@ class MoveBlock(Block):
                     if transportation_mode not in ["walk", "public transport", "car"]:
                         transportation_mode = "public transport"
                 except Exception as e:
-                    get_logger().warning(f"Transportation mode selection failed: {e}")
+                    get_logger().warning(f"MobilityBlock: Transportation mode selection failed: {e}")
                     transportation_mode = "public transport"
                 transportation_log = await self.memory.status.get("transportation_log")
                 transportation_log.append({
@@ -453,7 +453,7 @@ class MoveBlock(Block):
                     if transportation_mode not in ["walk", "public transport", "car"]:
                         transportation_mode = "public transport"
                 except Exception as e:
-                    get_logger().warning(f"Transportation mode selection failed: {e}")
+                    get_logger().warning(f"MobilityBlock: Transportation mode selection failed: {e}")
                     transportation_mode = "public transport"
                 transportation_log = await self.memory.status.get("transportation_log")
                 transportation_log.append({
@@ -526,7 +526,7 @@ class MoveBlock(Block):
                     if transportation_mode not in ["walk", "public transport", "car"]:
                         transportation_mode = "public transport"
                 except Exception as e:
-                    get_logger().warning(f"Transportation mode selection failed: {e}")
+                    get_logger().warning(f"MobilityBlock: Transportation mode selection failed: {e}")
                     transportation_mode = "public transport"
                 transportation_log = await self.memory.status.get("transportation_log")
                 transportation_log.append({

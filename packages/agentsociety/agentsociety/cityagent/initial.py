@@ -11,69 +11,7 @@ from .governmentagent import GovernmentAgent
 from .nbsagent import NBSAgent
 from .societyagent import SocietyAgent
 
-__all__ = ["initialize_social_network", "bind_agent_info"]
-
-
-async def initialize_social_network(simulation: AgentSociety):
-    """
-    Initializes the social network between agents.
-
-    - **Description**:
-        - Creates friendship relationships between agents
-        - Assigns relationship types (family, colleague, friend)
-        - Sets relationship strengths based on type
-        - Initializes chat histories and interaction records
-
-    - **Returns**:
-        - None
-    """
-    get_logger().info("Initializing social network...")
-
-    # Define possible relationship types
-    relation_types = ["family", "colleague", "friend"]
-
-    # Get all agent IDs
-    citizen_ids = await simulation.filter(types=(SocietyAgent,))
-    for agent_id in citizen_ids:
-        # Randomly select 2-5 friends for each agent
-        num_friends = random.randint(2, 5)
-        possible_friends = [aid for aid in citizen_ids if aid != agent_id]
-        friends = random.sample(
-            possible_friends, min(num_friends, len(possible_friends))
-        )
-
-        # Initialize friend relationships
-        await simulation.update([agent_id], "friends", friends)
-
-        # Initialize relationship types and strengths with each friend
-        relationships = {}
-        relation_type_map = {}
-
-        for friend_id in friends:
-            # Randomly select relationship type
-            relation_type = random.choice(relation_types)
-            # Set initial relationship strength range based on type
-            if relation_type == "family":
-                strength = random.randint(60, 90)  # Higher strength for family
-            elif relation_type == "colleague":
-                strength = random.randint(40, 70)  # Medium strength for colleagues
-            else:  # friend
-                strength = random.randint(30, 80)  # Wide range for friends
-
-            relationships[friend_id] = strength
-            relation_type_map[friend_id] = relation_type
-
-        # Update relationship strengths and types
-        await simulation.update([agent_id], "relationships", relationships)
-        await simulation.update([agent_id], "relation_types", relation_type_map)
-
-        # Initialize empty chat histories and interaction records
-        await simulation.update(
-            [agent_id], "chat_histories", {friend_id: "" for friend_id in friends}
-        )
-        await simulation.update(
-            [agent_id], "interactions", {friend_id: [] for friend_id in friends}
-        )
+__all__ = ["bind_agent_info"]
 
 
 def zipf_distribution(N, F, s=1.0):

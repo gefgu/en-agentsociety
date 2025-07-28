@@ -255,7 +255,12 @@ export class ReplayStore {
             const res = await fetchCustom(`/api/experiments/${this.expID}/metrics`)
             const data = await res.json()
             runInAction(() => {
-                this._metrics = new Map(Object.entries(data.data))
+                // Handle null or undefined data.data
+                if (data.data && typeof data.data === 'object') {
+                    this._metrics = new Map(Object.entries(data.data))
+                } else {
+                    this._metrics = new Map()
+                }
             })
         } catch (err) {
             message.error(`Failed to fetch metrics: ${JSON.stringify(err)}`, 3);

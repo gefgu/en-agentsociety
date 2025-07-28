@@ -63,7 +63,7 @@ class YourHurricaneMobilityAgent(HurricaneMobilityAgent):
     - None: 无需参数。
 
 - **返回值**:
-    - weather_statement (dict): 当前天气信息，包括飓风状态、条件和警告。
+    - weather_statement (str): 当前天气信息，包括飓风状态、条件和警告。
 """
 
 ### 环境信息访问
@@ -98,7 +98,7 @@ day, time = self.environment.get_datetime()
 ```python
 # 获取当前天气信息
 weather_info = self.get_current_weather()
-# 返回天气数据，包括飓风条件、风速、降水量等
+# 返回天气信息
 ```
 
 #### 地图和POI信息

@@ -59,7 +59,7 @@ from ..storage.type import (
 from ..survey.models import Survey
 from .type import ExperimentStatus, Logs
 
-__all__ = ["AgentSociety"]
+__all__ = ["SimulationEngine"]
 
 MIN_ID = 1
 MAX_ID = 100000000
@@ -1520,7 +1520,6 @@ class SimulationEngine:
                 disgust = emotion.get("disgust", 0)
                 anger = emotion.get("anger", 0)
                 surprise = emotion.get("surprise", 0)
-                friend_ids = await agent.status.get("friends", [])
                 status = StorageStatus(
                     id=agent.id,
                     day=day,
@@ -1528,7 +1527,6 @@ class SimulationEngine:
                     lng=lng,
                     lat=lat,
                     parent_id=parent_id,
-                    friend_ids=friend_ids,
                     action=action,
                     status=json.dumps(
                         {
@@ -1572,7 +1570,6 @@ class SimulationEngine:
                     lng=None,
                     lat=None,
                     parent_id=None,
-                    friend_ids=[],
                     action="",
                     status=json.dumps(
                         {

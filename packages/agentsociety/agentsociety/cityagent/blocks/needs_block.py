@@ -167,7 +167,9 @@ class NeedsBlock(Block):
             0.2,
             0.3,
         )  # Hunger threshold, Energy threshold, Safety threshold, Social threshold
+        # intervention need
         self._need_to_do = None
+        # determine if the intervention need has been checked
         self._need_to_do_checked = False
 
     async def reset(self):
@@ -410,10 +412,15 @@ class NeedsBlock(Block):
             # While there is an ongoing plan, only adjust for higher priority needs
             needs_changed = False
             new_need = None
-            if self._need_to_do and not self._need_to_do_checked:
-                new_need = self._need_to_do
-                needs_changed = True
-                self._need_to_do_checked = True
+            if self._need_to_do:
+                if not self._need_to_do_checked:
+                    new_need = self._need_to_do
+                    needs_changed = True
+                    self._need_to_do_checked = True
+                    cognition = f"I need to change my plan, as {self._need_to_do} is more important than {current_need}"
+                else:
+                    cognition = f"I still need to concentrate on {self._need_to_do}"
+                    pass  # still concentrate on the emergency need
             elif hunger_satisfaction <= self.T_H and current_need not in [
                 "hungry",
                 "tired",

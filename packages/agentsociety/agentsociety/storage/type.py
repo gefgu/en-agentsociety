@@ -80,7 +80,6 @@ class StorageStatus(BaseModel):
     lng: Optional[float]
     lat: Optional[float]
     parent_id: Optional[int]
-    friend_ids: list[int]
     action: str
     status: str
     created_at: datetime

@@ -1,8 +1,7 @@
 import random
 import time
 
-import json
-from typing import Any, Optional
+from typing import Optional
 
 import json_repair
 
@@ -140,19 +139,10 @@ class SocietyAgent(CitizenAgentBase):
         ),
         # social
         MemoryAttribute(
-            name="friends", type=list, default_or_value=[], description="agent's friends list"
-        ),
-        MemoryAttribute(
-            name="relationships",
-            type=dict,
-            default_or_value={},
-            description="agent's relationship strength with each friend",
-        ),
-        MemoryAttribute(
-            name="relation_types",
-            type=dict,
-            default_or_value={},
-            description="agent's relation types with each friend",
+            name="social_network",
+            type=list,
+            default_or_value=[],
+            description="all social network",
         ),
         MemoryAttribute(
             name="chat_histories",
@@ -244,6 +234,7 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
     async def before_forward(self):
         """Before forward"""
         await super().before_forward()
+        assert self.environment is not None
         # preparing context values
         # Current Time
         now_time = self.environment.get_datetime(format_time=True)
@@ -369,6 +360,7 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
 
     async def check_and_update_step(self):
         """Check if the previous step has been completed"""
+        assert self.environment is not None
         status = await self.memory.status.get("status")
         if status == 2:
             # Agent is moving
@@ -469,19 +461,9 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
                 if not sender_id:
                     return ""
 
-                raw_content = payload.get("content", "")
-
-                # Parse message content
-                try:
-                    message_data: Any = json_repair.loads(raw_content)
-                    content = message_data["content"]
-                    propagation_count = message_data.get("propagation_count", 1)
-                except (TypeError, KeyError):
-                    content = raw_content
-                    propagation_count = 1
-
-                if not content:
-                    return ""
+                content = payload.get("content", "Hello, how are you?")
+                if isinstance(content, dict):
+                    content = content.get("content", "Hello, how are you?")
 
                 # add social memory
                 description = f"You received a social message: {content}"
@@ -502,27 +484,29 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
                     chat_histories[sender_id] += "，"
                 chat_histories[sender_id] += f"them: {content}"
 
-                # Check propagation limit
-                if propagation_count > 5:
-                    await self.memory.status.update("chat_histories", chat_histories)
-                    return ""
-
-                # Get relationship score
-                relationships = await self.memory.status.get("relationships") or {}
-                relationship_score = relationships.get(sender_id, 50)
+                # Get relationship strength and type
+                my_social_network = await self.memory.status.get("social_network", [])
+                relationship_strength = 0.0
+                relationship_type = "I don't know him/her"
+                for relation in my_social_network:
+                    if relation.target_id == sender_id:
+                        relationship_strength = relation.strength
+                        relationship_type = relation.kind
+                        break
 
                 # Decision prompt
                 should_respond_prompt = f"""Based on:
-        - Received message: "{content}"
-        - Our relationship score: {relationship_score}/100
-        - My profile: {{
-            "gender": "{await self.memory.status.get("gender") or ""}",
-            "education": "{await self.memory.status.get("education") or ""}",
-            "personality": "{await self.memory.status.get("personality") or ""}",
-            "occupation": "{await self.memory.status.get("occupation") or ""}"
-        }}
-        - My current emotion: {await self.memory.status.get("emotion_types")}
-        - Recent chat history: {chat_histories.get(sender_id, "")}
+        - Received message: {content}
+        - Our relationship strength: {relationship_strength}
+        - Our relationship type: {relationship_type}
+        - My profile: 
+            - gender: {await self.memory.status.get("gender", "unknown")}
+            - education: {await self.memory.status.get("education", "unknown")}
+            - personality: {await self.memory.status.get("personality", "unknown")}
+            - occupation: {await self.memory.status.get("occupation", "unknown")}
+            - background_story: {await self.memory.status.get("background_story", "unknown")}
+        - My current emotion: {await self.memory.status.get("emotion_types", "unknown")}
+        - Recent chat history: {chat_histories.get(sender_id, "No chat history")}
 
         Should I respond to this message? Consider:
         1. Is this a message that needs/deserves a response?
@@ -546,16 +530,17 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
                     return ""
 
                 response_prompt = f"""Based on:
-        - Received message: "{content}"
-        - Our relationship score: {relationship_score}/100
-        - My profile: {{
-            "gender": "{await self.memory.status.get("gender") or ""}",
-            "education": "{await self.memory.status.get("education") or ""}",
-            "personality": "{await self.memory.status.get("personality") or ""}",
-            "occupation": "{await self.memory.status.get("occupation") or ""}"
-        }}
-        - My current emotion: {await self.memory.status.get("emotion_types")}
-        - Recent chat history: {chat_histories.get(sender_id, "")}
+        - Received message: {content}
+        - Our relationship strength: {relationship_strength}
+        - Our relationship type: {relationship_type}
+        - My profile: 
+            - gender: {await self.memory.status.get("gender", "unknown")}
+            - education: {await self.memory.status.get("education", "unknown")}
+            - personality: {await self.memory.status.get("personality", "unknown")}
+            - occupation: {await self.memory.status.get("occupation", "unknown")}
+            - background_story: {await self.memory.status.get("background_story", "unknown")}
+        - My current emotion: {await self.memory.status.get("emotion_types", "unknown")}
+        - Recent chat history: {chat_histories.get(sender_id, "No chat history")}
 
         Generate an appropriate response that:
         1. Matches my personality and background
@@ -575,22 +560,13 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
                     ]
                 )
 
-                if response:
-                    # Update chat history with response
-                    chat_histories[sender_id] += f"，me: {response}"
-                    await self.memory.status.update("chat_histories", chat_histories)
+                # Update chat history with response
+                chat_histories[sender_id] += f"，me: {response}"
+                await self.memory.status.update("chat_histories", chat_histories)
 
-                    # Send response
-                    serialized_response = json.dumps(
-                        {
-                            "content": response,
-                            "propagation_count": propagation_count + 1,
-                        },
-                        ensure_ascii=False,
-                    )
-                    await self.send_message_to_agent(sender_id, serialized_response)
+                # Send response
+                await self.send_message_to_agent(sender_id, response)
                 return response
-
             except Exception as e:
                 get_logger().warning(f"SocietyAgent Error in do_chat: {str(e)}")
                 return ""
@@ -619,12 +595,14 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
 
     async def reset_position(self):
         """Reset the position of the agent."""
+        assert self.environment is not None
         home = await self.status.get("home")
         home = home["aoi_position"]["aoi_id"]
         await self.environment.reset_person_position(person_id=self.id, aoi_id=home)
 
     async def step_execution(self):
         """Execute the current step in the active plan based on step type."""
+        assert self.environment is not None
         current_plan = await self.memory.status.get("current_plan")
         if (
             current_plan is None

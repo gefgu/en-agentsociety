@@ -31,7 +31,7 @@ class MessagePromptManager:
         pass
 
     async def get_prompt(
-        self, memory, step: dict[str, Any], target: str, template: str
+        self, memory, step: dict[str, Any], target: int, template: str
     ):
         """Generates a formatted prompt for message creation.
 
@@ -45,7 +45,15 @@ class MessagePromptManager:
             Formatted prompt string with placeholders replaced by agent-specific data.
         """
         # Retrieve data
-        relationships = await memory.status.get("relationships") or {}
+        social_network = await memory.status.get("social_network") or []
+        relationship = None
+        for relation in social_network:
+            if relation.target_id == target:
+                relationship = relation
+                break
+        assert relationship is not None, f"MessagePromptManager: No relation found for target {target}"
+        relationship_type = relationship.kind
+        relationship_strength = relationship.strength
         chat_histories = await memory.status.get("chat_histories") or {}
 
         # Build discussion topic constraints
@@ -61,19 +69,22 @@ class MessagePromptManager:
         # Format prompt
         format_prompt = FormatPrompt(template)
         await format_prompt.format(
-            gender=await memory.status.get("gender") or "",
-            education=await memory.status.get("education") or "",
-            personality=await memory.status.get("personality") or "",
-            occupation=await memory.status.get("occupation") or "",
-            relationship_score=relationships.get(target, 50),
-            intention=step.get("intention", ""),
-            emotion_types=await memory.status.get("emotion_types"),
-            thought=await memory.status.get("thought"),
+            name=await memory.status.get("name", "unknown"),
+            gender=await memory.status.get("gender", "unknown"),
+            occupation=await memory.status.get("occupation", "unknown"),
+            education=await memory.status.get("education", "unknown"),
+            personality=await memory.status.get("personality", "unknown"),
+            emotion_types=await memory.status.get("emotion_types", "unknown"),
+            thought=await memory.status.get("thought", "unknown"),
+            background_story=await memory.status.get("background_story", "unknown"),
+            relationship_type=relationship_type,
+            relationship_strength=relationship_strength,
             chat_history=(
                 chat_histories.get(target, "")
                 if isinstance(chat_histories, dict)
                 else ""
             ),
+            intention=step.get("intention", ""),
             discussion_constraint=discussion_constraint,
         )
 
@@ -86,13 +97,13 @@ class SocialNoneBlock(Block):
     """
 
     name = "SocialNoneBlock"
-    description = "Handle all other cases"
+    description = "Handle all other cases if you are not trying to determine the social target or send a message to someone"
 
     def __init__(self, toolbox: AgentToolbox, agent_memory: Memory):
         super().__init__(toolbox=toolbox, agent_memory=agent_memory)
         self.guidance_prompt = FormatPrompt(template=TIME_ESTIMATE_PROMPT)
 
-    async def forward(self, step, context):
+    async def forward(self, context):
         """Executes default behavior when no specific block matches the intention.
 
         Args:
@@ -102,9 +113,10 @@ class SocialNoneBlock(Block):
         Returns:
             A result dictionary indicating success/failure, time consumed, and execution details.
         """
+        intention = str(context["current_step"].get("intention", "socialize"))
         await self.guidance_prompt.format(
-            plan=context["plan"],
-            intention=step["intention"],
+            plan=context["plan_context"]["plan"],
+            intention=intention,
             emotion_types=await self.memory.status.get("emotion_types"),
         )
         result = await self.llm.atext_request(
@@ -114,11 +126,11 @@ class SocialNoneBlock(Block):
         try:
             result: Any = json_repair.loads(result)
             node_id = await self.memory.stream.add(
-                topic="social", description=f"I {step['intention']}"
+                topic="social", description=f"I want to: {intention}"
             )
             return {
                 "success": True,
-                "evaluation": f'Finished {step["intention"]}',
+                "evaluation": f'Finished {intention}',
                 "consumed_time": result["time"],
                 "node_id": node_id,
             }
@@ -127,11 +139,11 @@ class SocialNoneBlock(Block):
                 f"Error occurred while parsing the evaluation response: {e}, original result: {result}"
             )
             node_id = await self.memory.stream.add(
-                topic="social", description=f"I failed to execute {step['intention']}"
+                topic="social", description=f"I failed to execute {intention}"
             )
             return {
                 "success": False,
-                "evaluation": f'Failed to execute {step["intention"]}',
+                "evaluation": f'Failed to execute {intention}',
                 "consumed_time": 5,
                 "node_id": node_id,
             }
@@ -152,36 +164,34 @@ class FindPersonBlock(Block):
         )
 
         self.prompt = """
-        Based on the following information, help me select the most suitable friend to interact with:
+Based on the following information, help me select the most suitable target to interact with:
 
-        1. Your Profile:
-           - Gender: {gender}
-           - Education: {education}
-           - Personality: {personality}
-           - Occupation: {occupation}
+1. Your Profile:
+    - Gender: {gender}
+    - Education: {education}
+    - Personality: {personality}
+    - Occupation: {occupation}
+    - Background story: {background_story}
 
-        2. Your Current Intention: {intention}
+2. Your Current Intention: {intention}
 
-        3. Your Current Emotion: {emotion_types}
+3. Your Current Emotion: {emotion_types}
 
-        4. Your Current Thought: {thought}
+4. Your Current Thought: {thought}
 
-        5. Your Friends List (shown as index-to-relationship pairs):
-           {friend_info}
-           Note: For each friend, the relationship strength (0-100) indicates how close we are
+5. Your social network (shown as id-to-relationship pairs):
+    {friend_info}
+    Note: For each target, the relationship strength (0-1) indicates how close we are
 
-        Please analyze and select:
-        1. The most appropriate friend based on relationship strength and my current intention
-        2. Whether we should meet online or offline
+Please analyze and select:
+1. The most appropriate target based on relationship strength and my current intention
+2. Whether we should meet online or offline (online: chat, offline: meet in person)
 
-        Requirements:
-        - You must respond in this exact format: [mode, friend_index]
-        - mode must be either 'online' or 'offline'
-        - friend_index must be an integer representing the friend's position in the list (starting from 0)
-        
-        Example valid outputs:
-        ['online', 0]  - means meet the first friend online
-        ['offline', 2] - means meet the third friend offline
+Please output in JSON format, a dictionary:
+{{
+    "mode": "online" or "offline",
+    "target_id": int
+}}
         """
 
     async def forward(self, context: DotDict):
@@ -195,39 +205,27 @@ class FindPersonBlock(Block):
         """
         try:
             # Get friends list and relationship strength
-            private_friends = await self.memory.status.get("friends", [])
-            public_friends = await self.memory.status.get("public_friends", [])
-            friends = private_friends + public_friends
-            relationships = await self.memory.status.get("relationships", {})
-
-            if not friends:
+            my_social_network = await self.memory.status.get("social_network", [])
+            if len(my_social_network) == 0:
                 node_id = await self.memory.stream.add(
                     topic="social",
-                    description="I can't find any friends to contact with.",
+                    description="I can't find any target to contact with in my social network.",
                 )
                 return {
                     "success": False,
-                    "evaluation": "No friends found in social network",
+                    "evaluation": "No target found in social network.",
                     "consumed_time": 5,
                     "node_id": node_id,
                 }
 
-            # Create a list of friends with all information
-            friend_info = []
-            index_to_id = {}
-
-            for i, friend_id in enumerate(friends):
-                relationship_strength = relationships.get(friend_id, 0)
-                friend_info.append(
-                    {"index": i, "relationship_strength": relationship_strength}
-                )
-                index_to_id[i] = friend_id
-
-            # Format friend information for easier reading
-            formatted_friend_info = {
-                i: {"relationship_strength": info["relationship_strength"]}
-                for i, info in enumerate(friend_info)
-            }
+            # Different relationship types
+            relationship_info = """
+            My social network:
+            """
+            for relation in my_social_network:
+                relationship_info += f"""
+                - target_id: {relation.target_id}, relationship_type: {relation.kind}, relationship_strength: {relation.strength}
+                """
 
             # Format the prompt
             formatted_prompt = FormatPrompt(self.prompt)
@@ -236,10 +234,11 @@ class FindPersonBlock(Block):
                 education=str(await self.memory.status.get("education")),
                 personality=str(await self.memory.status.get("personality")),
                 occupation=str(await self.memory.status.get("occupation")),
+                background_story=str(await self.memory.status.get("background_story")),
                 intention=str(context["current_step"].get("intention", "socialize")),
                 emotion_types=str(await self.memory.status.get("emotion_types")),
                 thought=str(await self.memory.status.get("thought")),
-                friend_info=str(formatted_friend_info),
+                friend_info=relationship_info,
             )
 
             # Get LLM response
@@ -249,25 +248,24 @@ class FindPersonBlock(Block):
 
             try:
                 # Parse the response
-                mode, friend_index = eval(response)
+                response = json_repair.loads(response)
+                mode = response["mode"] # type: ignore
+                target_id = response["target_id"] # type: ignore
 
                 # Validate the response format
                 if not isinstance(mode, str) or mode not in ["online", "offline"]:
                     raise ValueError("Invalid mode")
-                if not isinstance(friend_index, int) or friend_index not in index_to_id:
-                    raise ValueError("Invalid friend index")
+                if not isinstance(target_id, int):
+                    raise ValueError("Invalid target id")
 
                 # Convert index to ID
-                target = index_to_id[friend_index]
+                target = target_id
                 if context is not None:
                     context["target"] = target
             except Exception:
                 # If parsing fails, select the friend with the strongest relationship as the default option
-                target = (
-                    max(relationships.items(), key=lambda x: x[1])[0]
-                    if relationships
-                    else friends[0]
-                )
+                get_logger().warning(f"Error parsing find person response: {response}")
+                target = my_social_network[0].target_id
                 mode = "online"
 
             node_id = await self.memory.stream.add(
@@ -284,6 +282,7 @@ class FindPersonBlock(Block):
             }
 
         except Exception as e:
+            get_logger().warning(f"Error in finding person: {e}")
             node_id = await self.memory.stream.add(
                 topic="social",
                 description="I can't find any friends to socialize with.",
@@ -300,7 +299,7 @@ class MessageBlock(Block):
     """Generate and send messages"""
 
     name = "MessageBlock"
-    description = "Send a message to someone"
+    description = "Send social message to someone (including online and offline, phone call, social post, etc.)"
 
     def __init__(self, toolbox: AgentToolbox, agent_memory: Memory):
         super().__init__(
@@ -311,42 +310,32 @@ class MessageBlock(Block):
 
         # configurable fields
         self.default_message_template = """
-        As a {gender} {occupation} with {education} education and {personality} personality,
-        generate a message for a friend (relationship strength: {relationship_score}/100)
-        about {intention}.
+My name is {name}, I am a {gender}
+My occupation is {occupation}. 
+My education level is {education}.
+My personality is {personality}.
+My current emotion is: {emotion_types}.
+My current thought is: {thought}.
+My background story is: {background_story}.
 
-        Your current emotion: {emotion_types}
-        Your current thought: {thought}
-        
-        Previous chat history:
-        {chat_history}
-        
-        Generate a natural and contextually appropriate message.
-        Keep it under 100 characters.
-        The message should reflect my personality and background.
-        {discussion_constraint}
-        """
+Now, I want to generate a social message to a target, my relationship with him/her:
+Our relationship type is: {relationship_type}
+Our relationship strength: {relationship_strength} (0-1, higher is stronger)
+My previous chat history with him/her is:
+{chat_history}
+
+My intention is: {intention}.
+
+Please generate a natural and contextually appropriate message.
+Keep it under 100 characters.
+The message should reflect my personality and background.
+
+{discussion_constraint}
+
+Please output the message from a first-person perspective, without any other text
+"""
 
         self.prompt_manager = MessagePromptManager()
-
-    def _serialize_message(self, message: str, propagation_count: int) -> str:
-        """Serializes a message into a JSON string for transmission.
-
-        Args:
-            message: Plain text message content.
-            propagation_count: Number of times the message can be forwarded.
-
-        Returns:
-            JSON string with message and metadata.
-        """
-        try:
-            return json.dumps(
-                {"content": message, "propagation_count": propagation_count},
-                ensure_ascii=False,
-            )
-        except Exception as e:
-            get_logger().warning(f"Error serializing message: {e}")
-            return message
 
     async def forward(self, context: DotDict):
         """Generates a message, sends it to the target, and updates chat history.
@@ -382,8 +371,6 @@ class MessageBlock(Block):
 
             # Generate message
             message = await self.llm.atext_request(formatted_prompt, timeout=300)
-            if not message:
-                message = "Hello! How are you?"
 
             # Update chat history with proper format
             chat_histories = await self.memory.status.get("chat_histories") or {}
@@ -398,8 +385,7 @@ class MessageBlock(Block):
             await self.memory.status.update("chat_histories", chat_histories)
 
             # Send message
-            serialized_message = self._serialize_message(message, 1)
-            await self.agent.send_message(target, serialized_message)
+            await self.agent.send_message_to_agent(target, message, type="social")
             node_id = await self.memory.stream.add(
                 topic="social", description=f"I sent a message to {target}: {message}"
             )
@@ -411,6 +397,7 @@ class MessageBlock(Block):
             }
 
         except Exception as e:
+            get_logger().warning(f"Error in sending message: {e}")
             node_id = await self.memory.stream.add(
                 topic="social", description=f"I can't send a message to {target}"
             )
@@ -486,7 +473,7 @@ class SocialBlock(Block):
             self.trigger_time += 1
 
             context = agent_context | self.context
-
+            self.message_block.set_agent(self.agent)
             # Select the appropriate sub-block using dispatcher
             selected_block = await self.dispatcher.dispatch(context)
             if not selected_block:
@@ -496,13 +483,12 @@ class SocialBlock(Block):
                     consumed_time=15,
                     node_id=None,
                 )
-
             # Execute the selected sub-block and get the result
             result = await selected_block.forward(context)
-
             return self.OutputType(**result)
 
         except Exception as e:
+            get_logger().warning(f"Error in social block: {e}")
             return self.OutputType(
                 success=False,
                 evaluation=f"Failed to complete social interaction with default behavior: {str(e)}",

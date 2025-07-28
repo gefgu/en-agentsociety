@@ -10,7 +10,7 @@ from ..configs import InstitutionAgentClass, AgentConfig, Config
 from .bankagent import BankAgent
 from .firmagent import FirmAgent
 from .governmentagent import GovernmentAgent
-from .initial import bind_agent_info, initialize_social_network
+from .initial import bind_agent_info
 from .memory_config import (
     DEFAULT_DISTRIBUTIONS,
     memory_config_bank,
@@ -184,6 +184,5 @@ def default(config: Config) -> Config:
     if len(config.agents.init_funcs) == 0:
         config.agents.init_funcs = [
             bind_agent_info,
-            initialize_social_network,
         ]
     return config
