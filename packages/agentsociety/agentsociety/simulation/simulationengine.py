@@ -1497,29 +1497,15 @@ class SimulationEngine:
                     parent_id = position["lane_position"]["lane_id"]
                 else:
                     parent_id = None
-                hunger_satisfaction = await agent.status.get("hunger_satisfaction", 0)
-                energy_satisfaction = await agent.status.get("energy_satisfaction", 0)
-                safety_satisfaction = await agent.status.get("safety_satisfaction", 0)
-                social_satisfaction = await agent.status.get("social_satisfaction", 0)
-                current_need = await agent.status.get("current_need", "None")
                 current_plan = await agent.status.get("current_plan", {})
                 if current_plan is not None and current_plan:
-                    intention = current_plan.get("target", "Other")
                     step_index = current_plan.get("index", 0)
                     action = current_plan.get("steps", [])[step_index].get(
                         "intention", "Planning"
                     )
                 else:
-                    intention = "Other"
                     action = "Planning"
-                emotion = await agent.status.get("emotion", {})
-                emotion_types = await agent.status.get("emotion_types", "")
-                sadness = emotion.get("sadness", 0)
-                joy = emotion.get("joy", 0)
-                fear = emotion.get("fear", 0)
-                disgust = emotion.get("disgust", 0)
-                anger = emotion.get("anger", 0)
-                surprise = emotion.get("surprise", 0)
+                status_summary = await agent.status.get("status_summary", "Nothing")
                 status = StorageStatus(
                     id=agent.id,
                     day=day,
@@ -1528,41 +1514,14 @@ class SimulationEngine:
                     lat=lat,
                     parent_id=parent_id,
                     action=action,
-                    status=json.dumps(
-                        {
-                            "hungry": hunger_satisfaction,
-                            "tired": energy_satisfaction,
-                            "safe": safety_satisfaction,
-                            "social": social_satisfaction,
-                            "sadness": sadness,
-                            "joy": joy,
-                            "fear": fear,
-                            "disgust": disgust,
-                            "anger": anger,
-                            "surprise": surprise,
-                            "emotion_types": emotion_types,
-                            "current_need": current_need,
-                            "intention": intention,
-                        },
-                        ensure_ascii=False,
-                    ),
+                    status=status_summary,
                     created_at=created_at,
                 )
                 statuses.append(status)
             elif isinstance(
                 agent, (FirmAgentBase, BankAgentBase, NBSAgentBase, GovernmentAgentBase)
             ):
-                nominal_gdp = await agent.status.get("nominal_gdp", [])
-                real_gdp = await agent.status.get("real_gdp", [])
-                unemployment = await agent.status.get("unemployment", [])
-                wages = await agent.status.get("wages", [])
-                prices = await agent.status.get("prices", [])
-                inventory = await agent.status.get("inventory", 0)
-                price = await agent.status.get("price", 0.0)
-                interest_rate = await agent.status.get("interest_rate", 0.0)
-                bracket_cutoffs = await agent.status.get("bracket_cutoffs", [])
-                bracket_rates = await agent.status.get("bracket_rates", [])
-                employees = await agent.status.get("employees", [])
+                status_summary = await agent.status.get("status_summary", "Nothing")
                 status = StorageStatus(
                     id=agent.id,
                     day=day,
@@ -1571,22 +1530,7 @@ class SimulationEngine:
                     lat=None,
                     parent_id=None,
                     action="",
-                    status=json.dumps(
-                        {
-                            "nominal_gdp": nominal_gdp,
-                            "real_gdp": real_gdp,
-                            "unemployment": unemployment,
-                            "wages": wages,
-                            "prices": prices,
-                            "inventory": inventory,
-                            "price": price,
-                            "interest_rate": interest_rate,
-                            "bracket_cutoffs": bracket_cutoffs,
-                            "bracket_rates": bracket_rates,
-                            "employees": employees,
-                        },
-                        ensure_ascii=False,
-                    ),
+                    status=status_summary,
                     created_at=created_at,
                 )
                 statuses.append(status)

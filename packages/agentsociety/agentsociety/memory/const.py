@@ -58,6 +58,7 @@ PROFILE_ATTRIBUTES = {
     "marriage_status": str(),
     "background_story": str(),
     "social_network": list[SocialRelation](),
+    "status_summary": str(),
 }
 
 STATE_ATTRIBUTES = {

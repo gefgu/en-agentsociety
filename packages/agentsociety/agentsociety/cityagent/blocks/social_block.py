@@ -1,9 +1,6 @@
 # Due to the current limitations of the simulator's support, only NoneBlock, MessageBlock, and FindPersonBlock are available in the Dispatcher.
 
 from typing import Any, Optional
-
-import json
-
 import json_repair
 
 from ...agent import (
@@ -31,7 +28,7 @@ class MessagePromptManager:
         pass
 
     async def get_prompt(
-        self, memory, step: dict[str, Any], target: int, template: str
+        self, memory, step: dict[str, Any], environment_info: str, target: int, template: str
     ):
         """Generates a formatted prompt for message creation.
 
@@ -86,6 +83,7 @@ class MessagePromptManager:
             ),
             intention=step.get("intention", ""),
             discussion_constraint=discussion_constraint,
+            environment_info=environment_info,
         )
 
         return format_prompt.to_dialog()
@@ -326,6 +324,9 @@ My previous chat history with him/her is:
 
 My intention is: {intention}.
 
+Environment Information:
+{environment_info}
+
 Please generate a natural and contextually appropriate message.
 Keep it under 100 characters.
 The message should reflect my personality and background.
@@ -361,10 +362,21 @@ Please output the message from a first-person perspective, without any other tex
                     }
                 target = result["target"]
 
+            environment_info = """"""
+            weather = self.environment.sense("weather")
+            if weather:
+                environment_info += f"\nCurrent weather: {weather}"
+            other_info = self.environment.sense("other_information")
+            if other_info:
+                environment_info += f"\nOther information: {other_info}"
+            if not environment_info:
+                environment_info = "No environment information"
+
             # Get formatted prompt using prompt manager
             formatted_prompt = await self.prompt_manager.get_prompt(
                 self.memory,
                 context["current_step"],
+                environment_info,
                 target,
                 self.default_message_template,
             )

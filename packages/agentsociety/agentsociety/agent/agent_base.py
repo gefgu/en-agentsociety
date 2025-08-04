@@ -398,6 +398,12 @@ class Agent(ABC):
             - It is intended to be overridden by subclasses to define specific behaviors.
         """
         raise NotImplementedError
+    
+    async def status_summary(self):
+        """
+        Status summary
+        """
+        await self.status.update("status_summary", "Nothing")
 
     async def close(self):
         """Execute when the agent is deleted or the simulation is finished."""
@@ -450,5 +456,6 @@ class Agent(ABC):
         # run required methods after agent forward
         await self.after_blocks()
         await self.after_forward()
+        await self.status_summary()
         end_time = time.time()
         return end_time - start_time
