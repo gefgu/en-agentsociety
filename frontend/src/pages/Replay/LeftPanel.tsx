@@ -80,22 +80,29 @@ const InfoPanel = observer(() => {
                     <strong>{t('replay.day', { day: agent.day })} {parseT(agent.t)}</strong>
                     <span>{agent.action}</span>
                     <Flex wrap justify="left">
-                        {agent.status && Object.entries(agent.status).map(([k, v]) => (
-                            <Tooltip title={t('replay.infoPanel.showAsHeatmap')} key={k}>
-                                <Flex className={store.heatmapKeyInStatus === k ? 'left-info-block selected' : 'left-info-block'} justify='space-between' key={k} onClick={() => {
-                                    if (typeof v !== "number") {
-                                        return;
-                                    }
-                                    if (store.heatmapKeyInStatus === k) {
-                                        store.setHeatmapKeyInStatus(undefined);
-                                        return;
-                                    }
-                                    store.setHeatmapKeyInStatus(k);
-                                }}>
-                                    <span style={{ fontWeight: 400, color: "#909399" }}>{k}:&nbsp;&nbsp;</span>
-                                    <span style={{ fontWeight: 600, color: "#007AFF" }}>{v}</span>
-                                </Flex>
-                            </Tooltip>
+                        {agent.status && (typeof agent.status === 'string' ? (
+                            <Flex className='left-info-block' justify='space-between'>
+                                <span style={{ fontWeight: 400, color: "#909399" }}>status:&nbsp;&nbsp;</span>
+                                <span style={{ fontWeight: 600, color: "#007AFF" }}>{agent.status}</span>
+                            </Flex>
+                        ) : (
+                            Object.entries(agent.status).map(([k, v]) => (
+                                <Tooltip title={t('replay.infoPanel.showAsHeatmap')} key={k}>
+                                    <Flex className={store.heatmapKeyInStatus === k ? 'left-info-block selected' : 'left-info-block'} justify='space-between' key={k} onClick={() => {
+                                        if (typeof v !== "number") {
+                                            return;
+                                        }
+                                        if (store.heatmapKeyInStatus === k) {
+                                            store.setHeatmapKeyInStatus(undefined);
+                                            return;
+                                        }
+                                        store.setHeatmapKeyInStatus(k);
+                                    }}>
+                                        <span style={{ fontWeight: 400, color: "#909399" }}>{k}:&nbsp;&nbsp;</span>
+                                        <span style={{ fontWeight: 600, color: "#007AFF" }}>{v}</span>
+                                    </Flex>
+                                </Tooltip>
+                            ))
                         ))}
                     </Flex>
                 </Flex>

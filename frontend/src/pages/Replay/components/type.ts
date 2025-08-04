@@ -12,7 +12,7 @@ export interface AgentStatus {
     lat: number;
     parent_id: number;
     action: string;
-    status: { [key: string]: string | number };
+    status: { [key: string]: string | number } | string;
 }
 
 export interface AgentDialog {
