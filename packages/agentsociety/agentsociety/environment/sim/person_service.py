@@ -184,78 +184,6 @@ class PersonService:
         )
         return async_parse(res, dict_return)
 
-    def GetPersons(
-        self,
-        req: Union[person_service.GetPersonsRequest, dict[str, Any]],
-        dict_return: bool = True,
-    ) -> Coroutine[Any, Any, Union[dict[str, Any], person_service.GetPersonsResponse]]:
-        """
-        获取多个person信息
-        Get information of multiple persons
-
-        - **Args**:
-        - req (dict): https://cityproto.sim.fiblab.net/#city.person.v2.GetPersonsRequest
-
-        - **Returns**:
-        - https://cityproto.sim.fiblab.net/#city.person.v2.GetPersonsResponse
-        """
-        if not isinstance(req, person_service.GetPersonsRequest):
-            req = ParseDict(req, person_service.GetPersonsRequest())
-        res = cast(
-            Awaitable[person_service.GetPersonsResponse],
-            self._aio_stub.GetPersons(req),
-        )
-        return async_parse(res, dict_return)
-
-    def GetPersonByLongLatBBox(
-        self,
-        req: Union[person_service.GetPersonByLongLatBBoxRequest, dict[str, Any]],
-        dict_return: bool = True,
-    ) -> Coroutine[
-        Any, Any, Union[dict[str, Any], person_service.GetPersonByLongLatBBoxResponse]
-    ]:
-        """
-        获取特定区域内的person
-        Get persons in a specific region
-
-        - **Args**:
-        - req (dict): https://cityproto.sim.fiblab.net/#city.person.v2.GetPersonByLongLatBBoxRequest
-
-        - **Returns**:
-        - https://cityproto.sim.fiblab.net/#city.person.v2.GetPersonByLongLatBBoxResponse
-        """
-        if not isinstance(req, person_service.GetPersonByLongLatBBoxRequest):
-            req = ParseDict(req, person_service.GetPersonByLongLatBBoxRequest())
-        res = cast(
-            Awaitable[person_service.GetPersonByLongLatBBoxResponse],
-            self._aio_stub.GetPersonByLongLatBBox(req),
-        )
-        return async_parse(res, dict_return)
-
-    def GetAllVehicles(
-        self,
-        req: Union[person_service.GetAllVehiclesRequest, dict[str, Any]],
-        dict_return: bool = True,
-    ) -> Coroutine[
-        Any, Any, Union[dict[str, Any], person_service.GetAllVehiclesResponse]
-    ]:
-        """
-        获取所有车辆
-        Get all vehicles
-
-        - **Args**:
-        - req (dict): https://cityproto.sim.fiblab.net/#city.person.v2.GetAllVehiclesRequest
-
-        - **Returns**:
-        - https://cityproto.sim.fiblab.net/#city.person.v2.GetAllVehiclesResponse
-        """
-        if not isinstance(req, person_service.GetAllVehiclesRequest):
-            req = ParseDict(req, person_service.GetAllVehiclesRequest())
-        res = cast(
-            Awaitable[person_service.GetAllVehiclesResponse],
-            self._aio_stub.GetAllVehicles(req),
-        )
-        return async_parse(res, dict_return)
 
     def ResetPersonPosition(
         self,
@@ -279,5 +207,44 @@ class PersonService:
         res = cast(
             Awaitable[person_service.ResetPersonPositionResponse],
             self._aio_stub.ResetPersonPosition(req),
+        )
+        return async_parse(res, dict_return)
+
+    @overload
+    def GetGlobalStatistics(
+        self,
+        req: Union[person_service.GetGlobalStatisticsRequest, dict[str, Any]],
+        dict_return: Literal[False],
+    ) -> Coroutine[Any, Any, person_service.GetGlobalStatisticsResponse]: ...
+
+    @overload
+    def GetGlobalStatistics(
+        self,
+        req: Union[person_service.GetGlobalStatisticsRequest, dict[str, Any]],
+        dict_return: Literal[True] = True,
+    ) -> Coroutine[Any, Any, dict[str, Any]]: ...
+
+    def GetGlobalStatistics(
+        self,
+        req: Union[person_service.GetGlobalStatisticsRequest, dict[str, Any]],
+        dict_return: bool = True,
+    ) -> Coroutine[
+        Any, Any, Union[dict[str, Any], person_service.GetGlobalStatisticsResponse]
+    ]:
+        """
+        获取全局统计信息
+        Get global statistics
+
+        - **Args**:
+        - req (dict): https://cityproto.readthedocs.io/en/latest/docs.html#city-person-v2-GetGlobalStatisticsRequest
+
+        - **Returns**:
+        - https://cityproto.readthedocs.io/en/latest/docs.html#city-person-v2-GetGlobalStatisticsResponse
+        """
+        if not isinstance(req, person_service.GetGlobalStatisticsRequest):
+            req = ParseDict(req, person_service.GetGlobalStatisticsRequest())
+        res = cast(
+            Awaitable[person_service.GetGlobalStatisticsResponse],
+            self._aio_stub.GetGlobalStatistics(req),
         )
         return async_parse(res, dict_return)

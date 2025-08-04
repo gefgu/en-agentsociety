@@ -859,26 +859,37 @@ class DatabaseWriter:
                 raise
 
     @lock_decorator
-    async def log_metric(self, key: str, value: float, step: int):
+    async def log_metric(self, metrics: list[tuple[str, float, int]]):
+        """
+        Batch insert metric data.
+
+        Args:
+            metrics: List of tuples (key, value, step)
+        """
+        if len(metrics) == 0:
+            return
         table_obj = self._tables["metric"]["table"]
         insert_func = self._get_insert_func()
         
         async with self._async_session() as session:
             try:
-                data = {
-                    "key": key,
-                    "value": value,
-                    "step": step,
-                    "created_at": datetime.now(),
-                }
-                stmt = insert_func(table_obj).values([data])
+                data = [
+                    {
+                        "key": key,
+                        "value": value,
+                        "step": step,
+                        "created_at": datetime.now(),
+                    }
+                    for key, value, step in metrics
+                ]
+                stmt = insert_func(table_obj).values(data)
                 await session.execute(stmt)
                 await session.commit()
                 
-                get_logger().debug(f"Inserted metric record to {self._config.db_type}")
+                get_logger().debug(f"Batch inserted {len(metrics)} metric records to {self._config.db_type}")
             except Exception as e:
                 await session.rollback()
-                get_logger().error(f"Error writing metric to {self._config.db_type}: {e}")
+                get_logger().error(f"Error batch writing metrics to {self._config.db_type}: {e}")
                 raise
 
     @lock_decorator

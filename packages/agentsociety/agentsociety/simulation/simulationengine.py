@@ -38,8 +38,6 @@ from ..configs import (
     AgentConfig,
     AgentFilterConfig,
     Config,
-    MetricExtractorConfig,
-    MetricType,
     WorkflowType,
 )
 from ..environment import EnvironmentStarter
@@ -1304,64 +1302,6 @@ class SimulationEngine:
                 )
         await asyncio.gather(*react_tasks)
 
-    async def extract_metric(self, metric_extractors: list[MetricExtractorConfig]):
-        """
-        Extract metrics using provided extractors.
-
-        - **Description**:
-            - Asynchronously applies each metric extractor function to the simulation to collect various metrics.
-
-        - **Args**:
-            - `metric_extractors` (List[MetricExtractorConfig]): A list of MetricExtractorConfig for extracting metrics from the simulation.
-
-        - **Returns**:
-            - None
-        """
-        for metric_extractor in metric_extractors:
-            if metric_extractor.type == MetricType.FUNCTION:
-                if metric_extractor.func is not None:
-                    await metric_extractor.func(self)
-                else:
-                    raise ValueError("func is not set for metric extractor")
-            elif metric_extractor.type == MetricType.STATE:
-                assert metric_extractor.key is not None
-                target_agent_ids = await self._extract_target_agent_ids(
-                    metric_extractor.target_agent
-                )
-                values = await self.gather(
-                    metric_extractor.key, target_agent_ids, flatten=True
-                )
-                if values is None or len(values) == 0:
-                    get_logger().warning(
-                        f"No values found for metric extractor {metric_extractor.key} in extraction step {metric_extractor.extract_time}"
-                    )
-                    return
-                if isinstance(values[0], (float, int)):
-                    value = values[0]
-                    if len(values) > 1:
-                        if metric_extractor.method == "mean":
-                            value = sum(values) / len(values)
-                        elif metric_extractor.method == "sum":
-                            value = sum(values)
-                        elif metric_extractor.method == "max":
-                            value = max(values)
-                        elif metric_extractor.method == "min":
-                            value = min(values)
-                        else:
-                            raise ValueError(
-                                f"method {metric_extractor.method} is not supported"
-                            )
-                    if self.enable_database:
-                        assert self._database_writer is not None
-                        await self._database_writer.log_metric(  # type: ignore
-                            key=metric_extractor.key,
-                            value=value,
-                            step=metric_extractor.extract_time,
-                        )
-                else:
-                    raise ValueError(f"values type {type(values[0])} is not supported")
-            metric_extractor.extract_time += 1
-
     async def _save_exp_info(self) -> None:
         """Async save experiment info to YAML file and pgsql"""
         self._exp_info.updated_at = datetime.now(timezone.utc)
@@ -1659,22 +1599,6 @@ class SimulationEngine:
             )
             get_logger().debug(f"({day}-{t}) Finished saving simulation results")
             # ======================
-            # extract metrics
-            # ======================
-            if self.config.exp.metric_extractors is not None:
-                to_execute_metric = []
-                for metric_extractor in self.config.exp.metric_extractors:
-                    if self._total_steps % metric_extractor.step_interval == 0:
-                        if metric_extractor.type == MetricType.FUNCTION:
-                            to_execute_metric.append(metric_extractor)
-                        elif metric_extractor.type == MetricType.STATE:
-                            # For STATE type, we need to gather data from target agents
-                            to_execute_metric.append(metric_extractor)
-
-                if to_execute_metric:
-                    await self.extract_metric(to_execute_metric)
-                get_logger().debug(f"({day}-{t}) Finished extracting metrics")
-            # ======================
             # forward message
             # ======================
             all_messages = await self.messager.fetch_pending_messages()
@@ -1737,11 +1661,17 @@ class SimulationEngine:
                         pending_survey_id=pending_survey.id,
                     )
             # ======================
+            # Log metrics from environment
+            # ======================
+            metrics = await self.environment.get_metrics()
+            if self.enable_database:
+                await self._database_writer.log_metric(metrics)
+            get_logger().debug(f"({day}-{t}) Finished simulator sync")
+            # ======================
             # go to next step
             # ======================
             self._total_steps += 1
             await self.environment.step(num_environment_ticks)
-            get_logger().debug(f"({day}-{t}) Finished simulator sync")
             return all_logs
         except Exception as e:
             get_logger().error(f"Simulation error: {str(e)}\n{traceback.format_exc()}")

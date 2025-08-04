@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable
 from enum import Enum
-from typing import Any, List, Literal, Optional, Union
+from typing import Any, List, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
 
@@ -13,11 +13,9 @@ from ..survey import Survey
 
 __all__ = [
     "WorkflowStepConfig",
-    "MetricExtractorConfig",
     "EnvironmentConfig",
     "ExpConfig",
     "WorkflowType",
-    "MetricType",
     "AgentFilterConfig",
 ]
 
@@ -187,68 +185,6 @@ class WorkflowStepConfig(BaseModel):
         return self
 
 
-class MetricType(str, Enum):
-    """
-    Defines the types of metric types.
-    - **Description**:
-        - Enumerates different types of metric types.
-
-    - **Types**:
-        - `FUNCTION`: Function-based metric.
-        - `STATE`: State-based metric.
-    """
-
-    FUNCTION = "function"
-    STATE = "state"
-
-
-class MetricExtractorConfig(BaseModel):
-    """Configuration for extracting metrics during simulation."""
-
-    model_config = ConfigDict(use_enum_values=True, use_attribute_docstrings=True)
-
-    type: MetricType = Field(MetricType.FUNCTION)
-    """The type of metric extraction; defaults to FUNCTION"""
-
-    func: Optional[Callable] = None
-    """The function that extracts the metric - used for [FUNCTION] type"""
-
-    step_interval: int = Field(10, ge=1)
-    """Frequency interval (in simulation steps) for metric extraction"""
-
-    target_agent: Optional[Union[list, AgentFilterConfig]] = None
-    """List specifying the agents from which to extract metrics - used for [STATE] type"""
-
-    key: Optional[str] = None
-    """Optional key to store or identify the extracted metric - used for [STATE] type"""
-
-    method: Optional[Literal["mean", "sum", "max", "min"]] = "sum"
-    """Aggregation method applied to the metric values - used for [STATE] type"""
-
-    extract_time: int = 1
-    """The simulation time or step at which extraction occurs"""
-
-    description: str = "None"
-    """A descriptive text explaining the metric extractor"""
-
-    # customize validator for target_agent and key
-    @model_validator(mode="after")
-    def validate_target_agent(self):
-        if self.type == MetricType.STATE:
-            if self.target_agent is None or self.key is None:
-                raise ValueError("target_agent is required for STATE type")
-        return self
-
-    @field_serializer("func")
-    def serialize_func(self, func, info):
-        if func is None:
-            return None
-        # Handle partial function
-        if hasattr(func, "func"):
-            return func.func.__name__
-        return func.__name__
-
-
 class ExpConfig(BaseModel):
     """Main configuration for the experiment."""
 
@@ -265,9 +201,6 @@ class ExpConfig(BaseModel):
 
     environment: EnvironmentConfig
     """Environment configuration"""
-
-    metric_extractors: Optional[list[MetricExtractorConfig]] = None
-    """List of metric extractors"""
 
     @field_serializer("id")
     def serialize_id(self, id, info):

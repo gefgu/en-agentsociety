@@ -10,7 +10,6 @@ from agentsociety.cityagent import (
     OtherBlock,
     OtherBlockParams,
     SocietyAgent,
-    NBSAgent,
     default,
 )
 from agentsociety.configs import (
@@ -24,8 +23,6 @@ from agentsociety.configs import (
 from agentsociety.configs.agent import AgentConfig
 from agentsociety.configs.exp import (
     AgentFilterConfig,
-    MetricExtractorConfig,
-    MetricType,
     WorkflowStepConfig,
     WorkflowType,
 )
@@ -91,50 +88,6 @@ config = Config(
         environment=EnvironmentConfig(
             start_tick=6 * 60 * 60,
         ),
-        metric_extractors=[
-            MetricExtractorConfig(
-                type=MetricType.STATE,
-                step_interval=10,
-                target_agent=AgentFilterConfig(agent_class=(NBSAgent,)),
-                key="real_gdp_metric",
-                description="Extract real GDP metric value from NBSAgent",
-            ),
-            MetricExtractorConfig(
-                type=MetricType.STATE,
-                step_interval=10,
-                target_agent=AgentFilterConfig(agent_class=(NBSAgent,)),
-                key="price_metric",
-                description="Extract price metric value from NBSAgent",
-            ),
-            MetricExtractorConfig(
-                type=MetricType.STATE,
-                step_interval=10,
-                target_agent=AgentFilterConfig(agent_class=(NBSAgent,)),
-                key="working_hours_metric",
-                description="Extract working hours metric value from NBSAgent",
-            ),
-            MetricExtractorConfig(
-                type=MetricType.STATE,
-                step_interval=10,
-                target_agent=AgentFilterConfig(agent_class=(NBSAgent,)),
-                key="depression_metric",
-                description="Extract depression metric value from NBSAgent",
-            ),
-            MetricExtractorConfig(
-                type=MetricType.STATE,
-                step_interval=10,
-                target_agent=AgentFilterConfig(agent_class=(NBSAgent,)),
-                key="consumption_currency_metric",
-                description="Extract consumption currency metric value from NBSAgent",
-            ),
-            MetricExtractorConfig(
-                type=MetricType.STATE,
-                step_interval=10,
-                target_agent=AgentFilterConfig(agent_class=(NBSAgent,)),
-                key="income_currency_metric",
-                description="Extract income currency metric value from NBSAgent",
-            ),
-        ],
     ),
 )
 config = default(config)

@@ -1,6 +1,6 @@
 """Environment"""
 
-from .sim import AoiService, PersonService
+from .sim import PersonService
 from .environment import (
     Environment,
     EnvironmentStarter,
@@ -18,6 +18,5 @@ __all__ = [
     "MapData",
     "MapConfig",
     "PersonService",
-    "AoiService",
     "EconomyClient",
 ]

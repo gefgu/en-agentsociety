@@ -6,7 +6,7 @@ import tempfile
 from datetime import datetime
 from multiprocessing import cpu_count
 from subprocess import Popen
-from typing import Any, Literal, Optional, Union, overload
+from typing import Any, Literal, Optional, Tuple, Union, overload
 
 import yaml
 from pycityproto.city.map.v2 import map_pb2 as map_pb2
@@ -63,6 +63,9 @@ class EnvironmentConfig(BaseModel):
 
     start_tick: int = Field(default=8 * 60 * 60)
     """Starting tick of one day, in seconds"""
+
+    metric_interval: int = Field(default=3600)
+    """Interval of metrics, in ticks"""
 
     weather: str = Field(default="The weather is sunny")
     """Current weather condition in the environment"""
@@ -612,6 +615,8 @@ class EnvironmentStarter(Environment):
 
         super().__init__(mapdata, None, environment_config)
 
+        self._last_metric_tick = -1e999
+
         # type annotation
         self._sim_proc: Optional[Popen] = None
 
@@ -673,8 +678,6 @@ class EnvironmentStarter(Environment):
                 self._server_addr,
                 "-syncer",
                 "http://" + syncer_addr,
-                "-output",
-                self._log_dir,
                 "-cache",
                 "",
                 "-log.level",
@@ -687,7 +690,7 @@ class EnvironmentStarter(Environment):
         await self.syncer.step()
 
         get_logger().info(
-            f"start agentsociety-sim at {self._server_addr}, PID={self._sim_proc.pid}"
+            f"start agentsociety-sim-oss at {self._server_addr}, PID={self._sim_proc.pid}"
         )
 
         # remove the temporary file
@@ -705,7 +708,7 @@ class EnvironmentStarter(Environment):
             self._syncer = None
         if self._sim_proc is not None and self._sim_proc.poll() is None:
             get_logger().info(
-                f"Terminating agentsociety-sim at {self._server_addr}, PID={self._sim_proc.pid}, please ignore the PANIC message"
+                f"Terminating agentsociety-sim-oss at {self._server_addr}, PID={self._sim_proc.pid}, please ignore the PANIC message"
             )
             self._sim_proc.kill()
             # wait for the process to terminate
@@ -718,20 +721,41 @@ class EnvironmentStarter(Environment):
             await self.syncer.step()
             self._tick += 1
 
+    async def get_metrics(self) -> list[Tuple[str, float, int]]:
+        """
+        Get the metrics of the environment for recording.
+
+        - **Returns**:
+            - `List[Tuple[str, float, int]]`: A list of tuples, each containing the metric name, value, and step.
+        """
+        if self._last_metric_tick + self._environment_config.metric_interval > self._tick:
+            return []
+
+        # Add mobility metrics
+        # 1. cumulative travel distance
+        # 2. cumulative number of trips
+        stat = await self._city_client.person_service.GetGlobalStatistics(
+            {}, True
+        )
+        num_completed_trips = stat["num_completed_trips"]
+        total_travel_time = stat["running_total_travel_time"]
+        total_travel_distance = stat["running_total_travel_distance"]
+
+        self._last_metric_tick = self._tick
+
+        return [
+            ("num_completed_trips", num_completed_trips, self._tick),
+            ("total_travel_time (sec)", total_travel_time, self._tick),
+            ("total_travel_distance (m)", total_travel_distance, self._tick),
+        ]
+
 
 def _generate_yaml_config(map_file) -> str:
     config_dict = {
         "input": {"map": {"file": os.path.abspath(map_file)}},
         "control": {
             "step": {"start": 0, "total": int(2**31 - 1), "interval": 1},
-            "skip_overtime_trip_when_init": True,
-            "enable_platoon": False,
-            "enable_indoor": False,
             "prefer_fixed_light": True,
-            "enable_collision_avoidance": False,
-            "enable_go_astray": True,
-            "lane_change_model": "earliest",
         },
-        "output": None,
     }
     return yaml.dump(config_dict, allow_unicode=True)
