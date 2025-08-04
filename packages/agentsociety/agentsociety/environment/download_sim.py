@@ -6,7 +6,7 @@ from ..logger import get_logger
 
 __all__ = ["download_binary"]
 
-SIM_VERSION = "v0.2.1"
+SIM_VERSION = "v0.2.2"
 BIN_SOURCES = {
     "agentsociety-sim-oss": {
         "linux_x86_64": f"https://agentsociety.obs.cn-north-4.myhuaweicloud.com/agentsociety-sim-oss/{SIM_VERSION}/agentsociety-sim-oss-linux-amd64",
