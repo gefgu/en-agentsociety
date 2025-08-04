@@ -287,7 +287,10 @@ Based on the following information, provide a concise 1-2 sentence description o
 
 Please provide a natural, human-like description of what the agent is currently doing and feeling, considering their personality, current situation, and environment. Focus on the most relevant aspects that define their current state.
 
-Response format: 1-2 sentences describing the agent's current status.
+Response format: 1-2 sentences describing the agent's current status from a first-person perspective.
+
+Example:
+"I am working at the office, the work is not too busy, but I am a bit tired."
 """
         summary_text = await self.llm.atext_request([
             {"role": "system", "content": "You are an AI assistant that describes the current status of a citizen agent in a city simulation."},

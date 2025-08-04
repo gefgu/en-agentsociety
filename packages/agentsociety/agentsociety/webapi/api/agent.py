@@ -170,7 +170,10 @@ async def list_agent_status_by_day_and_t(
         for row in rows:
             s = {columns[i]: row[i] for i in range(len(columns))}
             if "status" in s and isinstance(s["status"], str):
-                s["status"] = json.loads(s["status"])
+                try:
+                    s["status"] = json.loads(s["status"])
+                except Exception:
+                    pass
             if "created_at" in s:
                 s["created_at"] = ensure_timezone_aware(s["created_at"])
             statuses.append(ApiAgentStatus(**s))
@@ -200,7 +203,10 @@ async def get_agent_status_by_exp_id_and_agent_id(
         for row in rows:
             s = {columns[i]: row[i] for i in range(len(columns))}
             if "status" in s and isinstance(s["status"], str):
-                s["status"] = json.loads(s["status"])
+                try:
+                    s["status"] = json.loads(s["status"])
+                except Exception:
+                    pass
             if "created_at" in s:
                 s["created_at"] = ensure_timezone_aware(s["created_at"])
             statuses.append(ApiAgentStatus(**s))
