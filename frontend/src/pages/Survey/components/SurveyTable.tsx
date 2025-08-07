@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Table, Button, Modal, Form, Input, message, Space, Flex, Col, Row, Alert, Popconfirm, Dropdown, Tabs } from 'antd';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Table, Button, Modal, Form, Input, Space, Flex, Col, Row, Alert, Popconfirm, Dropdown, Tabs, App } from 'antd';
 import dayjs from 'dayjs';
 import { Model, Survey as SurveyUI } from 'survey-react-ui';
 import 'survey-core/defaultV2.min.css';
@@ -25,18 +25,22 @@ const EmptySurvey: EditingSurvey = {
 
 const SurveyTable = () => {
     const { t } = useTranslation();
+    const { message } = App.useApp();
     const [surveys, setSurveys] = useState<Survey[]>([]);
     const [open, setOpen] = useState(false);
     const [editingSurvey, setEditingSurvey] = useState<EditingSurvey>(EmptySurvey);
     const [form] = useForm();
     const [activeTab, setActiveTab] = useState('builder');
+    const [formValues, setFormValues] = useState({ name: '', data: '' });
 
     useEffect(() => {
         if (editingSurvey) {
-            form.setFieldsValue({
+            const values = {
                 name: editingSurvey.name,
                 data: editingSurvey.data,
-            });
+            };
+            form.setFieldsValue(values);
+            setFormValues(values);
         }
     }, [editingSurvey, form]);
 
@@ -199,13 +203,29 @@ const SurveyTable = () => {
         },
     ];
 
-    let model = new Model({});
-    try {
-        model = new Model(JSON.parse(editingSurvey.data));
-    } catch (e) {
-        console.error('Failed to parse JSON data:', e);
-    }
-    model.showCompleteButton = false;
+    // 使用useMemo优化模型构建，避免不必要的重新创建
+    const model = useMemo(() => {
+        try {
+            const currentData = formValues.data || editingSurvey.data || '{}';
+            const surveyData = JSON.parse(currentData);
+            const modelData = {
+                title: formValues.name || editingSurvey.name || '未命名问卷',
+                ...surveyData
+            };
+            const newModel = new Model(modelData);
+            newModel.showCompleteButton = false;
+            return newModel;
+        } catch (e) {
+            console.error('Failed to parse JSON data:', e);
+            // 如果解析失败，至少显示标题
+            const fallbackModel = new Model({
+                title: formValues.name || editingSurvey.name || '未命名问卷',
+                pages: []
+            });
+            fallbackModel.showCompleteButton = false;
+            return fallbackModel;
+        }
+    }, [formValues, editingSurvey.data, editingSurvey.name]);
 
     return (
         <>
@@ -236,6 +256,9 @@ const SurveyTable = () => {
                                             <Form
                                                 form={form}
                                                 layout="vertical"
+                                                onValuesChange={(changedValues, allValues) => {
+                                                    setFormValues(allValues);
+                                                }}
                                                 onFinish={handleSubmit}
                                             >
                                                 <Form.Item label="问卷名称" name="name" rules={[
@@ -245,8 +268,11 @@ const SurveyTable = () => {
                                                 </Form.Item>
                                                 <div style={{ maxHeight: '50vh', overflow: 'auto' }}>
                                                     <SurveyBuilder
-                                                        value={form.getFieldValue('data') || ''}
-                                                        onChange={(value) => form.setFieldValue('data', value)}
+                                                        value={formValues.data || ''}
+                                                        onChange={useCallback((value) => {
+                                                            form.setFieldValue('data', value);
+                                                            setFormValues(prev => ({ ...prev, data: value }));
+                                                        }, [form])}
                                                     />
                                                 </div>
                                                 <Button type="primary" htmlType='submit' style={{ marginTop: 8 }}>

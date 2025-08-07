@@ -27,8 +27,8 @@ interface SurveyBuilderProps {
 
 const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
     const [questions, setQuestions] = useState<Question[]>([]);
-    const [surveyTitle, setSurveyTitle] = useState('');
-    const [surveyDescription, setSurveyDescription] = useState('');
+    // const [surveyTitle, setSurveyTitle] = useState('');
+    // const [surveyDescription, setSurveyDescription] = useState('');
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
     const [editingIndex, setEditingIndex] = useState<number>(-1);
@@ -39,8 +39,8 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
         if (value) {
             try {
                 const surveyData = JSON.parse(value);
-                setSurveyTitle(surveyData.title || '');
-                setSurveyDescription(surveyData.description || '');
+                // setSurveyTitle(surveyData.title || '');
+                // setSurveyDescription(surveyData.description || '');
                 if (surveyData.pages && surveyData.pages[0] && surveyData.pages[0].elements) {
                     setQuestions(surveyData.pages[0].elements);
                 }
@@ -50,11 +50,11 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
         }
     }, [value]);
 
-    // 当问卷数据改变时，生成JSON并回调
+    // 当问题数据改变时，生成JSON并回调
     useEffect(() => {
         const surveyJson = {
-            title: surveyTitle,
-            description: surveyDescription,
+            // title: surveyTitle,
+            // description: surveyDescription,
             pages: [
                 {
                     name: 'page1',
@@ -63,7 +63,8 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
             ]
         };
         onChange?.(JSON.stringify(surveyJson, null, 2));
-    }, [questions, surveyTitle, surveyDescription, onChange]);
+    // }, [questions, surveyTitle, surveyDescription, onChange]);
+    }, [questions, onChange]);
 
     const showQuestionModal = (question?: Question, index?: number) => {
         if (question && index !== undefined) {
@@ -139,7 +140,7 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
 
     return (
         <div>
-            <Card title="问卷基本信息" style={{ marginBottom: 16 }}>
+            {/* <Card title="问卷基本信息" style={{ marginBottom: 16 }}>
                 <Row gutter={16}>
                     <Col span={12}>
                         <Form.Item label="问卷标题">
@@ -160,7 +161,7 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
                         </Form.Item>
                     </Col>
                 </Row>
-            </Card>
+            </Card> */}
 
             <Card 
                 title="问题列表"
