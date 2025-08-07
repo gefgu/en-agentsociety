@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Modal, Form, Input, message, Space, Flex, Col, Row, Alert, Popconfirm, Dropdown } from 'antd';
+import { Table, Button, Modal, Form, Input, message, Space, Flex, Col, Row, Alert, Popconfirm, Dropdown, Tabs } from 'antd';
 import dayjs from 'dayjs';
 import { Model, Survey as SurveyUI } from 'survey-react-ui';
 import 'survey-core/defaultV2.min.css';
@@ -9,6 +9,7 @@ import { Editor } from '../../../components/Editor';
 import { Survey } from '../../../components/type';
 import { fetchCustom } from '../../../components/fetch';
 import { useTranslation } from 'react-i18next';
+import SurveyBuilder from './SurveyBuilder';
 
 interface EditingSurvey {
     id: string;
@@ -28,6 +29,7 @@ const SurveyTable = () => {
     const [open, setOpen] = useState(false);
     const [editingSurvey, setEditingSurvey] = useState<EditingSurvey>(EmptySurvey);
     const [form] = useForm();
+    const [activeTab, setActiveTab] = useState('builder');
 
     useEffect(() => {
         if (editingSurvey) {
@@ -87,6 +89,7 @@ const SurveyTable = () => {
 
     const handleCreate = () => {
         setEditingSurvey(EmptySurvey);
+        setActiveTab('builder');
         setOpen(true);
     };
 
@@ -220,7 +223,48 @@ const SurveyTable = () => {
                     onCancel={handleModalCancel}
                     footer={null}
                 >
-                    <Flex>
+                    <Tabs 
+                        activeKey={activeTab} 
+                        onChange={setActiveTab}
+                        items={[
+                            {
+                                key: 'builder',
+                                label: '可视化构建器',
+                                children: (
+                                    <Flex>
+                                        <div style={{ width: '50%', marginRight: 16 }}>
+                                            <Form
+                                                form={form}
+                                                layout="vertical"
+                                                onFinish={handleSubmit}
+                                            >
+                                                <Form.Item label="问卷名称" name="name" rules={[
+                                                    { required: true, message: t('survey.pleaseInputName') },
+                                                ]}>
+                                                    <Input />
+                                                </Form.Item>
+                                                <div style={{ maxHeight: '50vh', overflow: 'auto' }}>
+                                                    <SurveyBuilder
+                                                        value={form.getFieldValue('data') || ''}
+                                                        onChange={(value) => form.setFieldValue('data', value)}
+                                                    />
+                                                </div>
+                                                <Button type="primary" htmlType='submit' style={{ marginTop: 8 }}>
+                                                    {t('survey.submit')}
+                                                </Button>
+                                            </Form>
+                                        </div>
+                                        <div style={{ overflow: 'auto', maxHeight: '60vh', width: '50%' }}>
+                                            <SurveyUI model={model} />
+                                        </div>
+                                    </Flex>
+                                )
+                            },
+                            {
+                                key: 'json',
+                                label: 'JSON编辑器',
+                                children: (
+                                    <Flex>
                         <Form
                             form={form}
                             style={{ width: '50%', marginRight: 16 }}
@@ -272,6 +316,10 @@ const SurveyTable = () => {
                             <SurveyUI model={model} />
                         </div>
                     </Flex>
+                                )
+                            }
+                        ]}
+                    />
                 </Modal>
             </Flex>
         </>
