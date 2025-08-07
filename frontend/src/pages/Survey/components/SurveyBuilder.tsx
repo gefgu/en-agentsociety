@@ -284,16 +284,20 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
                                                     </Button>
                                                 </Form.Item>
                                                 {fields.map(({ key, name, ...restField }) => (
-                                                    <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+                                                    <div key={key} style={{ display: 'flex', marginBottom: 8, alignItems: 'center', gap: 8 }}>
                                                         <Form.Item
                                                             {...restField}
                                                             name={name}
+                                                            style={{ flex: 1, marginBottom: 0 }}
                                                             rules={[{ required: true, message: '请输入选项内容' }]}
                                                         >
                                                             <Input placeholder="请输入选项内容" />
                                                         </Form.Item>
-                                                        <DeleteOutlined onClick={() => remove(name)} />
-                                                    </Space>
+                                                        <DeleteOutlined 
+                                                            onClick={() => remove(name)} 
+                                                            style={{ color: '#ff4d4f', cursor: 'pointer' }}
+                                                        />
+                                                    </div>
                                                 ))}
                                             </>
                                         )}

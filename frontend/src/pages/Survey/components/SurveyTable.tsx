@@ -49,9 +49,9 @@ const SurveyTable = () => {
     }, []);
 
 
-    const handleJsonButton = () => {
-        window.open('https://surveyjs.io/create-free-survey', '_blank');
-    };
+    // const handleJsonButton = () => {
+    //     window.open('https://surveyjs.io/create-free-survey', '_blank');
+    // };
 
 
     const fetchSurveys = async () => {
@@ -252,7 +252,7 @@ const SurveyTable = () => {
                                 label: '可视化构建器',
                                 children: (
                                     <Flex>
-                                        <div style={{ width: '50%', marginRight: 16 }}>
+                                        <div style={{ width: '100%' }}>
                                             <Form
                                                 form={form}
                                                 layout="vertical"
@@ -280,9 +280,9 @@ const SurveyTable = () => {
                                                 </Button>
                                             </Form>
                                         </div>
-                                        <div style={{ overflow: 'auto', maxHeight: '60vh', width: '50%' }}>
+                                        {/* <div style={{ overflow: 'auto', maxHeight: '60vh', width: '50%' }}>
                                             <SurveyUI model={model} />
-                                        </div>
+                                        </div> */}
                                     </Flex>
                                 )
                             },
@@ -293,7 +293,7 @@ const SurveyTable = () => {
                                     <Flex>
                         <Form
                             form={form}
-                            style={{ width: '50%', marginRight: 16 }}
+                            style={{ width: '100%' }}
                             layout="vertical"
                             onValuesChange={(changedValues, allValues) => {
                                 setEditingSurvey({
@@ -309,7 +309,7 @@ const SurveyTable = () => {
                                 <Input />
                             </Form.Item>
                             <Form.Item
-                                label={<span>{t('survey.surveyJsonData')} ({t('survey.onlineVisualEditor')}&nbsp;<ExportOutlined onClick={handleJsonButton} />&nbsp;)</span>}
+                                label={<span>{t('survey.surveyJsonData')} {/* ({t('survey.onlineVisualEditor')}&nbsp;<ExportOutlined onClick={handleJsonButton} />&nbsp;) */}</span>}
                                 name="data"
                                 rules={[
                                     { required: true, message: t('survey.pleaseInputData') },
@@ -338,9 +338,9 @@ const SurveyTable = () => {
                                 {t('survey.submit')}
                             </Button>
                         </Form>
-                        <div style={{ overflow: 'auto', maxHeight: '60vh', width: '50%' }}>
+                        {/* <div style={{ overflow: 'auto', maxHeight: '60vh', width: '50%' }}>
                             <SurveyUI model={model} />
-                        </div>
+                        </div> */}
                     </Flex>
                                 )
                             }
