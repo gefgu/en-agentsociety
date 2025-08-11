@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Card, Space, Modal, message, Tooltip, Input, Popconfirm, Upload } from 'antd';
-import { DeleteOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
+import { Table, Button, Card, Space, Modal, message, Tooltip, Input, Popconfirm, Upload, Alert } from 'antd';
+import { DeleteOutlined, DownloadOutlined, UploadOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { fetchCustom } from '../../components/fetch';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
@@ -213,6 +213,26 @@ const ProfileList: React.FC = () => {
                 </Space>
             }
         >
+            {/* 文档链接提示 */}
+            <Alert
+                message={
+                    <Space size={4}>
+                        <InfoCircleOutlined />
+                        {t('profile.documentationTip')}
+                        <a 
+                            href="https://agentsociety.readthedocs.io/en/latest/02-development-guide/02-profile.html" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                        >
+                            {t('profile.documentationLink')}
+                        </a>
+                    </Space>
+                }
+                type="info"
+                showIcon={false}
+                style={{ marginBottom: 16 }}
+            />
+
             <Input.Search
                 placeholder={t('profile.searchPlaceholder')}
                 onChange={handleSearch}

@@ -19,6 +19,14 @@ const InfoPanel = observer(() => {
     const agent = store.clickedAgent;
     const agentStatuses = store.clickedAgentStatuses;
 
+    // 获取翻译的key值，如果没有翻译则使用原始值
+    const getTranslatedKey = (key: string) => {
+        const translationKey = `replay.infoPanel.${key}`;
+        const translated = t(translationKey);
+        // 如果翻译结果等于翻译键，说明没有找到翻译，返回原始值
+        return translated === translationKey ? key : translated;
+    };
+
     const renderItem = (item: AgentStatus, index: number) => (
         <Flex className='left-info-history-card'>
             <Flex vertical justify='flex-start' className='left-info-history-inner'>
@@ -63,7 +71,7 @@ const InfoPanel = observer(() => {
                 </Flex>
                 {agent && agent.profile && Object.entries(agent.profile).map(([k, v]) => (
                     <Flex className='left-info-block' justify='space-between' key={k}>
-                        <span style={{ fontWeight: 400, color: "#909399" }}>{k}:&nbsp;&nbsp;</span>
+                        <span style={{ fontWeight: 400, color: "#909399" }}>{getTranslatedKey(k)}:&nbsp;&nbsp;</span>
                         <Tooltip title={<span>{v}</span>}>
                             <span style={{ fontWeight: 600, color: "#007AFF", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '150px' }}>{v}</span>
                         </Tooltip>
@@ -82,8 +90,8 @@ const InfoPanel = observer(() => {
                     <Flex wrap justify="left">
                         {agent.status && (typeof agent.status === 'string' ? (
                             <Flex className='left-info-block' justify='space-between'>
-                                <span style={{ fontWeight: 400, color: "#909399" }}>status:&nbsp;&nbsp;</span>
-                                <span style={{ fontWeight: 600, color: "#007AFF" }}>{agent.status}</span>
+                                <span style={{ fontWeight: 400, color: "#909399" }}>{getTranslatedKey('status')}:&nbsp;&nbsp;</span>
+                                <span style={{ fontWeight: 600, color: "#007AFF", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '150px' }}>{agent.status}</span>
                             </Flex>
                         ) : (
                             Object.entries(agent.status).map(([k, v]) => (
@@ -98,7 +106,7 @@ const InfoPanel = observer(() => {
                                         }
                                         store.setHeatmapKeyInStatus(k);
                                     }}>
-                                        <span style={{ fontWeight: 400, color: "#909399" }}>{k}:&nbsp;&nbsp;</span>
+                                        <span style={{ fontWeight: 400, color: "#909399" }}>{getTranslatedKey(k)}:&nbsp;&nbsp;</span>
                                         <span style={{ fontWeight: 600, color: "#007AFF" }}>{v}</span>
                                     </Flex>
                                 </Tooltip>

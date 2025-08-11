@@ -32,7 +32,15 @@ export default {
         statusHistory: "状态历史",
         name: "名称",
         id: "ID",
-        showAsHeatmap: "点击显示为热力图"
+        showAsHeatmap: "点击显示为热力图",
+        gender: "性别",
+        age: "年龄",
+        education: "教育水平",
+        occupation: "职业",
+        marriageStatus: "婚姻状况",
+        persona: "人格角色",
+        backgroundStory: "背景故事",
+        status: "状态"
     },
     timelinePlayer: {
         replay: "回放",

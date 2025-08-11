@@ -32,7 +32,15 @@ export default {
         statusHistory: "Status History",
         name: "name",
         id: "ID",
-        showAsHeatmap: "Click to show as heatmap"
+        showAsHeatmap: "Click to show as heatmap",
+        gender: "Gender",
+        age: "Age",
+        education: "Education",
+        occupation: "Occupation",
+        marriageStatus: "Marriage Status",
+        persona: "Persona",
+        backgroundStory: "Background Story",
+        status: "Status"
     },
     timelinePlayer: {
         replay: "Replay",

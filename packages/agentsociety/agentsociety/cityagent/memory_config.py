@@ -64,7 +64,7 @@ DEFAULT_DISTRIBUTIONS: dict[str, Distribution] = {
             "Zack",
         ]
     ),
-    "gender": ChoiceDistribution(choices=["male", "female"]),
+    "gender": ChoiceDistribution(choices=["Male", "Female"]),
     "age": UniformIntDistribution(min_value=18, max_value=65),
     "education": ChoiceDistribution(
         choices=["Doctor", "Master", "Bachelor", "College", "High School"]
@@ -83,7 +83,7 @@ DEFAULT_DISTRIBUTIONS: dict[str, Distribution] = {
         ]
     ),
     "marriage_status": ChoiceDistribution(
-        choices=["not married", "married", "divorced", "widowed"]
+        choices=["Not married", "Married", "Divorced", "Widowed"]
     ),
 }
 

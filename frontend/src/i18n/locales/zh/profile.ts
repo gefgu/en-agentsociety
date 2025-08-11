@@ -44,5 +44,7 @@ export default {
         actions: "操作",
         download: "下载",
         delete: "删除"
-    }
+    },
+    documentationTip: "如需智能体画像配置的详细说明，请访问",
+    documentationLink: "智能体画像文档"
 }; 

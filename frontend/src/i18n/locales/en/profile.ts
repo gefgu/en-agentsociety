@@ -44,5 +44,7 @@ export default {
         actions: "Actions",
         download: "Download",
         delete: "Delete"
-    }
+    },
+    documentationTip: "For detailed agent profile configuration instructions, please visit",
+    documentationLink: "Agent Profile Documentation"
 }; 
