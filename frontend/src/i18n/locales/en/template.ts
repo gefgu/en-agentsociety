@@ -47,5 +47,10 @@ export default {
         updateSuccess: "Template updated successfully",
         updateFailed: "Failed to update template",
         fetchFailed: "Failed to fetch template"
+    },
+    sidebar: {
+        name: "Name",
+        type: "Type",
+        description: "Description"
     }
 }; 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Form, Input, Card, Row, Col, Button, Switch, InputNumber, Select, Space, message, Tooltip, Table, Modal, Tabs, Empty } from 'antd';
+import { Form, Input, Card, Row, Col, Button, Switch, InputNumber, Select, Space, message, Tooltip, Table, Tabs, Empty } from 'antd';
 import type { FormInstance } from 'antd/es/form';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchCustom } from '../../components/fetch';
@@ -9,7 +9,6 @@ import { useTranslation } from 'react-i18next';
 import { observer } from 'mobx-react-lite';
 import { AgentTemplateStoreContext } from './agentTemplateStore';
 import {
-  ApiAgentTemplate,
   ApiDistributionType,
   ApiParam,
   ApiNameTypeDescription,
@@ -17,90 +16,7 @@ import {
   BlockInfo,
   ProfileField
 } from '../../types/agentTemplate';
-
-// ==================== 默认配置 ====================
-export const profileOptions: Record<string, ProfileField> = {
-  name: {
-    label: "Name",
-    type: 'discrete',
-    options: ["Alice", "Bob", "Charlie", "David", "Eve", "Frank", "Grace", "Helen", "Ivy", "Jack"],
-  },
-  gender: {
-    label: "Gender",
-    type: 'discrete',
-    options: ["male", "female"]
-  },
-  age: {
-    label: "Age",
-    type: 'continuous',
-    defaultParams: { min_value: 18, max_value: 65 }
-  },
-  education: {
-    label: "Education",
-    type: 'discrete',
-    options: ["Doctor", "Master", "Bachelor", "College", "High School"],
-  },
-  skill: {
-    label: "Skill",
-    type: 'discrete',
-    options: ["Good at problem-solving", "Good at communication", "Good at creativity"],
-  },
-  occupation: {
-    label: "Occupation",
-    type: 'discrete',
-    options: ["Student", "Teacher", "Doctor", "Engineer", "Manager"],
-  },
-  family_consumption: {
-    label: "Family Consumption",
-    type: 'discrete',
-    options: ["low", "medium", "high"],
-  },
-  consumption: {
-    label: "Consumption",
-    type: 'discrete',
-    options: ["low", "slightly low", "medium", "slightly high", "high"],
-  },
-  personality: {
-    label: "Personality",
-    type: 'discrete',
-    options: ["outgoing", "introvert", "ambivert", "extrovert"],
-  },
-  income: {
-    label: "Income",
-    type: 'continuous',
-    defaultParams: { min_value: 1000, max_value: 20000, mean: 5000, std: 1000 }
-  },
-  currency: {
-    label: "Currency",
-    type: 'continuous',
-    defaultParams: { min_value: 1000, max_value: 100000, mean: 50000, std: 10000 }
-  },
-  residence: {
-    label: "Residence",
-    type: 'discrete',
-    options: ["city", "suburb", "rural"],
-  },
-  race: {
-    label: "Race",
-    type: 'discrete',
-    options: ["Chinese", "American", "British", "French", "German"],
-  },
-  religion: {
-    label: "Religion",
-    type: 'discrete',
-    options: ["none", "Christian", "Muslim", "Buddhist", "Hindu"],
-  },
-  marriage_status: {
-    label: "Marriage Status",
-    type: 'discrete',
-    options: ["not married", "married", "divorced", "widowed"],
-  },
-  city: {
-    label: "City",
-    type: 'discrete',
-    options: ["New York", "Los Angeles", "London", "Paris", "Tokyo"],
-  }
-};
+import { profiles } from './profile';
 
 // ==================== 工具函数 ====================
 const renderDynamicFormItem = (
@@ -498,75 +414,6 @@ const BlockConfiguration: React.FC<{
   );
 });
 
-const ProfileSection: React.FC<{ form: FormInstance }> = ({ form }) => {
-  const { t } = useTranslation();
-
-  return (
-    <>
-      <Card title={t('template.profileSection')} variant="borderless" style={{ marginBottom: '12px' }}>
-        <Row gutter={[12, 12]}>
-          {Object.entries(profileOptions).map(([key, config]) => (
-            <Col span={24} key={key}>
-              <Card size="small" title={config.label} style={{ marginBottom: '8px' }}>
-                {config.type === 'discrete' ? (
-                  <>
-                    <Form.Item
-                      name={['profile', key, 'type']}
-                      label={t('template.distributionType')}
-                      initialValue="choice"
-                      style={{ marginBottom: '8px' }}
-                    >
-                      <Select
-                        options={[{ label: t('template.discreteChoice'), value: 'choice' }]}
-                        disabled
-                      />
-                    </Form.Item>
-                    <Form.Item
-                      name={['profile', key, 'choices']}
-                      hidden
-                      initialValue={config.options}
-                    >
-                      <Input />
-                    </Form.Item>
-                    {renderDistributionFields(key, config, form)}
-                  </>
-                ) : (
-                  renderDistributionFields(key, config, form)
-                )}
-              </Card>
-            </Col>
-          ))}
-        </Row>
-      </Card>
-
-      <Card title={t('template.baseLocation')} bordered={false}>
-        <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item
-              name={['base', 'home', 'aoi_position', 'aoi_id']}
-              label={t('template.homeAreaId')}
-              rules={[{ required: true }]}
-              initialValue={0}
-            >
-              <InputNumber style={{ width: '100%' }} />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              name={['base', 'work', 'aoi_position', 'aoi_id']}
-              label={t('template.workAreaId')}
-              rules={[{ required: true }]}
-              initialValue={0}
-            >
-              <InputNumber style={{ width: '100%' }} />
-            </Form.Item>
-          </Col>
-        </Row>
-      </Card>
-    </>
-  );
-};
-
 const AgentInfoSidebar: React.FC<{ blockContexts?: BlockContextInfo[] }> = observer(({ blockContexts = [] }) => {
   const { t } = useTranslation();
   const agentTemplateStore = useContext(AgentTemplateStoreContext);
@@ -574,6 +421,12 @@ const AgentInfoSidebar: React.FC<{ blockContexts?: BlockContextInfo[] }> = obser
   if (!agentTemplateStore.agentParam) {
     return (
       <Tabs defaultActiveKey="context" size="small">
+        <Tabs.TabPane tab="Profile" key="profile">
+          <Empty
+            description={t('template.selectAgentTypeAndClass')}
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+          />
+        </Tabs.TabPane>
         <Tabs.TabPane tab="Context" key="context">
           <Empty
             description={t('template.selectAgentTypeAndClass')}
@@ -593,13 +446,25 @@ const AgentInfoSidebar: React.FC<{ blockContexts?: BlockContextInfo[] }> = obser
   const { agentParam: agentInfo } = agentTemplateStore;
 
   const commonColumns = [
-    { title: '名称', dataIndex: 'name', width: '25%' },
-    { title: '类型', dataIndex: 'type', width: '25%' },
-    { title: '描述', dataIndex: 'description', width: '50%', render: (text: string) => text || '-' }
+    { title: t('template.sidebar.name'), dataIndex: 'name', width: '25%' },
+    { title: t('template.sidebar.type'), dataIndex: 'type', width: '25%' },
+    { title: t('template.sidebar.description'), dataIndex: 'description', width: '50%', render: (text: string) => text || '-' }
   ];
 
   return (
     <Tabs defaultActiveKey="context" size="small">
+      <Tabs.TabPane tab="Profile" key="profile">
+        <Table
+          size="small"
+          pagination={false}
+          dataSource={profiles}
+          columns={[
+            { title: t('template.sidebar.name'), dataIndex: 'name', width: '20%' },
+            { title: t('template.sidebar.type'), dataIndex: 'type', width: '20%' },
+            { title: t('template.sidebar.description'), dataIndex: 'description', width: '40%', render: (text) => text || '-' },
+          ]}
+        />
+      </Tabs.TabPane>
       <Tabs.TabPane tab="Context" key="context">
         <Space direction="vertical" style={{ width: '100%' }} size="small">
           <Card size="small" title="Agent Context" style={{ marginBottom: '8px' }}>
@@ -646,9 +511,9 @@ const AgentInfoSidebar: React.FC<{ blockContexts?: BlockContextInfo[] }> = obser
             default: JSON.stringify(attr.default)
           }))}
           columns={[
-            { title: '名称', dataIndex: 'name', width: '20%' },
-            { title: '类型', dataIndex: 'type', width: '20%' },
-            { title: '描述', dataIndex: 'description', width: '40%', render: (text) => text || '-' },
+            { title: t('template.sidebar.name'), dataIndex: 'name', width: '20%' },
+            { title: t('template.sidebar.type'), dataIndex: 'type', width: '20%' },
+            { title: t('template.sidebar.description'), dataIndex: 'description', width: '40%', render: (text) => text || '-' },
           ]}
         />
       </Tabs.TabPane>
@@ -855,20 +720,7 @@ const AgentTemplateForm: React.FC = observer(() => {
               </Card>
             </Col>
 
-            <Col span={agentTemplateStore.agentType === 'citizen' ? 6 : 0} style={{ borderRight: agentTemplateStore.agentType === 'citizen' ? '1px solid #f0f0f0' : 'none' }}>
-              <div style={{
-                height: 'calc(100vh - 200px)',
-                overflowY: 'auto',
-                padding: agentTemplateStore.agentType === 'citizen' ? '0 16px' : '0',
-                position: 'sticky',
-                top: 0,
-                display: agentTemplateStore.agentType === 'citizen' ? 'block' : 'none'
-              }}>
-                <ProfileSection form={form} />
-              </div>
-            </Col>
-
-            <Col span={agentTemplateStore.agentType === 'citizen' ? 12 : 18} style={{ borderRight: '1px solid #f0f0f0' }}>
+            <Col span={18} style={{ borderRight: '1px solid #f0f0f0' }}>
               <div style={{
                 height: 'calc(100vh - 200px)',
                 overflowY: 'auto',

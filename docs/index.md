@@ -45,6 +45,10 @@ pip install agentsociety
 - [agentsociety-community](https://github.com/tsinghua-fib-lab/AgentSociety/tree/main/packages/agentsociety-community)：社区库，用于发布自定义智能体与Block。
 - [agentsociety-benchmark](https://github.com/tsinghua-fib-lab/AgentSociety/tree/main/packages/agentsociety-benchmark)：基准测试库，基于AgentSociety框架评估智能体在多种城市任务上的性能。
 
+## 使用案例
+
+访问[GitHub Examples](https://github.com/tsinghua-fib-lab/AgentSociety/tree/main/examples)以查看使用案例。
+
 ## 相关工作
 
 基于AgentSociety平台，已形成一系列相关工作，包括：

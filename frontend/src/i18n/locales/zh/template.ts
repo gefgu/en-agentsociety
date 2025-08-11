@@ -47,5 +47,10 @@ export default {
         updateSuccess: "模板更新成功",
         updateFailed: "模板更新失败",
         fetchFailed: "获取模板失败"
+    },
+    sidebar: {
+        name: "名称",
+        type: "类型",
+        description: "描述"
     }
 }; 

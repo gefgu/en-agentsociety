@@ -2,8 +2,7 @@ import { makeAutoObservable } from 'mobx';
 import { ApiAgentParam, ApiAgentTemplate, BlockContextInfo } from '../../types/agentTemplate';
 import React from 'react';
 import { fetchCustom } from '../../components/fetch';
-import { profileOptions } from './AgentTemplateForm';
-import { Form } from 'antd';
+import { profiles } from './profile';
 
 class AgentTemplateStore {
   agentParam: ApiAgentParam | null = null;
@@ -90,9 +89,9 @@ class AgentTemplateStore {
         this.setAgentInfo(newAgentInfo);
 
         // Generate suggestions
-        const profileSuggestions = Object.entries(profileOptions).map(([key, config]) => ({
-          label: key,
-          detail: `Agent's ${config.label.toLowerCase()}`
+        const profileSuggestions = profiles.map((profile) => ({
+          label: profile.name,
+          detail: profile.description
         }));
 
         const contextSuggestions = newAgentInfo.context.map((value) => ({

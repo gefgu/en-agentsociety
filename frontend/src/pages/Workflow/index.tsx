@@ -7,8 +7,8 @@ import { fetchCustom } from '../../components/fetch';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import MonacoPromptEditor from '../../components/MonacoPromptEditor';
-import { profileOptions } from '../AgentTemplate/AgentTemplateForm';
 import { Survey } from '../../components/type';
+import { profiles } from '../AgentTemplate/profile';
 
 interface FormValues {
     name: string;
@@ -17,9 +17,9 @@ interface FormValues {
 }
 
 const getTargetAgentSuggestions = () => {
-    const profileSuggestions = Object.entries(profileOptions).map(([key, config]) => ({
-        label: key,
-        detail: `Agent's ${config.label.toLowerCase()}`
+    const profileSuggestions = profiles.map((profile) => ({
+        label: profile.name,
+        detail: profile.description
     }));
     const operatorSuggestions = [
         { label: '==', detail: 'Equal to' },

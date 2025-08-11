@@ -28,7 +28,7 @@ const HomePage = () => {
 
     return (
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-            <Link href="https://agentsociety.readthedocs.io/en/latest/02-version-1.3/01.v1.3.0.html">
+            <Link href="https://agentsociety.readthedocs.io/en/latest/">
                 <div style={newsBarStyle}>
                     <Space>
                         <Col
