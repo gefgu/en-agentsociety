@@ -152,9 +152,9 @@ def ui(config: Optional[str], config_base64: Optional[str]):
 @common_options
 @click.option("--type", default="simulation", help="Specify the type of the simulation", type=click.Choice(["simulation", "individual"]))
 def check(config: str, config_base64: str, type: str):
+    """Pre-check the config"""
     from pathlib import Path
 
-    """Pre-check the config"""
     config_dict = load_config(config, config_base64)
 
     if type == "simulation":

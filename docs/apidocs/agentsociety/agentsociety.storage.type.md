@@ -16,27 +16,43 @@
 :align: left
 
 * - {py:obj}`StorageExpInfo <agentsociety.storage.type.StorageExpInfo>`
-  -
+  - ```{autodoc2-docstring} agentsociety.storage.type.StorageExpInfo
+    :summary:
+    ```
 * - {py:obj}`StorageSurvey <agentsociety.storage.type.StorageSurvey>`
-  -
+  - ```{autodoc2-docstring} agentsociety.storage.type.StorageSurvey
+    :summary:
+    ```
 * - {py:obj}`StorageDialogType <agentsociety.storage.type.StorageDialogType>`
   - ```{autodoc2-docstring} agentsociety.storage.type.StorageDialogType
     :summary:
     ```
 * - {py:obj}`StorageDialog <agentsociety.storage.type.StorageDialog>`
-  -
+  - ```{autodoc2-docstring} agentsociety.storage.type.StorageDialog
+    :summary:
+    ```
 * - {py:obj}`StorageGlobalPrompt <agentsociety.storage.type.StorageGlobalPrompt>`
-  -
+  - ```{autodoc2-docstring} agentsociety.storage.type.StorageGlobalPrompt
+    :summary:
+    ```
 * - {py:obj}`StorageProfile <agentsociety.storage.type.StorageProfile>`
-  -
+  - ```{autodoc2-docstring} agentsociety.storage.type.StorageProfile
+    :summary:
+    ```
 * - {py:obj}`StorageStatus <agentsociety.storage.type.StorageStatus>`
-  -
+  - ```{autodoc2-docstring} agentsociety.storage.type.StorageStatus
+    :summary:
+    ```
 * - {py:obj}`StoragePendingDialog <agentsociety.storage.type.StoragePendingDialog>`
   - ```{autodoc2-docstring} agentsociety.storage.type.StoragePendingDialog
     :summary:
     ```
 * - {py:obj}`StoragePendingSurvey <agentsociety.storage.type.StoragePendingSurvey>`
   - ```{autodoc2-docstring} agentsociety.storage.type.StoragePendingSurvey
+    :summary:
+    ```
+* - {py:obj}`StorageTaskResult <agentsociety.storage.type.StorageTaskResult>`
+  - ```{autodoc2-docstring} agentsociety.storage.type.StorageTaskResult
     :summary:
     ```
 ````
@@ -65,10 +81,13 @@
 
 ````
 
-`````{py:class} StorageExpInfo(**data: typing.Any)
+`````{py:class} StorageExpInfo
 :canonical: agentsociety.storage.type.StorageExpInfo
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.storage.type.StorageExpInfo
+```
 
 ````{py:attribute} tenant_id
 :canonical: agentsociety.storage.type.StorageExpInfo.tenant_id
@@ -215,10 +234,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} StorageSurvey(**data: typing.Any)
+`````{py:class} StorageSurvey
 :canonical: agentsociety.storage.type.StorageSurvey
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.storage.type.StorageSurvey
+```
 
 ````{py:attribute} id
 :canonical: agentsociety.storage.type.StorageSurvey.id
@@ -334,10 +356,13 @@ Bases: {py:obj}`enum.IntEnum`
 
 `````
 
-`````{py:class} StorageDialog(**data: typing.Any)
+`````{py:class} StorageDialog
 :canonical: agentsociety.storage.type.StorageDialog
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.storage.type.StorageDialog
+```
 
 ````{py:attribute} id
 :canonical: agentsociety.storage.type.StorageDialog.id
@@ -418,10 +443,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} StorageGlobalPrompt(**data: typing.Any)
+`````{py:class} StorageGlobalPrompt
 :canonical: agentsociety.storage.type.StorageGlobalPrompt
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.storage.type.StorageGlobalPrompt
+```
 
 ````{py:attribute} day
 :canonical: agentsociety.storage.type.StorageGlobalPrompt.day
@@ -469,10 +497,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} StorageProfile(**data: typing.Any)
+`````{py:class} StorageProfile
 :canonical: agentsociety.storage.type.StorageProfile
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.storage.type.StorageProfile
+```
 
 ````{py:attribute} id
 :canonical: agentsociety.storage.type.StorageProfile.id
@@ -509,10 +540,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} StorageStatus(**data: typing.Any)
+`````{py:class} StorageStatus
 :canonical: agentsociety.storage.type.StorageStatus
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.storage.type.StorageStatus
+```
 
 ````{py:attribute} id
 :canonical: agentsociety.storage.type.StorageStatus.id
@@ -580,17 +614,6 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:attribute} friend_ids
-:canonical: agentsociety.storage.type.StorageStatus.friend_ids
-:type: list[int]
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.storage.type.StorageStatus.friend_ids
-```
-
-````
-
 ````{py:attribute} action
 :canonical: agentsociety.storage.type.StorageStatus.action
 :type: str
@@ -626,18 +649,12 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} StoragePendingDialog(**data: typing.Any)
+`````{py:class} StoragePendingDialog
 :canonical: agentsociety.storage.type.StoragePendingDialog
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.storage.type.StoragePendingDialog
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.storage.type.StoragePendingDialog.__init__
 ```
 
 ````{py:attribute} id
@@ -719,18 +736,12 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} StoragePendingSurvey(**data: typing.Any)
+`````{py:class} StoragePendingSurvey
 :canonical: agentsociety.storage.type.StoragePendingSurvey
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.storage.type.StoragePendingSurvey
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.storage.type.StoragePendingSurvey.__init__
 ```
 
 ````{py:attribute} id
@@ -817,6 +828,82 @@ Bases: {py:obj}`pydantic.BaseModel`
    None
 
 ```{autodoc2-docstring} agentsociety.storage.type.StoragePendingSurvey.processed
+```
+
+````
+
+`````
+
+`````{py:class} StorageTaskResult
+:canonical: agentsociety.storage.type.StorageTaskResult
+
+Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.storage.type.StorageTaskResult
+```
+
+````{py:attribute} id
+:canonical: agentsociety.storage.type.StorageTaskResult.id
+:type: int
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.storage.type.StorageTaskResult.id
+```
+
+````
+
+````{py:attribute} agent_id
+:canonical: agentsociety.storage.type.StorageTaskResult.agent_id
+:type: int
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.storage.type.StorageTaskResult.agent_id
+```
+
+````
+
+````{py:attribute} context
+:canonical: agentsociety.storage.type.StorageTaskResult.context
+:type: dict
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.storage.type.StorageTaskResult.context
+```
+
+````
+
+````{py:attribute} ground_truth
+:canonical: agentsociety.storage.type.StorageTaskResult.ground_truth
+:type: dict
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.storage.type.StorageTaskResult.ground_truth
+```
+
+````
+
+````{py:attribute} result
+:canonical: agentsociety.storage.type.StorageTaskResult.result
+:type: dict
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.storage.type.StorageTaskResult.result
+```
+
+````
+
+````{py:attribute} created_at
+:canonical: agentsociety.storage.type.StorageTaskResult.created_at
+:type: datetime.datetime
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.storage.type.StorageTaskResult.created_at
 ```
 
 ````

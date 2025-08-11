@@ -16,7 +16,9 @@
 :align: left
 
 * - {py:obj}`ParamOption <agentsociety.webapi.api.agent_template.ParamOption>`
-  -
+  - ```{autodoc2-docstring} agentsociety.webapi.api.agent_template.ParamOption
+    :summary:
+    ```
 * - {py:obj}`Param <agentsociety.webapi.api.agent_template.Param>`
   - ```{autodoc2-docstring} agentsociety.webapi.api.agent_template.Param
     :summary:
@@ -192,10 +194,13 @@
 ```
 ````
 
-`````{py:class} ParamOption(**data: typing.Any)
+`````{py:class} ParamOption
 :canonical: agentsociety.webapi.api.agent_template.ParamOption
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.webapi.api.agent_template.ParamOption
+```
 
 ````{py:attribute} label
 :canonical: agentsociety.webapi.api.agent_template.ParamOption.label
@@ -221,18 +226,12 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} Param(**data: typing.Any)
+`````{py:class} Param
 :canonical: agentsociety.webapi.api.agent_template.Param
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.api.agent_template.Param
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.webapi.api.agent_template.Param.__init__
 ```
 
 ````{py:attribute} name
@@ -303,18 +302,12 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} NameTypeDescription(**data: typing.Any)
+`````{py:class} NameTypeDescription
 :canonical: agentsociety.webapi.api.agent_template.NameTypeDescription
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.api.agent_template.NameTypeDescription
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.webapi.api.agent_template.NameTypeDescription.__init__
 ```
 
 ````{py:attribute} name
@@ -373,18 +366,12 @@ Bases: {py:obj}`pydantic.BaseModel`
 ```
 ````
 
-`````{py:class} AgentParam(**data: typing.Any)
+`````{py:class} AgentParam
 :canonical: agentsociety.webapi.api.agent_template.AgentParam
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.api.agent_template.AgentParam
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.webapi.api.agent_template.AgentParam.__init__
 ```
 
 ````{py:attribute} params_type
@@ -430,18 +417,12 @@ Bases: {py:obj}`pydantic.BaseModel`
 ```
 ````
 
-`````{py:class} BlockParam(**data: typing.Any)
+`````{py:class} BlockParam
 :canonical: agentsociety.webapi.api.agent_template.BlockParam
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.api.agent_template.BlockParam
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.webapi.api.agent_template.BlockParam.__init__
 ```
 
 ````{py:attribute} params_type

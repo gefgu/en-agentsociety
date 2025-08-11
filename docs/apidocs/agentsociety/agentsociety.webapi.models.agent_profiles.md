@@ -168,18 +168,12 @@ Bases: {py:obj}`agentsociety.webapi.models._base.Base`
 
 `````
 
-``````{py:class} ApiAgentProfile(**data: typing.Any)
+``````{py:class} ApiAgentProfile
 :canonical: agentsociety.webapi.models.agent_profiles.ApiAgentProfile
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.models.agent_profiles.ApiAgentProfile
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_profiles.ApiAgentProfile.__init__
 ```
 
 ````{py:attribute} tenant_id

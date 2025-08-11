@@ -1,4 +1,6 @@
 .vscode/
+docs/_build/
+*.mo
 .env
 .python-version
 .venv/

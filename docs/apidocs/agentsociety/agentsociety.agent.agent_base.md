@@ -69,7 +69,7 @@
 
 ````
 
-````{py:class} AgentParams(**data: typing.Any)
+````{py:class} AgentParams
 :canonical: agentsociety.agent.agent_base.AgentParams
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -77,26 +77,14 @@ Bases: {py:obj}`pydantic.BaseModel`
 ```{autodoc2-docstring} agentsociety.agent.agent_base.AgentParams
 ```
 
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.AgentParams.__init__
-```
-
 ````
 
-`````{py:class} GatherQuery(**data: typing.Any)
+`````{py:class} GatherQuery
 :canonical: agentsociety.agent.agent_base.GatherQuery
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.agent.agent_base.GatherQuery
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.GatherQuery.__init__
 ```
 
 ````{py:attribute} key
@@ -189,6 +177,16 @@ Bases: {py:obj}`enum.Enum`
    'Supervisor'
 
 ```{autodoc2-docstring} agentsociety.agent.agent_base.AgentType.Supervisor
+```
+
+````
+
+````{py:attribute} Individual
+:canonical: agentsociety.agent.agent_base.AgentType.Individual
+:value: >
+   'Individual'
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.AgentType.Individual
 ```
 
 ````
@@ -318,6 +316,14 @@ Bases: {py:obj}`abc.ABC`
 :canonical: agentsociety.agent.agent_base.Agent.id
 
 ```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.id
+```
+
+````
+
+````{py:property} toolbox
+:canonical: agentsociety.agent.agent_base.Agent.toolbox
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.toolbox
 ```
 
 ````
@@ -455,6 +461,15 @@ Bases: {py:obj}`abc.ABC`
 :async:
 
 ```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.forward
+```
+
+````
+
+````{py:method} status_summary()
+:canonical: agentsociety.agent.agent_base.Agent.status_summary
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.status_summary
 ```
 
 ````

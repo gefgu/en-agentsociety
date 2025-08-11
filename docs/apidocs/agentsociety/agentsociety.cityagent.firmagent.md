@@ -49,18 +49,12 @@
 
 ````
 
-`````{py:class} FirmAgentConfig(**data: typing.Any)
+`````{py:class} FirmAgentConfig
 :canonical: agentsociety.cityagent.firmagent.FirmAgentConfig
 
 Bases: {py:obj}`agentsociety.agent.AgentParams`
 
 ```{autodoc2-docstring} agentsociety.cityagent.firmagent.FirmAgentConfig
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.cityagent.firmagent.FirmAgentConfig.__init__
 ```
 
 ````{py:attribute} time_diff

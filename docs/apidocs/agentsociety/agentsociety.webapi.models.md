@@ -79,18 +79,12 @@ agentsociety.webapi.models.agent
 
 ````
 
-`````{py:class} ApiResponseWrapper(**data: typing.Any)
+`````{py:class} ApiResponseWrapper
 :canonical: agentsociety.webapi.models.ApiResponseWrapper
 
 Bases: {py:obj}`pydantic.BaseModel`, {py:obj}`typing.Generic`\[{py:obj}`agentsociety.webapi.models.T`\]
 
 ```{autodoc2-docstring} agentsociety.webapi.models.ApiResponseWrapper
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.webapi.models.ApiResponseWrapper.__init__
 ```
 
 ````{py:attribute} data
@@ -106,18 +100,12 @@ Bases: {py:obj}`pydantic.BaseModel`, {py:obj}`typing.Generic`\[{py:obj}`agentsoc
 
 `````
 
-`````{py:class} ApiPaginatedResponseWrapper(**data: typing.Any)
+`````{py:class} ApiPaginatedResponseWrapper
 :canonical: agentsociety.webapi.models.ApiPaginatedResponseWrapper
 
 Bases: {py:obj}`pydantic.BaseModel`, {py:obj}`typing.Generic`\[{py:obj}`agentsociety.webapi.models.T`\]
 
 ```{autodoc2-docstring} agentsociety.webapi.models.ApiPaginatedResponseWrapper
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.webapi.models.ApiPaginatedResponseWrapper.__init__
 ```
 
 ````{py:attribute} total

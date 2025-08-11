@@ -45,18 +45,12 @@
 
 ````
 
-``````{py:class} ApiMetric(**data: typing.Any)
+``````{py:class} ApiMetric
 :canonical: agentsociety.webapi.models.metric.ApiMetric
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.models.metric.ApiMetric
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.webapi.models.metric.ApiMetric.__init__
 ```
 
 ````{py:attribute} key

@@ -97,6 +97,15 @@ Bases: {py:obj}`agentsociety.agent.CitizenAgentBase`
 
 ````
 
+````{py:method} status_summary()
+:canonical: agentsociety.cityagent.societyagent.SocietyAgent.status_summary
+:async:
+
+```{autodoc2-docstring} agentsociety.cityagent.societyagent.SocietyAgent.status_summary
+```
+
+````
+
 ````{py:method} before_forward()
 :canonical: agentsociety.cityagent.societyagent.SocietyAgent.before_forward
 :async:

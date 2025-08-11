@@ -155,18 +155,12 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} DistributionConfig(**data: typing.Any)
+`````{py:class} DistributionConfig
 :canonical: agentsociety.agent.distribution.DistributionConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.agent.distribution.DistributionConfig
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.agent.distribution.DistributionConfig.__init__
 ```
 
 ````{py:attribute} model_config

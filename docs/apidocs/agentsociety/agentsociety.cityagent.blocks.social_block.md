@@ -32,7 +32,9 @@
     :summary:
     ```
 * - {py:obj}`SocialBlockParams <agentsociety.cityagent.blocks.social_block.SocialBlockParams>`
-  -
+  - ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialBlockParams
+    :summary:
+    ```
 * - {py:obj}`SocialBlockContext <agentsociety.cityagent.blocks.social_block.SocialBlockContext>`
   -
 * - {py:obj}`SocialBlock <agentsociety.cityagent.blocks.social_block.SocialBlock>`
@@ -55,7 +57,7 @@
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.MessagePromptManager.__init__
 ```
 
-````{py:method} get_prompt(memory, step: dict[str, typing.Any], target: str, template: str)
+````{py:method} get_prompt(memory, step: dict[str, typing.Any], environment_info: str, target: int, template: str)
 :canonical: agentsociety.cityagent.blocks.social_block.MessagePromptManager.get_prompt
 :async:
 
@@ -93,14 +95,14 @@ Bases: {py:obj}`agentsociety.agent.Block`
 ````{py:attribute} description
 :canonical: agentsociety.cityagent.blocks.social_block.SocialNoneBlock.description
 :value: >
-   'Handle all other cases'
+   'Handle all other cases if you are not trying to determine the social target or send a message to som...'
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialNoneBlock.description
 ```
 
 ````
 
-````{py:method} forward(step, context)
+````{py:method} forward(context)
 :canonical: agentsociety.cityagent.blocks.social_block.SocialNoneBlock.forward
 :async:
 
@@ -183,17 +185,9 @@ Bases: {py:obj}`agentsociety.agent.Block`
 ````{py:attribute} description
 :canonical: agentsociety.cityagent.blocks.social_block.MessageBlock.description
 :value: >
-   'Send a message to someone'
+   'Send social message to someone (including online and offline, phone call, social post, etc.)'
 
 ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.MessageBlock.description
-```
-
-````
-
-````{py:method} _serialize_message(message: str, propagation_count: int) -> str
-:canonical: agentsociety.cityagent.blocks.social_block.MessageBlock._serialize_message
-
-```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.MessageBlock._serialize_message
 ```
 
 ````
@@ -209,14 +203,17 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 `````
 
-```{py:class} SocialBlockParams(**data: typing.Any)
+````{py:class} SocialBlockParams
 :canonical: agentsociety.cityagent.blocks.social_block.SocialBlockParams
 
 Bases: {py:obj}`agentsociety.agent.BlockParams`
 
+```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialBlockParams
 ```
 
-`````{py:class} SocialBlockContext(**data: typing.Any)
+````
+
+`````{py:class} SocialBlockContext
 :canonical: agentsociety.cityagent.blocks.social_block.SocialBlockContext
 
 Bases: {py:obj}`agentsociety.agent.BlockContext`

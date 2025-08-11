@@ -24,7 +24,9 @@
     :summary:
     ```
 * - {py:obj}`OtherBlockParams <agentsociety.cityagent.blocks.other_block.OtherBlockParams>`
-  -
+  - ```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherBlockParams
+    :summary:
+    ```
 * - {py:obj}`OtherBlockContext <agentsociety.cityagent.blocks.other_block.OtherBlockContext>`
   -
 * - {py:obj}`OtherBlock <agentsociety.cityagent.blocks.other_block.OtherBlock>`
@@ -143,10 +145,13 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 `````
 
-`````{py:class} OtherBlockParams(**data: typing.Any)
+`````{py:class} OtherBlockParams
 :canonical: agentsociety.cityagent.blocks.other_block.OtherBlockParams
 
 Bases: {py:obj}`agentsociety.agent.BlockParams`
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.other_block.OtherBlockParams
+```
 
 ````{py:attribute} sleep_time_estimation_prompt
 :canonical: agentsociety.cityagent.blocks.other_block.OtherBlockParams.sleep_time_estimation_prompt
@@ -161,7 +166,7 @@ Bases: {py:obj}`agentsociety.agent.BlockParams`
 
 `````
 
-```{py:class} OtherBlockContext(**data: typing.Any)
+```{py:class} OtherBlockContext
 :canonical: agentsociety.cityagent.blocks.other_block.OtherBlockContext
 
 Bases: {py:obj}`agentsociety.agent.BlockContext`

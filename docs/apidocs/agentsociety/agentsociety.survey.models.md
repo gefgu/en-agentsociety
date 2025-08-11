@@ -18,9 +18,13 @@
 * - {py:obj}`QuestionType <agentsociety.survey.models.QuestionType>`
   -
 * - {py:obj}`Question <agentsociety.survey.models.Question>`
-  -
+  - ```{autodoc2-docstring} agentsociety.survey.models.Question
+    :summary:
+    ```
 * - {py:obj}`Page <agentsociety.survey.models.Page>`
-  -
+  - ```{autodoc2-docstring} agentsociety.survey.models.Page
+    :summary:
+    ```
 * - {py:obj}`Survey <agentsociety.survey.models.Survey>`
   - ```{autodoc2-docstring} agentsociety.survey.models.Survey
     :summary:
@@ -96,10 +100,13 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} Question(**data: typing.Any)
+`````{py:class} Question
 :canonical: agentsociety.survey.models.Question
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.survey.models.Question
+```
 
 ````{py:attribute} name
 :canonical: agentsociety.survey.models.Question.name
@@ -211,10 +218,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} Page(**data: typing.Any)
+`````{py:class} Page
 :canonical: agentsociety.survey.models.Page
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.survey.models.Page
+```
 
 ````{py:attribute} name
 :canonical: agentsociety.survey.models.Page.name
@@ -240,18 +250,12 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} Survey(**data: typing.Any)
+`````{py:class} Survey
 :canonical: agentsociety.survey.models.Survey
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.survey.models.Survey
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.survey.models.Survey.__init__
 ```
 
 ````{py:attribute} id

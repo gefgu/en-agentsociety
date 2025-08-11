@@ -96,8 +96,8 @@ def _init_agent_class(agent_config: AgentConfig, s3config: S3Config):
     - **Returns**:
         - `agents`: A list of tuples, each containing an agent class, a memory config generator, and an index.
     """
-    agent_class: type[Agent] = agent_config.agent_class  # type: ignore
-    n: int = agent_config.number  # type: ignore
+    agent_class: type[Agent] = agent_config.agent_class
+    n: int = agent_config.number
     # memory config function
     memory_config_func = cast(
         Callable[
@@ -191,7 +191,7 @@ class SimulationEngine:
         # ====================
         # Initialize the logger
         # ====================
-        set_logger_level(self._config.advanced.logging_level.upper())
+        set_logger_level(self._config.logging_level.upper())
 
         self.exp_id = str(config.exp.id)
         get_logger().debug(
@@ -306,7 +306,6 @@ class SimulationEngine:
             get_logger().info("Initializing environment...")
             self._environment = EnvironmentStarter(
                 self._config.map,
-                self._config.advanced.simulator,
                 self._config.exp.environment,
                 self._config.env.s3,
                 os.path.join(
@@ -419,6 +418,7 @@ class SimulationEngine:
             # Step 1: Process all agents with memory_from_file
             # Firms
             for agent_config in agent_configs_from_file["firms"]:
+                agent_config = cast(AgentConfig, agent_config)
                 agent_class = agent_config.agent_class
                 agent_params = agent_config.agent_params
                 if agent_params is None:
@@ -428,8 +428,8 @@ class SimulationEngine:
                 blocks = agent_config.blocks
                 # Create generator
                 generator = MemoryConfigGenerator(
-                    agent_config.memory_config_func,  # type: ignore
-                    agent_config.agent_class.StatusAttributes,  # type: ignore
+                    agent_config.memory_config_func,
+                    agent_config.agent_class.StatusAttributes,
                     agent_config.number,
                     agent_config.memory_from_file,
                     (
@@ -471,6 +471,7 @@ class SimulationEngine:
 
             # Banks
             for agent_config in agent_configs_from_file["banks"]:
+                agent_config = cast(AgentConfig, agent_config)
                 agent_class = agent_config.agent_class
                 agent_params = agent_config.agent_params
                 if agent_params is None:
@@ -479,8 +480,8 @@ class SimulationEngine:
                     agent_params = agent_class.ParamsType.model_validate(agent_params)
                 blocks = agent_config.blocks
                 generator = MemoryConfigGenerator(
-                    agent_config.memory_config_func,  # type: ignore
-                    agent_config.agent_class.StatusAttributes,  # type: ignore
+                    agent_config.memory_config_func,
+                    agent_config.agent_class.StatusAttributes,
                     agent_config.number,
                     agent_config.memory_from_file,
                     (
@@ -520,6 +521,7 @@ class SimulationEngine:
 
             # NBS
             for agent_config in agent_configs_from_file["nbs"]:
+                agent_config = cast(AgentConfig, agent_config)
                 agent_class = agent_config.agent_class
                 agent_params = agent_config.agent_params
                 if agent_params is None:
@@ -528,8 +530,8 @@ class SimulationEngine:
                     agent_params = agent_class.ParamsType.model_validate(agent_params)
                 blocks = agent_config.blocks
                 generator = MemoryConfigGenerator(
-                    agent_config.memory_config_func,  # type: ignore
-                    agent_config.agent_class.StatusAttributes,  # type: ignore
+                    agent_config.memory_config_func,
+                    agent_config.agent_class.StatusAttributes,
                     agent_config.number,
                     agent_config.memory_from_file,
                     (
@@ -569,6 +571,7 @@ class SimulationEngine:
 
             # Governments
             for agent_config in agent_configs_from_file["governments"]:
+                agent_config = cast(AgentConfig, agent_config)
                 agent_class = agent_config.agent_class
                 agent_params = agent_config.agent_params
                 if agent_params is None:
@@ -577,8 +580,8 @@ class SimulationEngine:
                     agent_params = agent_class.ParamsType.model_validate(agent_params)
                 blocks = agent_config.blocks
                 generator = MemoryConfigGenerator(
-                    agent_config.memory_config_func,  # type: ignore
-                    agent_config.agent_class.StatusAttributes,  # type: ignore
+                    agent_config.memory_config_func,
+                    agent_config.agent_class.StatusAttributes,
                     agent_config.number,
                     agent_config.memory_from_file,
                     (
@@ -618,6 +621,7 @@ class SimulationEngine:
 
             # Citizens
             for agent_config in agent_configs_from_file["citizens"]:
+                agent_config = cast(AgentConfig, agent_config)
                 agent_class = agent_config.agent_class
                 agent_params = agent_config.agent_params
                 if agent_params is None:
@@ -626,8 +630,8 @@ class SimulationEngine:
                     agent_params = agent_class.ParamsType.model_validate(agent_params)
                 blocks = agent_config.blocks
                 generator = MemoryConfigGenerator(
-                    agent_config.memory_config_func,  # type: ignore
-                    agent_config.agent_class.StatusAttributes,  # type: ignore
+                    agent_config.memory_config_func,
+                    agent_config.agent_class.StatusAttributes,
                     agent_config.number,
                     agent_config.memory_from_file,
                     (
@@ -672,9 +676,10 @@ class SimulationEngine:
             ), "only one or zero supervisor is allowed"
             supervisor: Optional[SupervisorBase] = None
             for agent_config in agent_configs_from_file["supervisor"]:
+                agent_config = cast(AgentConfig, agent_config)
                 generator = MemoryConfigGenerator(
-                    agent_config.memory_config_func,  # type: ignore
-                    agent_config.agent_class.StatusAttributes,  # type: ignore
+                    agent_config.memory_config_func,
+                    agent_config.agent_class.StatusAttributes,
                     agent_config.number,
                     agent_config.memory_from_file,
                     (
@@ -754,6 +759,7 @@ class SimulationEngine:
 
             # Step 2: Process all agents without memory_from_file
             for agent_config in agent_configs_normal["firms"]:
+                agent_config = cast(AgentConfig, agent_config)
                 # Handle distribution-based configuration as before
                 if agent_config.memory_distributions is None:
                     agent_config.memory_distributions = {}

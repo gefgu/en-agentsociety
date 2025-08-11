@@ -4,7 +4,6 @@ import asyncio
 import os
 import tempfile
 from datetime import datetime
-from multiprocessing import cpu_count
 from subprocess import Popen
 from typing import Any, Literal, Optional, Tuple, Union, overload
 
@@ -32,25 +31,8 @@ from .download_sim import download_binary
 __all__ = [
     "Environment",
     "EnvironmentStarter",
-    "SimulatorConfig",
     "EnvironmentConfig",
 ]
-
-
-class SimulatorConfig(BaseModel):
-    """Advanced Simulator configuration class."""
-
-    primary_node_ip: str = Field("localhost")
-    """Primary node IP address for distributed simulation. 
-    If you want to run the simulation on a single machine, you can set it to "localhost".
-    If you want to run the simulation on a distributed machine, you can set it to the IP address of the machine and keep all the ports of the primary node can be accessed from the other nodes (the code will automatically set the ports).
-    """
-
-    max_process: int = Field(cpu_count())
-    """Maximum number of processes for the simulator"""
-
-    logging_level: str = Field("warn")
-    """Logging level for the simulator"""
 
 
 POI_START_ID = 7_0000_0000
@@ -590,7 +572,6 @@ class EnvironmentStarter(Environment):
     def __init__(
         self,
         map_config: MapConfig,
-        simulator_config: SimulatorConfig,
         environment_config: EnvironmentConfig,
         s3config: S3Config,
         log_dir: str,
@@ -607,7 +588,6 @@ class EnvironmentStarter(Environment):
         self._sim_bin_path = download_binary(home_dir)
         self._map_config = map_config
         self._environment_config = environment_config
-        self._sim_config = simulator_config
         self._s3config = s3config
         self._log_dir = log_dir
         self._home_dir = home_dir
@@ -663,10 +643,7 @@ class EnvironmentStarter(Environment):
                 f.write(map_bytes)
 
         config_base64 = encode_to_base64(_generate_yaml_config(file_path))
-        os.environ["GOMAXPROCS"] = str(self._sim_config.max_process)
-        self._server_addr = (
-            self._sim_config.primary_node_ip.rstrip("/") + f":{sim_port}"
-        )
+        self._server_addr = f"localhost:{sim_port}"
         self._sim_proc = Popen(
             [
                 self._sim_bin_path,
@@ -681,7 +658,7 @@ class EnvironmentStarter(Environment):
                 "-cache",
                 "",
                 "-log.level",
-                self._sim_config.logging_level,
+                "warn",
             ],
             env=os.environ,
         )

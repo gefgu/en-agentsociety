@@ -20,25 +20,21 @@
     :summary:
     ```
 * - {py:obj}`SocietyAgentBlockOutput <agentsociety.cityagent.sharing_params.SocietyAgentBlockOutput>`
-  -
+  - ```{autodoc2-docstring} agentsociety.cityagent.sharing_params.SocietyAgentBlockOutput
+    :summary:
+    ```
 * - {py:obj}`SocietyAgentContext <agentsociety.cityagent.sharing_params.SocietyAgentContext>`
   -
 ````
 
 ### API
 
-`````{py:class} SocietyAgentConfig(**data: typing.Any)
+`````{py:class} SocietyAgentConfig
 :canonical: agentsociety.cityagent.sharing_params.SocietyAgentConfig
 
 Bases: {py:obj}`agentsociety.agent.AgentParams`
 
 ```{autodoc2-docstring} agentsociety.cityagent.sharing_params.SocietyAgentConfig
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.cityagent.sharing_params.SocietyAgentConfig.__init__
 ```
 
 ````{py:attribute} block_dispatch_prompt
@@ -98,10 +94,13 @@ Bases: {py:obj}`agentsociety.agent.AgentParams`
 
 `````
 
-`````{py:class} SocietyAgentBlockOutput(**data: typing.Any)
+`````{py:class} SocietyAgentBlockOutput
 :canonical: agentsociety.cityagent.sharing_params.SocietyAgentBlockOutput
 
 Bases: {py:obj}`agentsociety.agent.BlockOutput`
+
+```{autodoc2-docstring} agentsociety.cityagent.sharing_params.SocietyAgentBlockOutput
+```
 
 ````{py:attribute} success
 :canonical: agentsociety.cityagent.sharing_params.SocietyAgentBlockOutput.success
@@ -149,7 +148,7 @@ Bases: {py:obj}`agentsociety.agent.BlockOutput`
 
 `````
 
-`````{py:class} SocietyAgentContext(**data: typing.Any)
+`````{py:class} SocietyAgentContext
 :canonical: agentsociety.cityagent.sharing_params.SocietyAgentContext
 
 Bases: {py:obj}`agentsociety.agent.AgentContext`

@@ -56,7 +56,7 @@
 ````{py:data} SIM_VERSION
 :canonical: agentsociety.environment.download_sim.SIM_VERSION
 :value: >
-   'v1.4.3'
+   'v0.2.2'
 
 ```{autodoc2-docstring} agentsociety.environment.download_sim.SIM_VERSION
 ```

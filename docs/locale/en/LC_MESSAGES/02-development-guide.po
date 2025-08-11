@@ -1,0 +1,1780 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2025, FIBLAB
+# This file is distributed under the same license as the AgentSociety
+# package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: AgentSociety 1.5\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-08-11 09:59+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+
+#: ../../02-development-guide/01-experiment.md:1
+msgid "实验设计"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:3
+msgid "本文档主要介绍如何使用AgentSociety设计一个社会模拟实验。"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:7
+msgid "当设计一个AgentSociety虚拟世界中的社会实验时，我们首先需要设定虚拟世界的**初始状态**，然后通过模拟社会的运转并施加**干预**来影响智能体的行为，最终通过一系列**数据收集**手段来获取智能体的信息以便评估实验结果。"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:9
+msgid "举例来说，如果我们希望研究恶劣天气（以飓风为例）对市民的影响，我们需要挑选一个沿海城市并设置市民的初始属性（如年龄、职业等）作为**初始状态**，市民应该正常出行。"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:11
+msgid "当模拟虚拟世界的1天后，飓风来袭，此时通过[修改环境](../03-config/05-exp.md#environment)中的天气变量，将天气设置为飓风作为**干预**，市民智能体将处理这一新的信息并通过大模型做出适当的反应。"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:13
+msgid "模拟结束后，我们通过[问卷调查](../03-config/05-exp.md#survey)来收集市民智能体对飓风的感受，并根据市民智能体的回答来评估飓风对市民的影响。"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:15
+msgid "我们也可以[访问数据库](./05-data-analysis.md)获取模拟过程中市民智能体的位置、心情、认知、对话等数据，并进行进一步分析。"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:17
+msgid "初始状态设定"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:19
+msgid "虚拟世界的初始状态设定主要包括[智能体画像](./02-profile.md)与[地图](./03-map.md)两部分。"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:21
+msgid ""
+"智能体画像是对虚拟世界中创建的每一个市民智能体的信息描述，包括姓名、性别、年龄、教育水平、职业、婚姻状况、人格角色、背景故事等内容，这些信息构成了智能体的自我认知，是智能体进行一切行为和决策的基础。"
+" 因此，合理设置智能体画像对于任何社会模拟实验都有关键影响。"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:24
+#: ../../02-development-guide/01-experiment.md:38
+#: ../../02-development-guide/02-profile.md:47
+#: ../../02-development-guide/03-map.md:61
+msgid "提示"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:27
+msgid "智能体画像通过[智能体配置](../03-config/04-agent.md)中的`memory_from_file`字段来设置，该字段接受一个JSON文件路径，文件格式参见[智能体画像](./02-profile.md)文档。"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:30
+msgid "注意"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:33
+msgid "只有`citizens`类型智能体接受智能体画像输入。"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:36
+msgid "地图将影响智能体所活动的物理空间，包括道路、建筑、兴趣点的不同，主要影响智能体对于“我在哪”、“我周围有什么”的认知过程，对于智能体空间行为的研究和实验有很重要的影响。"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:41
+msgid "地图通过[地图配置](../03-config/03-map.md)中的`file_path`字段来设置，该字段接受一个protobuf格式的地图文件路径，新地图的构建参见[自定义地图](./03-map.md)文档。"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:45
+msgid "干预"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:47
+msgid "AgentSociety提供多种方式来[干预](../03-config/05-exp.md#intervene)智能体的行为，包括："
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:48
+msgid ""
+"发送消息（`message`）：向指定的智能体发送一段文字，该文字会由智能体的`react_to_intervention(message: "
+"str)`函数处理从而产生影响，处理方式由智能体类实现。"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:49
+msgid "修改环境（`environment`）：修改环境变量，如天气、时间、温度等，智能体可以主动获取这些变量加入决策过程，从而间接影响智能体的行为。"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:50
+msgid ""
+"修改智能体状态（`update_state`）：直接修改智能体的Key-Value形式的`Status "
+"Memory`内的值，这种方式相当于直接“篡改”智能体的记忆，需要充分了解智能体`Status "
+"Memory`中包含的字段，**一般不建议使用**。"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:52
+msgid "干预过程需要通过在[实验配置](../03-config/05-exp.md)中添加“干预”相关的工作流步骤来实现，干预步骤的类型与参数参见[实验配置](../03-config/05-exp.md#intervene)文档。"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:54
+#: ../../02-development-guide/01-experiment.md:83
+msgid "**示例：**"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:74
+msgid "数据收集"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:76
+msgid "AgentSociety提供多种方式来收集智能体的行为数据，包括："
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:77
+msgid "问卷调查（`survey`）：向指定的智能体发送[问卷](../03-config/05-exp.md#survey)，智能体回答后将答案存储到数据库中。**推荐**采用问卷的方式来批量收集智能体对于多个问题的回答。"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:78
+msgid "访谈（`interview`）：向指定的智能体发送访谈，智能体回答后将答案存储到数据库中。"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:79
+msgid ""
+"状态存储（`save_context`）：将智能体的Key-Value形式的`Status "
+"Memory`存储到全局Context变量中，该变量最后存储为文件，可以用于后续分析。这种方式需要充分了解智能体`Status "
+"Memory`中包含的字段，**一般不建议使用**。"
+msgstr ""
+
+#: ../../02-development-guide/01-experiment.md:81
+msgid "与干预类似，数据收集过程需要通过在[实验配置](../03-config/05-exp.md#intervene)中添加“数据收集”相关的工作流步骤来实现，数据收集步骤的类型与参数参见[实验配置](../03-config/05-exp.md#intervene)文档。"
+msgstr ""
+
+#: ../../02-development-guide/02-profile.md:1
+msgid "智能体画像"
+msgstr ""
+
+#: ../../02-development-guide/02-profile.md:3
+msgid "智能体画像是对虚拟世界中创建的每一个市民智能体的信息描述，包括姓名、性别、年龄、教育水平、职业、婚姻状况、人格角色、背景故事等内容，这些信息构成了智能体的自我认知，是智能体进行一切行为和决策的基础。"
+msgstr ""
+
+#: ../../02-development-guide/02-profile.md:5
+msgid "**文件示例**"
+msgstr ""
+
+#: ../../02-development-guide/02-profile.md:33
+msgid "**字段说明：**"
+msgstr ""
+
+#: ../../02-development-guide/02-profile.md:34
+msgid "`name` (str): 智能体姓名"
+msgstr ""
+
+#: ../../02-development-guide/02-profile.md:35
+msgid "`gender` (str): 智能体性别"
+msgstr ""
+
+#: ../../02-development-guide/02-profile.md:36
+msgid "`education` (str): 智能体教育水平"
+msgstr ""
+
+#: ../../02-development-guide/02-profile.md:37
+msgid "`occupation` (str): 智能体职业"
+msgstr ""
+
+#: ../../02-development-guide/02-profile.md:38
+msgid "`marriage_status` (str): 智能体婚姻状况"
+msgstr ""
+
+#: ../../02-development-guide/02-profile.md:39
+msgid "`persona` (str): 智能体人格角色"
+msgstr ""
+
+#: ../../02-development-guide/02-profile.md:40
+msgid "`background_story` (str): 智能体背景故事"
+msgstr ""
+
+#: ../../02-development-guide/02-profile.md:41
+msgid "`age` (int): 智能体年龄"
+msgstr ""
+
+#: ../../02-development-guide/02-profile.md:42
+msgid ""
+"`id` (int): "
+"智能体ID，推荐设置为从1开始的连续整数，在实验设置中可用于[筛选智能体](../03-config/05-exp.md#target_agent)"
+msgstr ""
+
+#: ../../02-development-guide/02-profile.md:44
+msgid ""
+"上述信息将存储在智能体的Key-Value形式的`Status Memory`中，在运行过程中被按需提取以加入大模型请求中来影响大模型的决策行为。"
+" 其中`background_story`在默认的智能体实现中总是加入大模型提示词中，因此编写合适的背景故事是构建智能体画像的最关键的环节。"
+msgstr ""
+
+#: ../../02-development-guide/02-profile.md:50
+msgid "我们提供了一些智能体画像的示例，可以登录[AgentSociety官网](https://agentsociety.fiblab.net/)内的[智能体画像](https://agentsociety.fiblab.net/profiles)下载。"
+msgstr ""
+
+#: ../../02-development-guide/03-map.md:1
+msgid "自定义地图"
+msgstr ""
+
+#: ../../02-development-guide/03-map.md:3
+msgid ""
+"地图生成依赖[MOSS: MObility Simulation System](https://python-"
+"moss.readthedocs.io/en/latest/)中的工具集`mosstool`。 "
+"`mosstool`将从[OpenStreetMap](https://www.openstreetmap.org/)中下载数据路网与AOI数据，进行预处理并重建车道级高精度地图文件，最终生成所需的Protobuf格式地图文件。"
+msgstr ""
+
+#: ../../02-development-guide/03-map.md:6
+msgid "`mosstool`同样是Python软件包，可以通过`pip`快速安装："
+msgstr ""
+
+#: ../../02-development-guide/03-map.md:11
+msgid "安装完成后，采用以下代码即可生成一个指定经纬度范围内的地图文件："
+msgstr ""
+
+#: ../../02-development-guide/03-map.md:53
+msgid "可以修改代码中的`min_latitude`、`max_latitude`、`min_longitude`、`max_longitude`来生成不同区域的地图。"
+msgstr ""
+
+#: ../../02-development-guide/03-map.md:55
+msgid "网络代理"
+msgstr ""
+
+#: ../../02-development-guide/03-map.md:58
+#, python-brace-format
+msgid ""
+"如果需要使用代理下载数据，可以设置`proxies`参数，形如`proxies={\"http\": "
+"\"http://127.0.0.1:7890\", \"https\": \"http://127.0.0.1:7890\"}`。"
+msgstr ""
+
+#: ../../02-development-guide/03-map.md:64
+msgid "我们提供了部分大型城市的地图文件，可以登录[AgentSociety官网](https://agentsociety.fiblab.net/)内的[地图页面](https://agentsociety.fiblab.net/maps)下载。"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1
+msgid "智能体开发"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:3
+msgid "本文档主要介绍如何在AgentSociety中设计和实现自定义智能体。"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:7
+msgid "第一部分：智能体在AgentSociety中的定位"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:9
+msgid "1. 智能体的核心定位"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:11
+msgid "在AgentSociety中，智能体是**城市环境中的自主执行单元**。每个智能体都代表着一个能够在城市环境中独立运行、自主决策的实体，它们构成了整个城市模拟系统的核心组成部分。"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:13
+msgid "智能体不仅仅是简单的程序模块，而是具有以下特征的复杂系统："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:15
+msgid "**自主性**：智能体能够根据自身状态和环境信息独立做出决策"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:16
+msgid "**持续性**：智能体在整个模拟过程中持续存在，维护自己的状态和历史"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:17
+msgid "**交互性**：智能体能够与其他智能体、环境系统进行交互"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:18
+msgid "**适应性**：智能体能够根据环境变化调整自己的行为策略"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:20
+msgid "2. 智能体的基本职责"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:22
+msgid "作为城市环境中的自主执行单元，智能体承担着以下核心职责："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:24
+msgid "**1. 自主决策**: 智能体需要根据当前状态、历史经验和环境信息，自主决定下一步的行动。这种决策过程可能涉及："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:25
+msgid "需求分析：识别当前需要解决的问题"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:26
+msgid "计划制定：制定实现目标的行动方案"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:27
+msgid "行为执行：将计划转化为具体的行动"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:29
+msgid "**2. 环境交互**: 智能体需要与城市环境进行持续的交互，包括："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:30
+msgid "环境感知：获取环境中的相关信息"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:31
+msgid "状态更新：根据环境变化更新自身状态"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:32
+msgid "行为反馈：通过行动影响环境状态"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:34
+msgid "**3. 状态维护**: 智能体需要维护自己的内部状态，包括："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:35
+msgid "实时状态：当前的情绪、位置、活动等"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:36
+msgid "历史记忆：过去的经历和决策"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:37
+msgid "知识积累：从经验中学习到的知识"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:41
+msgid "第二部分：智能体核心工作流"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:43
+msgid "智能体的工作流是智能体运行的核心机制，定义了智能体如何响应和执行任务。理解工作流对于开发有效的智能体至关重要。"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:45
+msgid "1. 主动工作流：run()方法"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:47
+msgid "智能体的主要工作流通过`run()`方法实现，这是一个统一的入口点，协调整个执行流程。"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:49
+msgid "基于run()方法控制的Agent工作流程"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:74
+msgid "**重要说明**：`run()`方法是智能体的统一入口点，**请勿修改**。它按照固定的顺序调用各个生命周期方法。"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:76
+msgid "必须实现的核心方法"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:78
+msgid "**forward()方法**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:93
+msgid "`forward()`方法是智能体的核心行为逻辑，**必须由子类实现**。它包含智能体的主要决策和行为逻辑。"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:95
+msgid "**before_forward()和after_forward()方法**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:111
+msgid "这两个方法是**可选的**，用于执行前的准备工作和执行后的清理工作。"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:113
+msgid "Block相关的生命周期执行方法"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:135
+msgid "这两个方法会自动调用所有注册Block的`before_forward()`和`after_forward()`方法，确保Block的生命周期管理，**请勿修改**。Block相关内容请参考后续内容。"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:137
+msgid "2. 被动响应工作流：react_to_intervention()"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:139
+msgid "智能体需要响应外部干预，这是通过`react_to_intervention()`方法实现的。"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:167
+msgid "**重要说明**：`react_to_intervention()`方法是**必须实现的**，用于处理外部干预。"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:169
+msgid "3. CitizenAgentBase的被动响应工作流"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:171
+msgid "CitizenAgentBase除了标准的run()工作流外，还提供了几个核心的被动响应方法，这些方法都有默认实现，是可选的实现项。"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:173
+msgid "do_chat()方法"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:175
+msgid "用于响应其他智能体的社交消息"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:194
+#: ../../02-development-guide/04-agent.md:226
+#: ../../02-development-guide/04-agent.md:258
+msgid "**特点**："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:195
+msgid "有默认实现，可以直接使用"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:196
+msgid "可以被子类重写以提供自定义的聊天响应逻辑"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:197
+msgid "自动处理消息存储和日志记录"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:199
+msgid "do_survey()方法"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:201
+msgid "用于响应问卷调查"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:227
+msgid "基于智能体的记忆生成调查回答"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:228
+msgid "自动处理调查数据的存储"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:229
+msgid "可以重写以提供更复杂的回答逻辑"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:231
+msgid "do_interview()方法"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:233
+msgid "用于响应采访"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:259
+msgid "基于智能体的背景故事生成访谈回答"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:260
+msgid "支持深度交流，比问卷调查更注重个人经历"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:261
+msgid "可以重写以提供更个性化的回答"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:263
+msgid "4. 工作流的执行顺序"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:265
+msgid "智能体的工作流执行遵循以下顺序："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:267
+msgid "**主动工作流**（通过run()触发）："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:268
+msgid "`before_forward()` - 准备工作"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:269
+msgid "`before_blocks()` - Block准备工作"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:270
+msgid "`forward()` - 核心行为逻辑"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:271
+msgid "`after_blocks()` - Block清理工作"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:272
+msgid "`after_forward()` - 清理工作"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:274
+msgid "**被动响应工作流**（由外部事件触发）："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:275
+msgid "`react_to_intervention()` - 响应干预"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:276
+msgid "`do_chat()` - 响应聊天消息"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:277
+msgid "`do_survey()` - 响应问卷调查"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:278
+msgid "`do_interview()` - 响应访谈问题"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:280
+msgid "5. 工作流设计原则"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:282
+msgid "主动工作流设计原则"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:284
+msgid "**单一职责**：每个生命周期方法只负责特定的功能"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:285
+msgid "**可扩展性**：可以轻松添加新的准备工作或清理工作"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:286
+msgid "**错误处理**：在每个阶段都要妥善处理异常"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:287
+msgid "**状态管理**：确保状态在各个环节的一致性"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:289
+msgid "被动响应工作流设计原则"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:291
+msgid "**响应性**：快速响应外部事件"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:292
+msgid "**一致性**：保持与主动工作流的状态一致"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:293
+msgid "**可定制性**：允许子类重写以提供特定行为"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:294
+msgid "**数据完整性**：确保响应数据的完整记录"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:298
+msgid "第三部分：智能体核心子系统"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:300
+msgid "AgentSociety的智能体设计基于四个核心要素，每个要素都有其独特的设计原理和价值。理解这些核心要素的设计思想对于开发高质量的智能体至关重要。"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:302
+msgid "1. 记忆系统设计原理"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:304
+msgid "智能体的记忆系统是智能体能够保持连续性和学习能力的关键。AgentSociety设计了两种不同类型的记忆，每种都有其特定的用途和优势。"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:306
+msgid "Status Memory：实时状态存储"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:308
+msgid "Status Memory采用键值对的形式存储智能体的实时状态，具有以下特点："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:310
+msgid "**快速访问**：通过键名直接访问，响应速度快"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:311
+msgid "**结构化存储**：每个状态都有明确的类型和默认值"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:312
+msgid "**实时更新**：状态可以随时更新，反映智能体的当前状况"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:313
+msgid "**可嵌入性**：支持向量化存储，便于语义检索"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:315
+msgid "Status Memory主要用于存储："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:316
+msgid "智能体的基本属性（姓名、年龄、职业等）"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:317
+msgid "当前状态（心情、位置、活动等）"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:318
+msgid "实时数据（精力值、满意度等）"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:320
+msgid "Status Memory的功能说明"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:322
+msgid "**定义状态属性**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:324
+msgid "在智能体类中通过`StatusAttributes`类变量定义该智能体所包含的状态属性："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:351
+msgid "**获取状态值**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:353
+msgid "在智能体中通过`memory.status.get()`方法获取状态值："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:362
+msgid "**更新状态值**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:364
+msgid "在智能体中通过`memory.status.update()`方法更新状态值："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:372
+msgid "Stream Memory：流式记忆"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:374
+msgid "Stream Memory采用流式存储的方式记录智能体随时间线的经历，具有以下特点："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:376
+msgid "**时序性**：按时间顺序记录事件和经历"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:377
+msgid "**丰富性**：可以存储复杂的文本描述和认知过程"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:378
+msgid "**可检索性**：支持语义检索，找到相关的历史经验"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:379
+msgid "**学习性**：通过历史经验指导未来的决策"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:381
+msgid "Stream Memory主要用于存储："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:382
+msgid "智能体的经历和回忆"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:383
+msgid "决策过程和思考过程"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:384
+msgid "与其他智能体的交互历史"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:385
+msgid "从环境中获得的事件信息"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:387
+msgid "Stream Memory的功能说明"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:389
+msgid "**添加记忆条目**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:391
+msgid "在智能体中通过`memory.stream.add()`方法添加新的记忆条目："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:402
+msgid "**检索相关记忆**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:404
+msgid "通过语义检索找到相关的历史记忆："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:417
+msgid "2. Block系统设计原理"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:419
+msgid "Block系统是AgentSociety中实现复杂智能体行为的关键设计。Block类似于神经网络中的层，每个Block负责特定的功能模块。"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:421
+msgid "Block与Agent的关系"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:423
+msgid "**Agent是容器**：Agent负责协调和管理多个Block"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:424
+msgid "**Block是功能模块**：每个Block专注于特定的功能"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:425
+msgid "**组合式设计**：通过组合不同的Block构建复杂的智能体行为"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:426
+msgid "**可复用性**：Block可以在不同的智能体之间复用"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:428
+msgid "Block存在的意义"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:430
+msgid "Block系统的设计解决了以下问题："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:432
+msgid "**模块化开发**：将复杂的行为分解为独立的功能模块"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:433
+msgid "**代码复用**：相同的功能可以在不同智能体中复用"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:434
+msgid "**易于测试**：每个Block可以独立测试"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:435
+msgid "**灵活组合**：可以根据需要组合不同的Block"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:437
+msgid "Block设计原则"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:439
+msgid "**单一职责**：每个Block只负责一个特定的功能"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:440
+msgid "**可组合性**：Block之间可以灵活组合"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:441
+msgid "**可测试性**：每个Block都可以独立测试"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:442
+msgid "**可扩展性**：可以轻松添加新的Block"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:444
+msgid "Block的功能说明"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:446
+msgid "**创建自定义Block**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:448
+msgid "通过继承`Block`基类创建自定义Block："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:489
+msgid "**Block的生命周期**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:491
+msgid ""
+"每个Block都有完整的生命周期, 包括`before_forward`, "
+"`forward`以及`after_forward`三个部分，其中必须实现的为`forward`："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:511
+msgid "**Block与Agent的集成**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:513
+msgid "方案一：在Agent中直接使用Block："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:543
+msgid "方案二：将多个Block注册到dispatcher中："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:618
+msgid "**Dispatcher工作原理**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:620
+msgid "Dispatcher基于Block的`name`和`description`，通过LLM智能选择最合适的Block来执行任务。Dispatcher使用可自定义的prompt模板，自动从context中获取格式化变量："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:622
+msgid "**Block注册**：每个Block在注册时需要提供清晰的`name`和`description`"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:623
+msgid "**Prompt模板**：使用可自定义的prompt模板，支持从context中获取变量"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:624
+msgid "**智能选择**：LLM根据prompt和Block描述进行语义匹配，选择最合适的Block"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:626
+msgid "**自定义Dispatcher Prompt**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:664
+msgid "**Block描述的重要性**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:676
+msgid "**Dispatcher的优势**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:678
+msgid "**灵活配置**：支持自定义prompt模板"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:679
+msgid "**丰富上下文**：可以从context中获取任意变量"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:680
+msgid "**语义理解**：LLM能够理解复杂的上下文信息"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:681
+msgid "**智能匹配**：基于完整上下文选择最合适的Block"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:682
+msgid "**自动扩展**：添加新Block时无需修改选择逻辑"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:683
+msgid "**智能回退**：当没有合适Block时返回None而不是错误"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:685
+msgid "**两种方案的区别**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "特性"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "方案一：直接使用"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "方案二：Dispatcher"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "**控制方式**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "手动控制Block执行顺序"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "自动选择最合适的Block"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "**灵活性**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "高，可以精确控制执行逻辑"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "中等，依赖LLM选择"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "**复杂度**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "需要手动管理Block调用"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "自动管理，代码更简洁"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "**适用场景**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "明确的执行流程"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "动态的任务分配"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "**调试难度**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "容易调试，流程清晰"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "需要理解dispatcher逻辑"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:695
+msgid "**Block参数配置**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:697
+msgid "Block支持灵活的参数配置："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:715
+msgid "3. 工具集合设计原理"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:717
+msgid "AgentToolbox为智能体提供了统一的核心工具集合，每个工具都有其特定的作用和价值。"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:719
+msgid "LLM工具：智能体的大脑"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:721
+msgid "LLM工具是智能体进行推理和决策的核心："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:723
+msgid "**自然语言理解**：理解输入的自然语言"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:724
+msgid "**推理能力**：基于上下文进行逻辑推理"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:725
+msgid "**生成能力**：生成自然语言的回复"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:726
+msgid "**知识应用**：应用已有的知识解决问题"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:728
+msgid "Environment工具：环境感知和交互"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:730
+msgid "Environment工具让智能体能够感知和影响环境："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:732
+msgid "**环境感知**：获取环境中的信息（天气、位置、其他智能体等）"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:733
+msgid "**状态查询**：查询环境中的各种状态"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:734
+msgid "**行为执行**：在环境中执行具体的行动"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:735
+msgid "**反馈获取**：获取行动的结果和反馈"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:737
+msgid "访问核心工具"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:739
+msgid "智能体可以直接访问工具箱中的核心工具："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:755
+msgid "4. 上下文系统设计原理"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:757
+msgid "上下文系统不仅为智能体的长时间执行提供了统一的上下文入口，同时也为智能体和Block之间提供了灵活的信息传递机制。"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:759
+msgid "AgentContext：智能体级别的上下文"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:761
+msgid "AgentContext用于维护智能体级别的上下文信息："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:763
+msgid "**全局状态**：智能体的全局状态信息"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:764
+msgid "**环境信息**：从环境获取的信息"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:765
+msgid "**配置参数**：智能体的配置参数"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:766
+msgid "**执行结果**：智能体执行的结果"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:768
+msgid "BlockContext：模块级别的上下文"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:770
+msgid "BlockContext用于在Block之间传递信息："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:772
+msgid "**输入数据**：Block的输入数据"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:773
+msgid "**处理结果**：Block的处理结果"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:774
+msgid "**中间状态**：Block处理过程中的中间状态"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:775
+msgid "**错误信息**：Block执行过程中的错误信息"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:777
+msgid "上下文的作用"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:779
+msgid "上下文系统解决了以下问题："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:781
+msgid "**信息传递**：在不同组件之间传递信息"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:782
+msgid "**状态管理**：管理智能体和Block的状态"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:783
+msgid "**参数配置**：配置智能体和Block的参数"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:784
+msgid "**结果返回**：返回执行结果和错误信息"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:786
+msgid "DotDict的设计"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:788
+msgid "上下文系统基于DotDict实现，提供了点号访问的便利性："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:790
+msgid "**属性式访问**：使用点号访问字典元素"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:791
+msgid "**嵌套支持**：支持嵌套的字典结构"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:792
+msgid "**合并操作**：支持字典的合并操作"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:793
+msgid "**深拷贝**：自动进行深拷贝，避免副作用"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:795
+msgid "上下文系统的功能说明"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:797
+msgid "**定义AgentContext**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:799
+msgid "创建自定义的AgentContext类："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:813
+msgid "**定义BlockContext**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:815
+msgid "创建自定义的BlockContext类："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:826
+msgid "**在Agent中使用上下文**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:852
+msgid "**在Block中使用上下文**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:882
+msgid "**DotDict的使用**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:884
+msgid "DotDict提供了便利的点号访问："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:924
+msgid "**上下文传递示例**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:965
+msgid "第四部分：开发示例"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:967
+msgid "本小节通过具体的开发示例，展示如何在AgentSociety中构建不同类型的智能体。每个示例都包含完整的需求分析、设计思路和实现代码。"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:969
+msgid "1. 智能体类型与基类选择"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:971
+msgid "在开始开发之前，需要根据智能体的功能和职责选择合适的基类："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "实体类型"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "对应基类"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "主要功能"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "适用场景"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "城市居民"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "CitizenAgentBase"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "交通模拟、经济系统绑定、日常行为"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "模拟普通市民的生活行为"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "企业机构"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "FirmAgentBase"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "生产经营、市场交互、决策制定"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "模拟企业的经营决策"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "银行机构"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "BankAgentBase"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "金融服务、资金管理、风险评估"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "模拟银行的金融业务"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "政府机构"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "GovernmentAgentBase"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "政策制定、公共服务、监管职能"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "模拟政府的政策制定"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "央行机构"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "NBSAgentBase"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "货币政策、金融监管、宏观调控"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "模拟央行的货币政策"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "其他机构"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "InstitutionAgentBase"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "通用机构功能、组织管理"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md
+msgid "模拟其他类型的机构"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:982
+msgid "2. 开发流程概述"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:984
+msgid "智能体开发遵循以下基本流程："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:986
+msgid "**需求分析**：明确智能体的功能需求和行为特征"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:987
+msgid "**基类选择**：根据功能选择合适的智能体基类"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:988
+msgid "**记忆设计**：定义Status Memory中的内容，明确Stream Memory在智能体中的作用"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:989
+msgid "**Block设计**：将复杂功能分解为独立的Block模块"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:990
+msgid "**逻辑实现**：实现智能体的核心行为逻辑"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:991
+msgid "**测试验证**：验证智能体的功能和性能"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:993
+msgid "3. 完整开发案例：新闻传播智能体"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:995
+msgid "需求分析"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:997
+msgid "构建一个能够收集、分析和传播新闻的智能体，具备以下功能："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:998
+msgid "从多个来源收集新闻信息"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:999
+msgid "分析新闻内容的重要性和相关性"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1000
+msgid "决定是否传播新闻以及传播方式"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1001
+msgid "跟踪新闻传播的效果"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1003
+msgid "功能分解与Block设计"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1005
+msgid "通过需求分析，将功能分解为以下Block："
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1007
+msgid "**NewsCollectorBlock**：新闻收集模块"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1008
+msgid "从不同来源获取新闻"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1009
+msgid "过滤和预处理新闻内容"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1010
+msgid "提取新闻的关键信息"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1012
+msgid "**NewsAnalyzerBlock**：新闻分析模块"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1013
+msgid "分析新闻的重要性"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1014
+msgid "评估新闻的相关性"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1015
+msgid "生成新闻摘要"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1017
+msgid "**NewsDistributorBlock**：新闻传播模块"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1018
+msgid "决定传播策略"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1019
+msgid "选择传播渠道"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1020
+msgid "跟踪传播效果"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1022
+msgid "完整实现"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1024
+msgid "**Step 1: 定义智能体参数和上下文**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1044
+msgid "**Step 2: 实现新闻收集Block**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1108
+msgid "**Step 3: 实现新闻分析Block**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1165
+msgid "**Step 4: 实现新闻传播Block**"
+msgstr ""
+
+#: ../../02-development-guide/04-agent.md:1217
+msgid "**Step 5: 集成为完整的新闻传播智能体**"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:1
+#: ../../02-development-guide/05-data-analysis.md:275
+msgid "数据分析"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:3
+msgid ""
+"AgentSociety提供了完整的数据存储能力，所有实验数据都被持久化到数据库中以支持后续的数据分析工作。 "
+"本文档介绍如何从SQLite数据库中提取实验数据并转换为pandas DataFrame进行数据分析。"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:8
+msgid "AgentSociety将实验数据存储在SQLite数据库中（默认路径：`./agentsociety_data/sqlite.db`）。"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:10
+msgid "表结构"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:12
+msgid "数据库中包含以下表："
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:14
+msgid "实验表 (as_experiment)"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:16
+msgid "存储实验的基本信息和元数据："
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:17
+msgid "`tenant_id`: 租户ID"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:18
+msgid "`id`: 实验UUID"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:19
+msgid "`name`: 实验名称"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:20
+msgid "`num_day`: 实验总天数"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:21
+msgid "`status`: 实验状态，0表示实验准备中，1表示实验运行中，2表示实验已完成，3表示实验出错"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:22
+msgid "`cur_day`: 当前天数"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:23
+msgid "`cur_t`: 当前时刻（单位：秒），与`cur_day`字段共同确定模拟中的时间"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:24
+msgid "`config`: 实验配置（JSON格式）"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:25
+msgid "`error`: 错误信息"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:26
+msgid "`input_tokens`: 输入token数量"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:27
+msgid "`output_tokens`: 输出token数量"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:28
+msgid "`created_at`: 创建时间"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:29
+msgid "`updated_at`: 更新时间"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:31
+msgid "实验表的主要用途是帮助用户找到待分析的实验的ID，以便查找数据表。"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:33
+msgid "动态生成的实验数据表"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:34
+msgid "每个实验会生成一组以实验ID命名的数据表："
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:36
+msgid "表名规则"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:39
+msgid ""
+"实验ID的UUID格式为`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`，其中`x`为十六进制数字。 "
+"在数据库中，实验ID的UUID格式会被转换为`xxxxxxxx_xxxx_xxxx_xxxx_xxxxxxxxxxxx`的格式，以便符合SQLite的表名规则。"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:43
+#, python-brace-format
+msgid "**智能体画像表** (`as_{exp_id}_agent_profile`)"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:44
+#: ../../02-development-guide/05-data-analysis.md:49
+#: ../../02-development-guide/05-data-analysis.md:60
+#: ../../02-development-guide/05-data-analysis.md:69
+msgid "`id`: 智能体ID"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:45
+msgid "`name`: 智能体名称"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:46
+msgid "`profile`: 智能体画像信息（JSON格式）"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:48
+#, python-brace-format
+msgid "**智能体状态表** (`as_{exp_id}_agent_status`)"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:50
+#: ../../02-development-guide/05-data-analysis.md:61
+#: ../../02-development-guide/05-data-analysis.md:70
+#: ../../02-development-guide/05-data-analysis.md:77
+msgid "`day`: 实验天数"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:51
+#: ../../02-development-guide/05-data-analysis.md:62
+#: ../../02-development-guide/05-data-analysis.md:71
+#: ../../02-development-guide/05-data-analysis.md:78
+msgid "`t`: 模拟时刻（单位：秒），与`day`字段共同确定模拟中的时间"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:52
+msgid "`lng`: 经度"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:53
+msgid "`lat`: 纬度"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:54
+msgid "`parent_id`: 所在的车道、人行道或AOI的ID"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:55
+msgid "`action`: 当前行为"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:56
+msgid "`status`: 状态信息（JSON格式）"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:57
+#: ../../02-development-guide/05-data-analysis.md:66
+#: ../../02-development-guide/05-data-analysis.md:74
+#: ../../02-development-guide/05-data-analysis.md:80
+#: ../../02-development-guide/05-data-analysis.md:87
+msgid "`created_at`: 记录创建时间"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:59
+#, python-brace-format
+msgid "**对话记录表** (`as_{exp_id}_agent_dialog`)"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:63
+msgid "`type`: 对话类型，0表示内心想法、1表示与其他智能体对话、2表示与用户对话"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:64
+msgid "`speaker`: 对话对象ID，不为空表示对话内容是其他智能体所说，否则是该智能体所说"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:65
+msgid "`content`: 对话内容"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:68
+#, python-brace-format
+msgid "**问卷结果表** (`as_{exp_id}_agent_survey`)"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:72
+msgid "`survey_id`: 问卷ID"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:73
+msgid "`result`: 问卷结果（JSON格式）"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:76
+#, python-brace-format
+msgid "**全局提示表** (`as_{exp_id}_global_prompt`)"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:79
+msgid "`prompt`: 提示内容"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:82
+#, python-brace-format
+msgid "**指标表** (`as_{exp_id}_metric`)"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:83
+msgid "`id`: 记录ID"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:84
+msgid "`key`: 指标名称"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:85
+msgid "`value`: 指标值"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:86
+msgid "`step`: 指标步数"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:89
+msgid "数据库访问"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:91
+msgid ""
+"这里演示使用[duckdb](https://duckdb.org/)连接数据库并读取实验数据。 "
+"实际使用中也可以使用其他数据库连接工具，如sqlite3、psycopg2等。"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:94
+msgid "安装duckdb"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:98
+msgid "使用`pip install duckdb`即可安装duckdb"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:101
+msgid "读取实验表获取实验ID"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:103
+msgid "首先需要连接数据库并查询可用的实验。导入必要的库："
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:112
+msgid "连接到SQLite数据库："
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:120
+msgid "定义查询所有实验信息的函数："
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:145
+msgid "获取实验列表并选择要分析的实验："
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:156
+msgid "根据实验ID读取模拟结果数据"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:158
+msgid "获得实验ID后，可以读取该实验的所有相关数据表。 首先定义数据提取函数，注意需要将UUID中的连字符替换为下划线以匹配表名规则："
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:171
+msgid "其中`TODO`的部分如下："
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:173
+msgid "**读取智能体画像数据**"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:187
+msgid "**读取智能体状态数据**"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:202
+msgid "**读取对话记录数据**"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:217
+msgid "**读取问卷结果数据**"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:232
+msgid "**读取全局提示数据**"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:247
+msgid "**读取指标数据**"
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:262
+msgid "获取实验数据并查看概览："
+msgstr ""
+
+#: ../../02-development-guide/05-data-analysis.md:277
+msgid "现在，所有实验数据都被提取为方便分析的pandas DataFrame，可以根据你的实验需要开始数据分析了！"
+msgstr ""
+
+#: ../../02-development-guide/index.md:1
+msgid "开发指南"
+msgstr ""
+
+#: ../../02-development-guide/index.md:3
+msgid "本文档将深入`AgentSociety`的开发细节，帮助开发者使用`AgentSociety`框架设计社会模拟场景，开展社会模拟实验，进行数据分析，完成实验想法。"
+msgstr ""
+
+#: ../../02-development-guide/index.md:5
+msgid "本文档主要介绍以下内容："
+msgstr ""
+

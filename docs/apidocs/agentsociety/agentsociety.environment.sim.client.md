@@ -67,50 +67,10 @@
 
 ````
 
-````{py:property} clock_service
-:canonical: agentsociety.environment.sim.client.CityClient.clock_service
-
-```{autodoc2-docstring} agentsociety.environment.sim.client.CityClient.clock_service
-```
-
-````
-
-````{py:property} lane_service
-:canonical: agentsociety.environment.sim.client.CityClient.lane_service
-
-```{autodoc2-docstring} agentsociety.environment.sim.client.CityClient.lane_service
-```
-
-````
-
 ````{py:property} person_service
 :canonical: agentsociety.environment.sim.client.CityClient.person_service
 
 ```{autodoc2-docstring} agentsociety.environment.sim.client.CityClient.person_service
-```
-
-````
-
-````{py:property} aoi_service
-:canonical: agentsociety.environment.sim.client.CityClient.aoi_service
-
-```{autodoc2-docstring} agentsociety.environment.sim.client.CityClient.aoi_service
-```
-
-````
-
-````{py:property} road_service
-:canonical: agentsociety.environment.sim.client.CityClient.road_service
-
-```{autodoc2-docstring} agentsociety.environment.sim.client.CityClient.road_service
-```
-
-````
-
-````{py:property} light_service
-:canonical: agentsociety.environment.sim.client.CityClient.light_service
-
-```{autodoc2-docstring} agentsociety.environment.sim.client.CityClient.light_service
 ```
 
 ````

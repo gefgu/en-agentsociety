@@ -49,18 +49,12 @@
 
 ````
 
-`````{py:class} S3Config(**data: typing.Any)
+`````{py:class} S3Config
 :canonical: agentsociety.s3.client.S3Config
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.s3.client.S3Config
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.s3.client.S3Config.__init__
 ```
 
 ````{py:attribute} enabled

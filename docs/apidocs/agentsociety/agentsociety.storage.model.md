@@ -55,6 +55,10 @@
   - ```{autodoc2-docstring} agentsociety.storage.model.pending_survey
     :summary:
     ```
+* - {py:obj}`task_result <agentsociety.storage.model.task_result>`
+  - ```{autodoc2-docstring} agentsociety.storage.model.task_result
+    :summary:
+    ```
 * - {py:obj}`metric <agentsociety.storage.model.metric>`
   - ```{autodoc2-docstring} agentsociety.storage.model.metric
     :summary:
@@ -131,6 +135,13 @@
 :canonical: agentsociety.storage.model.pending_survey
 
 ```{autodoc2-docstring} agentsociety.storage.model.pending_survey
+```
+````
+
+````{py:function} task_result(table_name: str)
+:canonical: agentsociety.storage.model.task_result
+
+```{autodoc2-docstring} agentsociety.storage.model.task_result
 ```
 ````
 
@@ -354,6 +365,14 @@ Bases: {py:obj}`agentsociety.storage._base.Base`
 :canonical: agentsociety.storage.model.Experiment.pending_survey_tablename
 
 ```{autodoc2-docstring} agentsociety.storage.model.Experiment.pending_survey_tablename
+```
+
+````
+
+````{py:property} task_result_tablename
+:canonical: agentsociety.storage.model.Experiment.task_result_tablename
+
+```{autodoc2-docstring} agentsociety.storage.model.Experiment.task_result_tablename
 ```
 
 ````

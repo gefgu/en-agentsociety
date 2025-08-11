@@ -16,9 +16,13 @@
 :align: left
 
 * - {py:obj}`ApiSurveyCreate <agentsociety.webapi.api.survey.ApiSurveyCreate>`
-  -
+  - ```{autodoc2-docstring} agentsociety.webapi.api.survey.ApiSurveyCreate
+    :summary:
+    ```
 * - {py:obj}`ApiSurveyUpdate <agentsociety.webapi.api.survey.ApiSurveyUpdate>`
-  -
+  - ```{autodoc2-docstring} agentsociety.webapi.api.survey.ApiSurveyUpdate
+    :summary:
+    ```
 ````
 
 ### Functions
@@ -103,10 +107,13 @@
 ```
 ````
 
-`````{py:class} ApiSurveyCreate(**data: typing.Any)
+`````{py:class} ApiSurveyCreate
 :canonical: agentsociety.webapi.api.survey.ApiSurveyCreate
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.webapi.api.survey.ApiSurveyCreate
+```
 
 ````{py:attribute} name
 :canonical: agentsociety.webapi.api.survey.ApiSurveyCreate.name
@@ -140,10 +147,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 ```
 ````
 
-`````{py:class} ApiSurveyUpdate(**data: typing.Any)
+`````{py:class} ApiSurveyUpdate
 :canonical: agentsociety.webapi.api.survey.ApiSurveyUpdate
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.webapi.api.survey.ApiSurveyUpdate
+```
 
 ````{py:attribute} name
 :canonical: agentsociety.webapi.api.survey.ApiSurveyUpdate.name

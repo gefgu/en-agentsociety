@@ -1,9 +1,10 @@
 # AgentSociety
 
-**AgentSociety** is a social simulation engine and a toolkit for social science research, constructed based on the first principles of sociology, utilizing large model agents. It aims to catalyze a paradigm shift in the methodology of social science research, promoting developments from behavioral simulation to mental modeling, from static deduction to dynamic coexistence, and from laboratory tools to social infrastructure.
-The paper is available at [arXiv](https://arxiv.org/abs/2502.08691):
+**AgentSociety**是一个基于社会学第一原理构建的社会模拟引擎和社会科学研究工具包。通过该平台，我们可以快速创建和管理城市模拟环境中的智能体，高效地开展复杂城市场景的建模与模拟。借此，我们希望通过大模型智能体推动社会科学研究方法论的范式转变，实现从行为模拟到心智建模，从静态推导到动态共存，以及从实验室工具到社会基础设施的发展。
 
-```
+论文可在[arXiv](https://arxiv.org/abs/2502.08691)获取：
+
+```bibtex
 @article{piao2025agentsociety,
   title={AgentSociety: Large-Scale Simulation of LLM-Driven Generative Agents Advances Understanding of Human Behaviors and Society},
   author={Piao, Jinghua and Yan, Yuwei and Zhang, Jun and Li, Nian and Yan, Junbo and Lan, Xiaochong and Lu, Zhihong and Zheng, Zhiheng and Wang, Jing Yi and Zhou, Di and others},
@@ -12,59 +13,63 @@ The paper is available at [arXiv](https://arxiv.org/abs/2502.08691):
 }
 ```
 
-<img src="_static/framework-overview.jpg" alt="Overall Structure of AgentSociety" style="zoom=28%;" />
+![AgentSociety的整体结构](_static/framework-overview.jpg)
 
-## News
+## 特点
 
-Version 1.3.0 is released!
+- 🌟 **大模型驱动的社会人类智能体**: 基于社会学理论，构建具有"类人心智"的社会智能体，赋予他们情感、需求、动机和认知能力。这些智能体在这些心理属性的驱动下执行复杂的社会行为，如移动、就业、消费和社交互动。我们还支持自定义[智能体](02-development-guide/04-agent.md)。
 
-Check out [Version 1.3](./02-version-1.3/index.md) for the latest updates and new features🎇.
+- 🌟 **真实的城市社会环境**: 它准确地模拟了对社会人类生存至关重要的城市空间，复制了交通、基础设施和公共资源。这使智能体能够在现实世界的约束下互动，形成生动的社会生态系统。
 
-## Features
+- 🌟 **大规模社会模拟引擎**: 通过采用异步模拟架构和 [Ray](https://www.ray.io/) 分布式计算框架实现了智能体之间的高效、可扩展的互动和社会行为模拟。
 
-- 🌟 **Large Model-driven Social Human Agents**: Based on sociological theories, it constructs social agents with "human-like minds," endowing them with emotions, needs, motivations, and cognitive abilities. These agents perform complex social behaviors such as movement, employment, consumption, and social interactions driven by these mental attributes. We also support [customization of agents](./05-custom-agents/index.md).
-- 🌟 **Realistic Urban Social Environment**: It accurately simulates urban spaces that are crucial for the survival of social humans, reproducing transportation, infrastructure, and public resources. This enables agents to interact under real-world constraints, forming a vivid social ecosystem.
-- 🌟 **Large-scale Social Simulation Engine**: By employing an asynchronous simulation architecture and the [Ray](https://www.ray.io/) distributed computing framework combined with agent grouping, it achieves efficient, scalable interaction among agents and simulation of social behavior.
-- 🌟 **Social Science Research Toolkit**: It comprehensively supports a series of sociological research methods including [interviews & surveys](./04-experiment-design/01-survey-and-interview.md), [message control tool](./04-experiment-design/03-message-interception.md), and [metrics extractors](./04-experiment-design/02-metrics-collection.md), providing various automated data analysis tools that facilitate in-depth social science research from qualitative studies to quantitative analyses.
+- 🌟 **社会科学研究工具包**: 它全面支持一系列社会学研究方法，包括各类[干预](02-development-guide/01-experiment.md#exp-intervene)手段、[数据收集](02-development-guide/01-experiment.md#message-interception)和[数据分析](02-development-guide/05-data-analysis.md)能力，促进从定性研究到定量分析的深入社会科学研究。
 
-## Online Demo
+## 在线平台
 
-<!-- ![AgentSocietyDemo](_static/agentsociety-demo.png) -->
+![AgentSociety在线演示](_static/ui-demo.gif)
 
-![AgentSociety](_static/ui-demo.gif)
+我们提供了AgentSociety的[在线平台](https://agentsociety.fiblab.net/)，帮助感兴趣的用户快速体验AgentSociety的模拟能力。
 
-We provide a [Online Demo](https://agentsociety.fiblab.net/) of our simulation platform. 
+## 安装
 
-Experience our online demo, which simulates the behavioral patterns of individuals during a hurricane event, grounded in the real-world context of Hurricane Dorian's impact on Columbia, South Carolina. 
-Comprehensive details and use case explanations are available in [Hurricane Impact](./07-use-case/04-hurricane-impact.md).
+```bash
+pip install agentsociety
+```
 
-## Installation
+参考[快速入门](01-get-started/index.md)部分了解[前置准备](01-get-started/01-prerequisites.md)和[安装](01-get-started/02-installation.md) 说明。
 
-Refer to the quick start section for [prerequisites](./01-quick-start/01-prerequisites.md) and [installation](./01-quick-start/02-start-your-first-simulation.md#step-0-installation) instructions.
+除了AgentSociety平台本身外，我们还提供了一些PyPI包用于扩展AgentSociety的功能：
+- [agentsociety-community](https://github.com/tsinghua-fib-lab/AgentSociety/tree/main/packages/agentsociety-community)：社区库，用于发布自定义智能体与Block。
+- [agentsociety-benchmark](https://github.com/tsinghua-fib-lab/AgentSociety/tree/main/packages/agentsociety-benchmark)：基准测试库，基于AgentSociety框架评估智能体在多种城市任务上的性能。
 
-## Contact Us
+## 相关工作
 
-We cordially invite scholars from social sciences, LLM, and agent fields, to explore our platform. 
-Researchers may contact us with [Email](mailto:agentsociety.fiblab2025@gmail.com) and submit your research proposal. Approved applicants will receive beta credentials to conduct experiments on our platform with our team's guidance. 
- 
-We welcome collaborative opportunities to advance social science research through our platform.
+基于AgentSociety平台，已形成一系列相关工作，包括：
+1. Jun Zhang, Yuwei Yan, Junbo Yan, Zhiheng Zheng, Jinghua Piao, Depeng Jin, and Yong Li. A Parallelized Framework for Simulating Large-Scale LLM Agents with Realistic Environments and Interactions, ACL 2025 
+2. Jinghua Piao, Yuwei Yan, Nian Li, Jun Zhang, and Yong Li. Exploring Large Language Model Agents for Piloting Social Experiments, COLM 2025
+3. Nicholas Sukiennik, Yichuan Xu, Yuqing Kan, Jinghua Piao, Yuwei Yan, Chen Gao, and Yong Li. The Roots of International Perceptions: A Large-Scale LLM Simulation of US Attitude Changes Towards China, Submitted to AAAI 2026
+4. Yuwei Yan, Jinghua Piao, Xiaochong Lan, Chenyang Shao, Pan Hui, and Yong Li. Simulating Generative Social Agents via Theory-Informed Workflow Design, Submitted to AAAI 2026
+5. Jing Yi Wang, Jinghua Piao, and Yong Li. Does Reasoning Improve Rationality? Evaluating Reasoning-Enhanced LLMs Across Descriptive, Normative, and Instrumental Rationality, Submitted to EMNLP 2025
 
-## WeChat Group
+## 联系我们
 
-<img src="_static/wechat.png" alt="WeChat" style="width: 30vw;" />
+我们诚挚邀请社会科学、大语言模型和智能体领域的学者探索我们的平台。
+研究人员可以通过[电子邮件](mailto:agentsociety.fiblab2025@gmail.com)联系我们并提交您的研究提案。获批的申请者将获得我们团队的帮助与指导。
 
-## Table of Contents
+我们欢迎通过我们的平台推进社会科学研究的合作机会。欢迎通过[微信群](_static/wechat.jpg)与我们交流。
+
+## 微信群
+
+![微信群](_static/wechat.jpg)
+
+## 目录
 
 ```{toctree}
 :maxdepth: 2
 
-01-quick-start/index
-02-version-1.5/index
-03-configurations/index
-04-experiment-design/index
-05-custom-agents/index
-06-webui/index
-07-use-case/index
-08-advanced-usage/index
+01-get-started/index
+02-development-guide/index
+03-config/index
 apidocs/index
 ```

@@ -187,18 +187,12 @@ Bases: {py:obj}`enum.IntEnum`
 
 `````
 
-``````{py:class} ApiExperiment(**data: typing.Any)
+``````{py:class} ApiExperiment
 :canonical: agentsociety.webapi.models.experiment.ApiExperiment
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.models.experiment.ApiExperiment
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.webapi.models.experiment.ApiExperiment.__init__
 ```
 
 ````{py:attribute} tenant_id
@@ -364,18 +358,12 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ``````
 
-`````{py:class} ApiTime(**data: typing.Any)
+`````{py:class} ApiTime
 :canonical: agentsociety.webapi.models.experiment.ApiTime
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.models.experiment.ApiTime
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.webapi.models.experiment.ApiTime.__init__
 ```
 
 ````{py:attribute} day

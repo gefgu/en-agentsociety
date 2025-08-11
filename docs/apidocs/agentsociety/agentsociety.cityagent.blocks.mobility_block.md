@@ -28,7 +28,9 @@
     :summary:
     ```
 * - {py:obj}`MobilityBlockParams <agentsociety.cityagent.blocks.mobility_block.MobilityBlockParams>`
-  -
+  - ```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MobilityBlockParams
+    :summary:
+    ```
 * - {py:obj}`MobilityBlockContext <agentsociety.cityagent.blocks.mobility_block.MobilityBlockContext>`
   -
 * - {py:obj}`MobilityBlock <agentsociety.cityagent.blocks.mobility_block.MobilityBlock>`
@@ -250,10 +252,13 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 `````
 
-`````{py:class} MobilityBlockParams(**data: typing.Any)
+`````{py:class} MobilityBlockParams
 :canonical: agentsociety.cityagent.blocks.mobility_block.MobilityBlockParams
 
 Bases: {py:obj}`agentsociety.agent.BlockParams`
+
+```{autodoc2-docstring} agentsociety.cityagent.blocks.mobility_block.MobilityBlockParams
+```
 
 ````{py:attribute} radius_prompt
 :canonical: agentsociety.cityagent.blocks.mobility_block.MobilityBlockParams.radius_prompt
@@ -279,7 +284,7 @@ Bases: {py:obj}`agentsociety.agent.BlockParams`
 
 `````
 
-`````{py:class} MobilityBlockContext(**data: typing.Any)
+`````{py:class} MobilityBlockContext
 :canonical: agentsociety.cityagent.blocks.mobility_block.MobilityBlockContext
 
 Bases: {py:obj}`agentsociety.agent.BlockContext`

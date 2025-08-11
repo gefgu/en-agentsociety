@@ -27,14 +27,6 @@
   - ```{autodoc2-docstring} agentsociety.configs.exp.WorkflowStepConfig
     :summary:
     ```
-* - {py:obj}`MetricType <agentsociety.configs.exp.MetricType>`
-  - ```{autodoc2-docstring} agentsociety.configs.exp.MetricType
-    :summary:
-    ```
-* - {py:obj}`MetricExtractorConfig <agentsociety.configs.exp.MetricExtractorConfig>`
-  - ```{autodoc2-docstring} agentsociety.configs.exp.MetricExtractorConfig
-    :summary:
-    ```
 * - {py:obj}`ExpConfig <agentsociety.configs.exp.ExpConfig>`
   - ```{autodoc2-docstring} agentsociety.configs.exp.ExpConfig
     :summary:
@@ -58,7 +50,7 @@
 ````{py:data} __all__
 :canonical: agentsociety.configs.exp.__all__
 :value: >
-   ['WorkflowStepConfig', 'MetricExtractorConfig', 'EnvironmentConfig', 'ExpConfig', 'WorkflowType', 'M...
+   ['WorkflowStepConfig', 'EnvironmentConfig', 'ExpConfig', 'WorkflowType', 'AgentFilterConfig']
 
 ```{autodoc2-docstring} agentsociety.configs.exp.__all__
 ```
@@ -119,16 +111,6 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ````
 
-````{py:attribute} ENVIRONMENT_INTERVENE
-:canonical: agentsociety.configs.exp.WorkflowType.ENVIRONMENT_INTERVENE
-:value: >
-   'environment'
-
-```{autodoc2-docstring} agentsociety.configs.exp.WorkflowType.ENVIRONMENT_INTERVENE
-```
-
-````
-
 ````{py:attribute} UPDATE_STATE_INTERVENE
 :canonical: agentsociety.configs.exp.WorkflowType.UPDATE_STATE_INTERVENE
 :value: >
@@ -149,22 +131,32 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ````
 
-````{py:attribute} NEXT_ROUND
-:canonical: agentsociety.configs.exp.WorkflowType.NEXT_ROUND
-:value: >
-   'next_round'
-
-```{autodoc2-docstring} agentsociety.configs.exp.WorkflowType.NEXT_ROUND
-```
-
-````
-
 ````{py:attribute} DELETE_AGENT
 :canonical: agentsociety.configs.exp.WorkflowType.DELETE_AGENT
 :value: >
    'delete_agent'
 
 ```{autodoc2-docstring} agentsociety.configs.exp.WorkflowType.DELETE_AGENT
+```
+
+````
+
+````{py:attribute} ENVIRONMENT_INTERVENE
+:canonical: agentsociety.configs.exp.WorkflowType.ENVIRONMENT_INTERVENE
+:value: >
+   'environment'
+
+```{autodoc2-docstring} agentsociety.configs.exp.WorkflowType.ENVIRONMENT_INTERVENE
+```
+
+````
+
+````{py:attribute} NEXT_ROUND
+:canonical: agentsociety.configs.exp.WorkflowType.NEXT_ROUND
+:value: >
+   'next_round'
+
+```{autodoc2-docstring} agentsociety.configs.exp.WorkflowType.NEXT_ROUND
 ```
 
 ````
@@ -201,18 +193,12 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} AgentFilterConfig(**data: typing.Any)
+`````{py:class} AgentFilterConfig
 :canonical: agentsociety.configs.exp.AgentFilterConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.configs.exp.AgentFilterConfig
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.configs.exp.AgentFilterConfig.__init__
 ```
 
 ````{py:attribute} agent_class
@@ -247,18 +233,12 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} WorkflowStepConfig(**data: typing.Any)
+`````{py:class} WorkflowStepConfig
 :canonical: agentsociety.configs.exp.WorkflowStepConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.configs.exp.WorkflowStepConfig
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.configs.exp.WorkflowStepConfig.__init__
 ```
 
 ````{py:attribute} model_config
@@ -432,184 +412,12 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} MetricType()
-:canonical: agentsociety.configs.exp.MetricType
-
-Bases: {py:obj}`str`, {py:obj}`enum.Enum`
-
-```{autodoc2-docstring} agentsociety.configs.exp.MetricType
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.configs.exp.MetricType.__init__
-```
-
-````{py:attribute} FUNCTION
-:canonical: agentsociety.configs.exp.MetricType.FUNCTION
-:value: >
-   'function'
-
-```{autodoc2-docstring} agentsociety.configs.exp.MetricType.FUNCTION
-```
-
-````
-
-````{py:attribute} STATE
-:canonical: agentsociety.configs.exp.MetricType.STATE
-:value: >
-   'state'
-
-```{autodoc2-docstring} agentsociety.configs.exp.MetricType.STATE
-```
-
-````
-
-`````
-
-`````{py:class} MetricExtractorConfig(**data: typing.Any)
-:canonical: agentsociety.configs.exp.MetricExtractorConfig
-
-Bases: {py:obj}`pydantic.BaseModel`
-
-```{autodoc2-docstring} agentsociety.configs.exp.MetricExtractorConfig
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.configs.exp.MetricExtractorConfig.__init__
-```
-
-````{py:attribute} model_config
-:canonical: agentsociety.configs.exp.MetricExtractorConfig.model_config
-:value: >
-   'ConfigDict(...)'
-
-```{autodoc2-docstring} agentsociety.configs.exp.MetricExtractorConfig.model_config
-```
-
-````
-
-````{py:attribute} type
-:canonical: agentsociety.configs.exp.MetricExtractorConfig.type
-:type: agentsociety.configs.exp.MetricType
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.configs.exp.MetricExtractorConfig.type
-```
-
-````
-
-````{py:attribute} func
-:canonical: agentsociety.configs.exp.MetricExtractorConfig.func
-:type: typing.Optional[collections.abc.Callable]
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.configs.exp.MetricExtractorConfig.func
-```
-
-````
-
-````{py:attribute} step_interval
-:canonical: agentsociety.configs.exp.MetricExtractorConfig.step_interval
-:type: int
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.configs.exp.MetricExtractorConfig.step_interval
-```
-
-````
-
-````{py:attribute} target_agent
-:canonical: agentsociety.configs.exp.MetricExtractorConfig.target_agent
-:type: typing.Optional[typing.Union[list, agentsociety.configs.exp.AgentFilterConfig]]
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.configs.exp.MetricExtractorConfig.target_agent
-```
-
-````
-
-````{py:attribute} key
-:canonical: agentsociety.configs.exp.MetricExtractorConfig.key
-:type: typing.Optional[str]
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.configs.exp.MetricExtractorConfig.key
-```
-
-````
-
-````{py:attribute} method
-:canonical: agentsociety.configs.exp.MetricExtractorConfig.method
-:type: typing.Optional[typing.Literal[mean, sum, max, min]]
-:value: >
-   'sum'
-
-```{autodoc2-docstring} agentsociety.configs.exp.MetricExtractorConfig.method
-```
-
-````
-
-````{py:attribute} extract_time
-:canonical: agentsociety.configs.exp.MetricExtractorConfig.extract_time
-:type: int
-:value: >
-   1
-
-```{autodoc2-docstring} agentsociety.configs.exp.MetricExtractorConfig.extract_time
-```
-
-````
-
-````{py:attribute} description
-:canonical: agentsociety.configs.exp.MetricExtractorConfig.description
-:type: str
-:value: >
-   'None'
-
-```{autodoc2-docstring} agentsociety.configs.exp.MetricExtractorConfig.description
-```
-
-````
-
-````{py:method} validate_target_agent()
-:canonical: agentsociety.configs.exp.MetricExtractorConfig.validate_target_agent
-
-```{autodoc2-docstring} agentsociety.configs.exp.MetricExtractorConfig.validate_target_agent
-```
-
-````
-
-````{py:method} serialize_func(func, info)
-:canonical: agentsociety.configs.exp.MetricExtractorConfig.serialize_func
-
-```{autodoc2-docstring} agentsociety.configs.exp.MetricExtractorConfig.serialize_func
-```
-
-````
-
-`````
-
-`````{py:class} ExpConfig(**data: typing.Any)
+`````{py:class} ExpConfig
 :canonical: agentsociety.configs.exp.ExpConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.configs.exp.ExpConfig
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.configs.exp.ExpConfig.__init__
 ```
 
 ````{py:attribute} model_config
@@ -662,17 +470,6 @@ Bases: {py:obj}`pydantic.BaseModel`
    None
 
 ```{autodoc2-docstring} agentsociety.configs.exp.ExpConfig.environment
-```
-
-````
-
-````{py:attribute} metric_extractors
-:canonical: agentsociety.configs.exp.ExpConfig.metric_extractors
-:type: typing.Optional[list[agentsociety.configs.exp.MetricExtractorConfig]]
-:value: >
-   None
-
-```{autodoc2-docstring} agentsociety.configs.exp.ExpConfig.metric_extractors
 ```
 
 ````

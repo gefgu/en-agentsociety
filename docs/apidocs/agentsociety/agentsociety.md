@@ -14,6 +14,7 @@
 :maxdepth: 3
 
 agentsociety.agent
+agentsociety.taskloader
 agentsociety.vectorstore
 agentsociety.environment
 agentsociety.storage

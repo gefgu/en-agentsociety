@@ -105,18 +105,12 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} AgentConfig(**data: typing.Any)
+`````{py:class} AgentConfig
 :canonical: agentsociety.configs.agent.AgentConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.configs.agent.AgentConfig
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.configs.agent.AgentConfig.__init__
 ```
 
 ````{py:attribute} model_config
@@ -142,7 +136,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````{py:attribute} number
 :canonical: agentsociety.configs.agent.AgentConfig.number
-:type: typing.Optional[int]
+:type: int
 :value: >
    'Field(...)'
 
@@ -169,6 +163,17 @@ Bases: {py:obj}`pydantic.BaseModel`
    None
 
 ```{autodoc2-docstring} agentsociety.configs.agent.AgentConfig.blocks
+```
+
+````
+
+````{py:attribute} tools
+:canonical: agentsociety.configs.agent.AgentConfig.tools
+:type: typing.Optional[list[agentsociety.agent.CustomTool]]
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.configs.agent.AgentConfig.tools
 ```
 
 ````

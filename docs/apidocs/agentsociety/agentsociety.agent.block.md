@@ -16,9 +16,13 @@
 :align: left
 
 * - {py:obj}`BlockParams <agentsociety.agent.block.BlockParams>`
-  -
+  - ```{autodoc2-docstring} agentsociety.agent.block.BlockParams
+    :summary:
+    ```
 * - {py:obj}`BlockOutput <agentsociety.agent.block.BlockOutput>`
-  -
+  - ```{autodoc2-docstring} agentsociety.agent.block.BlockOutput
+    :summary:
+    ```
 * - {py:obj}`Block <agentsociety.agent.block.Block>`
   - ```{autodoc2-docstring} agentsociety.agent.block.Block
     :summary:
@@ -63,10 +67,13 @@
 
 ````
 
-`````{py:class} BlockParams(**data: typing.Any)
+`````{py:class} BlockParams
 :canonical: agentsociety.agent.block.BlockParams
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.agent.block.BlockParams
+```
 
 ````{py:attribute} block_memory
 :canonical: agentsociety.agent.block.BlockParams.block_memory
@@ -81,12 +88,15 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-```{py:class} BlockOutput(**data: typing.Any)
+````{py:class} BlockOutput
 :canonical: agentsociety.agent.block.BlockOutput
 
 Bases: {py:obj}`pydantic.BaseModel`
 
+```{autodoc2-docstring} agentsociety.agent.block.BlockOutput
 ```
+
+````
 
 `````{py:class} Block(toolbox: agentsociety.agent.toolbox.AgentToolbox, agent_memory: typing.Optional[agentsociety.memory.Memory] = None, block_params: typing.Optional[typing.Any] = None)
 :canonical: agentsociety.agent.block.Block

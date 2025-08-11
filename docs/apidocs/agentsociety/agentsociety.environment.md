@@ -49,7 +49,7 @@ agentsociety.environment.mapdata
 ````{py:data} __all__
 :canonical: agentsociety.environment.__all__
 :value: >
-   ['Environment', 'EnvironmentStarter', 'SimulatorConfig', 'EnvironmentConfig', 'MapData', 'MapConfig'...
+   ['Environment', 'EnvironmentStarter', 'EnvironmentConfig', 'MapData', 'MapConfig', 'PersonService', ...
 
 ```{autodoc2-docstring} agentsociety.environment.__all__
 ```

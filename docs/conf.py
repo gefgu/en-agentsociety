@@ -8,7 +8,16 @@
 
 project = "AgentSociety"
 copyright = "2025, FIBLAB"
-author = "Yuwei Yan, Junbo Yan, Jun Zhang"
+author = "严宇威, 闫珺博, 张钧"
+
+# The version info for the project you're documenting, acts as replacement for
+# |version| and |release|, also used in various other places throughout the
+# built documents.
+#
+# The short X.Y version.
+version = "1.5"
+# The full version, including alpha/beta/rc tags.
+release = "1.5.0"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -17,17 +26,34 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
+    "sphinx.ext.intersphinx",
     "myst_parser",
     "autodoc2",
 ]
+
 autodoc2_packages = [
     "../packages/agentsociety/agentsociety",
 ]
 autodoc2_render_plugin = "myst"
 
 templates_path = ["_templates"]
-exclude_patterns = []
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
+# -- Internationalization options --------------------------------------------
+# 设置国际化支持
+locale_dirs = ['locale/']   # 翻译文件所在的路径
+
+# 默认语言设置为中文
+language = 'zh'
+
+# 多语言配置
+html_context = {
+    'current_language': language,
+    'languages': {
+        'zh': '中文',
+        'en': 'English',
+    },
+}
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
@@ -52,4 +78,56 @@ html_theme_options = {
         },
     ],
 }
+
+# 添加侧边栏logo
+html_logo = "_static/logo/1.png"
+
+# 添加favicon
+html_favicon = "_static/logo/square.png"
+
+# 添加自定义CSS
+html_css_files = ["css/custom.css"]
+
 html_static_path = ["_static"]
+
+# -- Options for LaTeX output ------------------------------------------------
+latex_elements = {
+    # The paper size ('letterpaper' or 'a4paper').
+    'papersize': 'a4paper',
+
+    # The font size ('10pt', '11pt' or '12pt').
+    'pointsize': '11pt',
+
+    # Additional stuff for the LaTeX preamble.
+    'preamble': r'''
+    \usepackage{xeCJK}
+    \setCJKmainfont{SimSun}
+    ''',
+}
+
+# -- Options for Epub output -------------------------------------------------
+epub_title = project
+epub_exclude_files = ['search.html']
+
+# -- Extension configuration -------------------------------------------------
+
+# -- Options for intersphinx extension ---------------------------------------
+# Example configuration for intersphinx: refer to the Python standard library.
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3/', None),
+}
+
+# -- Options for MyST parser -------------------------------------------------
+myst_enable_extensions = [
+    "amsmath",
+    "colon_fence",
+    "deflist",
+    "dollarmath",
+    "html_admonition",
+    "html_image",
+    "linkify",
+    "replacements",
+    "smartquotes",
+    "substitution",
+    "tasklist",
+]

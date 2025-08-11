@@ -65,18 +65,12 @@
 
 ````
 
-`````{py:class} DatabaseConfig(**data: typing.Any)
+`````{py:class} DatabaseConfig
 :canonical: agentsociety.storage.database.DatabaseConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.storage.database.DatabaseConfig
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.storage.database.DatabaseConfig.__init__
 ```
 
 ````{py:attribute} enabled
@@ -207,6 +201,78 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
+````{py:method} read_dialogs(day: typing.Optional[int] = None, speaker: typing.Optional[str] = None, dialog_type: typing.Optional[int] = None, start_t: typing.Optional[float] = None, end_t: typing.Optional[float] = None, limit: typing.Optional[int] = None, offset: typing.Optional[int] = None, order_by: str = 'created_at', order_direction: str = 'asc') -> typing.List[typing.Dict[str, typing.Any]]
+:canonical: agentsociety.storage.database.DatabaseWriter.read_dialogs
+:async:
+
+```{autodoc2-docstring} agentsociety.storage.database.DatabaseWriter.read_dialogs
+```
+
+````
+
+````{py:method} read_statuses(day: typing.Optional[int] = None, agent_id: typing.Optional[int] = None, start_t: typing.Optional[float] = None, end_t: typing.Optional[float] = None, action: typing.Optional[str] = None, limit: typing.Optional[int] = None, offset: typing.Optional[int] = None, order_by: str = 'created_at', order_direction: str = 'asc') -> typing.List[typing.Dict[str, typing.Any]]
+:canonical: agentsociety.storage.database.DatabaseWriter.read_statuses
+:async:
+
+```{autodoc2-docstring} agentsociety.storage.database.DatabaseWriter.read_statuses
+```
+
+````
+
+````{py:method} read_surveys(day: typing.Optional[int] = None, survey_id: typing.Optional[str] = None, start_t: typing.Optional[float] = None, end_t: typing.Optional[float] = None, limit: typing.Optional[int] = None, offset: typing.Optional[int] = None, order_by: str = 'created_at', order_direction: str = 'asc') -> typing.List[typing.Dict[str, typing.Any]]
+:canonical: agentsociety.storage.database.DatabaseWriter.read_surveys
+:async:
+
+```{autodoc2-docstring} agentsociety.storage.database.DatabaseWriter.read_surveys
+```
+
+````
+
+````{py:method} read_profiles() -> typing.List[typing.Dict[str, typing.Any]]
+:canonical: agentsociety.storage.database.DatabaseWriter.read_profiles
+:async:
+
+```{autodoc2-docstring} agentsociety.storage.database.DatabaseWriter.read_profiles
+```
+
+````
+
+````{py:method} read_global_prompts(day: typing.Optional[int] = None, start_t: typing.Optional[float] = None, end_t: typing.Optional[float] = None, limit: typing.Optional[int] = None, offset: typing.Optional[int] = None, order_by: str = 'created_at', order_direction: str = 'asc') -> typing.List[typing.Dict[str, typing.Any]]
+:canonical: agentsociety.storage.database.DatabaseWriter.read_global_prompts
+:async:
+
+```{autodoc2-docstring} agentsociety.storage.database.DatabaseWriter.read_global_prompts
+```
+
+````
+
+````{py:method} read_task_results(agent_id: typing.Optional[int] = None, limit: typing.Optional[int] = None, offset: typing.Optional[int] = None, order_by: str = 'created_at', order_direction: str = 'asc') -> typing.List[typing.Dict[str, typing.Any]]
+:canonical: agentsociety.storage.database.DatabaseWriter.read_task_results
+:async:
+
+```{autodoc2-docstring} agentsociety.storage.database.DatabaseWriter.read_task_results
+```
+
+````
+
+````{py:method} read_metrics(key: typing.Optional[str] = None, step: typing.Optional[int] = None, start_step: typing.Optional[int] = None, end_step: typing.Optional[int] = None, limit: typing.Optional[int] = None, offset: typing.Optional[int] = None, order_by: str = 'step', order_direction: str = 'asc') -> typing.List[typing.Dict[str, typing.Any]]
+:canonical: agentsociety.storage.database.DatabaseWriter.read_metrics
+:async:
+
+```{autodoc2-docstring} agentsociety.storage.database.DatabaseWriter.read_metrics
+```
+
+````
+
+````{py:method} get_statistics() -> typing.Dict[str, typing.Any]
+:canonical: agentsociety.storage.database.DatabaseWriter.get_statistics
+:async:
+
+```{autodoc2-docstring} agentsociety.storage.database.DatabaseWriter.get_statistics
+```
+
+````
+
 ````{py:method} write_dialogs(rows: list[agentsociety.storage.type.StorageDialog])
 :canonical: agentsociety.storage.database.DatabaseWriter.write_dialogs
 :async:
@@ -252,7 +318,16 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:method} log_metric(key: str, value: float, step: int)
+````{py:method} write_task_result(rows: list[agentsociety.storage.type.StorageTaskResult])
+:canonical: agentsociety.storage.database.DatabaseWriter.write_task_result
+:async:
+
+```{autodoc2-docstring} agentsociety.storage.database.DatabaseWriter.write_task_result
+```
+
+````
+
+````{py:method} log_metric(metrics: list[tuple[str, float, int]])
 :canonical: agentsociety.storage.database.DatabaseWriter.log_metric
 :async:
 

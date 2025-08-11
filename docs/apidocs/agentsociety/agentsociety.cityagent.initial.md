@@ -15,10 +15,6 @@
 :class: autosummary longtable
 :align: left
 
-* - {py:obj}`initialize_social_network <agentsociety.cityagent.initial.initialize_social_network>`
-  - ```{autodoc2-docstring} agentsociety.cityagent.initial.initialize_social_network
-    :summary:
-    ```
 * - {py:obj}`zipf_distribution <agentsociety.cityagent.initial.zipf_distribution>`
   - ```{autodoc2-docstring} agentsociety.cityagent.initial.zipf_distribution
     :summary:
@@ -46,19 +42,11 @@
 ````{py:data} __all__
 :canonical: agentsociety.cityagent.initial.__all__
 :value: >
-   ['initialize_social_network', 'bind_agent_info']
+   ['bind_agent_info']
 
 ```{autodoc2-docstring} agentsociety.cityagent.initial.__all__
 ```
 
-````
-
-````{py:function} initialize_social_network(simulation: agentsociety.simulation.AgentSociety)
-:canonical: agentsociety.cityagent.initial.initialize_social_network
-:async:
-
-```{autodoc2-docstring} agentsociety.cityagent.initial.initialize_social_network
-```
 ````
 
 ````{py:function} zipf_distribution(N, F, s=1.0)

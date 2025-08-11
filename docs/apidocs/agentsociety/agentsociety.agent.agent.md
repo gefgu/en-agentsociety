@@ -41,6 +41,8 @@
     ```
 * - {py:obj}`SupervisorBase <agentsociety.agent.agent.SupervisorBase>`
   -
+* - {py:obj}`IndividualAgentBase <agentsociety.agent.agent.IndividualAgentBase>`
+  -
 ````
 
 ### Data
@@ -321,30 +323,38 @@ Bases: {py:obj}`agentsociety.agent.agent.InstitutionAgentBase`
 
 Bases: {py:obj}`agentsociety.agent.agent_base.Agent`
 
-````{py:method} reset()
-:canonical: agentsociety.agent.agent.SupervisorBase.reset
-:async:
-
-```{autodoc2-docstring} agentsociety.agent.agent.SupervisorBase.reset
-```
-
-````
-
-````{py:method} react_to_intervention(intervention_message: str)
-:canonical: agentsociety.agent.agent.SupervisorBase.react_to_intervention
-:async:
-
-```{autodoc2-docstring} agentsociety.agent.agent.SupervisorBase.react_to_intervention
-```
-
-````
-
 ````{py:method} forward(current_round_messages: list[agentsociety.message.Message]) -> tuple[dict[agentsociety.message.Message, bool], list[agentsociety.message.Message]]
 :canonical: agentsociety.agent.agent.SupervisorBase.forward
 :abstractmethod:
 :async:
 
 ```{autodoc2-docstring} agentsociety.agent.agent.SupervisorBase.forward
+```
+
+````
+
+`````
+
+`````{py:class} IndividualAgentBase(id: int, name: str, toolbox: agentsociety.agent.agent_base.AgentToolbox, memory: agentsociety.memory.Memory, agent_params: typing.Optional[typing.Any] = None, blocks: typing.Optional[list[agentsociety.agent.block.Block]] = None)
+:canonical: agentsociety.agent.agent.IndividualAgentBase
+
+Bases: {py:obj}`agentsociety.agent.agent_base.Agent`
+
+````{py:method} run(task: agentsociety.taskloader.Task) -> typing.Any
+:canonical: agentsociety.agent.agent.IndividualAgentBase.run
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent.IndividualAgentBase.run
+```
+
+````
+
+````{py:method} forward(task_context: dict[str, typing.Any]) -> typing.Any
+:canonical: agentsociety.agent.agent.IndividualAgentBase.forward
+:abstractmethod:
+:async:
+
+```{autodoc2-docstring} agentsociety.agent.agent.IndividualAgentBase.forward
 ```
 
 ````

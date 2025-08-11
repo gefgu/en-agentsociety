@@ -217,7 +217,7 @@
 
 `````
 
-`````{py:class} StreamMemory(environment: agentsociety.environment.Environment, status_memory: agentsociety.memory.memory.KVMemory, embedding: fastembed.SparseTextEmbedding, max_len: int = 1000)
+`````{py:class} StreamMemory(environment: typing.Optional[agentsociety.environment.Environment], status_memory: agentsociety.memory.memory.KVMemory, embedding: fastembed.SparseTextEmbedding, max_len: int = 1000)
 :canonical: agentsociety.memory.memory.StreamMemory
 
 ```{autodoc2-docstring} agentsociety.memory.memory.StreamMemory
@@ -303,7 +303,7 @@
 
 `````
 
-`````{py:class} Memory(environment: agentsociety.environment.Environment, embedding: fastembed.SparseTextEmbedding, memory_config: agentsociety.agent.memory_config_generator.MemoryConfig)
+`````{py:class} Memory(environment: typing.Optional[agentsociety.environment.Environment], embedding: fastembed.SparseTextEmbedding, memory_config: agentsociety.agent.memory_config_generator.MemoryConfig)
 :canonical: agentsociety.memory.memory.Memory
 
 ```{autodoc2-docstring} agentsociety.memory.memory.Memory

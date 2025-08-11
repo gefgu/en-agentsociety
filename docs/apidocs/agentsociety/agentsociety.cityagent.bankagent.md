@@ -68,18 +68,12 @@
 ```
 ````
 
-`````{py:class} BankAgentConfig(**data: typing.Any)
+`````{py:class} BankAgentConfig
 :canonical: agentsociety.cityagent.bankagent.BankAgentConfig
 
 Bases: {py:obj}`agentsociety.agent.AgentParams`
 
 ```{autodoc2-docstring} agentsociety.cityagent.bankagent.BankAgentConfig
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.cityagent.bankagent.BankAgentConfig.__init__
 ```
 
 ````{py:attribute} time_diff

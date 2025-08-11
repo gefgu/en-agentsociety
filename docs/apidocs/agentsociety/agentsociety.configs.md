@@ -31,12 +31,16 @@ agentsociety.configs.agent
   - ```{autodoc2-docstring} agentsociety.configs.AgentsConfig
     :summary:
     ```
-* - {py:obj}`AdvancedConfig <agentsociety.configs.AdvancedConfig>`
-  - ```{autodoc2-docstring} agentsociety.configs.AdvancedConfig
-    :summary:
-    ```
 * - {py:obj}`Config <agentsociety.configs.Config>`
   - ```{autodoc2-docstring} agentsociety.configs.Config
+    :summary:
+    ```
+* - {py:obj}`TaskLoaderConfig <agentsociety.configs.TaskLoaderConfig>`
+  - ```{autodoc2-docstring} agentsociety.configs.TaskLoaderConfig
+    :summary:
+    ```
+* - {py:obj}`IndividualConfig <agentsociety.configs.IndividualConfig>`
+  - ```{autodoc2-docstring} agentsociety.configs.IndividualConfig
     :summary:
     ```
 ````
@@ -58,25 +62,19 @@ agentsociety.configs.agent
 ````{py:data} __all__
 :canonical: agentsociety.configs.__all__
 :value: >
-   ['EnvConfig', 'AgentConfig', 'WorkflowStepConfig', 'ExpConfig', 'MetricExtractorConfig', 'Environmen...
+   ['EnvConfig', 'AgentConfig', 'WorkflowStepConfig', 'ExpConfig', 'EnvironmentConfig', 'Config', 'load...
 
 ```{autodoc2-docstring} agentsociety.configs.__all__
 ```
 
 ````
 
-`````{py:class} AgentsConfig(**data: typing.Any)
+`````{py:class} AgentsConfig
 :canonical: agentsociety.configs.AgentsConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.configs.AgentsConfig
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.configs.AgentsConfig.__init__
 ```
 
 ````{py:attribute} citizens
@@ -134,17 +132,6 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:attribute} others
-:canonical: agentsociety.configs.AgentsConfig.others
-:type: list[agentsociety.configs.agent.AgentConfig]
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.configs.AgentsConfig.others
-```
-
-````
-
 ````{py:attribute} supervisor
 :canonical: agentsociety.configs.AgentsConfig.supervisor
 :type: typing.Optional[agentsociety.configs.agent.AgentConfig]
@@ -177,56 +164,12 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} AdvancedConfig(**data: typing.Any)
-:canonical: agentsociety.configs.AdvancedConfig
-
-Bases: {py:obj}`pydantic.BaseModel`
-
-```{autodoc2-docstring} agentsociety.configs.AdvancedConfig
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.configs.AdvancedConfig.__init__
-```
-
-````{py:attribute} simulator
-:canonical: agentsociety.configs.AdvancedConfig.simulator
-:type: agentsociety.environment.SimulatorConfig
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.configs.AdvancedConfig.simulator
-```
-
-````
-
-````{py:attribute} logging_level
-:canonical: agentsociety.configs.AdvancedConfig.logging_level
-:type: str
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.configs.AdvancedConfig.logging_level
-```
-
-````
-
-`````
-
-`````{py:class} Config(**data: typing.Any)
+`````{py:class} Config
 :canonical: agentsociety.configs.Config
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.configs.Config
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.configs.Config.__init__
 ```
 
 ````{py:attribute} llm
@@ -284,13 +227,151 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-````{py:attribute} advanced
-:canonical: agentsociety.configs.Config.advanced
-:type: agentsociety.configs.AdvancedConfig
+````{py:attribute} logging_level
+:canonical: agentsociety.configs.Config.logging_level
+:type: str
 :value: >
    'Field(...)'
 
-```{autodoc2-docstring} agentsociety.configs.Config.advanced
+```{autodoc2-docstring} agentsociety.configs.Config.logging_level
+```
+
+````
+
+`````
+
+`````{py:class} TaskLoaderConfig
+:canonical: agentsociety.configs.TaskLoaderConfig
+
+Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.configs.TaskLoaderConfig
+```
+
+````{py:attribute} task_type
+:canonical: agentsociety.configs.TaskLoaderConfig.task_type
+:type: type[agentsociety.taskloader.Task]
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.configs.TaskLoaderConfig.task_type
+```
+
+````
+
+````{py:attribute} file_path
+:canonical: agentsociety.configs.TaskLoaderConfig.file_path
+:type: str
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.configs.TaskLoaderConfig.file_path
+```
+
+````
+
+````{py:attribute} shuffle
+:canonical: agentsociety.configs.TaskLoaderConfig.shuffle
+:type: bool
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.configs.TaskLoaderConfig.shuffle
+```
+
+````
+
+`````
+
+`````{py:class} IndividualConfig
+:canonical: agentsociety.configs.IndividualConfig
+
+Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.configs.IndividualConfig
+```
+
+````{py:attribute} name
+:canonical: agentsociety.configs.IndividualConfig.name
+:type: str
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.configs.IndividualConfig.name
+```
+
+````
+
+````{py:attribute} llm
+:canonical: agentsociety.configs.IndividualConfig.llm
+:type: typing.List[agentsociety.llm.LLMConfig]
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.configs.IndividualConfig.llm
+```
+
+````
+
+````{py:attribute} env
+:canonical: agentsociety.configs.IndividualConfig.env
+:type: agentsociety.configs.env.EnvConfig
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.configs.IndividualConfig.env
+```
+
+````
+
+````{py:attribute} id
+:canonical: agentsociety.configs.IndividualConfig.id
+:type: uuid.UUID
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.configs.IndividualConfig.id
+```
+
+````
+
+````{py:attribute} individual
+:canonical: agentsociety.configs.IndividualConfig.individual
+:type: agentsociety.configs.agent.AgentConfig
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.configs.IndividualConfig.individual
+```
+
+````
+
+````{py:attribute} task_loader
+:canonical: agentsociety.configs.IndividualConfig.task_loader
+:type: agentsociety.configs.TaskLoaderConfig
+:value: >
+   None
+
+```{autodoc2-docstring} agentsociety.configs.IndividualConfig.task_loader
+```
+
+````
+
+````{py:attribute} logging_level
+:canonical: agentsociety.configs.IndividualConfig.logging_level
+:type: str
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.configs.IndividualConfig.logging_level
+```
+
+````
+
+````{py:method} serialize_id(id, info)
+:canonical: agentsociety.configs.IndividualConfig.serialize_id
+
+```{autodoc2-docstring} agentsociety.configs.IndividualConfig.serialize_id
 ```
 
 ````

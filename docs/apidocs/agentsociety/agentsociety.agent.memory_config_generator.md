@@ -16,7 +16,9 @@
 :align: left
 
 * - {py:obj}`MemoryAttribute <agentsociety.agent.memory_config_generator.MemoryAttribute>`
-  -
+  - ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryAttribute
+    :summary:
+    ```
 * - {py:obj}`MemoryConfig <agentsociety.agent.memory_config_generator.MemoryConfig>`
   - ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryConfig
     :summary:
@@ -47,6 +49,10 @@
     ```
 * - {py:obj}`default_memory_config_supervisor <agentsociety.agent.memory_config_generator.default_memory_config_supervisor>`
   - ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.default_memory_config_supervisor
+    :summary:
+    ```
+* - {py:obj}`default_memory_config_solver <agentsociety.agent.memory_config_generator.default_memory_config_solver>`
+  - ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.default_memory_config_solver
     :summary:
     ```
 * - {py:obj}`_memory_config_load_file <agentsociety.agent.memory_config_generator._memory_config_load_file>`
@@ -83,10 +89,13 @@
 
 ````
 
-`````{py:class} MemoryAttribute(**data: typing.Any)
+`````{py:class} MemoryAttribute
 :canonical: agentsociety.agent.memory_config_generator.MemoryAttribute
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryAttribute
+```
 
 ````{py:attribute} name
 :canonical: agentsociety.agent.memory_config_generator.MemoryAttribute.name
@@ -156,18 +165,12 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} MemoryConfig(**data: typing.Any)
+`````{py:class} MemoryConfig
 :canonical: agentsociety.agent.memory_config_generator.MemoryConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryConfig
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryConfig.__init__
 ```
 
 ````{py:attribute} attributes
@@ -217,6 +220,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 :canonical: agentsociety.agent.memory_config_generator.default_memory_config_supervisor
 
 ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.default_memory_config_supervisor
+```
+````
+
+````{py:function} default_memory_config_solver(distributions: dict[str, agentsociety.agent.distribution.Distribution], class_config: typing.Optional[list[agentsociety.agent.memory_config_generator.MemoryAttribute]] = None) -> agentsociety.agent.memory_config_generator.MemoryConfig
+:canonical: agentsociety.agent.memory_config_generator.default_memory_config_solver
+
+```{autodoc2-docstring} agentsociety.agent.memory_config_generator.default_memory_config_solver
 ```
 ````
 

@@ -49,18 +49,12 @@
 
 ````
 
-`````{py:class} MapConfig(**data: typing.Any)
+`````{py:class} MapConfig
 :canonical: agentsociety.environment.mapdata.MapConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.environment.mapdata.MapConfig
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.environment.mapdata.MapConfig.__init__
 ```
 
 ````{py:attribute} file_path

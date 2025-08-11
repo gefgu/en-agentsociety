@@ -15,10 +15,6 @@
 :class: autosummary longtable
 :align: left
 
-* - {py:obj}`SimulatorConfig <agentsociety.environment.environment.SimulatorConfig>`
-  - ```{autodoc2-docstring} agentsociety.environment.environment.SimulatorConfig
-    :summary:
-    ```
 * - {py:obj}`EnvironmentConfig <agentsociety.environment.environment.EnvironmentConfig>`
   - ```{autodoc2-docstring} agentsociety.environment.environment.EnvironmentConfig
     :summary:
@@ -66,61 +62,12 @@
 ````{py:data} __all__
 :canonical: agentsociety.environment.environment.__all__
 :value: >
-   ['Environment', 'EnvironmentStarter', 'SimulatorConfig', 'EnvironmentConfig']
+   ['Environment', 'EnvironmentStarter', 'EnvironmentConfig']
 
 ```{autodoc2-docstring} agentsociety.environment.environment.__all__
 ```
 
 ````
-
-`````{py:class} SimulatorConfig(**data: typing.Any)
-:canonical: agentsociety.environment.environment.SimulatorConfig
-
-Bases: {py:obj}`pydantic.BaseModel`
-
-```{autodoc2-docstring} agentsociety.environment.environment.SimulatorConfig
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.environment.environment.SimulatorConfig.__init__
-```
-
-````{py:attribute} primary_node_ip
-:canonical: agentsociety.environment.environment.SimulatorConfig.primary_node_ip
-:type: str
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.environment.environment.SimulatorConfig.primary_node_ip
-```
-
-````
-
-````{py:attribute} max_process
-:canonical: agentsociety.environment.environment.SimulatorConfig.max_process
-:type: int
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.environment.environment.SimulatorConfig.max_process
-```
-
-````
-
-````{py:attribute} logging_level
-:canonical: agentsociety.environment.environment.SimulatorConfig.logging_level
-:type: str
-:value: >
-   'Field(...)'
-
-```{autodoc2-docstring} agentsociety.environment.environment.SimulatorConfig.logging_level
-```
-
-````
-
-`````
 
 ````{py:data} POI_START_ID
 :canonical: agentsociety.environment.environment.POI_START_ID
@@ -132,18 +79,12 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````
 
-`````{py:class} EnvironmentConfig(**data: typing.Any)
+`````{py:class} EnvironmentConfig
 :canonical: agentsociety.environment.environment.EnvironmentConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.environment.environment.EnvironmentConfig
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.environment.environment.EnvironmentConfig.__init__
 ```
 
 ````{py:attribute} model_config
@@ -163,6 +104,17 @@ Bases: {py:obj}`pydantic.BaseModel`
    'Field(...)'
 
 ```{autodoc2-docstring} agentsociety.environment.environment.EnvironmentConfig.start_tick
+```
+
+````
+
+````{py:attribute} metric_interval
+:canonical: agentsociety.environment.environment.EnvironmentConfig.metric_interval
+:type: int
+:value: >
+   'Field(...)'
+
+```{autodoc2-docstring} agentsociety.environment.environment.EnvironmentConfig.metric_interval
 ```
 
 ````
@@ -515,7 +467,7 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} EnvironmentStarter(map_config: agentsociety.environment.mapdata.MapConfig, simulator_config: agentsociety.environment.environment.SimulatorConfig, environment_config: agentsociety.environment.environment.EnvironmentConfig, s3config: agentsociety.s3.S3Config, log_dir: str, home_dir: str)
+`````{py:class} EnvironmentStarter(map_config: agentsociety.environment.mapdata.MapConfig, environment_config: agentsociety.environment.environment.EnvironmentConfig, s3config: agentsociety.s3.S3Config, log_dir: str, home_dir: str)
 :canonical: agentsociety.environment.environment.EnvironmentStarter
 
 Bases: {py:obj}`agentsociety.environment.environment.Environment`
@@ -568,6 +520,15 @@ Bases: {py:obj}`agentsociety.environment.environment.Environment`
 :async:
 
 ```{autodoc2-docstring} agentsociety.environment.environment.EnvironmentStarter.step
+```
+
+````
+
+````{py:method} get_metrics() -> list[typing.Tuple[str, float, int]]
+:canonical: agentsociety.environment.environment.EnvironmentStarter.get_metrics
+:async:
+
+```{autodoc2-docstring} agentsociety.environment.environment.EnvironmentStarter.get_metrics
 ```
 
 ````

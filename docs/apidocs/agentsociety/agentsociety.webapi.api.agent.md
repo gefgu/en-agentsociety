@@ -16,9 +16,13 @@
 :align: left
 
 * - {py:obj}`AgentChatMessage <agentsociety.webapi.api.agent.AgentChatMessage>`
-  -
+  - ```{autodoc2-docstring} agentsociety.webapi.api.agent.AgentChatMessage
+    :summary:
+    ```
 * - {py:obj}`AgentSurveyMessage <agentsociety.webapi.api.agent.AgentSurveyMessage>`
-  -
+  - ```{autodoc2-docstring} agentsociety.webapi.api.agent.AgentSurveyMessage
+    :summary:
+    ```
 ````
 
 ### Functions
@@ -159,10 +163,13 @@
 ```
 ````
 
-`````{py:class} AgentChatMessage(**data: typing.Any)
+`````{py:class} AgentChatMessage
 :canonical: agentsociety.webapi.api.agent.AgentChatMessage
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.webapi.api.agent.AgentChatMessage
+```
 
 ````{py:attribute} content
 :canonical: agentsociety.webapi.api.agent.AgentChatMessage.content
@@ -207,10 +214,13 @@ Bases: {py:obj}`pydantic.BaseModel`
 ```
 ````
 
-`````{py:class} AgentSurveyMessage(**data: typing.Any)
+`````{py:class} AgentSurveyMessage
 :canonical: agentsociety.webapi.api.agent.AgentSurveyMessage
 
 Bases: {py:obj}`pydantic.BaseModel`
+
+```{autodoc2-docstring} agentsociety.webapi.api.agent.AgentSurveyMessage
+```
 
 ````{py:attribute} survey_id
 :canonical: agentsociety.webapi.api.agent.AgentSurveyMessage.survey_id

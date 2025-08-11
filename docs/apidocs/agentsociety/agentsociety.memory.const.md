@@ -123,18 +123,12 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} SocialRelation(**data: typing.Any)
+`````{py:class} SocialRelation
 :canonical: agentsociety.memory.const.SocialRelation
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.memory.const.SocialRelation
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.memory.const.SocialRelation.__init__
 ```
 
 ````{py:attribute} source_id

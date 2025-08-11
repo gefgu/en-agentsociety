@@ -3,7 +3,7 @@ import uuid
 
 from pydantic import BaseModel, Field, field_serializer
 
-from ..environment import MapConfig, SimulatorConfig
+from ..environment import MapConfig
 from ..llm import LLMConfig
 from .agent import AgentConfig, InstitutionAgentClass
 from .env import EnvConfig
@@ -62,18 +62,6 @@ class AgentsConfig(BaseModel):
         return [func.__name__ for func in init_funcs]
 
 
-class AdvancedConfig(BaseModel):
-    """Advanced configuration for the simulation."""
-
-    simulator: SimulatorConfig = Field(
-        default_factory=lambda: SimulatorConfig.model_validate({})
-    )
-    """Simulator configuration"""
-
-    logging_level: str = Field("INFO")
-    """Logging level"""
-
-
 class Config(BaseModel):
     """Configuration for the simulation."""
 
@@ -92,11 +80,9 @@ class Config(BaseModel):
     exp: ExpConfig
     """Experiment configuration"""
 
-    advanced: AdvancedConfig = Field(
-        default_factory=lambda: AdvancedConfig.model_validate({})
-    )
-    """Advanced configuration for the simulation (keep it empty if you don't need it)"""
-    
+    logging_level: str = Field("INFO")
+    """Logging level"""
+
 
 class TaskLoaderConfig(BaseModel):
     """Configuration for the task loader."""

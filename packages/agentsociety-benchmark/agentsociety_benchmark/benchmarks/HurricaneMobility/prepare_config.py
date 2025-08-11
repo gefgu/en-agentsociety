@@ -1,6 +1,6 @@
 from pathlib import Path
 from agentsociety.agent import CitizenAgentBase
-from agentsociety.configs import Config, AgentsConfig, AgentConfig, MapConfig, ExpConfig, WorkflowStepConfig, AdvancedConfig, EnvironmentConfig, WorkflowType
+from agentsociety.configs import Config, AgentsConfig, AgentConfig, MapConfig, ExpConfig, WorkflowStepConfig, EnvironmentConfig, WorkflowType
 from agentsociety_benchmark.utils.agent_loader import load_agent_class
 from agentsociety_benchmark.cli import BenchmarkConfig
 
@@ -76,9 +76,7 @@ def prepare_config(benchmark_config: BenchmarkConfig, agent_config: AgentConfig,
                 start_tick=0,
             ),
         ),
-        advanced=AdvancedConfig(
-            logging_level="INFO"
-        )
+        logging_level="INFO",
     )
     
     return simulation_config

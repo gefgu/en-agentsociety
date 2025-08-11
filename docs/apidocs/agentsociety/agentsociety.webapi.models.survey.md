@@ -135,18 +135,12 @@ Bases: {py:obj}`agentsociety.webapi.models._base.Base`
 
 `````
 
-``````{py:class} ApiSurvey(**data: typing.Any)
+``````{py:class} ApiSurvey
 :canonical: agentsociety.webapi.models.survey.ApiSurvey
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.models.survey.ApiSurvey
-```
-
-```{rubric} Initialization
-```
-
-```{autodoc2-docstring} agentsociety.webapi.models.survey.ApiSurvey.__init__
 ```
 
 ````{py:attribute} id
