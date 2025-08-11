@@ -12,10 +12,3 @@ python:
 sphinx:
   configuration: docs/conf.py
   fail_on_warning: false
-
-# 多语言配置
-# ReadTheDocs 会自动为每个语言创建单独的构建
-# 中文作为默认语言
-formats:
-  - pdf
-  - epub
