@@ -186,7 +186,7 @@ const SurveyTable = () => {
                                     key: 'delete',
                                     label: (
                                         <Popconfirm
-                                            title="Are you sure to delete this survey?"
+                                            title={t('survey.deleteConfirm')}
                                             onConfirm={() => handleDelete(record.id)}
                                         >
                                             <span style={{ color: '#ff4d4f' }}>{t('survey.table.delete')}</span>
@@ -202,30 +202,6 @@ const SurveyTable = () => {
             ),
         },
     ];
-
-    // 使用useMemo优化模型构建，避免不必要的重新创建
-    const model = useMemo(() => {
-        try {
-            const currentData = formValues.data || editingSurvey.data || '{}';
-            const surveyData = JSON.parse(currentData);
-            const modelData = {
-                title: formValues.name || editingSurvey.name || '未命名问卷',
-                ...surveyData
-            };
-            const newModel = new Model(modelData);
-            newModel.showCompleteButton = false;
-            return newModel;
-        } catch (e) {
-            console.error('Failed to parse JSON data:', e);
-            // 如果解析失败，至少显示标题
-            const fallbackModel = new Model({
-                title: formValues.name || editingSurvey.name || '未命名问卷',
-                pages: []
-            });
-            fallbackModel.showCompleteButton = false;
-            return fallbackModel;
-        }
-    }, [formValues, editingSurvey.data, editingSurvey.name]);
 
     return (
         <>
@@ -249,7 +225,7 @@ const SurveyTable = () => {
                         items={[
                             {
                                 key: 'builder',
-                                label: '可视化构建器',
+                                label: t('survey.visualBuilder'),
                                 children: (
                                     <Flex>
                                         <div style={{ width: '100%' }}>
@@ -261,7 +237,7 @@ const SurveyTable = () => {
                                                 }}
                                                 onFinish={handleSubmit}
                                             >
-                                                <Form.Item label="问卷名称" name="name" rules={[
+                                                <Form.Item label={t('survey.surveyName')} name="name" rules={[
                                                     { required: true, message: t('survey.pleaseInputName') },
                                                 ]}>
                                                     <Input />
@@ -288,7 +264,7 @@ const SurveyTable = () => {
                             },
                             {
                                 key: 'json',
-                                label: 'JSON编辑器',
+                                label: t('survey.jsonEditor'),
                                 children: (
                                     <Flex>
                         <Form

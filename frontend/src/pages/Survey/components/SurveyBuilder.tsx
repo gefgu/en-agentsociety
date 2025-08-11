@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Form, Input, Select, Space, List, Modal, InputNumber, Typography, Row, Col, Tag, Popconfirm } from 'antd';
 import { PlusOutlined, DeleteOutlined, EditOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -26,6 +27,7 @@ interface SurveyBuilderProps {
 }
 
 const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
+    const { t } = useTranslation();
     const [questions, setQuestions] = useState<Question[]>([]);
     // const [surveyTitle, setSurveyTitle] = useState('');
     // const [surveyDescription, setSurveyDescription] = useState('');
@@ -130,10 +132,10 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
 
     const getQuestionTypeText = (type: string) => {
         const typeMap = {
-            text: '文本输入',
-            radiogroup: '单选题',
-            checkbox: '多选题',
-            rating: '评分题'
+            text: t('survey.builder.questionTypes.text'),
+            radiogroup: t('survey.builder.questionTypes.radiogroup'),
+            checkbox: t('survey.builder.questionTypes.checkbox'),
+            rating: t('survey.builder.questionTypes.rating')
         };
         return typeMap[type] || type;
     };
@@ -164,10 +166,10 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
             </Card> */}
 
             <Card 
-                title="问题列表"
+                title={t('survey.builder.questionList')}
                 extra={
                     <Button type="primary" icon={<PlusOutlined />} onClick={() => showQuestionModal()}>
-                        添加问题
+                        {t('survey.builder.addQuestion')}
                     </Button>
                 }
             >
@@ -198,7 +200,7 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
                                 />,
                                 <Popconfirm
                                     key="delete"
-                                    title="确定要删除这个问题吗？"
+                                    title={t('survey.builder.deleteConfirm')}
                                     onConfirm={() => deleteQuestion(index)}
                                 >
                                     <Button size="small" danger icon={<DeleteOutlined />} />
@@ -216,11 +218,11 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
                                     <div>
                                         {item.type === 'radiogroup' || item.type === 'checkbox' ? (
                                             <Text type="secondary">
-                                                选项: {item.choices?.map(c => c.text).join(', ')}
+                                                {t('survey.builder.choices')}: {item.choices?.map(c => c.text).join(', ')}
                                             </Text>
                                         ) : item.type === 'rating' ? (
                                             <Text type="secondary">
-                                                评分范围: {item.rateMin} - {item.rateMax}
+                                                {t('survey.builder.ratingRange')}: {item.rateMin} - {item.rateMax}
                                             </Text>
                                         ) : null}
                                     </div>
@@ -231,13 +233,13 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
                 />
                 {questions.length === 0 && (
                     <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
-                        还没有添加任何问题。点击"添加问题"开始构建您的问卷。
+                        {t('survey.builder.noQuestions')}
                     </div>
                 )}
             </Card>
 
             <Modal
-                title={editingQuestion ? '编辑问题' : '添加问题'}
+                title={editingQuestion ? t('survey.builder.editQuestion') : t('survey.builder.addQuestion')}
                 open={isModalVisible}
                 onCancel={() => setIsModalVisible(false)}
                 footer={null}
@@ -250,22 +252,22 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
                 >
                     <Form.Item
                         name="title"
-                        label="问题标题"
-                        rules={[{ required: true, message: '请输入问题标题' }]}
+                        label={t('survey.builder.questionTitle')}
+                        rules={[{ required: true, message: t('survey.builder.pleaseInputQuestionTitle') }]}
                     >
-                        <Input placeholder="请输入问题标题" />
+                        <Input placeholder={t('survey.builder.pleaseInputQuestionTitle')} />
                     </Form.Item>
 
                     <Form.Item
                         name="type"
-                        label="问题类型"
-                        rules={[{ required: true, message: '请选择问题类型' }]}
+                        label={t('survey.builder.questionType')}
+                        rules={[{ required: true, message: t('survey.builder.pleaseSelectQuestionType') }]}
                     >
-                        <Select placeholder="选择问题类型">
-                            <Option value="text">文本输入</Option>
-                            <Option value="radiogroup">单选题</Option>
-                            <Option value="checkbox">多选题</Option>
-                            <Option value="rating">评分题</Option>
+                        <Select placeholder={t('survey.builder.selectQuestionType')}>
+                            <Option value="text">{t('survey.builder.questionTypes.text')}</Option>
+                            <Option value="radiogroup">{t('survey.builder.questionTypes.radiogroup')}</Option>
+                            <Option value="checkbox">{t('survey.builder.questionTypes.checkbox')}</Option>
+                            <Option value="rating">{t('survey.builder.questionTypes.rating')}</Option>
                         </Select>
                     </Form.Item>
 
@@ -278,9 +280,9 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
                                     <Form.List name="choices">
                                         {(fields, { add, remove }) => (
                                             <>
-                                                <Form.Item label="选项">
+                                                <Form.Item label={t('survey.builder.choices')}>
                                                     <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                                                        添加选项
+                                                        {t('survey.builder.addChoice')}
                                                     </Button>
                                                 </Form.Item>
                                                 {fields.map(({ key, name, ...restField }) => (
@@ -289,9 +291,9 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
                                                             {...restField}
                                                             name={name}
                                                             style={{ flex: 1, marginBottom: 0 }}
-                                                            rules={[{ required: true, message: '请输入选项内容' }]}
+                                                            rules={[{ required: true, message: t('survey.builder.pleaseInputChoiceContent') }]}
                                                         >
-                                                            <Input placeholder="请输入选项内容" />
+                                                            <Input placeholder={t('survey.builder.pleaseInputChoiceContent')} />
                                                         </Form.Item>
                                                         <DeleteOutlined 
                                                             onClick={() => remove(name)} 
@@ -311,7 +313,7 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
                                         <Col span={8}>
                                             <Form.Item
                                                 name="rateMin"
-                                                label="最小值"
+                                                label={t('survey.builder.minValue')}
                                                 initialValue={1}
                                             >
                                                 <InputNumber min={0} />
@@ -320,7 +322,7 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
                                         <Col span={8}>
                                             <Form.Item
                                                 name="rateMax"
-                                                label="最大值"
+                                                label={t('survey.builder.maxValue')}
                                                 initialValue={5}
                                             >
                                                 <InputNumber min={1} />
@@ -329,7 +331,7 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
                                         <Col span={8}>
                                             <Form.Item
                                                 name="rateStep"
-                                                label="步长"
+                                                label={t('survey.builder.stepValue')}
                                                 initialValue={1}
                                             >
                                                 <InputNumber min={0.1} step={0.1} />
@@ -346,10 +348,10 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
                     <Form.Item>
                         <Space>
                             <Button type="primary" htmlType="submit">
-                                {editingQuestion ? '更新问题' : '添加问题'}
+                                {editingQuestion ? t('survey.builder.updateQuestion') : t('survey.builder.addQuestion')}
                             </Button>
                             <Button onClick={() => setIsModalVisible(false)}>
-                                取消
+                                {t('survey.builder.cancel')}
                             </Button>
                         </Space>
                     </Form.Item>

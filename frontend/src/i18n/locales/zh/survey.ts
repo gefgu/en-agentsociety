@@ -4,6 +4,8 @@ export default {
     surveyName: "问卷名称",
     surveyJsonData: "问卷JSON数据",
     onlineVisualEditor: "在线可视化编辑器",
+    visualBuilder: "可视化构建器",
+    jsonEditor: "JSON编辑器",
     submit: "提交",
     delete: "删除",
     deleteConfirm: "确定要删除这个问卷吗？",
@@ -26,5 +28,32 @@ export default {
         action: "操作",
         edit: "编辑",
         delete: "删除"
+    },
+    builder: {
+        questionList: "问题列表",
+        addQuestion: "添加问题",
+        editQuestion: "编辑问题",
+        updateQuestion: "更新问题",
+        deleteConfirm: "确定要删除这个问题吗？",
+        noQuestions: "还没有添加任何问题。点击\"添加问题\"开始构建您的问卷。",
+        questionTitle: "问题标题",
+        questionType: "问题类型",
+        pleaseInputQuestionTitle: "请输入问题标题",
+        pleaseSelectQuestionType: "请选择问题类型",
+        selectQuestionType: "选择问题类型",
+        choices: "选项",
+        addChoice: "添加选项",
+        pleaseInputChoiceContent: "请输入选项内容",
+        ratingRange: "评分范围",
+        minValue: "最小值",
+        maxValue: "最大值",
+        stepValue: "步长",
+        cancel: "取消",
+        questionTypes: {
+            text: "文本输入",
+            radiogroup: "单选题",
+            checkbox: "多选题",
+            rating: "评分题"
+        }
     }
 }; 

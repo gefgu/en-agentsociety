@@ -4,6 +4,8 @@ export default {
     surveyName: "Survey Name",
     surveyJsonData: "Survey JSON Data",
     onlineVisualEditor: "Online Visual Editor",
+    visualBuilder: "Visual Builder",
+    jsonEditor: "JSON Editor",
     submit: "Submit",
     delete: "Delete",
     deleteConfirm: "Are you sure to delete this survey?",
@@ -26,5 +28,32 @@ export default {
         action: "Action",
         edit: "Edit",
         delete: "Delete"
+    },
+    builder: {
+        questionList: "Question List",
+        addQuestion: "Add Question",
+        editQuestion: "Edit Question",
+        updateQuestion: "Update Question",
+        deleteConfirm: "Are you sure to delete this question?",
+        noQuestions: "No questions added yet. Click \"Add Question\" to start building your survey.",
+        questionTitle: "Question Title",
+        questionType: "Question Type",
+        pleaseInputQuestionTitle: "Please input question title",
+        pleaseSelectQuestionType: "Please select question type",
+        selectQuestionType: "Select question type",
+        choices: "Choices",
+        addChoice: "Add Choice",
+        pleaseInputChoiceContent: "Please input choice content",
+        ratingRange: "Rating Range",
+        minValue: "Min Value",
+        maxValue: "Max Value",
+        stepValue: "Step Value",
+        cancel: "Cancel",
+        questionTypes: {
+            text: "Text Input",
+            radiogroup: "Single Choice",
+            checkbox: "Multiple Choice",
+            rating: "Rating"
+        }
     }
 }; 
