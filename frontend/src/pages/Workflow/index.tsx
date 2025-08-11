@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Card, Space, Modal, message, Tooltip, Input, Popconfirm, Form, Col, Row, InputNumber, Select, Divider } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, ExportOutlined, MinusCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { Table, Button, Card, Space, Modal, message, Tooltip, Input, Popconfirm, Form, Col, Row, InputNumber, Select, Divider, Alert } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, ExportOutlined, MinusCircleOutlined, QuestionCircleOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { ConfigWrapper, WorkflowStepConfig, ExpConfig } from '../../types/config';
 import { WorkflowType } from '../../utils/enums';
 import { fetchCustom } from '../../components/fetch';
@@ -602,6 +602,25 @@ const WorkflowList: React.FC = () => {
                     <Card
                         title={t('workflow.settingsTitle')}
                     >
+                        {/* 文档链接提示 */}
+                        <Alert
+                            message={
+                                <Space size={4}>
+                                    <InfoCircleOutlined />
+                                    {t('workflow.documentationTip')}
+                                    <a 
+                                        href="https://agentsociety.readthedocs.io/en/latest/03-config/05-exp.html#workflowstep" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                    >
+                                        {t('workflow.documentationLink')}
+                                    </a>
+                                </Space>
+                            }
+                            type="info"
+                            showIcon={false}
+                            style={{ marginBottom: 16 }}
+                        />
                         <Form.List
                             name="config"
                         >
@@ -660,7 +679,7 @@ const WorkflowList: React.FC = () => {
                                                                     label: (
                                                                         <Space size={4}>
                                                                             {t('workflow.update_state_intervene')}
-                                                                            <Tooltip title={t('workflow.update_state_intervene')}>
+                                                                            <Tooltip title={t('workflow.update_state_interveneTooltip')}>
                                                                                 <QuestionCircleOutlined style={{ color: '#1890ff' }} />
                                                                             </Tooltip>
                                                                         </Space>
@@ -671,7 +690,7 @@ const WorkflowList: React.FC = () => {
                                                                     label: (
                                                                         <Space size={4}>
                                                                             {t('workflow.message_intervene')}
-                                                                            <Tooltip title={t('workflow.message_intervene')}>
+                                                                            <Tooltip title={t('workflow.message_interveneTooltip')}>
                                                                                 <QuestionCircleOutlined style={{ color: '#1890ff' }} />
                                                                             </Tooltip>
                                                                         </Space>
@@ -682,7 +701,7 @@ const WorkflowList: React.FC = () => {
                                                                     label: (
                                                                         <Space size={4}>
                                                                             {t('workflow.survey')}
-                                                                            <Tooltip title={t('workflow.survey')}>
+                                                                            <Tooltip title={t('workflow.surveyTooltip')}>
                                                                                 <QuestionCircleOutlined style={{ color: '#1890ff' }} />
                                                                             </Tooltip>
                                                                         </Space>
