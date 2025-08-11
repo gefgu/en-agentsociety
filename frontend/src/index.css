@@ -127,11 +127,33 @@ body {
     background: rgba(22, 119, 255, 0.01);
 }
 
+.left-info-block-status {
+    min-width: 47%;
+    margin: 2px 2px;
+    padding: 8px;
+
+    border-radius: 4px;
+    align-items: center;
+
+    background: rgba(22, 119, 255, 0.01);
+}
+
 .left-info-block.selected {
     background: rgba(22, 119, 255, 0.2);
 }
 
+.left-info-block-status.selected {
+    background: rgba(22, 119, 255, 0.2);
+}
+
 .left-info-block:hover {
+    background: rgba(22, 119, 255, 0.1);
+    cursor: pointer;
+    /* 增加动画效果 */
+    transition: background 0.3s;
+}
+
+.left-info-block-status:hover {
     background: rgba(22, 119, 255, 0.1);
     cursor: pointer;
     /* 增加动画效果 */

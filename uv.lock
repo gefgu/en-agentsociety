@@ -24,7 +24,7 @@ dev = [
 
 [[package]]
 name = "agentsociety"
-version = "1.5.0rc3"
+version = "1.5.0"
 source = { editable = "packages/agentsociety" }
 dependencies = [
     { name = "aiodocker" },

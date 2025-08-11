@@ -70,10 +70,10 @@ const InfoPanel = observer(() => {
                     </Tooltip>
                 </Flex>
                 {agent && agent.profile && Object.entries(agent.profile).map(([k, v]) => (
-                    <Flex className='left-info-block' justify='space-between' key={k}>
+                    <Flex className={k === 'background_story' ? 'left-info-block-status' : 'left-info-block'} justify='space-between' key={k}>
                         <span style={{ fontWeight: 400, color: "#909399" }}>{getTranslatedKey(k)}:&nbsp;&nbsp;</span>
                         <Tooltip title={<span>{v}</span>}>
-                            <span style={{ fontWeight: 600, color: "#007AFF", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '150px' }}>{v}</span>
+                            <span style={{ fontWeight: 600, color: "#007AFF", overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '70%', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', lineHeight: '1.2em' }}>{v}</span>
                         </Tooltip>
                     </Flex>
                 ))}
@@ -89,9 +89,8 @@ const InfoPanel = observer(() => {
                     <span>{agent.action}</span>
                     <Flex wrap justify="left">
                         {agent.status && (typeof agent.status === 'string' ? (
-                            <Flex className='left-info-block' justify='space-between'>
-                                <span style={{ fontWeight: 400, color: "#909399" }}>{getTranslatedKey('status')}:&nbsp;&nbsp;</span>
-                                <span style={{ fontWeight: 600, color: "#007AFF", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '150px' }}>{agent.status}</span>
+                            <Flex className='left-info-block-status' justify='space-between'>
+                                <span style={{ fontWeight: 600, color: "#007AFF" }}>{agent.status}</span>
                             </Flex>
                         ) : (
                             Object.entries(agent.status).map(([k, v]) => (
