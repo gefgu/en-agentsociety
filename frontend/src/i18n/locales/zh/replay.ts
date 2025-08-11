@@ -37,9 +37,9 @@ export default {
         age: "年龄",
         education: "教育水平",
         occupation: "职业",
-        marriageStatus: "婚姻状况",
+        marriage_status: "婚姻状况",
         persona: "人格角色",
-        backgroundStory: "背景故事",
+        background_story: "背景故事",
         status: "状态"
     },
     timelinePlayer: {

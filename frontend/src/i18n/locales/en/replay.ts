@@ -37,9 +37,9 @@ export default {
         age: "Age",
         education: "Education",
         occupation: "Occupation",
-        marriageStatus: "Marriage Status",
+        marriage_status: "Marriage Status",
         persona: "Persona",
-        backgroundStory: "Background Story",
+        background_story: "Background Story",
         status: "Status"
     },
     timelinePlayer: {
