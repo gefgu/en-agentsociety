@@ -20,10 +20,17 @@ interface EditingSurvey {
 const EmptySurvey: EditingSurvey = {
     id: '',
     name: '',
-    data: '',
+    data: JSON.stringify({
+        pages: [
+            {
+                name: 'page1',
+                elements: []
+            }
+        ]
+    }, null, 2),
 };
 
-const SurveyTable = () => {
+const SurveyTableInner = () => {
     const { t } = useTranslation();
     const { message } = App.useApp();
     const [surveys, setSurveys] = useState<Survey[]>([]);
@@ -42,7 +49,7 @@ const SurveyTable = () => {
             form.setFieldsValue(values);
             setFormValues(values);
         }
-    }, [editingSurvey, form]);
+    }, [editingSurvey.id, editingSurvey.name, editingSurvey.data, form]);
 
     useEffect(() => {
         fetchSurveys();
@@ -92,7 +99,19 @@ const SurveyTable = () => {
     };
 
     const handleCreate = () => {
-        setEditingSurvey(EmptySurvey);
+        const newSurvey = {
+            id: '',
+            name: '',
+            data: JSON.stringify({
+                pages: [
+                    {
+                        name: 'page1',
+                        elements: []
+                    }
+                ]
+            }, null, 2),
+        };
+        setEditingSurvey(newSurvey);
         setActiveTab('builder');
         setOpen(true);
     };
@@ -233,7 +252,10 @@ const SurveyTable = () => {
                                                 form={form}
                                                 layout="vertical"
                                                 onValuesChange={(changedValues, allValues) => {
-                                                    setFormValues(allValues);
+                                                    // 只在真正有变化时更新，避免无限循环
+                                                    if (JSON.stringify(allValues) !== JSON.stringify(formValues)) {
+                                                        setFormValues(allValues);
+                                                    }
                                                 }}
                                                 onFinish={handleSubmit}
                                             >
@@ -242,13 +264,17 @@ const SurveyTable = () => {
                                                 ]}>
                                                     <Input />
                                                 </Form.Item>
+                                                {/* 隐藏的data字段，用于存储JSON数据 */}
+                                                <Form.Item name="data" style={{ display: 'none' }}>
+                                                    <Input type="hidden" />
+                                                </Form.Item>
                                                 <div style={{ maxHeight: '50vh', overflow: 'auto' }}>
                                                     <SurveyBuilder
                                                         value={formValues.data || ''}
-                                                        onChange={useCallback((value) => {
+                                                        onChange={(value) => {
                                                             form.setFieldValue('data', value);
                                                             setFormValues(prev => ({ ...prev, data: value }));
-                                                        }, [form])}
+                                                        }}
                                                     />
                                                 </div>
                                                 <Button type="primary" htmlType='submit' style={{ marginTop: 8 }}>
@@ -289,13 +315,13 @@ const SurveyTable = () => {
                                 name="data"
                                 rules={[
                                     { required: true, message: t('survey.pleaseInputData') },
-                                    {
-                                        validator: (_, value, callback) => {
+                                    {    
+                                        validator: (_, value) => {
                                             try {
                                                 JSON.parse(value);
-                                                callback();
+                                                return Promise.resolve();
                                             } catch (e) {
-                                                callback(t('survey.invalidJson'));
+                                                return Promise.reject(new Error(t('survey.invalidJson')));
                                             }
                                         }
                                     },
@@ -325,6 +351,14 @@ const SurveyTable = () => {
                 </Modal>
             </Flex>
         </>
+    );
+};
+
+const SurveyTable = () => {
+    return (
+        <App>
+            <SurveyTableInner />
+        </App>
     );
 };
 

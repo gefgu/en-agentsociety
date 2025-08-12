@@ -64,9 +64,25 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
                 }
             ]
         };
-        onChange?.(JSON.stringify(surveyJson, null, 2));
+        const jsonString = JSON.stringify(surveyJson, null, 2);
+        onChange?.(jsonString);
     // }, [questions, surveyTitle, surveyDescription, onChange]);
-    }, [questions, onChange]);
+    }, [questions]);
+
+    // 初始化时如果没有值，生成默认的空JSON结构
+    useEffect(() => {
+        if (!value) {
+            const initialJson = {
+                pages: [
+                    {
+                        name: 'page1',
+                        elements: []
+                    }
+                ]
+            };
+            onChange?.(JSON.stringify(initialJson, null, 2));
+        }
+    }, [value]);
 
     const showQuestionModal = (question?: Question, index?: number) => {
         if (question && index !== undefined) {
