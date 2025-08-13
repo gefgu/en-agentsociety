@@ -10,6 +10,8 @@ export default {
     uploadHint: "Click or drag map file to this area to upload",
     uploadDescription: "Please upload a single .pb file.",
     currentFile: "Current File",
+    documentationHint: "Learn how to create custom maps using mosstool:",
+    documentationLink: "View Documentation",
     messages: {
         loadFailed: "Failed to load maps",
         deleteSuccess: "Map deleted successfully",

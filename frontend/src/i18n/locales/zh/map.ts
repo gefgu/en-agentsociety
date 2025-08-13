@@ -10,6 +10,8 @@ export default {
     uploadHint: "点击或拖拽地图文件到此区域上传",
     uploadDescription: "请上传单个.pb文件。",
     currentFile: "当前文件",
+    documentationHint: "了解如何使用 mosstool 创建自定义地图：",
+    documentationLink: "查看文档",
     messages: {
         loadFailed: "加载地图失败",
         deleteSuccess: "地图删除成功",

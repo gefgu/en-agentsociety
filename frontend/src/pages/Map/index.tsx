@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Card, Space, Modal, message, Tooltip, Input, Popconfirm, Form, Row, Col, Upload } from 'antd';
+import { Table, Button, Card, Space, Modal, message, Tooltip, Input, Popconfirm, Form, Row, Col, Upload, Alert } from 'antd';
 import {
     PlusOutlined,
     EditOutlined,
     DeleteOutlined,
     EyeOutlined,
     DownloadOutlined,
-    InboxOutlined
+    InboxOutlined,
+    InfoCircleOutlined
 } from '@ant-design/icons';
 import { MapConfig, ConfigWrapper } from '../../types/config';
 import { fetchCustom, postDownloadCustom, WITH_AUTH } from '../../components/fetch';
@@ -336,6 +337,24 @@ const Map: React.FC = () => {
                 </Card>
 
                 <Card title={t('map.settingsTitle')}>
+                    <Alert
+                        message={
+                            <Space size={4}>
+                                <InfoCircleOutlined />
+                                {t('map.documentationHint')}
+                                <a 
+                                    href="https://agentsociety.readthedocs.io/en/latest/02-development-guide/03-map.html" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                >
+                                    {t('map.documentationLink')}
+                                </a>
+                            </Space>
+                        }
+                        type="info"
+                        showIcon={false}
+                        style={{ marginBottom: 16 }}
+                    />
                     <Form
                         layout="vertical"
                         onValuesChange={handleValuesChange}
