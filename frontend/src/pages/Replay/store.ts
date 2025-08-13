@@ -37,10 +37,10 @@ export class ReplayStore {
     experiment?: Experiment
     _timeline: Time[] = []
     _currentTime?: Time = undefined
-    _agent2Profile: Map<string, AgentProfile> = new Map()
+    _agent2Profile: Map<number, AgentProfile> = new Map()
     globalPrompt?: string = undefined
-    agents: Map<string, Agent> = new Map()
-    clickedAgentID?: string = undefined
+    agents: Map<number, Agent> = new Map()
+    clickedAgentID?: number = undefined
     _clickedAgentStatuses: AgentStatus[] = []
     _clickedAgentDialogs: AgentDialog[] = []
     _clickedAgentSurveys: AgentSurvey[] = []
@@ -155,7 +155,7 @@ export class ReplayStore {
                     lat: 0,
                 }
                 let cnt = 0
-                const newAgents = new Map<string, Agent>()
+                const newAgents = new Map<number, Agent>()
                 // merge status with profile
                 agentStatuses.forEach((status) => {
                     if (!this.mapCenterDone) {
@@ -330,7 +330,7 @@ export class ReplayStore {
         await this._fetchMetrics()
     }
 
-    async setClickedAgentID(agentID?: string) {
+    async setClickedAgentID(agentID?: number) {
         this.clickedAgentID = agentID
         this._clickedAgentStatuses = []
         if (agentID === undefined) {

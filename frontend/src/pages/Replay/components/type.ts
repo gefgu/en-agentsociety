@@ -1,11 +1,11 @@
 export interface AgentProfile {
-    id: string;
+    id: number;
     name: string;
     profile?: { [key: string]: string | number };
 }
 
 export interface AgentStatus {
-    id: string;
+    id: number;
     day: number;
     t: number;
     lng: number;
@@ -16,7 +16,7 @@ export interface AgentStatus {
 }
 
 export interface AgentDialog {
-    id: string;
+    id: number;
     day: number;
     t: number;
     type: 0 | 1 | 2;
@@ -25,7 +25,7 @@ export interface AgentDialog {
 }
 
 export interface AgentSurvey {
-    id: string;
+    id: number;
     day: number;
     t: number;
     survey_id: string;

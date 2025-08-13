@@ -84,13 +84,15 @@ export const RightPanel = observer(() => {
             return { role: "self", name: agent?.name };
         }
         if (m.type === 1) {
-            if (m.speaker === "" || m.speaker === agent?.id) {
+            if (m.speaker === "" || m.speaker === agent?.id.toString()) {
                 return { role: "self", name: agent?.name };
             } else {
-                const otherId = m.speaker;
+                const otherId = parseInt(m.speaker);
                 const otherAgent = store.agents.get(otherId);
-                // console.log('get role for', JSON.stringify(m), 'get agent', JSON.stringify(otherAgent));
-                return { role: "otherAgent", name: otherAgent?.name };
+                if (otherAgent === undefined) {
+                    return { role: "otherAgent", name: "Unknown" };
+                }
+                return { role: "otherAgent", name: otherAgent.name };
             }
         }
         if (m.type === 2) {
