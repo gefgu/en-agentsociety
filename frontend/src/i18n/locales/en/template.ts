@@ -52,5 +52,6 @@ export default {
         name: "Name",
         type: "Type",
         description: "Description"
-    }
+    },
+    noConfigurableParameters: "No configurable parameters"
 }; 

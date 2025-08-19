@@ -271,9 +271,10 @@ const AgentConfiguration: React.FC = observer(() => {
 
 const BlockConfiguration: React.FC<{
   onBlockContextChange?: (contexts: BlockContextInfo[]) => void;
-}> = observer(({ onBlockContextChange }) => {
+  selectedBlocks: string[];
+  onSelectedBlocksChange: (blocks: string[]) => void;
+}> = observer(({ onBlockContextChange, selectedBlocks, onSelectedBlocksChange }) => {
   const [blocks, setBlocks] = useState<BlockInfo[]>([]);
-  const [selectedBlocks, setSelectedBlocks] = useState<string[]>([]);
   const [blockParams, setBlockParams] = useState<Record<string, ApiParam[]>>({});
   const [blockContexts, setBlockContexts] = useState<Record<string, ApiNameTypeDescription[]>>({});
   const [blockSuggestions, setBlockSuggestions] = useState<Record<string, any[]>>({});
@@ -330,7 +331,7 @@ const BlockConfiguration: React.FC<{
   };
 
   const handleBlockSelect = (values: string[]) => {
-    setSelectedBlocks(values);
+    onSelectedBlocksChange(values);
 
     const newBlocks = values.filter(block => !blockParams[block]);
     newBlocks.forEach(block => {
@@ -385,7 +386,7 @@ const BlockConfiguration: React.FC<{
           const blockInfo = blocks.find(b => b.block_name === blockName);
           const params = blockParams[blockName];
 
-          if (!blockInfo || !params) return null;
+          if (!blockInfo) return null;
 
           return (
             <Card
@@ -394,18 +395,24 @@ const BlockConfiguration: React.FC<{
               size="small"
               style={{ marginBottom: '8px' }}
             >
-              {params.map((paramInfo) => (
-                <div key={paramInfo.name}>
-                  {renderDynamicFormItem(
-                    paramInfo.name,
-                    paramInfo,
-                    {
-                      name: ['blocks', blockName, 'params', paramInfo.name],
-                      suggestions: blockSuggestions[blockName]
-                    }
-                  )}
+              {params && params.length > 0 ? (
+                params.map((paramInfo) => (
+                  <div key={paramInfo.name}>
+                    {renderDynamicFormItem(
+                      paramInfo.name,
+                      paramInfo,
+                      {
+                        name: ['blocks', blockName, 'params', paramInfo.name],
+                        suggestions: blockSuggestions[blockName]
+                      }
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: '8px', color: '#999', textAlign: 'center' }}>
+                  {t('template.noConfigurableParameters')}
                 </div>
-              ))}
+              )}
             </Card>
           );
         })}
@@ -528,6 +535,7 @@ const AgentTemplateForm: React.FC = observer(() => {
   const navigate = useNavigate();
   const { id } = useParams();
   const agentTemplateStore = useContext(AgentTemplateStoreContext);
+  const [selectedBlocks, setSelectedBlocks] = useState<string[]>([]);
 
   const agentTypeOptions = [
     { value: 'citizen', label: t('template.agentTypes.citizen') },
@@ -548,12 +556,17 @@ const AgentTemplateForm: React.FC = observer(() => {
             agent_params: template.agent_params,
             blocks: template.blocks
           });
+          // 初始化选中的blocks
+          if (template.blocks) {
+            setSelectedBlocks(Object.keys(template.blocks));
+          }
         }
       } else {
         form.setFieldsValue({
           description: '',
           profile: {},
         });
+        setSelectedBlocks([]);
       }
     }
     fetch();
@@ -598,11 +611,15 @@ const AgentTemplateForm: React.FC = observer(() => {
 
       // 构造 blocks
       const blocksData: Record<string, any> = {};
-      if (values.blocks) {
-        Object.entries(values.blocks).forEach(([blockName, block]: [string, any]) => {
-          blocksData[blockName] = block.params || {};
-        });
-      }
+      // 确保所有选中的block都被包含，即使没有参数
+      selectedBlocks.forEach(blockName => {
+        if (values.blocks && values.blocks[blockName]) {
+          blocksData[blockName] = values.blocks[blockName].params || {};
+        } else {
+          // 如果block没有参数配置，创建空对象
+          blocksData[blockName] = {};
+        }
+      });
 
       const templateData = {
         name: values.name || 'Default Template Name',
@@ -729,7 +746,11 @@ const AgentTemplateForm: React.FC = observer(() => {
                 top: 0
               }}>
                 <AgentConfiguration />
-                <BlockConfiguration onBlockContextChange={agentTemplateStore.setBlockContexts} />
+                <BlockConfiguration 
+                  onBlockContextChange={agentTemplateStore.setBlockContexts}
+                  selectedBlocks={selectedBlocks}
+                  onSelectedBlocksChange={setSelectedBlocks}
+                />
               </div>
             </Col>
 

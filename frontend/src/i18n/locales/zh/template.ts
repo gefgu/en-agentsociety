@@ -52,5 +52,6 @@ export default {
         name: "名称",
         type: "类型",
         description: "描述"
-    }
+    },
+    noConfigurableParameters: "无可配置参数"
 }; 
