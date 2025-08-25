@@ -6,7 +6,7 @@
 
 ## 第一部分：智能体在AgentSociety中的定位
 
-### 1. 智能体的核心定位
+### 智能体的核心定位
 
 在AgentSociety中，智能体是**城市环境中的自主执行单元**。每个智能体都代表着一个能够在城市环境中独立运行、自主决策的实体，它们构成了整个城市模拟系统的核心组成部分。
 
@@ -17,7 +17,7 @@
 - **交互性**：智能体能够与其他智能体、环境系统进行交互
 - **适应性**：智能体能够根据环境变化调整自己的行为策略
 
-### 2. 智能体的基本职责
+### 智能体的基本职责
 
 作为城市环境中的自主执行单元，智能体承担着以下核心职责：
 
@@ -42,7 +42,7 @@
 
 智能体的工作流是智能体运行的核心机制，定义了智能体如何响应和执行任务。理解工作流对于开发有效的智能体至关重要。
 
-### 1. 主动工作流：run()方法
+### 主动工作流：run()方法
 
 智能体的主要工作流通过`run()`方法实现，这是一个统一的入口点，协调整个执行流程。
 
@@ -134,7 +134,7 @@ async def after_blocks(self):
 
 这两个方法会自动调用所有注册Block的`before_forward()`和`after_forward()`方法，确保Block的生命周期管理，**请勿修改**。Block相关内容请参考后续内容。
 
-### 2. 被动响应工作流：react_to_intervention()
+### 被动响应工作流：react_to_intervention()
 
 智能体需要响应外部干预，这是通过`react_to_intervention()`方法实现的。
 
@@ -166,7 +166,7 @@ async def react_to_intervention(self, intervention_message: str):
 
 **重要说明**：`react_to_intervention()`方法是**必须实现的**，用于处理外部干预。
 
-### 3. CitizenAgentBase的被动响应工作流
+### CitizenAgentBase的被动响应工作流
 
 CitizenAgentBase除了标准的run()工作流外，还提供了几个核心的被动响应方法，这些方法都有默认实现，是可选的实现项。
 
@@ -260,7 +260,7 @@ async def do_interview(self, question: str) -> str:
 - 支持深度交流，比问卷调查更注重个人经历
 - 可以重写以提供更个性化的回答
 
-### 4. 工作流的执行顺序
+### 工作流的执行顺序
 
 智能体的工作流执行遵循以下顺序：
 
@@ -299,7 +299,7 @@ async def do_interview(self, question: str) -> str:
 
 AgentSociety的智能体设计基于四个核心要素，每个要素都有其独特的设计原理和价值。理解这些核心要素的设计思想对于开发高质量的智能体至关重要。
 
-### 1. 记忆系统设计原理
+### 记忆系统设计原理
 
 智能体的记忆系统是智能体能够保持连续性和学习能力的关键。AgentSociety设计了两种不同类型的记忆，每种都有其特定的用途和优势。
 
@@ -414,7 +414,7 @@ async def recall_related_memories(self, query: str, limit: int = 5):
     return memories
 ```
 
-### 2. Block系统设计原理
+### Block系统设计原理
 
 Block系统是AgentSociety中实现复杂智能体行为的关键设计。Block类似于神经网络中的层，每个Block负责特定的功能模块。
 
@@ -712,7 +712,7 @@ threshold = self.params.threshold
 max_iterations = self.params.max_iterations
 ```
 
-### 3. 工具集合设计原理
+### 工具集合设计原理
 
 AgentToolbox为智能体提供了统一的核心工具集合，每个工具都有其特定的作用和价值。
 
@@ -752,7 +752,7 @@ class MyAgent(Agent):
         weather = self.environment.sense("weather")
 ```
 
-### 4. 上下文系统设计原理
+### 上下文系统设计原理
 
 上下文系统不仅为智能体的长时间执行提供了统一的上下文入口，同时也为智能体和Block之间提供了灵活的信息传递机制。
 
@@ -966,7 +966,7 @@ class ContextAwareAgent(Agent):
 
 本小节通过具体的开发示例，展示如何在AgentSociety中构建不同类型的智能体。每个示例都包含完整的需求分析、设计思路和实现代码。
 
-### 1. 智能体类型与基类选择
+### 智能体类型与基类选择
 
 在开始开发之前，需要根据智能体的功能和职责选择合适的基类：
 
@@ -979,7 +979,7 @@ class ContextAwareAgent(Agent):
 | 央行机构 | NBSAgentBase | 货币政策、金融监管、宏观调控 | 模拟央行的货币政策 |
 | 其他机构 | InstitutionAgentBase | 通用机构功能、组织管理 | 模拟其他类型的机构 |
 
-### 2. 开发流程概述
+### 开发流程概述
 
 智能体开发遵循以下基本流程：
 
@@ -990,7 +990,7 @@ class ContextAwareAgent(Agent):
 5. **逻辑实现**：实现智能体的核心行为逻辑
 6. **测试验证**：验证智能体的功能和性能
 
-### 3. 完整开发案例：新闻传播智能体
+### 完整开发案例：新闻传播智能体
 
 #### 需求分析
 

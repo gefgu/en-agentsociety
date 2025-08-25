@@ -25,7 +25,6 @@ msgid "AgentSociety"
 msgstr "AgentSociety"
 
 #: ../../index.md:3
-#, fuzzy
 msgid ""
 "**AgentSociety**是一个基于大模型智能体与第一性原理构建的大型社会模拟器。 "
 "通过该平台，我们可以快速创建和管理城市模拟环境中的智能体，高效地开展复杂城市场景的建模与模拟。 "
