@@ -51,7 +51,7 @@
 
 ### API
 
-````{py:class} AgentContext
+````{py:class} AgentContext(/, **data: typing.Any)
 :canonical: agentsociety.agent.context.AgentContext
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -59,14 +59,26 @@ Bases: {py:obj}`pydantic.BaseModel`
 ```{autodoc2-docstring} agentsociety.agent.context.AgentContext
 ```
 
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.agent.context.AgentContext.__init__
+```
+
 ````
 
-````{py:class} BlockContext
+````{py:class} BlockContext(/, **data: typing.Any)
 :canonical: agentsociety.agent.context.BlockContext
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.agent.context.BlockContext
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.agent.context.BlockContext.__init__
 ```
 
 ````

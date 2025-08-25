@@ -49,12 +49,18 @@
 
 ````
 
-`````{py:class} NBSAgentConfig
+`````{py:class} NBSAgentConfig(/, **data: typing.Any)
 :canonical: agentsociety.cityagent.nbsagent.NBSAgentConfig
 
 Bases: {py:obj}`agentsociety.agent.AgentParams`
 
 ```{autodoc2-docstring} agentsociety.cityagent.nbsagent.NBSAgentConfig
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.cityagent.nbsagent.NBSAgentConfig.__init__
 ```
 
 ````{py:attribute} time_diff

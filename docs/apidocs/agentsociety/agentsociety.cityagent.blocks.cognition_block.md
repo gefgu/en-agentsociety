@@ -16,9 +16,7 @@
 :align: left
 
 * - {py:obj}`CognitionBlockParams <agentsociety.cityagent.blocks.cognition_block.CognitionBlockParams>`
-  - ```{autodoc2-docstring} agentsociety.cityagent.blocks.cognition_block.CognitionBlockParams
-    :summary:
-    ```
+  -
 * - {py:obj}`CognitionBlock <agentsociety.cityagent.blocks.cognition_block.CognitionBlock>`
   - ```{autodoc2-docstring} agentsociety.cityagent.blocks.cognition_block.CognitionBlock
     :summary:
@@ -68,13 +66,10 @@
 ```
 ````
 
-`````{py:class} CognitionBlockParams
+`````{py:class} CognitionBlockParams(/, **data: typing.Any)
 :canonical: agentsociety.cityagent.blocks.cognition_block.CognitionBlockParams
 
 Bases: {py:obj}`agentsociety.agent.BlockParams`
-
-```{autodoc2-docstring} agentsociety.cityagent.blocks.cognition_block.CognitionBlockParams
-```
 
 ````{py:attribute} top_k
 :canonical: agentsociety.cityagent.blocks.cognition_block.CognitionBlockParams.top_k

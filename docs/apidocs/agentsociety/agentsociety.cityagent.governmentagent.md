@@ -49,12 +49,18 @@
 
 ````
 
-`````{py:class} GovernmentAgentConfig
+`````{py:class} GovernmentAgentConfig(/, **data: typing.Any)
 :canonical: agentsociety.cityagent.governmentagent.GovernmentAgentConfig
 
 Bases: {py:obj}`agentsociety.agent.AgentParams`
 
 ```{autodoc2-docstring} agentsociety.cityagent.governmentagent.GovernmentAgentConfig
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.cityagent.governmentagent.GovernmentAgentConfig.__init__
 ```
 
 ````{py:attribute} time_diff

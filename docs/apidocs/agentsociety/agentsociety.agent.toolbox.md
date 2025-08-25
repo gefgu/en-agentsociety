@@ -49,12 +49,18 @@
 
 ````
 
-``````{py:class} CustomTool
+``````{py:class} CustomTool(/, **data: typing.Any)
 :canonical: agentsociety.agent.toolbox.CustomTool
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.agent.toolbox.CustomTool
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.agent.toolbox.CustomTool.__init__
 ```
 
 ````{py:attribute} name
@@ -152,12 +158,18 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ``````
 
-``````{py:class} AgentToolbox
+``````{py:class} AgentToolbox(/, **data: typing.Any)
 :canonical: agentsociety.agent.toolbox.AgentToolbox
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.agent.toolbox.AgentToolbox
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.agent.toolbox.AgentToolbox.__init__
 ```
 
 ````{py:attribute} llm

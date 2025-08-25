@@ -193,12 +193,18 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} AgentFilterConfig
+`````{py:class} AgentFilterConfig(/, **data: typing.Any)
 :canonical: agentsociety.configs.exp.AgentFilterConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.configs.exp.AgentFilterConfig
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.configs.exp.AgentFilterConfig.__init__
 ```
 
 ````{py:attribute} agent_class
@@ -233,12 +239,18 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} WorkflowStepConfig
+`````{py:class} WorkflowStepConfig(/, **data: typing.Any)
 :canonical: agentsociety.configs.exp.WorkflowStepConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.configs.exp.WorkflowStepConfig
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.configs.exp.WorkflowStepConfig.__init__
 ```
 
 ````{py:attribute} model_config
@@ -412,12 +424,18 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} ExpConfig
+`````{py:class} ExpConfig(/, **data: typing.Any)
 :canonical: agentsociety.configs.exp.ExpConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.configs.exp.ExpConfig
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.configs.exp.ExpConfig.__init__
 ```
 
 ````{py:attribute} model_config

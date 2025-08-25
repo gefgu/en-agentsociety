@@ -32,9 +32,7 @@
     :summary:
     ```
 * - {py:obj}`SocialBlockParams <agentsociety.cityagent.blocks.social_block.SocialBlockParams>`
-  - ```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialBlockParams
-    :summary:
-    ```
+  -
 * - {py:obj}`SocialBlockContext <agentsociety.cityagent.blocks.social_block.SocialBlockContext>`
   -
 * - {py:obj}`SocialBlock <agentsociety.cityagent.blocks.social_block.SocialBlock>`
@@ -203,17 +201,14 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 `````
 
-````{py:class} SocialBlockParams
+```{py:class} SocialBlockParams(/, **data: typing.Any)
 :canonical: agentsociety.cityagent.blocks.social_block.SocialBlockParams
 
 Bases: {py:obj}`agentsociety.agent.BlockParams`
 
-```{autodoc2-docstring} agentsociety.cityagent.blocks.social_block.SocialBlockParams
 ```
 
-````
-
-`````{py:class} SocialBlockContext
+`````{py:class} SocialBlockContext(/, **data: typing.Any)
 :canonical: agentsociety.cityagent.blocks.social_block.SocialBlockContext
 
 Bases: {py:obj}`agentsociety.agent.BlockContext`

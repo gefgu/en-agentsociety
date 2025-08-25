@@ -16,13 +16,9 @@
 :align: left
 
 * - {py:obj}`CreateTempDownloadLinkRequest <agentsociety.webapi.api.config.CreateTempDownloadLinkRequest>`
-  - ```{autodoc2-docstring} agentsociety.webapi.api.config.CreateTempDownloadLinkRequest
-    :summary:
-    ```
+  -
 * - {py:obj}`CreateTempDownloadLinkResponse <agentsociety.webapi.api.config.CreateTempDownloadLinkResponse>`
-  - ```{autodoc2-docstring} agentsociety.webapi.api.config.CreateTempDownloadLinkResponse
-    :summary:
-    ```
+  -
 ````
 
 ### Functions
@@ -267,13 +263,10 @@
 ```
 ````
 
-`````{py:class} CreateTempDownloadLinkRequest
+`````{py:class} CreateTempDownloadLinkRequest(/, **data: typing.Any)
 :canonical: agentsociety.webapi.api.config.CreateTempDownloadLinkRequest
 
 Bases: {py:obj}`pydantic.BaseModel`
-
-```{autodoc2-docstring} agentsociety.webapi.api.config.CreateTempDownloadLinkRequest
-```
 
 ````{py:attribute} expire_seconds
 :canonical: agentsociety.webapi.api.config.CreateTempDownloadLinkRequest.expire_seconds
@@ -288,13 +281,10 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} CreateTempDownloadLinkResponse
+`````{py:class} CreateTempDownloadLinkResponse(/, **data: typing.Any)
 :canonical: agentsociety.webapi.api.config.CreateTempDownloadLinkResponse
 
 Bases: {py:obj}`pydantic.BaseModel`
-
-```{autodoc2-docstring} agentsociety.webapi.api.config.CreateTempDownloadLinkResponse
-```
 
 ````{py:attribute} token
 :canonical: agentsociety.webapi.api.config.CreateTempDownloadLinkResponse.token

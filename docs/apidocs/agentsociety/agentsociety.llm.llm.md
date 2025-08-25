@@ -157,12 +157,18 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} LLMConfig
+`````{py:class} LLMConfig(/, **data: typing.Any)
 :canonical: agentsociety.llm.llm.LLMConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.llm.llm.LLMConfig
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.llm.llm.LLMConfig.__init__
 ```
 
 ````{py:attribute} provider

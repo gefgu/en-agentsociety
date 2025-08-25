@@ -18,17 +18,11 @@
 * - {py:obj}`DistributionType <agentsociety.webapi.models.agent_template.DistributionType>`
   -
 * - {py:obj}`ChoiceDistributionConfig <agentsociety.webapi.models.agent_template.ChoiceDistributionConfig>`
-  - ```{autodoc2-docstring} agentsociety.webapi.models.agent_template.ChoiceDistributionConfig
-    :summary:
-    ```
+  -
 * - {py:obj}`UniformIntDistributionConfig <agentsociety.webapi.models.agent_template.UniformIntDistributionConfig>`
-  - ```{autodoc2-docstring} agentsociety.webapi.models.agent_template.UniformIntDistributionConfig
-    :summary:
-    ```
+  -
 * - {py:obj}`NormalDistributionConfig <agentsociety.webapi.models.agent_template.NormalDistributionConfig>`
-  - ```{autodoc2-docstring} agentsociety.webapi.models.agent_template.NormalDistributionConfig
-    :summary:
-    ```
+  -
 * - {py:obj}`AgentTemplateDB <agentsociety.webapi.models.agent_template.AgentTemplateDB>`
   - ```{autodoc2-docstring} agentsociety.webapi.models.agent_template.AgentTemplateDB
     :summary:
@@ -108,13 +102,10 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} ChoiceDistributionConfig
+`````{py:class} ChoiceDistributionConfig(/, **data: typing.Any)
 :canonical: agentsociety.webapi.models.agent_template.ChoiceDistributionConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.ChoiceDistributionConfig
-```
 
 ````{py:attribute} type
 :canonical: agentsociety.webapi.models.agent_template.ChoiceDistributionConfig.type
@@ -151,13 +142,10 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} UniformIntDistributionConfig
+`````{py:class} UniformIntDistributionConfig(/, **data: typing.Any)
 :canonical: agentsociety.webapi.models.agent_template.UniformIntDistributionConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.UniformIntDistributionConfig
-```
 
 ````{py:attribute} type
 :canonical: agentsociety.webapi.models.agent_template.UniformIntDistributionConfig.type
@@ -194,13 +182,10 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} NormalDistributionConfig
+`````{py:class} NormalDistributionConfig(/, **data: typing.Any)
 :canonical: agentsociety.webapi.models.agent_template.NormalDistributionConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
-
-```{autodoc2-docstring} agentsociety.webapi.models.agent_template.NormalDistributionConfig
-```
 
 ````{py:attribute} type
 :canonical: agentsociety.webapi.models.agent_template.NormalDistributionConfig.type
@@ -449,12 +434,18 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ``````
 
-``````{py:class} ApiAgentTemplate
+``````{py:class} ApiAgentTemplate(/, **data: typing.Any)
 :canonical: agentsociety.webapi.models.agent_template.ApiAgentTemplate
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.models.agent_template.ApiAgentTemplate
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent_template.ApiAgentTemplate.__init__
 ```
 
 ````{py:attribute} tenant_id

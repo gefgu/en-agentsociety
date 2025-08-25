@@ -18,9 +18,7 @@
 * - {py:obj}`MessageKind <agentsociety.message.messager.MessageKind>`
   -
 * - {py:obj}`Message <agentsociety.message.messager.Message>`
-  - ```{autodoc2-docstring} agentsociety.message.messager.Message
-    :summary:
-    ```
+  -
 * - {py:obj}`Messager <agentsociety.message.messager.Messager>`
   - ```{autodoc2-docstring} agentsociety.message.messager.Messager
     :summary:
@@ -98,13 +96,10 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} Message
+`````{py:class} Message(/, **data: typing.Any)
 :canonical: agentsociety.message.messager.Message
 
 Bases: {py:obj}`pydantic.BaseModel`
-
-```{autodoc2-docstring} agentsociety.message.messager.Message
-```
 
 ````{py:attribute} from_id
 :canonical: agentsociety.message.messager.Message.from_id
@@ -196,9 +191,6 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ````{py:method} __hash__()
 :canonical: agentsociety.message.messager.Message.__hash__
-
-```{autodoc2-docstring} agentsociety.message.messager.Message.__hash__
-```
 
 ````
 

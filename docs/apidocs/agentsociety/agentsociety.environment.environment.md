@@ -79,12 +79,18 @@
 
 ````
 
-`````{py:class} EnvironmentConfig
+`````{py:class} EnvironmentConfig(/, **data: typing.Any)
 :canonical: agentsociety.environment.environment.EnvironmentConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.environment.environment.EnvironmentConfig
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.environment.environment.EnvironmentConfig.__init__
 ```
 
 ````{py:attribute} model_config

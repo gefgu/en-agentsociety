@@ -87,12 +87,18 @@
 
 ````
 
-`````{py:class} SaveProfileRequest
+`````{py:class} SaveProfileRequest(/, **data: typing.Any)
 :canonical: agentsociety.webapi.api.agent_profiles.SaveProfileRequest
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.api.agent_profiles.SaveProfileRequest
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.webapi.api.agent_profiles.SaveProfileRequest.__init__
 ```
 
 ````{py:attribute} name

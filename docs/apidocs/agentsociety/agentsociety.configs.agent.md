@@ -105,12 +105,18 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-`````{py:class} AgentConfig
+`````{py:class} AgentConfig(/, **data: typing.Any)
 :canonical: agentsociety.configs.agent.AgentConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.configs.agent.AgentConfig
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.configs.agent.AgentConfig.__init__
 ```
 
 ````{py:attribute} model_config

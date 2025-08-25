@@ -28,9 +28,7 @@
     :summary:
     ```
 * - {py:obj}`EconomyBlockParams <agentsociety.cityagent.blocks.economy_block.EconomyBlockParams>`
-  - ```{autodoc2-docstring} agentsociety.cityagent.blocks.economy_block.EconomyBlockParams
-    :summary:
-    ```
+  -
 * - {py:obj}`EconomyBlockContext <agentsociety.cityagent.blocks.economy_block.EconomyBlockContext>`
   -
 * - {py:obj}`EconomyBlock <agentsociety.cityagent.blocks.economy_block.EconomyBlock>`
@@ -220,13 +218,10 @@ Bases: {py:obj}`agentsociety.agent.Block`
 
 `````
 
-`````{py:class} EconomyBlockParams
+`````{py:class} EconomyBlockParams(/, **data: typing.Any)
 :canonical: agentsociety.cityagent.blocks.economy_block.EconomyBlockParams
 
 Bases: {py:obj}`agentsociety.agent.BlockParams`
-
-```{autodoc2-docstring} agentsociety.cityagent.blocks.economy_block.EconomyBlockParams
-```
 
 ````{py:attribute} worktime_estimation_prompt
 :canonical: agentsociety.cityagent.blocks.economy_block.EconomyBlockParams.worktime_estimation_prompt
@@ -285,7 +280,7 @@ Bases: {py:obj}`agentsociety.agent.BlockParams`
 
 `````
 
-```{py:class} EconomyBlockContext
+```{py:class} EconomyBlockContext(/, **data: typing.Any)
 :canonical: agentsociety.cityagent.blocks.economy_block.EconomyBlockContext
 
 Bases: {py:obj}`agentsociety.agent.BlockContext`

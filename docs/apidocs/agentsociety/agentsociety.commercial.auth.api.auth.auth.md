@@ -16,9 +16,7 @@
 :align: left
 
 * - {py:obj}`CasdoorConfig <agentsociety.commercial.auth.api.auth.auth.CasdoorConfig>`
-  - ```{autodoc2-docstring} agentsociety.commercial.auth.api.auth.auth.CasdoorConfig
-    :summary:
-    ```
+  -
 * - {py:obj}`Casdoor <agentsociety.commercial.auth.api.auth.auth.Casdoor>`
   - ```{autodoc2-docstring} agentsociety.commercial.auth.api.auth.auth.Casdoor
     :summary:
@@ -103,13 +101,10 @@
 
 ````
 
-`````{py:class} CasdoorConfig
+`````{py:class} CasdoorConfig(/, **data: typing.Any)
 :canonical: agentsociety.commercial.auth.api.auth.auth.CasdoorConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
-
-```{autodoc2-docstring} agentsociety.commercial.auth.api.auth.auth.CasdoorConfig
-```
 
 ````{py:attribute} enabled
 :canonical: agentsociety.commercial.auth.api.auth.auth.CasdoorConfig.enabled

@@ -111,12 +111,18 @@ Bases: {py:obj}`enum.IntEnum`
 
 `````
 
-``````{py:class} ApiAgentProfile
+``````{py:class} ApiAgentProfile(/, **data: typing.Any)
 :canonical: agentsociety.webapi.models.agent.ApiAgentProfile
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.models.agent.ApiAgentProfile
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent.ApiAgentProfile.__init__
 ```
 
 ````{py:attribute} id
@@ -172,12 +178,18 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ``````
 
-``````{py:class} ApiAgentStatus
+``````{py:class} ApiAgentStatus(/, **data: typing.Any)
 :canonical: agentsociety.webapi.models.agent.ApiAgentStatus
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.models.agent.ApiAgentStatus
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent.ApiAgentStatus.__init__
 ```
 
 ````{py:attribute} id
@@ -299,12 +311,18 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ``````
 
-``````{py:class} ApiAgentSurvey
+``````{py:class} ApiAgentSurvey(/, **data: typing.Any)
 :canonical: agentsociety.webapi.models.agent.ApiAgentSurvey
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.models.agent.ApiAgentSurvey
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent.ApiAgentSurvey.__init__
 ```
 
 ````{py:attribute} id
@@ -393,12 +411,18 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ``````
 
-``````{py:class} ApiAgentDialog
+``````{py:class} ApiAgentDialog(/, **data: typing.Any)
 :canonical: agentsociety.webapi.models.agent.ApiAgentDialog
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.models.agent.ApiAgentDialog
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent.ApiAgentDialog.__init__
 ```
 
 ````{py:attribute} id
@@ -498,12 +522,18 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ``````
 
-``````{py:class} ApiGlobalPrompt
+``````{py:class} ApiGlobalPrompt(/, **data: typing.Any)
 :canonical: agentsociety.webapi.models.agent.ApiGlobalPrompt
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.models.agent.ApiGlobalPrompt
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.webapi.models.agent.ApiGlobalPrompt.__init__
 ```
 
 ````{py:attribute} day

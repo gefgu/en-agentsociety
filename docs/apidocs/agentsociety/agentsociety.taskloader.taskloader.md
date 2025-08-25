@@ -31,12 +31,18 @@
 
 ### API
 
-`````{py:class} TaskStatus
+`````{py:class} TaskStatus(*args, **kwds)
 :canonical: agentsociety.taskloader.taskloader.TaskStatus
 
 Bases: {py:obj}`enum.Enum`
 
 ```{autodoc2-docstring} agentsociety.taskloader.taskloader.TaskStatus
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.taskloader.taskloader.TaskStatus.__init__
 ```
 
 ````{py:attribute} PENDING

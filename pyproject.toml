@@ -11,4 +11,10 @@ dev = [
     "ipykernel>=6.29.5",
     "ruff>=0.11.13",
     "sphinx>=8.2.3",
+    "furo>=2024.8.6",
+    "myst-parser>=4.0.0",
+    "sphinx-autodoc2>=0.5.0",
+    "myst==1.0.4",
+    "sphinx-intl==2.1.0",
+    "linkify-it-py==2.0.3",
 ]

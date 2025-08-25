@@ -367,12 +367,18 @@ Bases: {py:obj}`agentsociety.webapi.models._base.Base`
 
 `````
 
-``````{py:class} ApiAccount
+``````{py:class} ApiAccount(/, **data: typing.Any)
 :canonical: agentsociety.commercial.billing.models.ApiAccount
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.commercial.billing.models.ApiAccount
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.commercial.billing.models.ApiAccount.__init__
 ```
 
 ````{py:attribute} balance
@@ -428,12 +434,18 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 ``````
 
-``````{py:class} ApiBill
+``````{py:class} ApiBill(/, **data: typing.Any)
 :canonical: agentsociety.commercial.billing.models.ApiBill
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.commercial.billing.models.ApiBill
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.commercial.billing.models.ApiBill.__init__
 ```
 
 ````{py:attribute} id

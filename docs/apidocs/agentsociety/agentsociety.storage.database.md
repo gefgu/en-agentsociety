@@ -65,12 +65,18 @@
 
 ````
 
-`````{py:class} DatabaseConfig
+`````{py:class} DatabaseConfig(/, **data: typing.Any)
 :canonical: agentsociety.storage.database.DatabaseConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.storage.database.DatabaseConfig
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.storage.database.DatabaseConfig.__init__
 ```
 
 ````{py:attribute} enabled

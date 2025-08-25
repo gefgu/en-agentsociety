@@ -69,7 +69,7 @@
 
 ````
 
-````{py:class} AgentParams
+````{py:class} AgentParams(/, **data: typing.Any)
 :canonical: agentsociety.agent.agent_base.AgentParams
 
 Bases: {py:obj}`pydantic.BaseModel`
@@ -77,14 +77,26 @@ Bases: {py:obj}`pydantic.BaseModel`
 ```{autodoc2-docstring} agentsociety.agent.agent_base.AgentParams
 ```
 
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.AgentParams.__init__
+```
+
 ````
 
-`````{py:class} GatherQuery
+`````{py:class} GatherQuery(/, **data: typing.Any)
 :canonical: agentsociety.agent.agent_base.GatherQuery
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.agent.agent_base.GatherQuery
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.GatherQuery.__init__
 ```
 
 ````{py:attribute} key
@@ -133,12 +145,18 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} AgentType
+`````{py:class} AgentType(*args, **kwds)
 :canonical: agentsociety.agent.agent_base.AgentType
 
 Bases: {py:obj}`enum.Enum`
 
 ```{autodoc2-docstring} agentsociety.agent.agent_base.AgentType
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.agent.agent_base.AgentType.__init__
 ```
 
 ````{py:attribute} Unspecified
@@ -306,9 +324,6 @@ Bases: {py:obj}`abc.ABC`
 
 ````{py:method} __getstate__()
 :canonical: agentsociety.agent.agent_base.Agent.__getstate__
-
-```{autodoc2-docstring} agentsociety.agent.agent_base.Agent.__getstate__
-```
 
 ````
 

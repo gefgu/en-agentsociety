@@ -16,9 +16,7 @@
 :align: left
 
 * - {py:obj}`MemoryAttribute <agentsociety.agent.memory_config_generator.MemoryAttribute>`
-  - ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryAttribute
-    :summary:
-    ```
+  -
 * - {py:obj}`MemoryConfig <agentsociety.agent.memory_config_generator.MemoryConfig>`
   - ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryConfig
     :summary:
@@ -89,13 +87,10 @@
 
 ````
 
-`````{py:class} MemoryAttribute
+`````{py:class} MemoryAttribute(/, **data: typing.Any)
 :canonical: agentsociety.agent.memory_config_generator.MemoryAttribute
 
 Bases: {py:obj}`pydantic.BaseModel`
-
-```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryAttribute
-```
 
 ````{py:attribute} name
 :canonical: agentsociety.agent.memory_config_generator.MemoryAttribute.name
@@ -165,12 +160,18 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} MemoryConfig
+`````{py:class} MemoryConfig(/, **data: typing.Any)
 :canonical: agentsociety.agent.memory_config_generator.MemoryConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryConfig
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.agent.memory_config_generator.MemoryConfig.__init__
 ```
 
 ````{py:attribute} attributes

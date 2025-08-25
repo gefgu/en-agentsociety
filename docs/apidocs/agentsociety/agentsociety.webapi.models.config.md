@@ -174,12 +174,18 @@ Bases: {py:obj}`agentsociety.webapi.models._base.Base`
 
 `````
 
-``````{py:class} ApiLLMConfig
+``````{py:class} ApiLLMConfig(/, **data: typing.Any)
 :canonical: agentsociety.webapi.models.config.ApiLLMConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.models.config.ApiLLMConfig
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.webapi.models.config.ApiLLMConfig.__init__
 ```
 
 ````{py:attribute} tenant_id
@@ -459,12 +465,18 @@ Bases: {py:obj}`agentsociety.webapi.models._base.Base`
 
 `````
 
-``````{py:class} ApiMapConfig
+``````{py:class} ApiMapConfig(/, **data: typing.Any)
 :canonical: agentsociety.webapi.models.config.ApiMapConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.models.config.ApiMapConfig
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.webapi.models.config.ApiMapConfig.__init__
 ```
 
 ````{py:attribute} tenant_id
@@ -669,12 +681,18 @@ Bases: {py:obj}`agentsociety.webapi.models._base.Base`
 
 `````
 
-``````{py:class} ApiAgentConfig
+``````{py:class} ApiAgentConfig(/, **data: typing.Any)
 :canonical: agentsociety.webapi.models.config.ApiAgentConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.models.config.ApiAgentConfig
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.webapi.models.config.ApiAgentConfig.__init__
 ```
 
 ````{py:attribute} tenant_id
@@ -879,12 +897,18 @@ Bases: {py:obj}`agentsociety.webapi.models._base.Base`
 
 `````
 
-``````{py:class} ApiWorkflowConfig
+``````{py:class} ApiWorkflowConfig(/, **data: typing.Any)
 :canonical: agentsociety.webapi.models.config.ApiWorkflowConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.models.config.ApiWorkflowConfig
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.webapi.models.config.ApiWorkflowConfig.__init__
 ```
 
 ````{py:attribute} tenant_id

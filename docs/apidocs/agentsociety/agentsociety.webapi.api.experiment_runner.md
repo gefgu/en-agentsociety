@@ -121,12 +121,18 @@
 
 ````
 
-`````{py:class} ConfigPrimaryKey
+`````{py:class} ConfigPrimaryKey(/, **data: typing.Any)
 :canonical: agentsociety.webapi.api.experiment_runner.ConfigPrimaryKey
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.ConfigPrimaryKey
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.ConfigPrimaryKey.__init__
 ```
 
 ````{py:attribute} tenant_id
@@ -153,12 +159,18 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} ExperimentRequest
+`````{py:class} ExperimentRequest(/, **data: typing.Any)
 :canonical: agentsociety.webapi.api.experiment_runner.ExperimentRequest
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.ExperimentRequest
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.ExperimentRequest.__init__
 ```
 
 ````{py:attribute} llm
@@ -218,12 +230,18 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} ExperimentResponse
+`````{py:class} ExperimentResponse(/, **data: typing.Any)
 :canonical: agentsociety.webapi.api.experiment_runner.ExperimentResponse
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.ExperimentResponse
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.webapi.api.experiment_runner.ExperimentResponse.__init__
 ```
 
 ````{py:attribute} id

@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AgentSociety 1.5\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-11 09:59+0800\n"
+"POT-Creation-Date: 2025-08-25 17:05+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -22,277 +22,219 @@ msgstr ""
 
 #: ../../index.md:1
 msgid "AgentSociety"
-msgstr ""
+msgstr "AgentSociety"
 
 #: ../../index.md:3
 #, fuzzy
-msgid "**AgentSociety**是一个基于社会学第一原理构建的社会模拟引擎和社会科学研究工具包。通过该平台，我们可以快速创建和管理城市模拟环境中的智能体，高效地开展复杂城市场景的建模与模拟。借此，我们希望通过大模型智能体推动社会科学研究方法论的范式转变，实现从行为模拟到心智建模，从静态推导到动态共存，以及从实验室工具到社会基础设施的发展。"
-msgstr "Are you ok"
+msgid ""
+"**AgentSociety**是一个基于大模型智能体与第一性原理构建的大型社会模拟器。 "
+"通过该平台，我们可以快速创建和管理城市模拟环境中的智能体，高效地开展复杂城市场景的建模与模拟。 "
+"借此，AgentSociety从社会学第一性原理出发，以助力推动社会科学研究范式变革，推动了社会学领域从行为模拟到心智建模、从静态推演到动态共生、从实验室工具到社会基础设施的发展。"
+msgstr ""
+"**AgentSociety** is a large-scale social simulator built on large model agents and first-principles. "
+"Through this platform, we can quickly create and manage agents in urban simulation environments, efficiently conducting modeling and simulation of complex urban scenarios. "
+"Thereby, AgentSociety, starting from the first principles of sociology, helps drive the transformation of social science research paradigms, promoting the development of sociology from behavior simulation to mental modeling, from static deduction to dynamic symbiosis, and from laboratory tools to social infrastructure."
 
-#: ../../index.md:5
+#: ../../index.md:7
 msgid "论文可在[arXiv](https://arxiv.org/abs/2502.08691)获取："
-msgstr ""
-
-#: ../../index.md:16
-msgid "![AgentSociety的整体结构](_static/framework-overview.jpg)"
-msgstr ""
-
-#: ../../index.md:16
-msgid "AgentSociety的整体结构"
-msgstr ""
+msgstr "The paper is available on [arXiv](https://arxiv.org/abs/2502.08691):"
 
 #: ../../index.md:18
-msgid "特点"
-msgstr ""
+msgid "![AgentSociety的整体结构](_static/framework-overview.jpg)"
+msgstr "![Overall structure of AgentSociety](_static/framework-overview.jpg)"
+
+#: ../../index.md:18
+msgid "AgentSociety的整体结构"
+msgstr "Overall structure of AgentSociety"
 
 #: ../../index.md:20
+msgid "特点"
+msgstr "Features"
+
+#: ../../index.md:22
 msgid ""
 "🌟 **大模型驱动的社会人类智能体**: "
 "基于社会学理论，构建具有\"类人心智\"的社会智能体，赋予他们情感、需求、动机和认知能力。这些智能体在这些心理属性的驱动下执行复杂的社会行为，如移动、就业、消费和社交互动。我们还支持自定义[智能体](02"
 "-development-guide/04-agent.md)。"
 msgstr ""
+"🌟 **Large Model-Driven Social Human Agents**: "
+"Based on sociological theory, we build social agents with \"human-like minds,\" endowing them with emotions, needs, motivations, and cognitive abilities. These agents perform complex social behaviors such as movement, employment, consumption, and social interaction driven by these psychological attributes. We also support custom [agents](02"
+"-development-guide/04-agent.md)."
 
-#: ../../index.md:22
+#: ../../index.md:24
 msgid ""
 "🌟 **真实的城市社会环境**: "
 "它准确地模拟了对社会人类生存至关重要的城市空间，复制了交通、基础设施和公共资源。这使智能体能够在现实世界的约束下互动，形成生动的社会生态系统。"
 msgstr ""
+"🌟 **Realistic Urban Social Environment**: "
+"It accurately simulates urban spaces critical to human social survival, replicating transportation, infrastructure, and public resources. This enables agents to interact under real-world constraints, forming a vivid social ecosystem."
 
-#: ../../index.md:24
+#: ../../index.md:26
 msgid ""
 "🌟 **大规模社会模拟引擎**: 通过采用异步模拟架构和 [Ray](https://www.ray.io/) "
 "分布式计算框架实现了智能体之间的高效、可扩展的互动和社会行为模拟。"
 msgstr ""
+"🌟 **Large-Scale Social Simulation Engine**: Through adopting an asynchronous simulation architecture and the [Ray](https://www.ray.io/) "
+"distributed computing framework, it achieves efficient and scalable interaction and social behavior simulation among agents."
 
-#: ../../index.md:26
+#: ../../index.md:28
 msgid ""
 "🌟 **社会科学研究工具包**: 它全面支持一系列社会学研究方法，包括各类[干预](02-development-"
 "guide/01-experiment.md#exp-intervene)手段、[数据收集](02-development-"
 "guide/01-experiment.md#message-interception)和[数据分析](02-development-"
 "guide/05-data-analysis.md)能力，促进从定性研究到定量分析的深入社会科学研究。"
 msgstr ""
+"🌟 **Social Science Research Toolkit**: It comprehensively supports a range of sociological research methods, including various [intervention](02-development-"
+"guide/01-experiment.md#exp-intervene) techniques, [data collection](02-development-"
+"guide/01-experiment.md#message-interception), and [data analysis](02-development-"
+"guide/05-data-analysis.md) capabilities, facilitating in-depth social science research from qualitative studies to quantitative analysis."
 
-#: ../../index.md:28
+#: ../../index.md:30
 msgid "在线平台"
-msgstr ""
-
-#: ../../index.md:30
-msgid "![AgentSociety在线演示](_static/ui-demo.gif)"
-msgstr ""
-
-#: ../../index.md:30
-msgid "AgentSociety在线演示"
-msgstr ""
+msgstr "Online Platform"
 
 #: ../../index.md:32
-msgid "我们提供了AgentSociety的[在线平台](https://agentsociety.fiblab.net/)，帮助感兴趣的用户快速体验AgentSociety的模拟能力。"
-msgstr ""
+msgid "![AgentSociety在线演示](_static/ui-demo.gif)"
+msgstr "![AgentSociety Online Demo](_static/ui-demo.gif)"
+
+#: ../../index.md:32
+msgid "AgentSociety在线演示"
+msgstr "AgentSociety Online Demo"
 
 #: ../../index.md:34
-msgid "安装"
-msgstr ""
+msgid "我们提供了AgentSociety的[在线平台](https://agentsociety.fiblab.net/)，帮助感兴趣的用户快速体验AgentSociety的模拟能力。"
+msgstr "We provide an [online platform](https://agentsociety.fiblab.net/) for AgentSociety, helping interested users quickly experience the simulation capabilities of AgentSociety."
 
-#: ../../index.md:40
+#: ../../index.md:36
+msgid "安装"
+msgstr "Installation"
+
+#: ../../index.md:42
 msgid ""
 "参考[快速入门](01-get-started/index.md)部分了解[前置准备](01-get-"
 "started/01-prerequisites.md)和[安装](01-get-started/02-installation.md) 说明。"
 msgstr ""
+"Refer to the [Quick Start](01-get-started/index.md) section for information on [Prerequisites](01-get-"
+"started/01-prerequisites.md) and [Installation](01-get-started/02-installation.md) instructions."
 
-#: ../../index.md:42
+#: ../../index.md:44
 msgid "除了AgentSociety平台本身外，我们还提供了一些PyPI包用于扩展AgentSociety的功能："
-msgstr ""
+msgstr "In addition to the AgentSociety platform itself, we also provide some PyPI packages to extend the functionality of AgentSociety:"
 
-#: ../../index.md:43
+#: ../../index.md:45
 msgid ""
 "[agentsociety-community](https://github.com/tsinghua-fib-"
 "lab/AgentSociety/tree/main/packages/agentsociety-"
 "community)：社区库，用于发布自定义智能体与Block。"
 msgstr ""
+"[agentsociety-community](https://github.com/tsinghua-fib-"
+"lab/AgentSociety/tree/main/packages/agentsociety-"
+"community): Community library for publishing custom agents and Blocks."
 
-#: ../../index.md:44
+#: ../../index.md:46
 msgid ""
 "[agentsociety-benchmark](https://github.com/tsinghua-fib-"
 "lab/AgentSociety/tree/main/packages/agentsociety-"
 "benchmark)：基准测试库，基于AgentSociety框架评估智能体在多种城市任务上的性能。"
 msgstr ""
-
-#: ../../index.md:46
-msgid "相关工作"
-msgstr ""
+"[agentsociety-benchmark](https://github.com/tsinghua-fib-"
+"lab/AgentSociety/tree/main/packages/agentsociety-"
+"benchmark): Benchmark library for evaluating agent performance on various urban tasks based on the AgentSociety framework."
 
 #: ../../index.md:48
-msgid "基于AgentSociety平台，已形成一系列相关工作，包括："
-msgstr ""
+msgid "使用案例"
+msgstr "Use Cases"
 
-#: ../../index.md:49
+#: ../../index.md:50
+msgid ""
+"访问[GitHub Examples](https://github.com/tsinghua-fib-"
+"lab/AgentSociety/tree/main/examples)以查看使用案例。"
+msgstr ""
+"Visit [GitHub Examples](https://github.com/tsinghua-fib-"
+"lab/AgentSociety/tree/main/examples) to see use cases."
+
+#: ../../index.md:52
+msgid "相关工作"
+msgstr "Related Work"
+
+#: ../../index.md:54
+msgid "基于AgentSociety平台，已形成一系列相关工作，包括："
+msgstr "Based on the AgentSociety platform, a series of related works have been developed, including:"
+
+#: ../../index.md:55
 msgid ""
 "Jun Zhang, Yuwei Yan, Junbo Yan, Zhiheng Zheng, Jinghua Piao, Depeng Jin,"
 " and Yong Li. A Parallelized Framework for Simulating Large-Scale LLM "
 "Agents with Realistic Environments and Interactions, ACL 2025"
 msgstr ""
+"Jun Zhang, Yuwei Yan, Junbo Yan, Zhiheng Zheng, Jinghua Piao, Depeng Jin,"
+" and Yong Li. A Parallelized Framework for Simulating Large-Scale LLM "
+"Agents with Realistic Environments and Interactions, ACL 2025"
 
-#: ../../index.md:50
+#: ../../index.md:56
 msgid ""
 "Jinghua Piao, Yuwei Yan, Nian Li, Jun Zhang, and Yong Li. Exploring Large"
 " Language Model Agents for Piloting Social Experiments, COLM 2025"
 msgstr ""
+"Jinghua Piao, Yuwei Yan, Nian Li, Jun Zhang, and Yong Li. Exploring Large"
+" Language Model Agents for Piloting Social Experiments, COLM 2025"
 
-#: ../../index.md:51
+#: ../../index.md:57
 msgid ""
 "Nicholas Sukiennik, Yichuan Xu, Yuqing Kan, Jinghua Piao, Yuwei Yan, Chen"
 " Gao, and Yong Li. The Roots of International Perceptions: A Large-Scale "
 "LLM Simulation of US Attitude Changes Towards China, Submitted to AAAI "
 "2026"
 msgstr ""
+"Nicholas Sukiennik, Yichuan Xu, Yuqing Kan, Jinghua Piao, Yuwei Yan, Chen"
+" Gao, and Yong Li. The Roots of International Perceptions: A Large-Scale "
+"LLM Simulation of US Attitude Changes Towards China, Submitted to AAAI "
+"2026"
 
-#: ../../index.md:52
+#: ../../index.md:58
 msgid ""
 "Yuwei Yan, Jinghua Piao, Xiaochong Lan, Chenyang Shao, Pan Hui, and Yong "
 "Li. Simulating Generative Social Agents via Theory-Informed Workflow "
 "Design, Submitted to AAAI 2026"
 msgstr ""
+"Yuwei Yan, Jinghua Piao, Xiaochong Lan, Chenyang Shao, Pan Hui, and Yong "
+"Li. Simulating Generative Social Agents via Theory-Informed Workflow "
+"Design, Submitted to AAAI 2026"
 
-#: ../../index.md:53
+#: ../../index.md:59
 msgid ""
 "Jing Yi Wang, Jinghua Piao, and Yong Li. Does Reasoning Improve "
 "Rationality? Evaluating Reasoning-Enhanced LLMs Across Descriptive, "
 "Normative, and Instrumental Rationality, Submitted to EMNLP 2025"
 msgstr ""
+"Jing Yi Wang, Jinghua Piao, and Yong Li. Does Reasoning Improve "
+"Rationality? Evaluating Reasoning-Enhanced LLMs Across Descriptive, "
+"Normative, and Instrumental Rationality, Submitted to EMNLP 2025"
 
-#: ../../index.md:55
+#: ../../index.md:61
 msgid "联系我们"
-msgstr ""
+msgstr "Contact Us"
 
-#: ../../index.md:57
+#: ../../index.md:63
 msgid ""
 "我们诚挚邀请社会科学、大语言模型和智能体领域的学者探索我们的平台。 "
 "研究人员可以通过[电子邮件](mailto:agentsociety.fiblab2025@gmail.com)联系我们并提交您的研究提案。获批的申请者将获得我们团队的帮助与指导。"
 msgstr ""
-
-#: ../../index.md:60
-msgid "我们欢迎通过我们的平台推进社会科学研究的合作机会。欢迎通过[微信群](_static/wechat.jpg)与我们交流。"
-msgstr ""
-
-#: ../../index.md:62 ../../index.md:64
-msgid "微信群"
-msgstr ""
-
-#: ../../index.md:64
-msgid "![微信群](_static/wechat.jpg)"
-msgstr ""
+"We sincerely invite scholars in the fields of social science, large language models, and agents to explore our platform. "
+"Researchers can contact us via [email](mailto:agentsociety.fiblab2025@gmail.com) and submit their research proposals. Approved applicants will receive assistance and guidance from our team."
 
 #: ../../index.md:66
+msgid "我们欢迎通过我们的平台推进社会科学研究的合作机会。欢迎通过[微信群](_static/wechat.jpg)与我们交流。"
+msgstr "We welcome collaborative opportunities to advance social science research through our platform. Feel free to communicate with us via [WeChat](_static/wechat.jpg)."
+
+#: ../../index.md:68 ../../index.md:70
+msgid "微信群"
+msgstr "WeChat Group"
+
+#: ../../index.md:70
+msgid "![微信群](_static/wechat.jpg)"
+msgstr "![WeChat Group](_static/wechat.jpg)"
+
+#: ../../index.md:72
 msgid "目录"
-msgstr ""
-
-#~ msgid "论文可在 [arXiv](https://arxiv.org/abs/2502.08691) 获取："
-#~ msgstr ""
-
-#~ msgid "新闻"
-#~ msgstr ""
-
-#~ msgid "版本1.3.0已发布！"
-#~ msgstr ""
-
-#~ msgid "查看 [版本1.3](02-version-1.5/index.md) 了解最新更新和新功能🎇。"
-#~ msgstr ""
-
-#~ msgid "在线演示"
-#~ msgstr ""
-
-#~ msgid "我们提供了模拟平台的 [在线演示](https://agentsociety.fiblab.net/)。"
-#~ msgstr ""
-
-#~ msgid "文档内容:"
-#~ msgstr ""
-
-#~ msgid "[快速入门](01-quick-start/index.md)"
-#~ msgstr ""
-
-#~ msgid "[版本1.5](02-version-1.5/index.md)"
-#~ msgstr ""
-
-#~ msgid "[配置](03-configurations/index.md)"
-#~ msgstr ""
-
-#~ msgid "[实验设计](04-experiment-design/index.md)"
-#~ msgstr ""
-
-#~ msgid "[自定义代理](05-custom-agents/index.md)"
-#~ msgstr ""
-
-#~ msgid "[Web界面](06-webui/index.md)"
-#~ msgstr ""
-
-#~ msgid "[用例](07-use-case/index.md)"
-#~ msgstr ""
-
-#~ msgid "[高级用法](08-advanced-usage/index.md)"
-#~ msgstr ""
-
-#~ msgid "[API文档](apidocs/index.md)"
-#~ msgstr ""
-
-#~ msgid "索引和表格"
-#~ msgstr ""
-
-#~ msgid "[索引](genindex.md)"
-#~ msgstr ""
-
-#~ msgid "[模块索引](modindex.md)"
-#~ msgstr ""
-
-#~ msgid "[搜索](search.md)"
-#~ msgstr ""
-
-#~ msgid ""
-#~ "🌟 **大模型驱动的社会人类代理**: "
-#~ "基于社会学理论，构建具有\"类人心智\"的社会代理，赋予他们情感、需求、动机和认知能力。这些代理在这些心理属性的驱动下执行复杂的社会行为，如移动、就业、消费和社交互动。我们还支持"
-#~ " [代理的自定义](05-custom-agents/index.md)。"
-#~ msgstr ""
-
-#~ msgid ""
-#~ "🌟 **真实的城市社会环境**: "
-#~ "它准确地模拟了对社会人类生存至关重要的城市空间，复制了交通、基础设施和公共资源。这使代理能够在现实世界的约束下互动，形成生动的社会生态系统。"
-#~ msgstr ""
-
-#~ msgid ""
-#~ "🌟 **大规模社会模拟引擎**: 通过采用异步模拟架构和 "
-#~ "[Ray](https://www.ray.io/) "
-#~ "分布式计算框架结合代理分组，实现了代理之间的高效、可扩展的互动和社会行为模拟。"
-#~ msgstr ""
-
-#~ msgid ""
-#~ "🌟 **社会科学研究工具包**: 它全面支持一系列社会学研究方法，包括 [访谈和调查](04"
-#~ "-experiment-design/01-survey-and-"
-#~ "interview.md)、[消息控制工具](04-experiment-design/03-message-"
-#~ "interception.md) 和 [指标提取器](04-experiment-design/02"
-#~ "-metrics-collection.md)，提供各种自动化数据分析工具，促进从定性研究到定量分析的深入社会科学研究。"
-#~ msgstr ""
-
-#~ msgid "我们提供了AgentSociety的[在线平台](https://agentsociety.fiblab.net/)。"
-#~ msgstr ""
-
-#~ msgid ""
-#~ "体验我们的在线演示，它模拟了飓风事件期间个人的行为模式，基于飓风多里安对南卡罗来纳州哥伦比亚的实际影响。 详细信息和用例说明可在"
-#~ " [飓风影响](07-use-case/04-hurricane-impact.md) 中获取。"
-#~ msgstr ""
-
-#~ msgid ""
-#~ "参考快速入门部分了解 [先决条件](01-quick-start/01-prerequisites.md) "
-#~ "和 [安装](01-quick-start/02-start-your-first-"
-#~ "simulation.md) 说明。"
-#~ msgstr ""
-
-#~ msgid ""
-#~ "我们诚挚邀请社会科学、大语言模型和代理领域的学者探索我们的平台。 研究人员可以通过 "
-#~ "[电子邮件](mailto:agentsociety.fiblab2025@gmail.com) "
-#~ "联系我们并提交您的研究提案。获批的申请者将获得测试版凭证，在我们团队的指导下在平台上进行实验。"
-#~ msgstr ""
-
-#~ msgid "我们欢迎通过我们的平台推进社会科学研究的合作机会。"
-#~ msgstr ""
-
-#~ msgid "![微信群](_static/wechat.png)"
-#~ msgstr ""
-
+msgstr "Table of Contents"

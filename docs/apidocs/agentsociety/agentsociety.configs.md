@@ -69,12 +69,18 @@ agentsociety.configs.agent
 
 ````
 
-`````{py:class} AgentsConfig
+`````{py:class} AgentsConfig(/, **data: typing.Any)
 :canonical: agentsociety.configs.AgentsConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.configs.AgentsConfig
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.configs.AgentsConfig.__init__
 ```
 
 ````{py:attribute} citizens
@@ -164,12 +170,18 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} Config
+`````{py:class} Config(/, **data: typing.Any)
 :canonical: agentsociety.configs.Config
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.configs.Config
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.configs.Config.__init__
 ```
 
 ````{py:attribute} llm
@@ -240,12 +252,18 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} TaskLoaderConfig
+`````{py:class} TaskLoaderConfig(/, **data: typing.Any)
 :canonical: agentsociety.configs.TaskLoaderConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.configs.TaskLoaderConfig
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.configs.TaskLoaderConfig.__init__
 ```
 
 ````{py:attribute} task_type
@@ -283,12 +301,18 @@ Bases: {py:obj}`pydantic.BaseModel`
 
 `````
 
-`````{py:class} IndividualConfig
+`````{py:class} IndividualConfig(/, **data: typing.Any)
 :canonical: agentsociety.configs.IndividualConfig
 
 Bases: {py:obj}`pydantic.BaseModel`
 
 ```{autodoc2-docstring} agentsociety.configs.IndividualConfig
+```
+
+```{rubric} Initialization
+```
+
+```{autodoc2-docstring} agentsociety.configs.IndividualConfig.__init__
 ```
 
 ````{py:attribute} name
