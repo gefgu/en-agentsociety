@@ -78,7 +78,7 @@ def _fill_in_agent_class_and_memory_config(self: AgentConfig):
             else:
                 blocks = {}
                 for key, value in self.blocks.items():
-                    if isinstance(key, str):
+                    if isinstance(key, str) and key in BLOCK_MAPPING:
                         blocks[BLOCK_MAPPING[key]] = BLOCK_MAPPING[key].ParamsType(
                             **value
                         )

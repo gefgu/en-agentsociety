@@ -135,9 +135,11 @@ class Agent(ABC):
         self.dispatcher = BlockDispatcher(self._toolbox, self._memory)
         if blocks is not None:
             for block in blocks:
-                if block.OutputType != self.BlockOutputType:
+                # Check if block output type is compatible with agent's expected output type
+                if not self._is_output_type_compatible(block.OutputType):
                     raise ValueError(
-                        f"Block output type mismatch, expected {self.BlockOutputType}, got {block.OutputType}"
+                        f"Block output type mismatch, expected {self.BlockOutputType}, got {block.OutputType}. "
+                        f"The block output type must be compatible with the agent's expected output type."
                     )
                 if block.NeedAgent:
                     block.set_agent(self)
@@ -459,3 +461,50 @@ class Agent(ABC):
         await self.status_summary()
         end_time = time.time()
         return end_time - start_time
+
+    def _is_output_type_compatible(self, block_output_type) -> bool:
+        """
+        Check if the block output type is compatible with the agent's expected output type.
+        
+        - **Description**:
+            - Checks compatibility between block output type and agent's expected output type.
+            - Supports both class inheritance and field compatibility checks.
+        
+        - **Args**:
+            - `block_output_type`: The output type class of the block.
+        
+        - **Returns**:
+            - `bool`: True if compatible, False otherwise.
+        """
+        # If agent expects any type, all types are compatible
+        if self.BlockOutputType is Any:
+            return True
+            
+        # If agent expects None, only None is compatible
+        if self.BlockOutputType is None:
+            return block_output_type is None
+            
+        # If block has no output type, it's compatible with any type
+        if block_output_type is None:
+            return True
+            
+        # Check if block output type is a subclass of agent's expected type
+        if issubclass(block_output_type, self.BlockOutputType):
+            return True
+            
+        # Check if block output type has compatible fields with agent's expected type
+        if hasattr(block_output_type, 'model_fields') and hasattr(self.BlockOutputType, 'model_fields'):
+            # Get all required fields from agent's expected type
+            agent_fields = self.BlockOutputType.model_fields
+            block_fields = block_output_type.model_fields
+            
+            # Check if all required fields from agent's type exist in block's type
+            for field_name, field_info in agent_fields.items():
+                if field_name not in block_fields:
+                    return False
+                # Optional: check field type compatibility
+                # This could be enhanced to check type annotations as well
+                
+            return True
+            
+        return False

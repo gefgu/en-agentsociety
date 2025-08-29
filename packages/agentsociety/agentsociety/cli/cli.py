@@ -309,12 +309,7 @@ def run(
                 for citizen in c.agents.citizens:
                     if isinstance(citizen.agent_class, str):
                         if citizen.agent_class == "citizen":
-                            # Skip mapping if it's just a citizen
-                            continue
-                        if citizen.agent_class == "SocietyAgent":
-                            # For default config compatible
-                            citizen.agent_class = "citizen"
-                            continue
+                            citizen.agent_class = 'SocietyAgent'
                         citizen.agent_class = citizens_class_map[citizen.agent_class]()
                     if citizen.blocks is not None:
                         new_blocks = {}
