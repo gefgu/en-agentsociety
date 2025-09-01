@@ -35,9 +35,13 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
     const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
     const [editingIndex, setEditingIndex] = useState<number>(-1);
     const [form] = Form.useForm();
+    const [isInitialized, setIsInitialized] = useState(false);
 
     // 初始化：从JSON字符串解析问卷数据
     useEffect(() => {
+        // 重置初始化状态
+        setIsInitialized(false);
+        
         if (value) {
             try {
                 const surveyData = JSON.parse(value);
@@ -45,15 +49,27 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
                 // setSurveyDescription(surveyData.description || '');
                 if (surveyData.pages && surveyData.pages[0] && surveyData.pages[0].elements) {
                     setQuestions(surveyData.pages[0].elements);
+                } else {
+                    setQuestions([]);
                 }
+                setIsInitialized(true);
             } catch (e) {
                 console.warn('Failed to parse survey JSON:', e);
+                setQuestions([]);
+                setIsInitialized(true);
             }
+        } else {
+            setQuestions([]);
+            setIsInitialized(true);
         }
     }, [value]);
 
-    // 当问题数据改变时，生成JSON并回调
+    // 当问题数据改变时，生成JSON并回调 - 只有在初始化完成后才触发
     useEffect(() => {
+        if (!isInitialized) {
+            return;
+        }
+        
         const surveyJson = {
             // title: surveyTitle,
             // description: surveyDescription,
@@ -67,11 +83,11 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
         const jsonString = JSON.stringify(surveyJson, null, 2);
         onChange?.(jsonString);
     // }, [questions, surveyTitle, surveyDescription, onChange]);
-    }, [questions]);
+    }, [questions, isInitialized]);
 
-    // 初始化时如果没有值，生成默认的空JSON结构
+    // 只有在真正没有任何数据且问题列表为空时，才生成默认JSON
     useEffect(() => {
-        if (!value) {
+        if (isInitialized && (!value || value.trim() === '') && questions.length === 0) {
             const initialJson = {
                 pages: [
                     {
@@ -82,7 +98,7 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
             };
             onChange?.(JSON.stringify(initialJson, null, 2));
         }
-    }, [value]);
+    }, [isInitialized, value, questions.length]);
 
     const showQuestionModal = (question?: Question, index?: number) => {
         if (question && index !== undefined) {

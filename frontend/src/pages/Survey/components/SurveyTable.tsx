@@ -20,14 +20,7 @@ interface EditingSurvey {
 const EmptySurvey: EditingSurvey = {
     id: '',
     name: '',
-    data: JSON.stringify({
-        pages: [
-            {
-                name: 'page1',
-                elements: []
-            }
-        ]
-    }, null, 2),
+    data: '',
 };
 
 const SurveyTableInner = () => {
@@ -90,28 +83,39 @@ const SurveyTableInner = () => {
     };
 
     const handleEdit = (survey) => {
-        setEditingSurvey({
+        const jsonData = JSON.stringify(survey.data, null, 2);
+        const editingSurveyData = {
             id: survey.id,
             name: survey.name,
-            data: JSON.stringify(survey.data, null, 2),
-        });
+            data: jsonData,
+        };
+        
+        setEditingSurvey(editingSurveyData);
+        setFormValues({ name: survey.name, data: jsonData });
+        form.setFieldsValue({ name: survey.name, data: jsonData });
+        setActiveTab('builder'); // 默认打开可视化建构器
         setOpen(true);
     };
 
     const handleCreate = () => {
+        const defaultJsonData = JSON.stringify({
+            pages: [
+                {
+                    name: 'page1',
+                    elements: []
+                }
+            ]
+        }, null, 2);
+        
         const newSurvey = {
             id: '',
             name: '',
-            data: JSON.stringify({
-                pages: [
-                    {
-                        name: 'page1',
-                        elements: []
-                    }
-                ]
-            }, null, 2),
+            data: defaultJsonData,
         };
+        
         setEditingSurvey(newSurvey);
+        setFormValues({ name: '', data: defaultJsonData });
+        form.setFieldsValue({ name: '', data: defaultJsonData });
         setActiveTab('builder');
         setOpen(true);
     };
@@ -135,6 +139,9 @@ const SurveyTableInner = () => {
                 }
                 message.success(t('survey.updateSuccess'));
                 setOpen(false);
+                form.resetFields();
+                setFormValues({ name: '', data: '' });
+                setEditingSurvey(EmptySurvey);
                 await fetchSurveys();
             } catch (err) {
                 message.error(`${t('survey.updateFailed')} ${err}`);
@@ -157,6 +164,9 @@ const SurveyTableInner = () => {
                 }
                 message.success(t('survey.createSuccess'));
                 setOpen(false);
+                form.resetFields();
+                setFormValues({ name: '', data: '' });
+                setEditingSurvey(EmptySurvey);
                 await fetchSurveys();
             } catch (err) {
                 message.error(`${t('survey.createFailed')} ${err}`);
@@ -166,6 +176,10 @@ const SurveyTableInner = () => {
 
     const handleModalCancel = () => {
         setOpen(false);
+        // 重置表单和状态
+        form.resetFields();
+        setFormValues({ name: '', data: '' });
+        setEditingSurvey(EmptySurvey);
     };
 
     const tableColumns = [
@@ -270,7 +284,7 @@ const SurveyTableInner = () => {
                                                 </Form.Item>
                                                 <div style={{ maxHeight: '50vh', overflow: 'auto' }}>
                                                     <SurveyBuilder
-                                                        value={formValues.data || ''}
+                                                        value={formValues.data}
                                                         onChange={(value) => {
                                                             form.setFieldValue('data', value);
                                                             setFormValues(prev => ({ ...prev, data: value }));
@@ -297,11 +311,15 @@ const SurveyTableInner = () => {
                             form={form}
                             style={{ width: '100%' }}
                             layout="vertical"
-                            onValuesChange={(changedValues, allValues) => {
-                                setEditingSurvey({
-                                    ...editingSurvey,
-                                    ...changedValues,
-                                });
+                                                                        onValuesChange={(changedValues, allValues) => {
+                                // 只在真正有变化时更新，避免无限循环
+                                if (JSON.stringify(allValues) !== JSON.stringify(formValues)) {
+                                    setFormValues(allValues);
+                                    setEditingSurvey({
+                                        ...editingSurvey,
+                                        ...changedValues,
+                                    });
+                                }
                             }}
                             onFinish={handleSubmit}
                         >
