@@ -181,18 +181,17 @@ const WorkflowList: React.FC = () => {
 
         // 处理配置数据，将AgentFilterConfig转换为表单格式
         const processedConfig = workflow.config?.map((step: any, index: number) => {
+            const processedStep = { ...step };
+            
             if ([WorkflowType.INTERVIEW, WorkflowType.SURVEY, WorkflowType.UPDATE_STATE_INTERVENE, WorkflowType.MESSAGE_INTERVENE, WorkflowType.SAVE_CONTEXT].includes(step.type)) {
                 if (step.target_agent && typeof step.target_agent === 'object') {
                     // 如果是AgentFilterConfig对象
                     if (step.target_agent.filter_str) {
                         // 表达式模式
                         handleTargetAgentModeChange(index, 'expression');
-                        return {
-                            ...step,
-                            target_agent: step.target_agent.filter_str
-                        };
+                        processedStep.target_agent = step.target_agent.filter_str;
                     } else if (step.target_agent.agent_class) {
-                        // 列表模式，使用agent_class
+                        // 表达式模式，使用agent_class选择器
                         handleTargetAgentModeChange(index, 'expression');
                         // 加载agent classes
                         if (Array.isArray(step.target_agent.agent_class)) {
@@ -204,10 +203,9 @@ const WorkflowList: React.FC = () => {
                                 }
                             });
                         }
-                        return {
-                            ...step,
-                            agent_class: step.target_agent.agent_class
-                        };
+                        processedStep.agent_class = step.target_agent.agent_class;
+                        // 在表达式模式下清空target_agent，因为只使用agent_class选择器
+                        processedStep.target_agent = '';
                     } else if (step.target_agent.filter_str && step.target_agent.agent_class) {
                         // 过滤模式，同时使用filter_str和agent_class
                         handleTargetAgentModeChange(index, 'expression');
@@ -221,21 +219,47 @@ const WorkflowList: React.FC = () => {
                                 }
                             });
                         }
-                        return {
-                            ...step,
-                            target_agent: step.target_agent.filter_str,
-                            agent_class: step.target_agent.agent_class
-                        };
+                        processedStep.target_agent = step.target_agent.filter_str;
+                        processedStep.agent_class = step.target_agent.agent_class;
                     }
                 } else if (Array.isArray(step.target_agent)) {
                     // 原有的数组格式
                     handleTargetAgentModeChange(index, 'list');
+                    // 将数组格式转换为逗号分隔的字符串显示
+                    processedStep.target_agent = step.target_agent.join(',');
                 } else if (typeof step.target_agent === 'string') {
                     // 字符串格式，可能是表达式
                     handleTargetAgentModeChange(index, 'expression');
+                } else if (step.target_agent) {
+                    // 其他类型，转换为字符串以避免Monaco Editor错误
+                    processedStep.target_agent = String(step.target_agent);
+                    handleTargetAgentModeChange(index, 'expression');
                 }
             }
-            return step;
+            
+            // 处理survey字段 - 确保选中正确的survey
+            if (step.type === WorkflowType.SURVEY && step.survey) {
+                // 如果survey是对象，提取其id；如果是字符串或数字，直接使用
+                if (typeof step.survey === 'object' && step.survey.id) {
+                    processedStep.survey = step.survey.id;
+                } else {
+                    processedStep.survey = step.survey;
+                }
+            }
+            
+            // 最终数据类型检查和清理
+            if ([WorkflowType.INTERVIEW, WorkflowType.SURVEY, WorkflowType.UPDATE_STATE_INTERVENE, WorkflowType.MESSAGE_INTERVENE, WorkflowType.SAVE_CONTEXT].includes(processedStep.type)) {
+                // 确保target_agent字段始终是字符串类型，避免Monaco Editor错误
+                if (processedStep.target_agent !== undefined && processedStep.target_agent !== null) {
+                    if (typeof processedStep.target_agent !== 'string') {
+                        processedStep.target_agent = String(processedStep.target_agent);
+                    }
+                } else {
+                    processedStep.target_agent = '';
+                }
+            }
+            
+            return processedStep;
         }) || [];
 
         form.setFieldsValue({
@@ -243,6 +267,26 @@ const WorkflowList: React.FC = () => {
             description: workflow.description || '',
             config: processedConfig
         });
+        
+        // 强制设置模式状态，确保UI显示正确
+        setTimeout(() => {
+            const modes: { [key: string]: 'list' | 'expression' } = {};
+            processedConfig.forEach((step, index) => {
+                if ([WorkflowType.INTERVIEW, WorkflowType.SURVEY, WorkflowType.UPDATE_STATE_INTERVENE, WorkflowType.MESSAGE_INTERVENE, WorkflowType.SAVE_CONTEXT].includes(step.type)) {
+                    // 根据原始数据确定模式
+                    const originalStep = workflow.config?.[index];
+                    if (originalStep && Array.isArray(originalStep.target_agent)) {
+                        modes[index] = 'list';
+                    } else if (originalStep && originalStep.target_agent && typeof originalStep.target_agent === 'object' && !Array.isArray(originalStep.target_agent) && (originalStep.target_agent as any).agent_class && !(originalStep.target_agent as any).filter_str) {
+                        modes[index] = 'expression'; // 仅agent_class的情况
+                    } else {
+                        modes[index] = 'expression';
+                    }
+                }
+            });
+            setTargetAgentModes(modes);
+        }, 0);
+        
         setIsModalVisible(true);
     };
 
@@ -252,18 +296,17 @@ const WorkflowList: React.FC = () => {
 
         // 处理配置数据，将AgentFilterConfig转换为表单格式
         const processedConfig = workflow.config?.map((step: any, index: number) => {
+            const processedStep = { ...step };
+            
             if ([WorkflowType.INTERVIEW, WorkflowType.SURVEY, WorkflowType.UPDATE_STATE_INTERVENE, WorkflowType.MESSAGE_INTERVENE, WorkflowType.SAVE_CONTEXT].includes(step.type)) {
                 if (step.target_agent && typeof step.target_agent === 'object') {
                     // 如果是AgentFilterConfig对象
                     if (step.target_agent.filter_str) {
                         // 表达式模式
                         handleTargetAgentModeChange(index, 'expression');
-                        return {
-                            ...step,
-                            target_agent: step.target_agent.filter_str
-                        };
+                        processedStep.target_agent = step.target_agent.filter_str;
                     } else if (step.target_agent.agent_class) {
-                        // 列表模式，使用agent_class
+                        // 表达式模式，使用agent_class选择器
                         handleTargetAgentModeChange(index, 'expression');
                         // 加载agent classes
                         if (Array.isArray(step.target_agent.agent_class)) {
@@ -275,10 +318,9 @@ const WorkflowList: React.FC = () => {
                                 }
                             });
                         }
-                        return {
-                            ...step,
-                            agent_class: step.target_agent.agent_class
-                        };
+                        processedStep.agent_class = step.target_agent.agent_class;
+                        // 在表达式模式下清空target_agent，因为只使用agent_class选择器
+                        processedStep.target_agent = '';
                     } else if (step.target_agent.filter_str && step.target_agent.agent_class) {
                         // 过滤模式，同时使用filter_str和agent_class
                         handleTargetAgentModeChange(index, 'expression');
@@ -292,21 +334,47 @@ const WorkflowList: React.FC = () => {
                                 }
                             });
                         }
-                        return {
-                            ...step,
-                            target_agent: step.target_agent.filter_str,
-                            agent_class: step.target_agent.agent_class
-                        };
+                        processedStep.target_agent = step.target_agent.filter_str;
+                        processedStep.agent_class = step.target_agent.agent_class;
                     }
                 } else if (Array.isArray(step.target_agent)) {
                     // 原有的数组格式
                     handleTargetAgentModeChange(index, 'list');
+                    // 将数组格式转换为逗号分隔的字符串显示
+                    processedStep.target_agent = step.target_agent.join(',');
                 } else if (typeof step.target_agent === 'string') {
                     // 字符串格式，可能是表达式
                     handleTargetAgentModeChange(index, 'expression');
+                } else if (step.target_agent) {
+                    // 其他类型，转换为字符串以避免Monaco Editor错误
+                    processedStep.target_agent = String(step.target_agent);
+                    handleTargetAgentModeChange(index, 'expression');
                 }
             }
-            return step;
+            
+            // 处理survey字段 - 确保选中正确的survey
+            if (step.type === WorkflowType.SURVEY && step.survey) {
+                // 如果survey是对象，提取其id；如果是字符串或数字，直接使用
+                if (typeof step.survey === 'object' && step.survey.id) {
+                    processedStep.survey = step.survey.id;
+                } else {
+                    processedStep.survey = step.survey;
+                }
+            }
+            
+            // 最终数据类型检查和清理
+            if ([WorkflowType.INTERVIEW, WorkflowType.SURVEY, WorkflowType.UPDATE_STATE_INTERVENE, WorkflowType.MESSAGE_INTERVENE, WorkflowType.SAVE_CONTEXT].includes(processedStep.type)) {
+                // 确保target_agent字段始终是字符串类型，避免Monaco Editor错误
+                if (processedStep.target_agent !== undefined && processedStep.target_agent !== null) {
+                    if (typeof processedStep.target_agent !== 'string') {
+                        processedStep.target_agent = String(processedStep.target_agent);
+                    }
+                } else {
+                    processedStep.target_agent = '';
+                }
+            }
+            
+            return processedStep;
         }) || [];
 
         form.setFieldsValue({
@@ -314,6 +382,26 @@ const WorkflowList: React.FC = () => {
             description: workflow.description || '',
             config: processedConfig,
         });
+        
+        // 强制设置模式状态，确保UI显示正确
+        setTimeout(() => {
+            const modes: { [key: string]: 'list' | 'expression' } = {};
+            processedConfig.forEach((step, index) => {
+                if ([WorkflowType.INTERVIEW, WorkflowType.SURVEY, WorkflowType.UPDATE_STATE_INTERVENE, WorkflowType.MESSAGE_INTERVENE, WorkflowType.SAVE_CONTEXT].includes(step.type)) {
+                    // 根据原始数据确定模式
+                    const originalStep = workflow.config?.[index];
+                    if (originalStep && Array.isArray(originalStep.target_agent)) {
+                        modes[index] = 'list';
+                    } else if (originalStep && originalStep.target_agent && typeof originalStep.target_agent === 'object' && !Array.isArray(originalStep.target_agent) && (originalStep.target_agent as any).agent_class && !(originalStep.target_agent as any).filter_str) {
+                        modes[index] = 'expression'; // 仅agent_class的情况
+                    } else {
+                        modes[index] = 'expression';
+                    }
+                }
+            });
+            setTargetAgentModes(modes);
+        }, 0);
+        
         setIsModalVisible(true);
     };
 
@@ -386,15 +474,24 @@ const WorkflowList: React.FC = () => {
                             // 删除临时的agent_class字段
                             delete step.agent_class;
                         } else if (targetAgentModes[idx] === 'list') {
-                            // 列表模式：使用agent_class
+                            // 列表模式：处理ID列表或agent_class
                             if (step.agent_class && step.agent_class.length > 0) {
+                                // 如果选择了agent_class，使用agent_class
                                 step.target_agent = {
                                     agent_class: step.agent_class
                                 };
                                 // 删除临时的agent_class字段
                                 delete step.agent_class;
+                            } else if (typeof step.target_agent === 'string' && step.target_agent.trim()) {
+                                // 如果是逗号分隔的字符串，转换为数组
+                                const idArray = step.target_agent
+                                    .split(',')
+                                    .map(v => v.trim())
+                                    .filter(v => v !== '' && !isNaN(Number(v)))
+                                    .map(v => parseInt(v));
+                                step.target_agent = idArray;
                             }
-                            // 如果没有选择agent_class，保持原有的target_agent数组格式
+                            // 如果target_agent已经是数组，保持不变
                         }
                     }
                     return step;
@@ -898,11 +995,6 @@ const WorkflowList: React.FC = () => {
                                                                             >
                                                                                 <Input 
                                                                                     placeholder="1,2,3" 
-                                                                                    onChange={(e) => {
-                                                                                        // 将逗号分隔的字符串转换为数组
-                                                                                        const value = e.target.value.split(',').map(v => parseInt(v.trim()));
-                                                                                        form.setFieldValue(['config', name, 'target_agent'], value);
-                                                                                    }}
                                                                                 />
                                                                             </Form.Item>
                                                                         </Col>
@@ -921,6 +1013,13 @@ const WorkflowList: React.FC = () => {
                                                                                         suggestions={getTargetAgentSuggestions()}
                                                                                         editorId={`target-agent-${name}`}
                                                                                         key={`target-agent-${name}-${targetAgentModes[name]}`}
+                                                                                        value={(() => {
+                                                                                            const fieldValue = form.getFieldValue(['config', name, 'target_agent']);
+                                                                                            return typeof fieldValue === 'string' ? fieldValue : '';
+                                                                                        })()}
+                                                                                        onChange={(value) => {
+                                                                                            form.setFieldValue(['config', name, 'target_agent'], value || '');
+                                                                                        }}
                                                                                     />
                                                                                 </Form.Item>
                                                                             </Col>
