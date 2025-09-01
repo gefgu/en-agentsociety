@@ -308,9 +308,10 @@ def run(
                 # process the agent_class in citizens
                 for citizen in c.agents.citizens:
                     if isinstance(citizen.agent_class, str):
-                        if citizen.agent_class == "citizen":
-                            citizen.agent_class = 'SocietyAgent'
-                        citizen.agent_class = citizens_class_map[citizen.agent_class]()
+                        if citizen.agent_class == "SocietyAgent" or citizen.agent_class == "citizen":
+                            citizen.agent_class = 'citizen'
+                        else:
+                            citizen.agent_class = citizens_class_map[citizen.agent_class]()
                     if citizen.blocks is not None:
                         new_blocks = {}
                         for block_name, block_params in citizen.blocks.items():
