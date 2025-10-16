@@ -267,6 +267,9 @@ async def delete_experiment(
     executor = cast(ProcessExecutor, request.app.state.executor)
     await executor.delete(tenant_id, exp_id)
 
+    # convert exp_id into uuid
+    exp_id = uuid.UUID(exp_id)
+
     # update experiment status to STOPPED
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)

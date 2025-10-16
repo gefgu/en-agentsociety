@@ -1,6 +1,6 @@
 [tool.uv.workspace]
 members = ["packages/*"]
-exclude = ["packages/agentsocietyenv"]
+exclude = ["packages/agentsocietyenv", "packages/agentsociety2"]
 
 [tool.uv.sources]
 agentsociety = { workspace = true }
