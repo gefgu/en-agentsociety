@@ -126,6 +126,12 @@ class BlockDispatcher:
             function_args: Any = json_repair.loads(
                 response.choices[0].message.tool_calls[0].function.arguments
             )
+
+            if "arguments" in function_args and isinstance(
+                function_args["arguments"], dict
+            ):
+                function_args = function_args["arguments"]
+
             selected_block = function_args.get("block_name")
             reason = function_args.get("reason", "No reason provided")
 
