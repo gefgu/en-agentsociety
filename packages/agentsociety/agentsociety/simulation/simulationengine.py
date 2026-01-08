@@ -14,7 +14,10 @@ from multiprocessing import cpu_count
 from typing import Any, Callable, Literal, Optional, Union, cast
 
 import yaml
+from ..agent import CustomTool
 from fastembed import SparseTextEmbedding
+from ..performance.BlockPerformance import BlockPerformanceActor
+import ray
 
 from ..agent import (
     Agent,
@@ -204,6 +207,7 @@ class SimulationEngine:
         self._message_interceptor: Optional[MessageInterceptor] = None
         self._database_writer: Optional[DatabaseWriter] = None
         self._embedding: Optional[SparseTextEmbedding] = None
+        self._performance_actor: Optional[BlockPerformanceActor] = None
         self._id2agent: dict[int, Agent] = {}
         yaml_config = yaml.dump(
             self._config.model_dump(
@@ -729,8 +733,10 @@ class SimulationEngine:
                     if agent_config.agent_params is None:
                         agent_params = agent_config.agent_class.ParamsType()
                     else:
-                        agent_params = agent_config.agent_class.ParamsType.model_validate(
-                            agent_config.agent_params
+                        agent_params = (
+                            agent_config.agent_class.ParamsType.model_validate(
+                                agent_config.agent_params
+                            )
                         )
                     supervisor = agent_config.agent_class(
                         id=agent_id,
@@ -962,6 +968,23 @@ class SimulationEngine:
             await self.environment.step(1)
             get_logger().info("run 1 tick to make the initialization complete")
 
+            # Initialize the performance actor
+            get_logger().info("Initializing performance actor...")
+
+            block_performance_actor = BlockPerformanceActor.remote()
+            block_performance_tool = CustomTool(
+                name="block_performance_actor",
+                tool=block_performance_actor,
+                description="Ray actor for tracking block performance metrics",
+            )
+            self._performance_actor = block_performance_actor
+            get_logger().info("Performance actor initialized")
+
+            # Add performance tool to toolbox
+            agent_toolbox.add_tool(block_performance_tool)
+
+            get_logger().info("Initializing the agents...")
+
             # ===================================
             # save the experiment info
             # ===================================
@@ -1050,7 +1073,7 @@ class SimulationEngine:
             return target_agent
         elif isinstance(target_agent, AgentFilterConfig):
             return await self.filter(
-                types=target_agent.agent_class, filter_str=target_agent.filter_str # type: ignore
+                types=target_agent.agent_class, filter_str=target_agent.filter_str  # type: ignore
             )
         else:
             raise ValueError("target_agent must be a list of int or AgentFilterConfig")
@@ -1574,6 +1597,65 @@ class SimulationEngine:
                 agent_time_log=[],
             )
             all_logs.append(log)
+
+            # ======================
+            # Log metrics from BlockPerformance
+            # ======================
+            if self._performance_actor is not None:
+                try:
+                    import ray
+
+                    perf_stats = ray.get(self._performance_actor.get_stats.remote())
+                    if perf_stats:
+                        for block_func, metrics in perf_stats.items():
+                            get_logger().info(
+                                f"  {block_func}: "
+                                f"calls={metrics['calls']}, "
+                                f"avg_duration={metrics['average_duration']:.3f}s, "
+                                f"total_tokens_in={metrics['total_token_input']}, "
+                                f"total_tokens_out={metrics['total_token_output']}"
+                            )
+
+                        # Convert nested stats to flat format for database
+                        if self._database_writer is not None:
+                            # Create list of metric tuples (key, value, step)
+                            metric_tuples = []
+                            for block_func, metrics in perf_stats.items():
+                                metric_tuples.extend(
+                                    [
+                                        (
+                                            f"bp.{block_func}.calls",
+                                            metrics["calls"],
+                                            self._total_steps,
+                                        ),
+                                        (
+                                            f"bp.{block_func}.avg_duration",
+                                            metrics["average_duration"],
+                                            self._total_steps,
+                                        ),
+                                        (
+                                            f"bp.{block_func}.total_token_input",
+                                            metrics["total_token_input"],
+                                            self._total_steps,
+                                        ),
+                                        (
+                                            f"bp.{block_func}.total_token_output",
+                                            metrics["total_token_output"],
+                                            self._total_steps,
+                                        ),
+                                    ]
+                                )
+
+                            await self._database_writer.log_metric(metric_tuples)
+                except Exception as e:
+                    get_logger().warning(
+                        f"Error retrieving performance stats: {str(e)}"
+                    )
+            else:
+                get_logger().warning(
+                    "No performance actor available to retrieve stats."
+                )
+
             # ======================
             # save the experiment info
             # ======================

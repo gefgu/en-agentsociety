@@ -1,5 +1,5 @@
 from typing import Any
-
+import time
 import json_repair
 
 from ...agent import AgentToolbox, Block, FormatPrompt, DotDict
@@ -474,6 +474,8 @@ class NeedsBlock(Block):
         - Processes LLM response and updates satisfaction values
         - Implements retry logic for invalid responses
         """
+        block_performance_tool = self.toolbox.get_tool("block_performance_actor")
+        
         # Retrieve the executed plan and evaluation results
         evaluation_results = []
         for step in completed_plan["steps"]:
@@ -498,11 +500,39 @@ class NeedsBlock(Block):
 
         retry = 3
         while retry > 0:
-            response = await self.llm.atext_request(
+            start_time = time.perf_counter()
+
+            response, input_tokens, output_tokens = await self.llm.atext_request(
                 self.evaluation_prompt.to_dialog(),
                 response_format={"type": "json_object"},
+                get_token_stats=True,
             )
+
+            # --- MEASUREMENT END ---
+            end_time = time.perf_counter()
+            duration = end_time - start_time
+
+            log_payload = {
+                "block_name": "NeedsBlock",
+                "func_name": "evaluate_and_adjust_needs",
+                "duration_seconds": round(duration, 4),
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+            }
+
+            if block_performance_tool:
+              block_performance_tool.get_tool().record_performance.remote(
+                  block_name=log_payload["block_name"],
+                  func_name=log_payload["func_name"],
+                  duration=log_payload["duration_seconds"],
+                  token_input=log_payload["input_tokens"],
+                  token_output=log_payload["output_tokens"],
+              )
+
             try:
+                # print(self.evaluation_prompt.to_dialog())
+                # print(response)
+
                 new_satisfaction: Any = json_repair.loads(clean_json_response(response))  # type: ignore
                 # Update values of all needs
                 for need_type, new_value in new_satisfaction.items():
@@ -541,3 +571,12 @@ class NeedsBlock(Block):
         cognition = await self.determine_current_need()
 
         return cognition
+
+
+# [
+#     {
+#         "role": "user",
+#         "content": 'You are an evaluation system for an intelligent agent. The agent has performed the following actions to satisfy the whatever need:\n\nGoal: other\nExecution situation:\n- Continue with work tasks (economy): work: Continue with work tasks\n- Take a short break for relaxation (other): Finished executing Take a short break for relaxation\n- Review patient records for accuracy (economy): Finished executing Review patient records for accuracy\n- Prepare for upcoming appointments or surgeries (economy): Failed to complete social interaction with default behavior: Prepare for upcoming appointments or surgeries\n- Check in with colleagues about any urgent matters (social): Plan failed or skipped, not completed\n- Enjoy a light lunch if time allows (other): Plan failed or skipped, not completed\n\nCurrent satisfaction: \n- hunger_satisfaction: 0.6\n- energy_satisfaction: 0.4933333333333337\n- safety_satisfaction: 0.45833333333333326\n- social_satisfaction: 0.31666666666666654\n\nPlease evaluate and adjust the value of whatever satisfaction based on the execution results above.\n\nNotes:\n1. Satisfaction values range from 0-1, where:\n   - 1 means the need is fully satisfied\n   - 0 means the need is completely unsatisfied \n   - Higher values indicate greater need satisfaction\n2. If the current need is not "whatever", only return the new value for the current need. Otherwise, return both safe and social need values.\n3. Ensure the return value is in valid JSON format, examples below:\n\nPlease response in json format for specific need (hungry here) adjustment (Do not return any other text), example:\n{\n    "hunger_satisfaction": new_hunger_satisfaction_value\n}\n\nPlease response in json format for whatever need adjustment (Do not return any other text), example:\n{\n    "safety_satisfaction": new_safety_satisfaction_value,\n    "social_satisfaction": new_social_satisfaction_value\n}\n',
+#     }
+# ]
+# {"safety_satisfaction": 0.45833333333333326, "social_satisfaction": 0.21666666666666654}

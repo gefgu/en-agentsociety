@@ -31,6 +31,7 @@ from ..storage.type import (
 from ..taskloader import TaskLoader
 from .type import ExperimentStatus
 
+
 __all__ = ["IndividualEngine"]
 
 MIN_ID = 1
@@ -167,6 +168,20 @@ class IndividualEngine:
             assert self._embedding is not None, "Embedding is not initialized"
             get_logger().info("-----Embedding initialized")
 
+            # ====================
+            # Initialize the metrics actor
+            # ====================
+            get_logger().info("-----Initializing metrics actor...")
+
+            block_performance_actor = BlockPerformanceActor.remote()
+            block_performance_tool = CustomTool(
+                name="block_performance_actor",
+                tool=block_performance_actor,
+                description="Ray actor for block performance metrics",
+            )
+            self._performance_actor = block_performance_actor
+            get_logger().info("-----Metrics actor initialized")
+
             # ======================================
             # Initialize agents - generate agents from the config
             # ======================================
@@ -194,9 +209,9 @@ class IndividualEngine:
                 agent_class = self._individual_config.agent_class
                 agent_params = self._individual_config.agent_params
                 if agent_params is None:
-                    agent_params = agent_class.ParamsType() # type: ignore
+                    agent_params = agent_class.ParamsType()  # type: ignore
                 else:
-                    agent_params = agent_class.ParamsType.model_validate(agent_params) # type: ignore
+                    agent_params = agent_class.ParamsType.model_validate(agent_params)  # type: ignore
                 blocks = self._individual_config.blocks
                 # Create generator
                 generator = MemoryConfigGenerator(
@@ -216,9 +231,7 @@ class IndividualEngine:
                 # Extract IDs from agent data
                 for agent_datum in agent_data:
                     agent_id = agent_datum.get("id")
-                    assert (
-                        agent_id is not None
-                    ), "id is required in memory_from_file"
+                    assert agent_id is not None, "id is required in memory_from_file"
                     assert (
                         agent_id >= MIN_ID
                     ), f"id {agent_id} is less than MIN_ID {MIN_ID}"
@@ -243,16 +256,20 @@ class IndividualEngine:
                 agent_class = self._individual_config.agent_class
                 agent_params = self._individual_config.agent_params
                 if agent_params is None:
-                    agent_params = agent_class.ParamsType() # type: ignore
+                    agent_params = agent_class.ParamsType()  # type: ignore
                 else:
-                    agent_params = agent_class.ParamsType.model_validate(agent_params) # type: ignore
+                    agent_params = agent_class.ParamsType.model_validate(agent_params)  # type: ignore
                 blocks = self._individual_config.blocks
                 generator = MemoryConfigGenerator(
                     self._individual_config.memory_config_func,  # type: ignore
                     self._individual_config.agent_class.StatusAttributes,  # type: ignore
                     self._individual_config.number,
                     None,
-                    self._individual_config.memory_distributions if self._individual_config.memory_distributions is not None else {},
+                    (
+                        self._individual_config.memory_distributions
+                        if self._individual_config.memory_distributions is not None
+                        else {}
+                    ),
                     self._config.env.s3,
                 )
                 for i in range(concurrency):
@@ -266,7 +283,7 @@ class IndividualEngine:
                             blocks,
                         )
                     )
-            
+
             generator = MemoryConfigGenerator(
                 self._individual_config.memory_config_func,  # type: ignore
                 self._individual_config.agent_class.StatusAttributes,  # type: ignore
@@ -280,7 +297,14 @@ class IndividualEngine:
                 self._config.env.s3,
             )
             for agent_init in agents:
-                id, agent_class, generator, index_for_generator, agent_params, blocks = agent_init
+                (
+                    id,
+                    agent_class,
+                    generator,
+                    index_for_generator,
+                    agent_params,
+                    blocks,
+                ) = agent_init
                 memory_config = generator.generate(index_for_generator)
 
                 # Initialize Memory with the unified config
@@ -360,67 +384,71 @@ class IndividualEngine:
         - **Returns**: None
         """
         get_logger().info("Running individual engine...")
-        self._task_loader.reset_all() # type: ignore
-        
+        self._task_loader.reset_all()  # type: ignore
+
         concurrency = len(self._id2agent)
-        total_tasks = len(self._task_loader) # type: ignore
-        get_logger().info(f"Starting task execution with {concurrency} agents for {total_tasks} tasks")
-        
+        total_tasks = len(self._task_loader)  # type: ignore
+        get_logger().info(
+            f"Starting task execution with {concurrency} agents for {total_tasks} tasks"
+        )
+
         if total_tasks == 0:
             get_logger().info("No tasks to execute")
             return
-        
+
         round_num = 0
         agent_ids = list(self._id2agent.keys())
         self._exp_info.status = ExperimentStatus.RUNNING
         await self._save_exp_info()
-        
+
         try:
-            while self._task_loader.get_pending_count() > 0: # type: ignore
+            while self._task_loader.get_pending_count() > 0:  # type: ignore
                 self.llm.clear_log_list()
                 round_num += 1
-                
+
                 # Start of round progress
-                completed_before = self._task_loader.get_completed_count() # type: ignore
+                completed_before = self._task_loader.get_completed_count()  # type: ignore
                 progress = (completed_before / total_tasks) * 100
-                get_logger().info(f"Round {round_num} starting - Progress: {completed_before}/{total_tasks} ({progress:.1f}%)")
-                
+                get_logger().info(
+                    f"Round {round_num} starting - Progress: {completed_before}/{total_tasks} ({progress:.1f}%)"
+                )
+
                 # Get N tasks for N agents
-                tasks = self._task_loader.next(concurrency) # type: ignore
+                tasks = self._task_loader.next(concurrency)  # type: ignore
                 if not tasks:
                     break
-                
+
                 # Ensure tasks is a list
                 if not isinstance(tasks, list):
                     tasks = [tasks]
-                
+
                 # Execute tasks concurrently
                 task_coroutines = []
                 for i, task in enumerate(tasks):
                     agent_id = agent_ids[i]
                     agent = self._id2agent[agent_id]
-                    
+
                     # Assign this task to the specific agent
                     task.assign_to_agent(agent_id)
-                    
+
                     task_coroutines.append(agent.run(task))
-                
+
                 await asyncio.gather(*task_coroutines)
 
                 # Collect llm logs
-                llm_log=self.llm.get_log_list()
+                llm_log = self.llm.get_log_list()
                 for log in llm_log:
                     self._exp_info.input_tokens += log.get("input_tokens", 0)
                     self._exp_info.output_tokens += log.get("output_tokens", 0)
-                
+
                 # Collect only new task results for this round
-                task_results = self._task_loader.get_task_results() # type: ignore
-                await self._database_writer.write_task_result(task_results) # type: ignore
-                
+                task_results = self._task_loader.get_task_results()  # type: ignore
+                await self._database_writer.write_task_result(task_results)  # type: ignore
+
                 # End of round progress
-                completed_after = self._task_loader.get_completed_count() # type: ignore
-                pending_after = self._task_loader.get_pending_count() # type: ignore
-                uncollected_completed = self._task_loader.get_uncollected_completed_count() # type: ignore
+                completed_after = self._task_loader.get_completed_count()  # type: ignore
+                pending_after = self._task_loader.get_pending_count()  # type: ignore
+                uncollected_completed = self._task_loader.get_uncollected_completed_count()  # type: ignore
                 progress = (completed_after / total_tasks) * 100
                 get_logger().info(
                     f"Round {round_num} completed - Progress: {completed_after}/{total_tasks} ({progress:.1f}%) "
@@ -430,7 +458,7 @@ class IndividualEngine:
 
                 # save the experiment info
                 await self._save_exp_info()
-            
+
             self._exp_info.status = ExperimentStatus.FINISHED
             await self._save_exp_info()
             get_logger().info("-----Individual engine completed successfully")
@@ -453,7 +481,7 @@ class IndividualEngine:
     @property
     def config(self):
         return self._config
-    
+
     @property
     def database(self):
         assert self._database_writer is not None, "database writer is not initialized"

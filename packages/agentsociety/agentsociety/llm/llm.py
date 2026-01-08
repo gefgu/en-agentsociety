@@ -327,7 +327,8 @@ class LLM:
         retries: int = 10,
         tools: NotGiven = NOT_GIVEN,
         tool_choice: NotGiven = NOT_GIVEN,
-    ) -> str: ...
+        get_token_stats: bool = False,
+    ) -> str | tuple[str, int, int]: ...
 
     @overload
     async def atext_request(
@@ -362,6 +363,7 @@ class LLM:
         retries: int = 10,
         tools: Union[List[ChatCompletionToolParam], NotGiven] = NOT_GIVEN,
         tool_choice: Union[ChatCompletionToolChoiceOptionParam, NotGiven] = NOT_GIVEN,
+        get_token_stats: bool = False,
     ):
         """
         Sends an asynchronous text request to the configured LLM API.
@@ -413,4 +415,6 @@ class LLM:
             self._log_list.append(log)
             self.prompt_tokens_used += log["input_tokens"]
             self.completion_tokens_used += log["output_tokens"]
+        if get_token_stats:
+            return content, log["input_tokens"], log["output_tokens"]
         return content
