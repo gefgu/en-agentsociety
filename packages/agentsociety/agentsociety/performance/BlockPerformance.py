@@ -1,6 +1,9 @@
+from typing import Literal
+from ..logger import get_logger
 import ray
 import time
 from collections import defaultdict
+from prometheus_client import Counter, Histogram, Gauge, start_http_server
 
 
 @ray.remote
@@ -8,11 +11,34 @@ class BlockPerformanceActor:
     def __init__(self):
         self.blocks_data = []  # Register blocks here if necessary
 
+        try:
+            start_http_server(9091)
+        except Exception as e:
+            get_logger().warning(f"Failed to start Prometheus HTTP server: {e}")
+
+        self.calls = Counter(
+            "block_calls_total",
+            "Number of calls to blocks",
+            ["block_name", "func_name", "agent_id"],
+        )
+        self.block_duration = Histogram(
+            "block_execution_duration_seconds",
+            "Time spent in block execution",
+            ["block_name", "func_name", "agent_id"],
+        )
+        self.token_counter = Counter(
+            "tokens_total",
+            "Number of tokens processed by LLMs",
+            ["direction", "actor", "block_name", "func_name", "agent_id"],
+        )
+
     def record_performance(
         self,
         block_name: str,
         func_name: str,
         duration: float,
+        actor: Literal["llm", "modernbert"],
+        agent_id: str,
         token_input: int,
         token_output: int,
     ) -> None:
@@ -27,6 +53,29 @@ class BlockPerformanceActor:
         }
         # print("Recording block performance:", data_to_add)
         self.blocks_data.append(data_to_add)
+
+        self.calls.labels(
+            block_name=block_name, func_name=func_name, agent_id=agent_id
+        ).inc(1)
+
+        self.block_duration.labels(
+            block_name=block_name, func_name=func_name, agent_id=agent_id
+        ).observe(duration)
+
+        self.token_counter.labels(
+            direction="input",
+            actor=actor,
+            block_name=block_name,
+            func_name=func_name,
+            agent_id=agent_id,
+        ).inc(token_input)
+        self.token_counter.labels(
+            direction="output",
+            actor=actor,
+            block_name=block_name,
+            func_name=func_name,
+            agent_id=agent_id,
+        ).inc(token_output)
 
     def get_stats(self):
         stats = defaultdict(

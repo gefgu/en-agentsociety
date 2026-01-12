@@ -1,4 +1,5 @@
 import random
+import time
 from typing import Any, Optional
 
 import json_repair
@@ -52,6 +53,7 @@ class SleepBlock(Block):
 
     name = "SleepBlock"
     description = "Handles sleep-related actions"
+    NeedAgent = True
 
     def __init__(
         self,
@@ -77,16 +79,31 @@ class SleepBlock(Block):
         Returns:
             Dictionary with execution status, evaluation, time consumed, and node ID.
         """
+        block_performance = self.toolbox.get_tool("block_performance_actor")
+        start_time = time.perf_counter()
+
         await self.guidance_prompt.format(context=context)
-        result = await self.llm.atext_request(
-            self.guidance_prompt.to_dialog(), response_format={"type": "json_object"}
+        result, input_tokens, out_tokens = await self.llm.atext_request(
+            self.guidance_prompt.to_dialog(),
+            response_format={"type": "json_object"},
+            get_token_stats=True,
         )
         result = clean_json_response(result)
-        node_id = await self.memory.stream.add(
-            topic="other", description="I slept"
-        )
+        node_id = await self.memory.stream.add(topic="other", description="I slept")
         try:
             result: Any = json_repair.loads(result)
+            end_time = time.perf_counter()
+            duration = end_time - start_time
+            if block_performance:
+                block_performance.get_tool().record_performance.remote(
+                    block_name=self.name,
+                    func_name="forward",
+                    duration=duration,
+                    actor="other",
+                    agent_id=self.agent.id,
+                    token_input=input_tokens,
+                    token_output=out_tokens,
+                )
             return {
                 "success": True,
                 "evaluation": f'Sleep: {context["current_step"]["intention"]}',
@@ -115,6 +132,7 @@ class OtherNoneBlock(Block):
 
     name = "OtherNoneBlock"
     description = "Handles all kinds of intentions/actions except sleep"
+    NeedAgent = True
 
     def __init__(self, toolbox: AgentToolbox, agent_memory: Optional[Memory] = None):
         super().__init__(
@@ -124,19 +142,35 @@ class OtherNoneBlock(Block):
         self.guidance_prompt = FormatPrompt(template=TIME_ESTIMATE_PROMPT)
 
     async def forward(self, context: DotDict):
+        block_performance = self.toolbox.get_tool("block_performance_actor")
+        start_time = time.perf_counter()
+
         await self.guidance_prompt.format(
             plan=context["plan_context"]["plan"],
             intention=context["current_step"]["intention"],
             emotion_types=await self.memory.status.get("emotion_types"),
         )
-        result = await self.llm.atext_request(
-            self.guidance_prompt.to_dialog(), response_format={"type": "json_object"}
+        result, input_tokens, out_tokens = await self.llm.atext_request(
+            self.guidance_prompt.to_dialog(), response_format={"type": "json_object"}, get_token_stats=True
         )
         result = clean_json_response(result)
         node_id = await self.memory.stream.add(
-            topic="other",
-            description=f"I {context['current_step']['intention']}"
+            topic="other", description=f"I {context['current_step']['intention']}"
         )
+
+        if block_performance:
+            end_time = time.perf_counter()
+            duration = end_time - start_time
+            block_performance.get_tool().record_performance.remote(
+                block_name=self.name,
+                func_name="forward",
+                duration=duration,
+                actor="other",
+                agent_id=self.agent.id,
+                token_input=input_tokens,
+                token_output=out_tokens,
+            )
+
         try:
             result: Any = json_repair.loads(result)
             return {
@@ -187,6 +221,7 @@ class OtherBlock(Block):
         "sleep": "Support the sleep action",
         "other": "Support other actions",
     }
+    NeedAgent = True
 
     def __init__(
         self,
@@ -211,6 +246,17 @@ class OtherBlock(Block):
         # register all blocks
         self.dispatcher.register_blocks([self.sleep_block, self.other_none_block])
 
+    def set_agent(self, agent: Any) -> None:
+        """Associate the block and its sub-blocks with a specific agent.
+
+        Args:
+            agent: The agent instance to associate with.
+        """
+        super().set_agent(agent)
+
+        self.sleep_block.set_agent(agent)
+        self.other_none_block.set_agent(agent)
+
     async def forward(self, agent_context: DotDict) -> SocietyAgentBlockOutput:
         """Route workflow steps to appropriate sub-blocks and track resource usage.
 
@@ -232,8 +278,7 @@ class OtherBlock(Block):
 
         if selected_block is None:
             node_id = await self.memory.stream.add(
-                topic="other",
-                description=f"I {context['current_step']['intention']}"
+                topic="other", description=f"I {context['current_step']['intention']}"
             )
             return self.OutputType(
                 success=True,

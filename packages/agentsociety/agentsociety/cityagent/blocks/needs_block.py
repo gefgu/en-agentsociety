@@ -118,6 +118,9 @@ class NeedsBlock(Block):
     - Need prioritization based on thresholds
     - Plan execution evaluation and satisfaction adjustments
     """
+    name = "NeedsBlock"
+    description = "Manages agent's dynamic needs system"
+    NeedAgent = True
 
     def __init__(
         self,
@@ -540,6 +543,8 @@ class NeedsBlock(Block):
                     block_performance_tool.get_tool().record_performance.remote(
                         block_name="NeedsBlock",
                         func_name="evaluate_and_adjust_needs_modernbert",
+                        actor="modernbert",
+                        agent_id=self.id,
                         duration=round(duration, 4),
                         token_input=len(context_text.split()),
                         token_output=0,
@@ -597,6 +602,8 @@ class NeedsBlock(Block):
                 block_performance_tool.get_tool().record_performance.remote(
                     block_name=log_payload["block_name"],
                     func_name=log_payload["func_name"],
+                    actor="llm",
+                    agent_id=self.id,
                     duration=log_payload["duration_seconds"],
                     token_input=log_payload["input_tokens"],
                     token_output=log_payload["output_tokens"],

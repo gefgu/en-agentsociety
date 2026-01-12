@@ -14,6 +14,8 @@ from multiprocessing import cpu_count
 from typing import Any, Callable, Literal, Optional, Union, cast
 
 import yaml
+
+from ..performance.monitoring import start_monitoring, stop_monitoring
 from ..agent import CustomTool
 from fastembed import SparseTextEmbedding
 from ..performance.BlockPerformance import BlockPerformanceActor
@@ -60,6 +62,7 @@ from ..storage.type import (
 )
 from ..survey.models import Survey
 from .type import ExperimentStatus, Logs
+import ray
 
 __all__ = ["SimulationEngine"]
 
@@ -296,6 +299,14 @@ class SimulationEngine:
             get_logger().info("Database writer initialized")
             # save to local
             await self._database_writer.update_exp_info(self._exp_info)
+
+        # =========================
+        # Initialize Prometheus and Grafana server
+        # ===========================
+        try:
+            start_monitoring()
+        except Exception as e:
+            get_logger().warning(f"Failed to start monitoring services: {e}")
 
         try:
             # ====================
@@ -1038,6 +1049,12 @@ class SimulationEngine:
     async def close(self):
         """Close all the components"""
 
+        # ================================
+        # stop monitoring
+        # ================================
+        # get_logger().info("Stopping monitoring services...")
+        stop_monitoring()
+
         # ===================================
         # close groups
         # ===================================
@@ -1626,8 +1643,6 @@ class SimulationEngine:
             # ======================
             if self._performance_actor is not None:
                 try:
-                    import ray
-
                     perf_stats = ray.get(self._performance_actor.get_stats.remote())
                     if perf_stats:
                         for block_func, metrics in perf_stats.items():
