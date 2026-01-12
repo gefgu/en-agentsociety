@@ -158,16 +158,13 @@ class VectorStore:
         if filter is not None:
             search_filter.update(filter)
 
-        # Create NamedSparseVector for the query
-        named_vector = models.NamedSparseVector(
-            name="text-sparse",
-            vector=models.SparseVector(
-                indices=query_embedding.indices.tolist(),
-                values=query_embedding.values.tolist(),
-            ),
+                # Create SparseVector for the query
+        sparse_vector = models.SparseVector(
+            indices=query_embedding.indices.tolist(),
+            values=query_embedding.values.tolist(),
         )
 
-        # Perform search
+                # Perform search
         must_conditions = []
         for key, value in search_filter.items():
             if isinstance(value, dict):
@@ -190,18 +187,19 @@ class VectorStore:
 
         search_result = self._client.query_points(
             collection_name=self._collection_name,
-            query=named_vector,
+            query=sparse_vector,
+            using="text-sparse",
             limit=k,
-            query_filter=models.Filter(must=must_conditions),
+            query_filter=models.Filter(must=must_conditions) if must_conditions else None,
         )
 
         # Format results
         results = []
-        for hit in search_result:
-            assert hit.payload is not None
-            content = hit.payload.get("content", "")
-            score = hit.score
-            metadata = {k: v for k, v in hit.payload.items() if k != "content"}
+        for point in search_result.points:
+            assert point.payload is not None
+            content = point.payload.get("content", "")
+            score = point.score
+            metadata = {k: v for k, v in point.payload.items() if k != "content"}
             results.append((content, score, metadata))
 
         return results
