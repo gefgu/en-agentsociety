@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -22,6 +22,12 @@ class EnvConfig(BaseModel):
 
     home_dir: str = Field(default="./agentsociety_data")
     """Home directory for AgentSociety's webui if s3 is not enabled"""
+
+    finetune_data_dir: Optional[str] = Field(default=None)
+    """Directory for finetune data, if not set, use home_dir/finetune_data"""
+
+    modernbert_model_path: Optional[str] = Field(default=None)
+    """Path to the ModernBERT model, if not set, ModernBERT features will be disabled"""
 
     @property
     def fs_client(self) -> Union[S3Client, FileSystemClient]:

@@ -173,6 +173,9 @@ class AgentToolbox(BaseModel):
     messager: Optional[Messager] = Field(None, description="Message handling system")
     embedding: SparseTextEmbedding = Field(..., description="Text embedding system")
     database_writer: Optional[DatabaseWriter] = Field(None, description="Database writing interface")
+    finetune_data_dir: Optional[str] = Field(
+        None, description="Directory for finetune data"
+    )
     
     # Custom tools storage
     custom_tools: Dict[str, CustomTool] = Field(default_factory=dict, exclude=True)

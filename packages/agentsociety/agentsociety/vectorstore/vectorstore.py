@@ -188,9 +188,9 @@ class VectorStore:
                     models.FieldCondition(key=key, match=models.MatchValue(value=value))
                 )
 
-        search_result = self._client.search(
+        search_result = self._client.query_points(
             collection_name=self._collection_name,
-            query_vector=named_vector,
+            query=named_vector,
             limit=k,
             query_filter=models.Filter(must=must_conditions),
         )

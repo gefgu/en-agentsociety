@@ -17,6 +17,7 @@ import yaml
 from ..agent import CustomTool
 from fastembed import SparseTextEmbedding
 from ..performance.BlockPerformance import BlockPerformanceActor
+from ..modernbert.modernbert_regression_actor import ModernBERTRegressionActor
 import ray
 
 from ..agent import (
@@ -747,6 +748,7 @@ class SimulationEngine:
                             messager=self.messager,
                             embedding=self._embedding,
                             database_writer=self._database_writer,
+                            finetune_data_dir=self._config.env.finetune_data_dir,
                         ),
                         memory=memory_init,
                         agent_params=agent_params,
@@ -868,6 +870,7 @@ class SimulationEngine:
                 messager=self.messager,
                 embedding=self._embedding,
                 database_writer=self._database_writer,
+                finetune_data_dir=self._config.env.finetune_data_dir,
             )
             get_logger().info("Initializing the agents...")
             to_return = {}
@@ -984,6 +987,26 @@ class SimulationEngine:
             agent_toolbox.add_tool(block_performance_tool)
 
             get_logger().info("Initializing the agents...")
+
+
+            # ================================
+            # Needs ModernBert model
+            # ================================
+            modernbert_model_path = self._config.env.modernbert_model_path
+            if modernbert_model_path:
+                  get_logger().info(f"Loading ModernBert model from {modernbert_model_path}...")
+
+                  modernbert_pool = ModernBERTRegressionActor.remote(modernbert_model_path)
+
+                  modernbert_tool = CustomTool(
+                      name="modernbert_regression_actor",
+                      tool=modernbert_pool,
+                      description="Ray actor for ModernBert regression model",
+                  )
+                  agent_toolbox.add_tool(modernbert_tool)
+                  get_logger().info("ModernBert model loaded and tool added to toolbox.")
+
+
 
             # ===================================
             # save the experiment info

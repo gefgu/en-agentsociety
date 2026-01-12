@@ -1,6 +1,8 @@
 from typing import Any
 import time
 import json_repair
+import os
+import json
 
 from ...agent import AgentToolbox, Block, FormatPrompt, DotDict
 from ...logger import get_logger
@@ -119,6 +121,7 @@ class NeedsBlock(Block):
 
     def __init__(
         self,
+        id: str,
         toolbox: AgentToolbox,
         agent_memory: Memory,
         agent_context: DotDict,
@@ -171,6 +174,7 @@ class NeedsBlock(Block):
         self._need_to_do = None
         # determine if the intervention need has been checked
         self._need_to_do_checked = False
+        self.id = id
 
     async def reset(self):
         """Reset the needs block."""
@@ -466,6 +470,28 @@ class NeedsBlock(Block):
                 await self.memory.status.update("execution_context", {})
         return cognition
 
+    async def _save_finetuning_data(
+        self, prompt_dialog: str, response: str, metadata: dict
+    ):
+        """Save finetuning data to the specified directory."""
+        finetune_data_dir = self.toolbox.finetune_data_dir
+        if not finetune_data_dir:
+            return
+
+        os.makedirs(f"{finetune_data_dir}/adjust_needs/", exist_ok=True)
+        timestamp = int(time.time() * 1000)
+        filename = f"{self.id}_{timestamp}.json"
+        filepath = os.path.join(f"{finetune_data_dir}/adjust_needs/", filename)
+
+        finetune_entry = {
+            "prompt": prompt_dialog,
+            "response": response,
+            **metadata,
+        }
+
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(json.dumps(finetune_entry, ensure_ascii=False) + "\n")
+
     async def evaluate_and_adjust_needs(self, completed_plan):
         """
         Evaluate plan execution results and adjust satisfaction values.
@@ -475,7 +501,8 @@ class NeedsBlock(Block):
         - Implements retry logic for invalid responses
         """
         block_performance_tool = self.toolbox.get_tool("block_performance_actor")
-        
+        modernbert_tool = self.toolbox.get_tool("modernbert_regression_actor")
+
         # Retrieve the executed plan and evaluation results
         evaluation_results = []
         for step in completed_plan["steps"]:
@@ -498,6 +525,51 @@ class NeedsBlock(Block):
             social_satisfaction=await self.memory.status.get("social_satisfaction"),
         )
 
+        if modernbert_tool:
+            try:
+                start_time = time.perf_counter()
+                context_text = self.evaluation_prompt.to_dialog()[0]["content"]
+
+                modernbert_pool = modernbert_tool.get_tool()
+                response_dict = await modernbert_pool.predict.remote(context_text)
+                # --- MEASUREMENT END ---
+                end_time = time.perf_counter()
+                duration = end_time - start_time
+
+                if block_performance_tool:
+                    block_performance_tool.get_tool().record_performance.remote(
+                        block_name="NeedsBlock",
+                        func_name="evaluate_and_adjust_needs_modernbert",
+                        duration=round(duration, 4),
+                        token_input=len(context_text.split()),
+                        token_output=0,
+                    )
+
+                try:
+                    # print(self.evaluation_prompt.to_dialog())
+                    # print(response)
+
+                    new_satisfaction: Any = response_dict
+                    # Update values of all needs
+                    for need_type, new_value in new_satisfaction.items():
+                        if need_type in [
+                            "hunger_satisfaction",
+                            "energy_satisfaction",
+                            "safety_satisfaction",
+                            "social_satisfaction",
+                        ]:
+                            await self.memory.status.update(need_type, new_value)
+                    return
+                except Exception as e:
+                    get_logger().warning(
+                        f"Error processing evaluation response: {str(e)}"
+                    )
+                    get_logger().warning(f"Original response: {response_dict}")
+
+            except Exception as e:
+                get_logger().warning(f"ModernBERT evaluation failed: {str(e)}")
+                # Fallback to original LLM evaluation
+
         retry = 3
         while retry > 0:
             start_time = time.perf_counter()
@@ -510,6 +582,7 @@ class NeedsBlock(Block):
 
             # --- MEASUREMENT END ---
             end_time = time.perf_counter()
+
             duration = end_time - start_time
 
             log_payload = {
@@ -521,13 +594,29 @@ class NeedsBlock(Block):
             }
 
             if block_performance_tool:
-              block_performance_tool.get_tool().record_performance.remote(
-                  block_name=log_payload["block_name"],
-                  func_name=log_payload["func_name"],
-                  duration=log_payload["duration_seconds"],
-                  token_input=log_payload["input_tokens"],
-                  token_output=log_payload["output_tokens"],
-              )
+                block_performance_tool.get_tool().record_performance.remote(
+                    block_name=log_payload["block_name"],
+                    func_name=log_payload["func_name"],
+                    duration=log_payload["duration_seconds"],
+                    token_input=log_payload["input_tokens"],
+                    token_output=log_payload["output_tokens"],
+                )
+
+            if self.toolbox.finetune_data_dir:
+                try:
+                    await self._save_finetuning_data(
+                        prompt_dialog=self.evaluation_prompt.to_dialog()[0]["content"],
+                        response=response,
+                        metadata={
+                            "agent_id": self.id,
+                            "current_need": current_need,
+                            "timestamp": time.time(),
+                        },
+                    )
+                except Exception as e:
+                    get_logger().warning(
+                        f"Failed to save finetuning data in needs_block: {str(e)}"
+                    )
 
             try:
                 # print(self.evaluation_prompt.to_dialog())

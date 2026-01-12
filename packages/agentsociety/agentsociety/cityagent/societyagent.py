@@ -202,6 +202,7 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         )
 
         self.needs_block = NeedsBlock(
+            id=self.id,
             toolbox=self._toolbox,
             agent_memory=self.memory,
             agent_context=self.context,
