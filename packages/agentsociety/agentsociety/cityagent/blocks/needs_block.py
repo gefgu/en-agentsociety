@@ -516,6 +516,7 @@ class NeedsBlock(Block):
         """
         block_performance_tool = self.toolbox.get_tool("block_performance_actor")
         modernbert_tool = self.toolbox.get_tool("modernbert_regression_actor")
+        catboost_tool = self.toolbox.get_tool("catboost_adjust_needs_actor")
 
         # Retrieve the executed plan and evaluation results
         evaluation_results = []
@@ -529,15 +530,62 @@ class NeedsBlock(Block):
 
         # Use LLM for evaluation
         current_need = await self.memory.status.get("current_need")
-        await self.evaluation_prompt.format(
-            current_need=current_need,
-            plan_target=completed_plan["target"],
-            evaluation_results=evaluation_results,
-            hunger_satisfaction=await self.memory.status.get("hunger_satisfaction"),
-            energy_satisfaction=await self.memory.status.get("energy_satisfaction"),
-            safety_satisfaction=await self.memory.status.get("safety_satisfaction"),
-            social_satisfaction=await self.memory.status.get("social_satisfaction"),
-        )
+        current_hunger = await self.memory.status.get("hunger_satisfaction")
+        current_energy = await self.memory.status.get("energy_satisfaction")
+        current_safety = await self.memory.status.get("safety_satisfaction")
+        current_social = await self.memory.status.get("social_satisfaction")
+        
+
+        if catboost_tool:
+            try:
+                start_time = time.perf_counter()
+                context_text = self.evaluation_prompt.to_dialog()[0]["content"]
+
+                catboost_pool = catboost_tool.get_tool()
+                response_list = await catboost_pool.predict.remote(
+                    prompt=context_text,
+                    current_need=current_need,
+                    current_hunger=current_hunger,
+                    current_energy=current_energy,
+                    current_safety=current_safety,
+                    current_social=current_social,
+                )
+                # --- MEASUREMENT END ---
+                end_time = time.perf_counter()
+                duration = end_time - start_time
+
+                if block_performance_tool:
+                    block_performance_tool.get_tool().record_performance.remote(
+                        block_name="NeedsBlock",
+                        func_name="evaluate_and_adjust_needs",
+                        actor="catboost",
+                        agent_id=self.id,
+                        duration=round(duration, 4),
+                        token_input=len(context_text.split()),
+                        token_output=0,
+                    )
+
+                try:
+                    new_satisfaction: Any = response_list
+                    # Update values of all needs
+                    for need_type, new_value in new_satisfaction.items():
+                        if need_type in [
+                            "hunger_satisfaction",
+                            "energy_satisfaction",
+                            "safety_satisfaction",
+                            "social_satisfaction",
+                        ]:
+                            await self.memory.status.update(need_type, new_value)
+                    return
+                except Exception as e:
+                    get_logger().warning(
+                        f"Error processing evaluation response: {str(e)}"
+                    )
+                    get_logger().warning(f"Original response: {response_list}")
+
+            except Exception as e:
+                get_logger().warning(f"CatBoost evaluation failed: {str(e)}")
+                # Fallback to original LLM evaluation
 
         if modernbert_tool:
             try:
@@ -586,6 +634,16 @@ class NeedsBlock(Block):
                 get_logger().warning(f"ModernBERT evaluation failed: {str(e)}")
                 # Fallback to original LLM evaluation
 
+
+        await self.evaluation_prompt.format(
+            current_need=current_need,
+            plan_target=completed_plan["target"],
+            evaluation_results=evaluation_results,
+            hunger_satisfaction=current_hunger,
+            energy_satisfaction=current_energy,
+            safety_satisfaction=current_safety,
+            social_satisfaction=current_social,
+        )
         retry = 3
         while retry > 0:
 

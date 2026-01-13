@@ -219,6 +219,7 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         )
 
         self.cognition_block = CognitionBlock(
+            agent_id=self.id,
             toolbox=self._toolbox,
             agent_memory=self.memory,
         )

@@ -61,6 +61,7 @@ class CognitionBlock(Block):
 
     def __init__(
         self,
+        agent_id: str,
         toolbox: AgentToolbox,
         agent_memory: Memory,
         block_params: Optional[CognitionBlockParams] = None,
@@ -78,6 +79,7 @@ class CognitionBlock(Block):
             block_params=block_params,
         )
         self.last_check_day = None
+        self.agent_id = agent_id
 
     async def set_status(self, status):
         """Update multiple status fields in memory.
@@ -177,7 +179,7 @@ class CognitionBlock(Block):
                         context={
                             "block_name": self.name,
                             "func_name": "attitude_update",
-                            "agent_id": self.agent.id
+                            "agent_id": self.agent_id
                         }
                     )
                     json_str = extract_json(_response)
@@ -277,7 +279,7 @@ class CognitionBlock(Block):
                     context={
                         "block_name": self.name,
                         "func_name": "thought_update",
-                        "agent_id": self.agent.id
+                        "agent_id": self.agent_id
                     }
                 )
                 json_str = extract_json(_response)
@@ -396,6 +398,7 @@ class CognitionBlock(Block):
         )
 
         evaluation = True
+        exceptions = []
         response = {}
         for retry in range(10):
             try:
@@ -406,7 +409,7 @@ class CognitionBlock(Block):
                     context={
                         "block_name": self.name,
                         "func_name": "emotion_update",
-                        "agent_id": self.agent.id
+                        "agent_id": self.agent_id
                     }
                 )
                 json_str = extract_json(_response)
@@ -414,10 +417,11 @@ class CognitionBlock(Block):
                     response: Any = json_repair.loads(json_str)
                     evaluation = False
                     break
-            except Exception:
+            except Exception as e:
+                exceptions.append(e)
                 pass
         if evaluation:
-            raise Exception("Request for cognition update failed")
+            raise Exception("Request for cognition update failed, exceptions: " + str(exceptions))
 
         await self.memory.status.update(
             "emotion",

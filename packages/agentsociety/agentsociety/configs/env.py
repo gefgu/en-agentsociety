@@ -29,6 +29,9 @@ class EnvConfig(BaseModel):
     modernbert_model_path: Optional[str] = Field(default=None)
     """Path to the ModernBERT model, if not set, ModernBERT features will be disabled"""
 
+    catboost_model_path: Optional[str] = Field(default=None)
+    """Path to the CatBoost model, if not set, CatBoost features will be disabled"""
+
     @property
     def fs_client(self) -> Union[S3Client, FileSystemClient]:
         if self.s3.enabled:

@@ -15,6 +15,8 @@ from typing import Any, Callable, Literal, Optional, Union, cast
 
 import yaml
 
+from ..catboost.catboost_adjust_needs import CatBoostAdjustNeedsActor
+
 from ..performance.monitoring import start_monitoring, stop_monitoring
 from ..agent import CustomTool
 from fastembed import SparseTextEmbedding
@@ -1023,6 +1025,24 @@ class SimulationEngine:
                   )
                   agent_toolbox.add_tool(modernbert_tool)
                   get_logger().info("ModernBert model loaded and tool added to toolbox.")
+
+
+            # ================================
+            # Needs CatBoost model
+            # ================================
+            if self._config.env.catboost_model_path:
+                catboost_model_path = self._config.env.catboost_model_path
+                get_logger().info(f"Loading CatBoost model from {catboost_model_path}...")
+
+                catboost_pool = CatBoostAdjustNeedsActor.remote(catboost_model_path)
+
+                catboost_tool = CustomTool(
+                    name="catboost_adjust_needs_actor",
+                    tool=catboost_pool,
+                    description="Ray actor for CatBoost model",
+                )
+                agent_toolbox.add_tool(catboost_tool)
+                get_logger().info("CatBoost model loaded and tool added to toolbox.")
 
 
 
