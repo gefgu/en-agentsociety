@@ -206,7 +206,12 @@ class NeedsBlock(Block):
         if not self.initialized:
             await self.initial_prompt.format(context=self.context)
             response = await self.llm.atext_request(
-                self.initial_prompt.to_dialog(), response_format={"type": "json_object"}
+                self.initial_prompt.to_dialog(), response_format={"type": "json_object"},
+                context={
+                    "block_name": "NeedsBlock",
+                    "func_name": "initialize",
+                    "agent_id": self.id,
+                }
             )
             response = clean_json_response(response)
             retry = 3
@@ -263,7 +268,12 @@ class NeedsBlock(Block):
             social_satisfaction=await self.memory.status.get("social_satisfaction"),
         )
         response = await self.llm.atext_request(
-            self.reflection_prompt.to_dialog(), response_format={"type": "json_object"}
+            self.reflection_prompt.to_dialog(), response_format={"type": "json_object"},
+            context={
+                "block_name": "NeedsBlock",
+                "func_name": "reflect_to_intervention",
+                "agent_id": self.id,
+            }
         )
         try:
             reflection: Any = json_repair.loads(clean_json_response(response))

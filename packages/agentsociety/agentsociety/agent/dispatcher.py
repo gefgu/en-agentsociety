@@ -116,12 +116,18 @@ class BlockDispatcher:
         try:
             function_schema = self._get_function_schema()
             await self.dispatcher_prompt.format(context=context)
+            agent_id = await self.memory.status.get("id")
 
             # Call LLM with tools schema
             response = await self.toolbox.llm.atext_request(
                 self.dispatcher_prompt.to_dialog(),
                 tools=[function_schema],
                 tool_choice={"type": "function", "function": {"name": "select_block"}},
+                context={
+                    "block_name": "BlockDispatcher",
+                    "func_name": "dispatch",
+                    "agent_id": str(agent_id),
+                }
             )
             function_args: Any = json_repair.loads(
                 response.choices[0].message.tool_calls[0].function.arguments

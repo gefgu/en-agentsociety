@@ -57,6 +57,7 @@ class CognitionBlock(Block):
     name = "CognitionBlock"
     description = "Handles daily updates of attitudes, thoughts, and emotions"
     actions = {}
+    NeedAgent = True
 
     def __init__(
         self,
@@ -173,6 +174,11 @@ class CognitionBlock(Block):
                         question_prompt.to_dialog(),
                         timeout=300,
                         response_format={"type": "json_object"},
+                        context={
+                            "block_name": self.name,
+                            "func_name": "attitude_update",
+                            "agent_id": self.agent.id
+                        }
                     )
                     json_str = extract_json(_response)
                     if json_str:
@@ -268,6 +274,11 @@ class CognitionBlock(Block):
                     question_prompt.to_dialog(),
                     timeout=300,
                     response_format={"type": "json_object"},
+                    context={
+                        "block_name": self.name,
+                        "func_name": "thought_update",
+                        "agent_id": self.agent.id
+                    }
                 )
                 json_str = extract_json(_response)
                 if json_str:
@@ -392,6 +403,11 @@ class CognitionBlock(Block):
                     question_prompt.to_dialog(),
                     timeout=300,
                     response_format={"type": "json_object"},
+                    context={
+                        "block_name": self.name,
+                        "func_name": "emotion_update",
+                        "agent_id": self.agent.id
+                    }
                 )
                 json_str = extract_json(_response)
                 if json_str:

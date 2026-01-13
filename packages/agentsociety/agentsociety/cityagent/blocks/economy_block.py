@@ -70,6 +70,7 @@ class WorkBlock(Block):
 
     name = "WorkBlock"
     description = "Handles work-related economic activities and time tracking"
+    NeedAgent = True
 
     def __init__(
         self,
@@ -107,7 +108,12 @@ class WorkBlock(Block):
         """
         await self.guidance_prompt.format(context=context)
         result = await self.llm.atext_request(
-            self.guidance_prompt.to_dialog(), response_format={"type": "json_object"}
+            self.guidance_prompt.to_dialog(), response_format={"type": "json_object"},
+            context={
+                "block_name": self.name,
+                "func_name": "forward",
+                "agent_id": self.agent.id,
+            }
         )
         result = clean_json_response(result)
         try:
@@ -170,6 +176,7 @@ class ConsumptionBlock(Block):
 
     name = "ConsumptionBlock"
     description = "Used to determine the consumption amount, and items"
+    NeedAgent = True
 
     def __init__(
         self,
@@ -346,6 +353,13 @@ class EconomyBlock(Block):
             [self.work_block, self.consumption_block, self.none_block]
         )
 
+    def set_agent(self, agent: Any):
+        super().set_agent(agent)
+        self.month_plan_block.set_agent(agent)
+        self.work_block.set_agent(agent)
+        self.consumption_block.set_agent(agent)
+        self.none_block.set_agent(agent)
+
     async def before_forward(self):
         try:
             await self.month_plan_block.forward()
@@ -392,6 +406,8 @@ class MonthEconomyPlanBlock(Block):
         economy_client: Interface to economic system
         llm_error: Counter for LLM failures
     """
+    name = "MonthEconomyPlanBlock"
+    description = "Handles monthly economic planning and mental health assessment"
 
     def __init__(
         self,
@@ -497,7 +513,11 @@ class MonthEconomyPlanBlock(Block):
                     mode="merge",
                 )
                 dialog_queue = await self.memory.status.get("dialog_queue")
-                content = await self.llm.atext_request(list(dialog_queue), timeout=300)
+                content = await self.llm.atext_request(list(dialog_queue), timeout=300, context={
+                    "block_name": self.name,
+                    "func_name": "forward",
+                    "agent_id": agent_id,
+                })
                 await self.memory.status.update(
                     "dialog_queue",
                     [{"role": "assistant", "content": content}],
@@ -583,7 +603,12 @@ class MonthEconomyPlanBlock(Block):
                             """
                 obs_prompt = prettify_document(obs_prompt)
                 content = await self.llm.atext_request(
-                    [{"role": "user", "content": obs_prompt}], timeout=300
+                    [{"role": "user", "content": obs_prompt}], timeout=300,
+                    context={
+                        "block_name": self.name,
+                        "func_name": "forward",
+                        "agent_id": agent_id,
+                    }
                 )
                 inverse_score_items = [3, 8, 12, 16]
                 category2score = {"rarely": 0, "some": 1, "occasionally": 2, "most": 3}
@@ -607,7 +632,12 @@ class MonthEconomyPlanBlock(Block):
                             """
                 obs_prompt = prettify_document(obs_prompt)
                 content = await self.llm.atext_request(
-                    [{"role": "user", "content": obs_prompt}], timeout=300
+                    [{"role": "user", "content": obs_prompt}], timeout=300,
+                    context={
+                        "block_name": self.name,
+                        "func_name": "forward",
+                        "agent_id": agent_id,
+                    }
                 )
                 await self.memory.status.update("ubi_opinion", [content], mode="merge")
 

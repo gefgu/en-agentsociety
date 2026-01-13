@@ -293,10 +293,20 @@ Response format: 1-2 sentences describing the agent's current status from a firs
 Example:
 "I am working at the office, the work is not too busy, but I am a bit tired."
 """
-        summary_text = await self.llm.atext_request([
-            {"role": "system", "content": "You are an AI assistant that describes the current status of a citizen agent in a city simulation."},
-            {"role": "user", "content": status_description_prompt}
-        ])
+        summary_text = await self.llm.atext_request(
+            [
+                {
+                    "role": "system",
+                    "content": "You are an AI assistant that describes the current status of a citizen agent in a city simulation.",
+                },
+                {"role": "user", "content": status_description_prompt},
+            ],
+            context={
+                "block_name": "SocietyAgent",
+                "func_name": "status_summary",
+                "agent_id": str(await self.memory.status.get("id")),
+            },
+        )
         await self.memory.status.update("status_summary", summary_text)
 
     async def before_forward(self):
@@ -383,7 +393,12 @@ Example:
         if aoi_info:
             await self.environment_reflection_prompt.format()
             reflection = await self.llm.atext_request(
-                self.environment_reflection_prompt.to_dialog()
+                self.environment_reflection_prompt.to_dialog(),
+                context={
+                    "block_name": "SocietyAgent",
+                    "func_name": "reflect_to_environment",
+                    "agent_id": str(self.id),
+                },
             )
             await self.save_agent_thought(reflection)
 
@@ -567,7 +582,9 @@ Example:
                 try:
                     recent_chat_history = recent_chat_history[-200:]
                 except Exception as e:
-                    get_logger().warning(f"Error in do_chat (recent_chat_history): {str(e)}")
+                    get_logger().warning(
+                        f"Error in do_chat (recent_chat_history): {str(e)}"
+                    )
                     recent_chat_history = "No chat history"
 
                 current_intention = "I am doing nothing"
@@ -581,7 +598,9 @@ Example:
                 else:
                     step_index = current_plan.get("index", 0)
                     current_step = current_plan.get("steps", [])[step_index]
-                    current_intention = current_step.get("intention", "I am doing nothing")
+                    current_intention = current_step.get(
+                        "intention", "I am doing nothing"
+                    )
 
                 # Decision prompt
                 should_respond_prompt = f"""
@@ -618,6 +637,11 @@ Answer only YES or NO, in JSON format, e.g. {{"should_respond": "YES", "response
                         {"role": "user", "content": should_respond_prompt},
                     ],
                     response_format={"type": "json_object"},
+                    context={
+                        "block_name": "SocietyAgent",
+                        "func_name": "do_chat",
+                        "agent_id": str(self.id),
+                    },
                 )
                 should_respond = json_repair.loads(respond)["should_respond"]  # type: ignore
                 if should_respond == "NO":

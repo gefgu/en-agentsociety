@@ -208,7 +208,7 @@ class PlaceSelectionBlock(Block):
                 response_format={"type": "json_object"},
                 context={
                     "block_name": self.name,
-                    "func_name": "PlaceSelectionBlock - Level 1 Type Selection",
+                    "func_name": "Level 1 Type Selection",
                     "agent_id": self.agent.id,
                 },
             )
@@ -234,7 +234,7 @@ class PlaceSelectionBlock(Block):
                 response_format={"type": "json_object"},
                 context={
                     "block_name": self.name,
-                    "func_name": "PlaceSelectionBlock - Level 2 Type Selection",
+                    "func_name": "Level 2 Type Selection",
                     "agent_id": self.agent.id,
                 },
             )
@@ -251,7 +251,7 @@ class PlaceSelectionBlock(Block):
                 response_format={"type": "json_object"},
                 context={
                     "block_name": self.name,
-                    "func_name": "PlaceSelectionBlock - Radius Selection",
+                    "func_name": "Radius Selection",
                     "agent_id": self.agent.id,
                 },
             )
@@ -323,7 +323,7 @@ class MoveBlock(Block):
             response_format={"type": "json_object"},
             context={
                 "block_name": self.name,
-                "func_name": "MoveBlock - Place Analysis",
+                "func_name": "Place Analysis",
                 "agent_id": self.agent.id,
             },
         )
