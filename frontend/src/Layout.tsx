@@ -56,7 +56,7 @@ export default function RootLayout({
             <Header ref={headerRef} style={headerStyle}>
                 <Flex gap='small' align='center' style={{ width: '100%' }}>
                     <Link to="/" style={{ display: 'flex', alignItems: 'center' }}>
-                        <img src="/logo.png" alt="AgentSociety" style={{ height: '24px', display: 'block' }} />
+                        <img src="/logo.png" alt="FastSociety" style={{ height: '24px', display: 'block' }} />
                     </Link>
                     <Divider type="vertical" />
                     <div style={{ flex: 1 }}>
