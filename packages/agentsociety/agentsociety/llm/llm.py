@@ -4,7 +4,7 @@ import random
 import time
 from enum import Enum
 from multiprocessing import cpu_count
-from typing import Any, List, Optional, Union, overload
+from typing import Any, List, Optional, Union, overload, TypedDict
 
 import httpx
 import ray
@@ -28,6 +28,12 @@ __all__ = [
 ]
 
 MAX_TIMEOUT = 60
+
+class LLMContext(TypedDict, total=False):
+    block_name: str
+    func_name: str
+    agent_id: str
+
 
 class LLMProviderType(str, Enum):
     """
@@ -251,7 +257,12 @@ class LLM:
         - It initializes clients based on the specified request type and handles token usage and consumption reporting.
     """
 
-    def __init__(self, configs: List[LLMConfig], num_actors: int = min(cpu_count(), 8)):
+    def __init__(
+        self,
+        configs: List[LLMConfig],
+        num_actors: int = min(cpu_count(), 8),
+        block_performance_actor: Optional[Any] = None,
+    ):
         """
         Initializes the LLM instance.
 
@@ -274,6 +285,7 @@ class LLM:
         self.completion_tokens_used = 0
         self._next_index = 0
         self._last_show_time = time.time()
+        self._performance_actor = block_performance_actor
 
         for config in self.configs:
             base_url = config.base_url
@@ -327,8 +339,8 @@ class LLM:
         retries: int = 10,
         tools: NotGiven = NOT_GIVEN,
         tool_choice: NotGiven = NOT_GIVEN,
-        get_token_stats: bool = False,
-    ) -> str | tuple[str, int, int]: ...
+        context: Optional[LLMContext] = None,
+    ) -> str: ...
 
     @overload
     async def atext_request(
@@ -346,6 +358,7 @@ class LLM:
         retries: int = 10,
         tools: List[ChatCompletionToolParam] = [],
         tool_choice: ChatCompletionToolChoiceOptionParam = "auto",
+        context: Optional[LLMContext] = None,
     ) -> Any: ...
 
     async def atext_request(
@@ -363,7 +376,7 @@ class LLM:
         retries: int = 10,
         tools: Union[List[ChatCompletionToolParam], NotGiven] = NOT_GIVEN,
         tool_choice: Union[ChatCompletionToolChoiceOptionParam, NotGiven] = NOT_GIVEN,
-        get_token_stats: bool = False,
+        context: Optional[LLMContext] = None,
     ):
         """
         Sends an asynchronous text request to the configured LLM API.
@@ -392,10 +405,9 @@ class LLM:
         index = self._get_index()
         client_i = index % len(self.configs)
         actor_i = index % len(self._actors)
+        start_time = time.perf_counter()
         if time.time() - self._last_show_time > 10:
-            get_logger().info(
-                f"LLM request count: {index}"
-            )
+            get_logger().info(f"LLM request count: {index}")
             self._last_show_time = time.time()
         async with self._semaphores[client_i]:
             content, log = await self._actors[actor_i].call.remote(  # type: ignore
@@ -415,6 +427,27 @@ class LLM:
             self._log_list.append(log)
             self.prompt_tokens_used += log["input_tokens"]
             self.completion_tokens_used += log["output_tokens"]
-        if get_token_stats:
-            return content, log["input_tokens"], log["output_tokens"]
+
+        end_time = time.perf_counter()
+        if self._performance_actor is not None:
+            if context:
+              self._performance_actor.record_performance.remote(
+                  duration=end_time - start_time,
+                  actor="llm",
+                  token_input=log["input_tokens"],
+                  token_output=log["output_tokens"],
+                  block_name=context.get("block_name", "unknown"),
+                  func_name=context.get("func_name", "unknown"),
+                  agent_id=context.get("agent_id", "unknown"),
+              )
+            else:
+              self._performance_actor.record_performance.remote(
+                  duration=end_time - start_time,
+                  actor="llm",
+                  token_input=log["input_tokens"],
+                  token_output=log["output_tokens"],
+                  block_name="unknown",
+                  func_name="unknown",
+                  agent_id="unknown",
+              )
         return content

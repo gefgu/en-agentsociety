@@ -308,12 +308,30 @@ class SimulationEngine:
         except Exception as e:
             get_logger().warning(f"Failed to start monitoring services: {e}")
 
+        # =======================
+        # Initialize BlockPerformance
+        # =========================
+        try:
+            # Initialize the performance actor
+            get_logger().info(f"Initializing performance actor with exp_id={self.exp_id}...")
+
+            block_performance_actor = BlockPerformanceActor.remote(self.exp_id)
+            block_performance_tool = CustomTool(
+                name="block_performance_actor",
+                tool=block_performance_actor,
+                description="Ray actor for tracking block performance metrics",
+            )
+            self._performance_actor = block_performance_actor
+            get_logger().info("Performance actor initialized")
+        except Exception as e:
+            get_logger().warning(f"Failed to initialize performance actor: {e}")
+
         try:
             # ====================
             # Initialize the LLM
             # ====================
             get_logger().info("Initializing LLM...")
-            self._llm = LLM(self._config.llm)
+            self._llm = LLM(self._config.llm, block_performance_actor=self._performance_actor)
             get_logger().info("LLM initialized")
 
             # ====================
@@ -982,18 +1000,7 @@ class SimulationEngine:
             await self.environment.step(1)
             get_logger().info("run 1 tick to make the initialization complete")
 
-            # Initialize the performance actor
-            get_logger().info("Initializing performance actor...")
-
-            block_performance_actor = BlockPerformanceActor.remote()
-            block_performance_tool = CustomTool(
-                name="block_performance_actor",
-                tool=block_performance_actor,
-                description="Ray actor for tracking block performance metrics",
-            )
-            self._performance_actor = block_performance_actor
-            get_logger().info("Performance actor initialized")
-
+            get_logger().info("Adding block Performance tool to Agents...")
             # Add performance tool to toolbox
             agent_toolbox.add_tool(block_performance_tool)
 

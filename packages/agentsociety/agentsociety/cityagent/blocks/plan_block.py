@@ -1,3 +1,4 @@
+import time
 from typing import Any, Optional, Tuple
 
 
@@ -110,6 +111,7 @@ class PlanBlock(Block):
         guidance_options: Predefined options mapped to specific needs
         max_plan_steps: Maximum allowed steps in generated plans (configurable)
     """
+    name = "PlanBlock"
 
     def __init__(
         self,
@@ -201,8 +203,15 @@ class PlanBlock(Block):
         )
 
         response = await self.llm.atext_request(
-            self.guidance_prompt.to_dialog(), response_format={"type": "json_object"}
+            self.guidance_prompt.to_dialog(),
+            response_format={"type": "json_object"},
+            context={
+                "block_name": self.name,
+                "func_name": "select_guidance",
+                "agent_id": self.agent.id,
+            },
         )
+
         retry = 3
         while retry > 0:
             try:
@@ -240,7 +249,15 @@ class PlanBlock(Block):
             context=self.context,
         )
 
-        response = await self.llm.atext_request(self.detail_prompt.to_dialog())
+        response = await self.llm.atext_request(
+            self.detail_prompt.to_dialog(),
+            context={
+                "block_name": self.name,
+                "func_name": "generate_detailed_plan",
+                "agent_id": self.agent.id,
+            },
+        )
+
         retry = 3
         while retry > 0:
             try:

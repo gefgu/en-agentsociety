@@ -1,5 +1,6 @@
 import math
 import random
+import time
 from typing import Optional
 
 import json_repair
@@ -205,8 +206,13 @@ class PlaceSelectionBlock(Block):
             levelOneType = await self.llm.atext_request(
                 self.typeSelectionPrompt.to_dialog(),
                 response_format={"type": "json_object"},
+                context={
+                    "block_name": self.name,
+                    "func_name": "PlaceSelectionBlock - Level 1 Type Selection",
+                    "agent_id": self.agent.id,
+                },
             )
-            levelOneType = json_repair.loads(clean_json_response(levelOneType))["place_type"] # type: ignore
+            levelOneType = json_repair.loads(clean_json_response(levelOneType))["place_type"]  # type: ignore
             sub_category = poi_cate[levelOneType]
         except Exception as e:
             get_logger().warning(f"MobilityBlock: Level 1 selection failed: {e}")
@@ -226,8 +232,13 @@ class PlaceSelectionBlock(Block):
             levelTwoType = await self.llm.atext_request(
                 self.secondTypeSelectionPrompt.to_dialog(),
                 response_format={"type": "json_object"},
+                context={
+                    "block_name": self.name,
+                    "func_name": "PlaceSelectionBlock - Level 2 Type Selection",
+                    "agent_id": self.agent.id,
+                },
             )
-            levelTwoType = json_repair.loads(clean_json_response(levelTwoType))["place_type"] # type: ignore
+            levelTwoType = json_repair.loads(clean_json_response(levelTwoType))["place_type"]  # type: ignore
         except Exception as e:
             get_logger().warning(f"MobilityBlock: Level 2 selection failed: {e}")
             levelTwoType = random.choice(sub_category)
@@ -236,9 +247,16 @@ class PlaceSelectionBlock(Block):
         try:
             await self.radiusPrompt.format(context=context)
             radius = await self.llm.atext_request(
-                self.radiusPrompt.to_dialog(), response_format={"type": "json_object"}
+                self.radiusPrompt.to_dialog(),
+                response_format={"type": "json_object"},
+                context={
+                    "block_name": self.name,
+                    "func_name": "PlaceSelectionBlock - Radius Selection",
+                    "agent_id": self.agent.id,
+                },
             )
-            radius = int(json_repair.loads(radius)["radius"]) # type: ignore
+            radius = int(json_repair.loads(radius)["radius"])  # type: ignore
+
         except Exception as e:
             get_logger().warning(f"MobilityBlock: Radius selection failed: {e}")
             radius = 10000  # Default 10km
@@ -303,10 +321,15 @@ class MoveBlock(Block):
         response = await self.llm.atext_request(
             self.placeAnalysisPrompt.to_dialog(),
             response_format={"type": "json_object"},
-        )  #
+            context={
+                "block_name": self.name,
+                "func_name": "MoveBlock - Place Analysis",
+                "agent_id": self.agent.id,
+            },
+        )
         try:
             response = clean_json_response(response)
-            response = json_repair.loads(response)["place_type"] # type: ignore
+            response = json_repair.loads(response)["place_type"]  # type: ignore
         except Exception:
             get_logger().warning(
                 f"MobilityBlock: Place Analysis: wrong type of place, raw response: {response}"
@@ -503,12 +526,15 @@ class MobilityBlock(Block):
     OutputType = SocietyAgentBlockOutput
     ContextType = MobilityBlockContext
     name = "MobilityBlock"
-    description = "Used for moving like go to work, go to home, go to other places, etc."
+    description = (
+        "Used for moving like go to work, go to home, go to other places, etc."
+    )
     actions = {
         "place_selection": "Support the place selection action",
         "move": "Support the move action",
         "mobility_none": "Support other mobility operations",
     }
+    NeedAgent = True
 
     def __init__(
         self,
@@ -536,6 +562,17 @@ class MobilityBlock(Block):
         self.dispatcher.register_blocks(
             [self.place_selection_block, self.move_block, self.mobility_none_block]
         )
+
+    def set_agent(self, agent: any) -> None:
+        """Associate the block and its sub-blocks with a specific agent.
+
+        Args:
+            agent: The agent instance to associate with.
+        """
+        super().set_agent(agent)
+        self.place_selection_block.set_agent(agent)
+        self.move_block.set_agent(agent)
+        self.mobility_none_block.set_agent(agent)
 
     async def forward(self, agent_context: DotDict) -> SocietyAgentBlockOutput:
         """Main entry point - delegates to sub-blocks"""

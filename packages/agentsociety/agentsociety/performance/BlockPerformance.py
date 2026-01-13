@@ -8,7 +8,8 @@ from prometheus_client import Counter, Histogram, Gauge, start_http_server
 
 @ray.remote
 class BlockPerformanceActor:
-    def __init__(self):
+    def __init__(self, exp_id: str):
+        self.exp_id = exp_id
         self.blocks_data = []  # Register blocks here if necessary
 
         try:
@@ -19,17 +20,17 @@ class BlockPerformanceActor:
         self.calls = Counter(
             "block_calls_total",
             "Number of calls to blocks",
-            ["block_name", "func_name", "agent_id"],
+            ["exp_id", "block_name", "func_name", "agent_id"],
         )
         self.block_duration = Histogram(
             "block_execution_duration_seconds",
             "Time spent in block execution",
-            ["block_name", "func_name", "agent_id"],
+            ["exp_id", "block_name", "func_name", "agent_id"],
         )
         self.token_counter = Counter(
             "tokens_total",
             "Number of tokens processed by LLMs",
-            ["direction", "actor", "block_name", "func_name", "agent_id"],
+            ["exp_id", "direction", "actor", "block_name", "func_name", "agent_id"],
         )
 
     def record_performance(
@@ -55,14 +56,21 @@ class BlockPerformanceActor:
         self.blocks_data.append(data_to_add)
 
         self.calls.labels(
-            block_name=block_name, func_name=func_name, agent_id=agent_id
+            exp_id=self.exp_id,
+            block_name=block_name,
+            func_name=func_name,
+            agent_id=agent_id,
         ).inc(1)
 
         self.block_duration.labels(
-            block_name=block_name, func_name=func_name, agent_id=agent_id
+            exp_id=self.exp_id,
+            block_name=block_name,
+            func_name=func_name,
+            agent_id=agent_id,
         ).observe(duration)
 
         self.token_counter.labels(
+            exp_id=self.exp_id,
             direction="input",
             actor=actor,
             block_name=block_name,
@@ -70,6 +78,7 @@ class BlockPerformanceActor:
             agent_id=agent_id,
         ).inc(token_input)
         self.token_counter.labels(
+            exp_id=self.exp_id,
             direction="output",
             actor=actor,
             block_name=block_name,

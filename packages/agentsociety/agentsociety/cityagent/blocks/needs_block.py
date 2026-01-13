@@ -118,6 +118,7 @@ class NeedsBlock(Block):
     - Need prioritization based on thresholds
     - Plan execution evaluation and satisfaction adjustments
     """
+
     name = "NeedsBlock"
     description = "Manages agent's dynamic needs system"
     NeedAgent = True
@@ -577,37 +578,16 @@ class NeedsBlock(Block):
 
         retry = 3
         while retry > 0:
-            start_time = time.perf_counter()
 
-            response, input_tokens, output_tokens = await self.llm.atext_request(
+            response = await self.llm.atext_request(
                 self.evaluation_prompt.to_dialog(),
                 response_format={"type": "json_object"},
-                get_token_stats=True,
+                context={
+                    "block_name": "NeedsBlock",
+                    "func_name": "evaluate_and_adjust_needs",
+                    "agent_id": self.id,
+                },
             )
-
-            # --- MEASUREMENT END ---
-            end_time = time.perf_counter()
-
-            duration = end_time - start_time
-
-            log_payload = {
-                "block_name": "NeedsBlock",
-                "func_name": "evaluate_and_adjust_needs",
-                "duration_seconds": round(duration, 4),
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens,
-            }
-
-            if block_performance_tool:
-                block_performance_tool.get_tool().record_performance.remote(
-                    block_name=log_payload["block_name"],
-                    func_name=log_payload["func_name"],
-                    actor="llm",
-                    agent_id=self.id,
-                    duration=log_payload["duration_seconds"],
-                    token_input=log_payload["input_tokens"],
-                    token_output=log_payload["output_tokens"],
-                )
 
             if self.toolbox.finetune_data_dir:
                 try:

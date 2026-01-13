@@ -79,31 +79,20 @@ class SleepBlock(Block):
         Returns:
             Dictionary with execution status, evaluation, time consumed, and node ID.
         """
-        block_performance = self.toolbox.get_tool("block_performance_actor")
-        start_time = time.perf_counter()
-
         await self.guidance_prompt.format(context=context)
-        result, input_tokens, out_tokens = await self.llm.atext_request(
+        result = await self.llm.atext_request(
             self.guidance_prompt.to_dialog(),
             response_format={"type": "json_object"},
-            get_token_stats=True,
+            context={
+                "block_name": self.name,
+                "func_name": "forward",
+                "agent_id": self.agent.id,
+            },
         )
         result = clean_json_response(result)
         node_id = await self.memory.stream.add(topic="other", description="I slept")
         try:
             result: Any = json_repair.loads(result)
-            end_time = time.perf_counter()
-            duration = end_time - start_time
-            if block_performance:
-                block_performance.get_tool().record_performance.remote(
-                    block_name=self.name,
-                    func_name="forward",
-                    duration=duration,
-                    actor="other",
-                    agent_id=self.agent.id,
-                    token_input=input_tokens,
-                    token_output=out_tokens,
-                )
             return {
                 "success": True,
                 "evaluation": f'Sleep: {context["current_step"]["intention"]}',
@@ -150,26 +139,19 @@ class OtherNoneBlock(Block):
             intention=context["current_step"]["intention"],
             emotion_types=await self.memory.status.get("emotion_types"),
         )
-        result, input_tokens, out_tokens = await self.llm.atext_request(
-            self.guidance_prompt.to_dialog(), response_format={"type": "json_object"}, get_token_stats=True
+        result = await self.llm.atext_request(
+            self.guidance_prompt.to_dialog(),
+            response_format={"type": "json_object"},
+            context={
+                "block_name": self.name,
+                "func_name": "forward",
+                "agent_id": self.agent.id,
+            },
         )
         result = clean_json_response(result)
         node_id = await self.memory.stream.add(
             topic="other", description=f"I {context['current_step']['intention']}"
         )
-
-        if block_performance:
-            end_time = time.perf_counter()
-            duration = end_time - start_time
-            block_performance.get_tool().record_performance.remote(
-                block_name=self.name,
-                func_name="forward",
-                duration=duration,
-                actor="other",
-                agent_id=self.agent.id,
-                token_input=input_tokens,
-                token_output=out_tokens,
-            )
 
         try:
             result: Any = json_repair.loads(result)

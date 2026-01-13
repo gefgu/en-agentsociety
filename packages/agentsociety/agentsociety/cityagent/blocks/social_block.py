@@ -1,5 +1,6 @@
 # Due to the current limitations of the simulator's support, only NoneBlock, MessageBlock, and FindPersonBlock are available in the Dispatcher.
 
+import time
 from typing import Any, Optional
 import json_repair
 
@@ -28,7 +29,12 @@ class MessagePromptManager:
         pass
 
     async def get_prompt(
-        self, memory, step: dict[str, Any], environment_info: str, target: int, template: str
+        self,
+        memory,
+        step: dict[str, Any],
+        environment_info: str,
+        target: int,
+        template: str,
     ):
         """Generates a formatted prompt for message creation.
 
@@ -41,6 +47,7 @@ class MessagePromptManager:
         Returns:
             Formatted prompt string with placeholders replaced by agent-specific data.
         """
+
         # Retrieve data
         social_network = await memory.status.get("social_network") or []
         relationship = None
@@ -48,7 +55,9 @@ class MessagePromptManager:
             if relation.target_id == target:
                 relationship = relation
                 break
-        assert relationship is not None, f"MessagePromptManager: No relation found for target {target}"
+        assert (
+            relationship is not None
+        ), f"MessagePromptManager: No relation found for target {target}"
         relationship_type = relationship.kind
         relationship_strength = relationship.strength
         chat_histories = await memory.status.get("chat_histories") or {}
@@ -118,9 +127,16 @@ class SocialNoneBlock(Block):
             emotion_types=await self.memory.status.get("emotion_types"),
         )
         result = await self.llm.atext_request(
-            self.guidance_prompt.to_dialog(), response_format={"type": "json_object"}
+            self.guidance_prompt.to_dialog(),
+            response_format={"type": "json_object"},
+            context={
+                "block_name": self.name,
+                "func_name": "forward",
+                "agent_id": self.agent.id,
+            },
         )
         result = clean_json_response(result)
+
         try:
             result: Any = json_repair.loads(result)
             node_id = await self.memory.stream.add(
@@ -128,7 +144,7 @@ class SocialNoneBlock(Block):
             )
             return {
                 "success": True,
-                "evaluation": f'Finished {intention}',
+                "evaluation": f"Finished {intention}",
                 "consumed_time": result["time"],
                 "node_id": node_id,
             }
@@ -141,7 +157,7 @@ class SocialNoneBlock(Block):
             )
             return {
                 "success": False,
-                "evaluation": f'Failed to execute {intention}',
+                "evaluation": f"Failed to execute {intention}",
                 "consumed_time": 5,
                 "node_id": node_id,
             }
@@ -241,14 +257,20 @@ Please output in JSON format, a dictionary:
 
             # Get LLM response
             response = await self.llm.atext_request(
-                formatted_prompt.to_dialog(), timeout=300
+                formatted_prompt.to_dialog(),
+                timeout=300,
+                context={
+                    "block_name": self.name,
+                    "func_name": "forward",
+                    "agent_id": self.agent.id,
+                },
             )
 
             try:
                 # Parse the response
                 response = json_repair.loads(response)
-                mode = response["mode"] # type: ignore
-                target_id = response["target_id"] # type: ignore
+                mode = response["mode"]  # type: ignore
+                target_id = response["target_id"]  # type: ignore
 
                 # Validate the response format
                 if not isinstance(mode, str) or mode not in ["online", "offline"]:
@@ -507,3 +529,14 @@ class SocialBlock(Block):
                 consumed_time=15,
                 node_id=None,
             )
+
+    def set_agent(self, agent: Any) -> None:
+        """Associate the block and its sub-blocks with a specific agent.
+
+        Args:
+            agent: The agent instance to associate with.
+        """
+        super().set_agent(agent)
+        self.find_person_block.set_agent(agent)
+        self.message_block.set_agent(agent)
+        self.noneblock.set_agent(agent)
