@@ -18,6 +18,7 @@ export default {
         demoUser: 'Demo User',
         bill: 'Billing',
         profiles: 'Profiles',
+        grafana: 'Grafana'
     },
     common: {
         name: "Name",

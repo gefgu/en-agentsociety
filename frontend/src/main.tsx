@@ -24,6 +24,7 @@ import { useTranslation } from 'react-i18next'
 import Bill from './pages/Bill'
 import AgentTemplateForm from './pages/AgentTemplate/AgentTemplateForm'
 import { WITH_AUTH } from './components/fetch'
+import GrafanaPage from './pages/Grafana'
 
 const authProvider = (children: React.ReactNode) => {
     if (WITH_AUTH) {
@@ -150,6 +151,14 @@ const router = createBrowserRouter([
         ),
     },
     {
+        path: "/grafana/:exp_id?",
+        element: (
+            authProvider(
+                <RootLayout selectedKey='/grafana'><GrafanaPage /></RootLayout>
+            )
+        ),
+    },
+    {
         path: "*",
         element: <Navigate to="/" />,
     }
@@ -157,8 +166,8 @@ const router = createBrowserRouter([
 
 const theme: ThemeConfig = {
     token: {
-        colorPrimary: "#0000CC",
-        colorInfo: "#0000CC",
+        colorPrimary: "#000000",
+        colorInfo: "#000000",
         borderRadius: 16,
         colorBgContainer: "#FFFFFF",
         colorBgLayout: "#FFFFFF",
