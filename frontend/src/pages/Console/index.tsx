@@ -149,6 +149,13 @@ const Page = () => {
                                     }
                                 },
                                 {
+                                    key: 'grafana',
+                                    label: t('console.buttons.grafana'),
+                                    onClick: () => {
+                                        navigate(`/grafana/${record.id}`);
+                                    }
+                                },
+                                {
                                     key: 'exportArtifacts',
                                     label: t('console.buttons.exportArtifacts'),
                                     onClick: () => {
