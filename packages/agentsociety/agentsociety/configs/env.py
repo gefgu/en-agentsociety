@@ -32,6 +32,12 @@ class EnvConfig(BaseModel):
     catboost_model_path: Optional[str] = Field(default=None)
     """Path to the CatBoost model, if not set, CatBoost features will be disabled"""
 
+    needs_pca_path: Optional[str] = Field(default=None)
+    """Path to the NEEDS PCA model, if not set, NEEDS PCA features will be disabled"""
+
+    needs_mahalanobis_params_path: Optional[str] = Field(default=None)
+    """Path to the Mahalanobis parameters, if not set, Mahalanobis features will be disabled"""
+
     @property
     def fs_client(self) -> Union[S3Client, FileSystemClient]:
         if self.s3.enabled:

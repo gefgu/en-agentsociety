@@ -12,15 +12,18 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from multiprocessing import cpu_count
 from typing import Any, Callable, Literal, Optional, Union, cast
-
+import time
 import yaml
 
-from ..catboost.catboost_adjust_needs import CatBoostAdjustNeedsActor
+from ..performance.prometheusActor import PrometheusActor 
+
+from ..catboost.catboost_adjust_needs import (
+    CatBoostAdjustNeedsLocal,
+)
 
 from ..performance.monitoring import start_monitoring, stop_monitoring
 from ..agent import CustomTool
-from fastembed import SparseTextEmbedding
-from ..performance.BlockPerformance import BlockPerformanceActor
+from fastembed import SparseTextEmbedding, TextEmbedding
 from ..modernbert.modernbert_regression_actor import ModernBERTRegressionActor
 import ray
 
@@ -213,7 +216,8 @@ class SimulationEngine:
         self._message_interceptor: Optional[MessageInterceptor] = None
         self._database_writer: Optional[DatabaseWriter] = None
         self._embedding: Optional[SparseTextEmbedding] = None
-        self._performance_actor: Optional[BlockPerformanceActor] = None
+        self._text_embedding: Optional[TextEmbedding] = None
+        self._prometheus_actor: Optional[PrometheusActor] = None
         self._id2agent: dict[int, Agent] = {}
         yaml_config = yaml.dump(
             self._config.model_dump(
@@ -255,6 +259,9 @@ class SimulationEngine:
         # filter base
         self._filter_base = {}
 
+        self._step_times: list[float] = []
+        self._step_start_time: Optional[float] = None
+
     async def _init_embedding(self):
         """Initialize embedding model with timeout."""
         try:
@@ -282,7 +289,8 @@ class SimulationEngine:
             cache_dir=os.path.join(self._config.env.home_dir, "huggingface_cache"),
             threads=cpu_count(),
         )
-        get_logger().info("Embedding model initialized successfully")
+        self._text_embedding = TextEmbedding()
+        get_logger().info("Embedding models initialized successfully")
 
     async def init(self):
         """Initialize all the components"""
@@ -311,29 +319,34 @@ class SimulationEngine:
             get_logger().warning(f"Failed to start monitoring services: {e}")
 
         # =======================
-        # Initialize BlockPerformance
+        # Initialize  Prometheus
         # =========================
         try:
-            # Initialize the performance actor
-            get_logger().info(f"Initializing performance actor with exp_id={self.exp_id}...")
+            # Initialize the Prometheus actor
+            get_logger().info(
+                f"Initializing Prometheus actor with exp_id={self.exp_id}..."
+            )
 
-            block_performance_actor = BlockPerformanceActor.remote(self.exp_id)
-            block_performance_tool = CustomTool(
-                name="block_performance_actor",
-                tool=block_performance_actor,
+            prometheus_actor = PrometheusActor.remote(self.exp_id)
+            prometheus_tool = CustomTool(
+                name="prometheus_actor",
+                tool=prometheus_actor,
                 description="Ray actor for tracking block performance metrics",
             )
-            self._performance_actor = block_performance_actor
+            self._prometheus_actor = prometheus_actor
             get_logger().info("Performance actor initialized")
         except Exception as e:
             get_logger().warning(f"Failed to initialize performance actor: {e}")
+
 
         try:
             # ====================
             # Initialize the LLM
             # ====================
             get_logger().info("Initializing LLM...")
-            self._llm = LLM(self._config.llm, block_performance_actor=self._performance_actor)
+            self._llm = LLM(
+                self._config.llm, prometheus_actor=self._prometheus_actor
+            )
             get_logger().info("LLM initialized")
 
             # ====================
@@ -1002,49 +1015,66 @@ class SimulationEngine:
             await self.environment.step(1)
             get_logger().info("run 1 tick to make the initialization complete")
 
-            get_logger().info("Adding block Performance tool to Agents...")
+            get_logger().info("Adding Prometheus tool to Agents...")
             # Add performance tool to toolbox
-            agent_toolbox.add_tool(block_performance_tool)
+            agent_toolbox.add_tool(prometheus_tool)
 
             get_logger().info("Initializing the agents...")
-
 
             # ================================
             # Needs ModernBert model
             # ================================
             modernbert_model_path = self._config.env.modernbert_model_path
             if modernbert_model_path:
-                  get_logger().info(f"Loading ModernBert model from {modernbert_model_path}...")
+                get_logger().info(
+                    f"Loading ModernBert model from {modernbert_model_path}..."
+                )
 
-                  modernbert_pool = ModernBERTRegressionActor.remote(modernbert_model_path)
+                modernbert_pool = ModernBERTRegressionActor.remote(
+                    modernbert_model_path
+                )
 
-                  modernbert_tool = CustomTool(
-                      name="modernbert_regression_actor",
-                      tool=modernbert_pool,
-                      description="Ray actor for ModernBert regression model",
-                  )
-                  agent_toolbox.add_tool(modernbert_tool)
-                  get_logger().info("ModernBert model loaded and tool added to toolbox.")
-
+                modernbert_tool = CustomTool(
+                    name="modernbert_regression_actor",
+                    tool=modernbert_pool,
+                    description="Ray actor for ModernBert regression model",
+                )
+                agent_toolbox.add_tool(modernbert_tool)
+                get_logger().info("ModernBert model loaded and tool added to toolbox.")
 
             # ================================
             # Needs CatBoost model
             # ================================
-            if self._config.env.catboost_model_path:
+            if (
+                self._config.env.catboost_model_path
+                and self._config.env.needs_pca_path
+                and self._config.env.needs_mahalanobis_params_path
+            ):
                 catboost_model_path = self._config.env.catboost_model_path
-                get_logger().info(f"Loading CatBoost model from {catboost_model_path}...")
+                get_logger().info(
+                    f"Loading CatBoost model from {catboost_model_path}...")
+                get_logger().info(
+                    f"NEEDS PCA from {self._config.env.needs_pca_path}...")
+                get_logger().info(
+                    f"NEEDS Mahalanobis params from {self._config.env.needs_mahalanobis_params_path}...",
+                )
 
-                catboost_pool = CatBoostAdjustNeedsActor.remote(catboost_model_path)
+                # catboost_pool = CatBoostAdjustNeedsActor.remote(catboost_model_path)
+
+                catboost_model = CatBoostAdjustNeedsLocal(
+                    catboost_model_path,
+                    pca_path=self._config.env.needs_pca_path,
+                    mahalanobis_params_path=self._config.env.needs_mahalanobis_params_path,
+                    embedding=self._text_embedding,
+                )
 
                 catboost_tool = CustomTool(
                     name="catboost_adjust_needs_actor",
-                    tool=catboost_pool,
+                    tool=catboost_model,
                     description="Ray actor for CatBoost model",
                 )
                 agent_toolbox.add_tool(catboost_tool)
                 get_logger().info("CatBoost model loaded and tool added to toolbox.")
-
-
 
             # ===================================
             # save the experiment info
@@ -1624,6 +1654,7 @@ class SimulationEngine:
             - `Logs`: The logs of the simulation.
         """
         try:
+            step_start = time.perf_counter()
             # ======================
             # run a step
             # ======================
@@ -1668,9 +1699,9 @@ class SimulationEngine:
             # ======================
             # Log metrics from BlockPerformance
             # ======================
-            if self._performance_actor is not None:
+            if self._prometheus_actor is not None:
                 try:
-                    perf_stats = ray.get(self._performance_actor.get_stats.remote())
+                    perf_stats = ray.get(self._prometheus_actor.get_block_performance_stats.remote())
                     if perf_stats:
                         for block_func, metrics in perf_stats.items():
                             get_logger().info(
@@ -1706,6 +1737,52 @@ class SimulationEngine:
                                         (
                                             f"bp.{block_func}.total_token_output",
                                             metrics["total_token_output"],
+                                            self._total_steps,
+                                        ),
+                                    ]
+                                )
+
+                            await self._database_writer.log_metric(metric_tuples)
+                except Exception as e:
+                    get_logger().warning(
+                        f"Error retrieving performance stats: {str(e)}"
+                    )
+            else:
+                get_logger().warning(
+                    "No performance actor available to retrieve stats."
+                )
+
+            # ======================
+            # Log metrics from RoutingTracker
+            # ======================
+
+            if self._prometheus_actor is not None:
+                try:
+                    perf_stats = ray.get(self._prometheus_actor.get_routing_stats.remote())
+                    if perf_stats:
+                        for block_func, metrics in perf_stats.items():
+                            get_logger().info(
+                                f"  {block_func}: "
+                                f"calls={metrics['calls']}, "
+                                f"routing_ratio={metrics['routing_ratio']:.3f}, "
+
+                            )
+
+                        # Convert nested stats to flat format for database
+                        if self._database_writer is not None:
+                            # Create list of metric tuples (key, value, step)
+                            metric_tuples = []
+                            for block_func, metrics in perf_stats.items():
+                                metric_tuples.extend(
+                                    [
+                                        (
+                                            f"bp.{block_func}.calls",
+                                            metrics["calls"],
+                                            self._total_steps,
+                                        ),
+                                        (
+                                            f"bp.{block_func}.routing_ratio",
+                                            metrics["routing_ratio"],
                                             self._total_steps,
                                         ),
                                     ]
@@ -1813,6 +1890,26 @@ class SimulationEngine:
                         is_pending_survey=True,
                         pending_survey_id=pending_survey.id,
                     )
+
+            # ========================
+            # Log step duration
+            # ========================
+            step_end = time.perf_counter()
+            step_duration = step_end - step_start
+            get_logger().info(
+                f"Finished simulation day {day} at {t}, step {self._total_steps} in {step_duration:.3f} seconds"
+            )
+            if self.enable_database:
+                await self._database_writer.log_metric(
+                    [
+                        (
+                            "simulation.step_duration_seconds",
+                            step_duration,
+                            self._total_steps,
+                        )
+                    ]
+                )
+
             # ======================
             # Log metrics from environment
             # ======================

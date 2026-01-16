@@ -131,9 +131,6 @@ class OtherNoneBlock(Block):
         self.guidance_prompt = FormatPrompt(template=TIME_ESTIMATE_PROMPT)
 
     async def forward(self, context: DotDict):
-        block_performance = self.toolbox.get_tool("block_performance_actor")
-        start_time = time.perf_counter()
-
         await self.guidance_prompt.format(
             plan=context["plan_context"]["plan"],
             intention=context["current_step"]["intention"],

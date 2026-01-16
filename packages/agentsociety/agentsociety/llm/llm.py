@@ -261,7 +261,7 @@ class LLM:
         self,
         configs: List[LLMConfig],
         num_actors: int = min(cpu_count(), 8),
-        block_performance_actor: Optional[Any] = None,
+        prometheus_actor: Optional[Any] = None,
     ):
         """
         Initializes the LLM instance.
@@ -285,7 +285,7 @@ class LLM:
         self.completion_tokens_used = 0
         self._next_index = 0
         self._last_show_time = time.time()
-        self._performance_actor = block_performance_actor
+        self._prometheus_actor = prometheus_actor
 
         for config in self.configs:
             base_url = config.base_url
@@ -429,9 +429,9 @@ class LLM:
             self.completion_tokens_used += log["output_tokens"]
 
         end_time = time.perf_counter()
-        if self._performance_actor is not None:
+        if self._prometheus_actor is not None:
             if context:
-              self._performance_actor.record_performance.remote(
+              self._prometheus_actor.record_block_performance.remote(
                   duration=end_time - start_time,
                   actor="llm",
                   token_input=log["input_tokens"],
@@ -441,7 +441,7 @@ class LLM:
                   agent_id=context.get("agent_id", "unknown"),
               )
             else:
-              self._performance_actor.record_performance.remote(
+              self._prometheus_actor.record_block_performance.remote(
                   duration=end_time - start_time,
                   actor="llm",
                   token_input=log["input_tokens"],

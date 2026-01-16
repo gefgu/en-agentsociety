@@ -206,12 +206,13 @@ class NeedsBlock(Block):
         if not self.initialized:
             await self.initial_prompt.format(context=self.context)
             response = await self.llm.atext_request(
-                self.initial_prompt.to_dialog(), response_format={"type": "json_object"},
+                self.initial_prompt.to_dialog(),
+                response_format={"type": "json_object"},
                 context={
                     "block_name": "NeedsBlock",
                     "func_name": "initialize",
                     "agent_id": self.id,
-                }
+                },
             )
             response = clean_json_response(response)
             retry = 3
@@ -268,12 +269,13 @@ class NeedsBlock(Block):
             social_satisfaction=await self.memory.status.get("social_satisfaction"),
         )
         response = await self.llm.atext_request(
-            self.reflection_prompt.to_dialog(), response_format={"type": "json_object"},
+            self.reflection_prompt.to_dialog(),
+            response_format={"type": "json_object"},
             context={
                 "block_name": "NeedsBlock",
                 "func_name": "reflect_to_intervention",
                 "agent_id": self.id,
-            }
+            },
         )
         try:
             reflection: Any = json_repair.loads(clean_json_response(response))
@@ -514,7 +516,7 @@ class NeedsBlock(Block):
         - Processes LLM response and updates satisfaction values
         - Implements retry logic for invalid responses
         """
-        block_performance_tool = self.toolbox.get_tool("block_performance_actor")
+        prometheus_tool = self.toolbox.get_tool("prometheus_actor")
         modernbert_tool = self.toolbox.get_tool("modernbert_regression_actor")
         catboost_tool = self.toolbox.get_tool("catboost_adjust_needs_actor")
 
@@ -534,7 +536,6 @@ class NeedsBlock(Block):
         current_energy = await self.memory.status.get("energy_satisfaction")
         current_safety = await self.memory.status.get("safety_satisfaction")
         current_social = await self.memory.status.get("social_satisfaction")
-        
 
         if catboost_tool:
             try:
@@ -542,7 +543,7 @@ class NeedsBlock(Block):
                 context_text = self.evaluation_prompt.to_dialog()[0]["content"]
 
                 catboost_pool = catboost_tool.get_tool()
-                response_list = await catboost_pool.predict.remote(
+                should_use, response_list = catboost_pool.predict(
                     prompt=context_text,
                     current_need=current_need,
                     current_hunger=current_hunger,
@@ -554,34 +555,50 @@ class NeedsBlock(Block):
                 end_time = time.perf_counter()
                 duration = end_time - start_time
 
-                if block_performance_tool:
-                    block_performance_tool.get_tool().record_performance.remote(
+                if should_use and response_list is not None:
+                    if prometheus_tool:
+                        prometheus_tool.get_tool().record_block_performance.remote(
+                            block_name="NeedsBlock",
+                            func_name="evaluate_and_adjust_needs",
+                            actor="catboost",
+                            agent_id=self.id,
+                            duration=round(duration, 4),
+                            token_input=len(context_text.split()),
+                            token_output=0,
+                        )
+
+                        prometheus_tool.get_tool().record_routing.remote(
+                            block_name="NeedsBlock",
+                            func_name="evaluate_and_adjust_needs",
+                            agent_id=self.id,
+                            routed=False,
+                        )
+
+                    try:
+                        new_satisfaction: Any = response_list
+                        # Update values of all needs
+                        for need_type, new_value in new_satisfaction.items():
+                            if need_type in [
+                                "hunger_satisfaction",
+                                "energy_satisfaction",
+                                "safety_satisfaction",
+                                "social_satisfaction",
+                            ]:
+                                await self.memory.status.update(need_type, new_value)
+                        return
+                    except Exception as e:
+                        get_logger().warning(
+                            f"Error processing evaluation response: {str(e)}"
+                        )
+                        get_logger().warning(f"Original response: {response_list}")
+
+                else:
+                    prometheus_tool.get_tool().record_routing.remote(
                         block_name="NeedsBlock",
                         func_name="evaluate_and_adjust_needs",
-                        actor="catboost",
                         agent_id=self.id,
-                        duration=round(duration, 4),
-                        token_input=len(context_text.split()),
-                        token_output=0,
+                        routed=True,
                     )
-
-                try:
-                    new_satisfaction: Any = response_list
-                    # Update values of all needs
-                    for need_type, new_value in new_satisfaction.items():
-                        if need_type in [
-                            "hunger_satisfaction",
-                            "energy_satisfaction",
-                            "safety_satisfaction",
-                            "social_satisfaction",
-                        ]:
-                            await self.memory.status.update(need_type, new_value)
-                    return
-                except Exception as e:
-                    get_logger().warning(
-                        f"Error processing evaluation response: {str(e)}"
-                    )
-                    get_logger().warning(f"Original response: {response_list}")
 
             except Exception as e:
                 get_logger().warning(f"CatBoost evaluation failed: {str(e)}")
@@ -633,7 +650,6 @@ class NeedsBlock(Block):
             except Exception as e:
                 get_logger().warning(f"ModernBERT evaluation failed: {str(e)}")
                 # Fallback to original LLM evaluation
-
 
         await self.evaluation_prompt.format(
             current_need=current_need,

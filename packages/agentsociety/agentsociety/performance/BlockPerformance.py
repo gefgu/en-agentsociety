@@ -5,27 +5,20 @@ import time
 from collections import defaultdict
 from prometheus_client import Counter, Histogram, Gauge, start_http_server
 
-
-@ray.remote
-class BlockPerformanceActor:
+class BlockPerformance:
     def __init__(self, exp_id: str):
         self.exp_id = exp_id
         self.blocks_data = []  # Register blocks here if necessary
 
-        try:
-            start_http_server(9091)
-        except Exception as e:
-            get_logger().warning(f"Failed to start Prometheus HTTP server: {e}")
-
         self.calls = Counter(
             "block_calls_total",
             "Number of calls to blocks",
-            ["exp_id", "block_name", "func_name", "agent_id"],
+            ["exp_id", "block_name", "func_name", "agent_id", "actor"],
         )
         self.block_duration = Histogram(
             "block_execution_duration_seconds",
             "Time spent in block execution",
-            ["exp_id", "block_name", "func_name", "agent_id"],
+            ["exp_id", "block_name", "func_name", "agent_id", "actor"],
         )
         self.token_counter = Counter(
             "tokens_total",
@@ -38,7 +31,7 @@ class BlockPerformanceActor:
         block_name: str,
         func_name: str,
         duration: float,
-        actor: Literal["llm", "modernbert"],
+        actor: Literal["llm", "modernbert", "catboost"],
         agent_id: str,
         token_input: int,
         token_output: int,
@@ -59,6 +52,7 @@ class BlockPerformanceActor:
             exp_id=self.exp_id,
             block_name=block_name,
             func_name=func_name,
+            actor=actor,
             agent_id=agent_id,
         ).inc(1)
 
@@ -66,6 +60,7 @@ class BlockPerformanceActor:
             exp_id=self.exp_id,
             block_name=block_name,
             func_name=func_name,
+            actor=actor,
             agent_id=agent_id,
         ).observe(duration)
 
