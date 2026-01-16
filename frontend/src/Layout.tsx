@@ -17,12 +17,12 @@ export default function RootLayout({
     const contentRef = useRef<HTMLDivElement>(null);
 
     const headerStyle = {
-        background: '#000088',
+        background: '#14213d',
         color: 'white',
     }
 
     const menuStyle = {
-        background: '#000088',
+        background: '#14213d',
         color: 'white',
     }
 
@@ -43,7 +43,7 @@ export default function RootLayout({
 
     const contentStyle: React.CSSProperties = homePage ? {
         width: "100vw",
-        background: '#000088',
+        background: '#14213d',
         top: 0,
         left: 0,
         alignContent: "center",
@@ -56,7 +56,7 @@ export default function RootLayout({
             <Header ref={headerRef} style={headerStyle}>
                 <Flex gap='small' align='center' style={{ width: '100%' }}>
                     <Link to="/" style={{ display: 'flex', alignItems: 'center' }}>
-                        <img src="/logo.png" alt="FastSociety" style={{ height: '24px', display: 'block' }} />
+                        <img src="/logo.png" alt="FastSociety" style={{ height: '42px', display: 'block' }} />
                     </Link>
                     <Divider type="vertical" />
                     <div style={{ flex: 1 }}>

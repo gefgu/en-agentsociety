@@ -29,7 +29,7 @@ const HomePage = () => {
     return (
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
             <Link href="https://agentsociety.readthedocs.io/en/latest/">
-                <div style={newsBarStyle}>
+                {/* <div style={newsBarStyle}>
                     <Space>
                         <Col
                             style={{
@@ -46,23 +46,14 @@ const HomePage = () => {
                             {t('home.releaseNotes')}
                         </Col>
                     </Space>
-                </div>
+                </div> */}
             </Link>
-            <Text
-                italic={true}
-                style={{
-                    color: 'white',
-                    fontSize: '4rem',
-                    fontWeight: 500,
-                }}
-            >
-                AgentSociety
-            </Text>
+            <img src="/logo.png" alt="FastSociety" style={{ height: '156px', display: 'block' }} />
 
             <div
                 style={{
                     color: 'white',
-                    fontSize: '1.3rem',
+                    fontSize: '2rem',
                     lineHeight: 1.8,
                     display: 'block',
                     marginBottom: '64px',
