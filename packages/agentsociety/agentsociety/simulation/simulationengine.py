@@ -15,6 +15,8 @@ from typing import Any, Callable, Literal, Optional, Union, cast
 import time
 import yaml
 
+from ..performance.ClickHouseActor import ClickHouseActor
+
 from ..performance.prometheusActor import PrometheusActor 
 
 from ..catboost.catboost_adjust_needs import (
@@ -218,6 +220,8 @@ class SimulationEngine:
         self._embedding: Optional[SparseTextEmbedding] = None
         self._text_embedding: Optional[TextEmbedding] = None
         self._prometheus_actor: Optional[PrometheusActor] = None
+        self._clickhouse_actor: Optional[ClickHouseActor] = None
+        self._clickhouse_tool: Optional[CustomTool] = None
         self._id2agent: dict[int, Agent] = {}
         yaml_config = yaml.dump(
             self._config.model_dump(
@@ -314,7 +318,7 @@ class SimulationEngine:
         # Initialize Prometheus and Grafana server
         # ===========================
         try:
-            start_monitoring()
+            start_monitoring(self._config.env.data_dir)
         except Exception as e:
             get_logger().warning(f"Failed to start monitoring services: {e}")
 
@@ -338,6 +342,24 @@ class SimulationEngine:
         except Exception as e:
             get_logger().warning(f"Failed to initialize performance actor: {e}")
 
+        
+        # ==========================
+        # Initialize ClickHouse db
+        # ==========================
+        try:
+            self._clickhouse_actor = ClickHouseActor.remote(
+                self.exp_id,
+                self._config.env.data_dir,
+            )
+            self._clickhouse_tool = CustomTool(
+                name="clickhouse_actor",
+                tool=self._clickhouse_actor,
+                description="Ray actor for storing simulation data in ClickHouse database",
+            )
+            get_logger().info("ClickHouse actor initialized")
+        except Exception as e:
+            get_logger().warning(f"Failed to initialize ClickHouse actor: {e}")
+
 
         try:
             # ====================
@@ -345,7 +367,7 @@ class SimulationEngine:
             # ====================
             get_logger().info("Initializing LLM...")
             self._llm = LLM(
-                self._config.llm, prometheus_actor=self._prometheus_actor
+                self._config.llm, prometheus_actor=self._prometheus_actor, db_actor=self._clickhouse_actor
             )
             get_logger().info("LLM initialized")
 
@@ -1019,6 +1041,9 @@ class SimulationEngine:
             # Add performance tool to toolbox
             agent_toolbox.add_tool(prometheus_tool)
 
+            get_logger().info("Adding clickhouse tool to Agents...")
+            agent_toolbox.add_tool(self._clickhouse_tool)
+
             get_logger().info("Initializing the agents...")
 
             # ================================
@@ -1106,10 +1131,20 @@ class SimulationEngine:
     async def close(self):
         """Close all the components"""
 
+        # ==============================
+        # close clickhouse
+        # ===============================
+        get_logger().info("Closing ClickHouse tool...")
+        if self._clickhouse_actor is not None:
+            try:
+              await self._clickhouse_actor.close.remote()
+            except Exception as e:
+                get_logger().warning(f"Error closing ClickHouse actor: {e}")
+
         # ================================
         # stop monitoring
         # ================================
-        # get_logger().info("Stopping monitoring services...")
+        get_logger().info("Stopping monitoring services...")
         stop_monitoring()
 
         # ===================================
@@ -1662,6 +1697,15 @@ class SimulationEngine:
             get_logger().info(
                 f"Start simulation day {day} at {t}, step {self._total_steps}"
             )
+            # Add simulation step to ClickHouse
+            if self._clickhouse_actor is not None:
+                try:
+                    await self._clickhouse_actor.set_simulation_step.remote(
+                        step=self._total_steps,
+                    )
+                except Exception as e:
+                    get_logger().warning(f"Error adding simulation step to ClickHouse: {e}")
+
             await self._message_dispatch()
             # main agent workflow
             tasks = [agent.run() for agent in self._id2agent.values()]

@@ -22,6 +22,9 @@ class EnvConfig(BaseModel):
 
     home_dir: str = Field(default="./agentsociety_data")
     """Home directory for AgentSociety's webui if s3 is not enabled"""
+    
+    data_dir: str = Field(default="./agentsociety_data/data")
+    """Directory for storing data files"""
 
     finetune_data_dir: Optional[str] = Field(default=None)
     """Directory for finetune data, if not set, use home_dir/finetune_data"""

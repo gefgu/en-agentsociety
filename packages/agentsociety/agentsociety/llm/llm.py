@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import os
 import random
 import time
@@ -7,6 +8,8 @@ from multiprocessing import cpu_count
 from typing import Any, List, Optional, Union, overload, TypedDict
 
 import httpx
+from ..performance.ClickHouseActor import ClickHouseActor
+from ..performance.prometheusActor import PrometheusActor
 import ray
 from openai import NOT_GIVEN, APIConnectionError, AsyncOpenAI, NotGiven, OpenAIError
 from openai.types.chat import (
@@ -261,7 +264,8 @@ class LLM:
         self,
         configs: List[LLMConfig],
         num_actors: int = min(cpu_count(), 8),
-        prometheus_actor: Optional[Any] = None,
+        prometheus_actor: Optional[PrometheusActor] = None,
+        db_actor: Optional[ClickHouseActor] = None,
     ):
         """
         Initializes the LLM instance.
@@ -286,6 +290,7 @@ class LLM:
         self._next_index = 0
         self._last_show_time = time.time()
         self._prometheus_actor = prometheus_actor
+        self._db_actor = db_actor
 
         for config in self.configs:
             base_url = config.base_url
@@ -430,24 +435,24 @@ class LLM:
 
         end_time = time.perf_counter()
         if self._prometheus_actor is not None:
-            if context:
-              self._prometheus_actor.record_block_performance.remote(
-                  duration=end_time - start_time,
-                  actor="llm",
-                  token_input=log["input_tokens"],
-                  token_output=log["output_tokens"],
-                  block_name=context.get("block_name", "unknown"),
-                  func_name=context.get("func_name", "unknown"),
-                  agent_id=context.get("agent_id", "unknown"),
-              )
-            else:
-              self._prometheus_actor.record_block_performance.remote(
-                  duration=end_time - start_time,
-                  actor="llm",
-                  token_input=log["input_tokens"],
-                  token_output=log["output_tokens"],
-                  block_name="unknown",
-                  func_name="unknown",
-                  agent_id="unknown",
-              )
+            if not context:
+                context = {}
+            self._prometheus_actor.record_block_performance.remote(
+                duration=end_time - start_time,
+                actor="llm",
+                token_input=log["input_tokens"],
+                token_output=log["output_tokens"],
+                block_name=context.get("block_name", "unknown"),
+                func_name=context.get("func_name", "unknown"),
+                agent_id=context.get("agent_id", "unknown"),
+            )
+
+            self._db_actor.insert_prompt_response_record.remote(
+                timestamp=time.time(),
+                agent_id=context.get("agent_id", "unknown"),
+                prompt=dialog[-1]["content"] if dialog else "",
+                response=content,
+                block_name=context.get("block_name", "unknown"),
+                func_name=context.get("func_name", "unknown"),
+            )
         return content

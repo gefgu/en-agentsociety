@@ -26,11 +26,42 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_SECURITY_ALLOW_EMBEDDING=true
       - GF_AUTH_ANONYMOUS_ENABLED=true
-    network_mode: "host"  # Add this line
+    network_mode: "host"
     restart: unless-stopped
     depends_on:
       - prometheus
+      - clickhouse
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: fastsociety-clickhouse
+    volumes:
+      - ${CLICKHOUSE_DATA_PATH}:/var/lib/clickhouse
+      - clickhouse-logs:/var/log/clickhouse-server
+      - ./clickhouse/config.xml:/etc/clickhouse-server/config.d/custom-config.xml
+      - ./clickhouse/users.xml:/etc/clickhouse-server/users.d/custom-users.xml
+    ports:
+      - "8123:8123"  # HTTP interface
+      - "9000:9000"  # Native client
+    environment:
+      - CLICKHOUSE_DB=fastsociety
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=clickhouse
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    network_mode: "host"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   prometheus-data:
   grafana-data:
+  clickhouse-data:
+  clickhouse-logs:

@@ -5,6 +5,7 @@ from catboost import CatBoostRegressor
 import joblib
 from fastembed import TextEmbedding
 from scipy.spatial.distance import mahalanobis
+from sklearn.preprocessing import StandardScaler
 import numpy as np
 
 # Patterns for extracting satisfaction values

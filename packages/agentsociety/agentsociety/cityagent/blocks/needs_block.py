@@ -519,6 +519,7 @@ class NeedsBlock(Block):
         prometheus_tool = self.toolbox.get_tool("prometheus_actor")
         modernbert_tool = self.toolbox.get_tool("modernbert_regression_actor")
         catboost_tool = self.toolbox.get_tool("catboost_adjust_needs_actor")
+        db_tool = self.toolbox.get_tool("clickhouse_actor")
 
         # Retrieve the executed plan and evaluation results
         evaluation_results = []
@@ -585,6 +586,32 @@ class NeedsBlock(Block):
                                 "social_satisfaction",
                             ]:
                                 await self.memory.status.update(need_type, new_value)
+
+                        if db_tool:
+                            db_tool.get_tool().insert_adjust_needs_record.remote({
+                                "agent_id": self.id,
+                                "prompt": context_text,
+                                "current_need": current_need,
+                                "current_hunger": current_hunger,
+                                "current_energy": current_energy,
+                                "current_safety": current_safety,
+                                "current_social": current_social,
+                                "new_hunger": new_satisfaction.get(
+                                    "hunger_satisfaction", current_hunger
+                                ),
+                                "new_energy": new_satisfaction.get(
+                                    "energy_satisfaction", current_energy
+                                ),
+                                "new_safety": new_satisfaction.get(
+                                    "safety_satisfaction", current_safety
+                                ),
+                                "new_social": new_satisfaction.get(
+                                    "social_satisfaction", current_social
+                                ),
+                                "timestamp": int(time.time()),
+                                "actor": "catboost",
+                            })
+
                         return
                     except Exception as e:
                         get_logger().warning(
@@ -703,6 +730,32 @@ class NeedsBlock(Block):
                         "social_satisfaction",
                     ]:
                         await self.memory.status.update(need_type, new_value)
+
+                if db_tool:
+                    record = {
+                        "agent_id": self.id,
+                        "prompt": self.evaluation_prompt.to_dialog()[0]["content"],
+                        "current_need": current_need,
+                        "current_hunger": current_hunger,
+                        "current_energy": current_energy,
+                        "current_safety": current_safety,
+                        "current_social": current_social,
+                        "new_hunger": new_satisfaction.get(
+                            "hunger_satisfaction", current_hunger
+                        ),
+                        "new_energy": new_satisfaction.get(
+                            "energy_satisfaction", current_energy
+                        ),
+                        "new_safety": new_satisfaction.get(
+                            "safety_satisfaction", current_safety
+                        ),
+                        "new_social": new_satisfaction.get(
+                            "social_satisfaction", current_social
+                        ),
+                        "timestamp": int(time.time()),
+                        "actor": "llm",
+                    }
+                    db_tool.get_tool().insert_adjust_needs_record.remote(record)
                 return
             except Exception as e:
                 get_logger().warning(f"Error processing evaluation response: {str(e)}")
