@@ -209,12 +209,6 @@ class ClickHouseActor:
         try:
             records = list(self.adjust_needs_batch)
 
-            # get_logger().info(f"{records}")
-
-            get_logger().debug(
-                f"Flushing {len(records)} adjust_needs records to ClickHouse."
-            )
-
             # Convert to columnar format (most efficient)
             column_data = [
                 [r["exp_id"] for r in records],  # exp_id column
@@ -258,8 +252,6 @@ class ClickHouseActor:
                 column_names=column_names,
                 column_oriented=True,  # This tells ClickHouse it's columnar format
             )
-
-            # get_logger().info("OKKKK")
 
             self.adjust_needs_batch.clear()
             self.last_adjust_needs_flush_time = time.time()
@@ -410,10 +402,6 @@ class ClickHouseActor:
 
         self.prompt_responses_batch.clear()
         self.last_prompt_responses_flush_time = time.time()
-
-        get_logger().info(
-            f"Flushed {len(records)} prompt-response records to ClickHouse."
-        )
 
     def flush_all_batches(self):
         """Flush all batches to ClickHouse."""

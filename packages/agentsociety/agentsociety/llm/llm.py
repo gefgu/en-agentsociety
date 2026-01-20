@@ -264,7 +264,7 @@ class LLM:
         self,
         configs: List[LLMConfig],
         num_actors: int = min(cpu_count(), 8),
-        prometheus_actor: Optional[PrometheusActor] = None,
+        metrics_actor: Optional[PrometheusActor] = None,
         db_actor: Optional[ClickHouseActor] = None,
     ):
         """
@@ -289,7 +289,7 @@ class LLM:
         self.completion_tokens_used = 0
         self._next_index = 0
         self._last_show_time = time.time()
-        self._prometheus_actor = prometheus_actor
+        self._metrics_actor = metrics_actor
         self._db_actor = db_actor
 
         for config in self.configs:
@@ -411,9 +411,9 @@ class LLM:
         client_i = index % len(self.configs)
         actor_i = index % len(self._actors)
         start_time = time.perf_counter()
-        if time.time() - self._last_show_time > 10:
-            get_logger().info(f"LLM request count: {index}")
-            self._last_show_time = time.time()
+        # if time.time() - self._last_show_time > 10:
+        #     get_logger().info(f"LLM request count: {index}")
+        #     self._last_show_time = time.time()
         async with self._semaphores[client_i]:
             content, log = await self._actors[actor_i].call.remote(  # type: ignore
                 self.configs[client_i],
@@ -434,10 +434,10 @@ class LLM:
             self.completion_tokens_used += log["output_tokens"]
 
         end_time = time.perf_counter()
-        if self._prometheus_actor is not None:
+        if self._metrics_actor is not None:
             if not context:
                 context = {}
-            self._prometheus_actor.record_block_performance.remote(
+            self._metrics_actor.record_block_performance.remote(
                 duration=end_time - start_time,
                 actor="llm",
                 token_input=log["input_tokens"],

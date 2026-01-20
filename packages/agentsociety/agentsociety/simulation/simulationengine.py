@@ -17,7 +17,7 @@ import yaml
 
 from ..performance.ClickHouseActor import ClickHouseActor
 
-from ..performance.prometheusActor import PrometheusActor 
+from ..performance.prometheusActor import PrometheusActor
 
 from ..catboost.catboost_adjust_needs import (
     CatBoostAdjustNeedsLocal,
@@ -55,7 +55,7 @@ from ..configs import (
 )
 from ..environment import EnvironmentStarter
 from ..llm import LLM
-from ..logger import attach_otlp_handler, get_logger, set_logger_level
+from ..logger import attach_otlp_handler, get_logger, set_exp_id, set_logger_level
 from ..memory import Memory
 from ..message import Message, MessageInterceptor, MessageKind, Messager
 from ..s3 import S3Config
@@ -219,7 +219,7 @@ class SimulationEngine:
         self._database_writer: Optional[DatabaseWriter] = None
         self._embedding: Optional[SparseTextEmbedding] = None
         self._text_embedding: Optional[TextEmbedding] = None
-        self._prometheus_actor: Optional[PrometheusActor] = None
+        self._metrics_actor: Optional[PrometheusActor] = None
         self._clickhouse_actor: Optional[ClickHouseActor] = None
         self._clickhouse_tool: Optional[CustomTool] = None
         self._id2agent: dict[int, Agent] = {}
@@ -319,7 +319,9 @@ class SimulationEngine:
         # ===========================
         try:
             start_monitoring(self._config.env.data_dir)
+            set_exp_id(self.exp_id)
             attach_otlp_handler()
+            # get_logger().setLevel(self._config.logging_level.upper())
         except Exception as e:
             get_logger().warning(f"Failed to start monitoring services: {e}")
 
@@ -329,21 +331,20 @@ class SimulationEngine:
         try:
             # Initialize the Prometheus actor
             get_logger().info(
-                f"Initializing Prometheus actor with exp_id={self.exp_id}..."
+                f"Initializing Prometheus actor with exp_id={self.exp_id}...",
             )
 
-            prometheus_actor = PrometheusActor.remote(self.exp_id)
-            prometheus_tool = CustomTool(
-                name="prometheus_actor",
-                tool=prometheus_actor,
+            metrics_actor = PrometheusActor.remote(self.exp_id)
+            metrics_tool = CustomTool(
+                name="metrics_actor",
+                tool=metrics_actor,
                 description="Ray actor for tracking block performance metrics",
             )
-            self._prometheus_actor = prometheus_actor
+            self._metrics_actor = metrics_actor
             get_logger().info("Performance actor initialized")
         except Exception as e:
             get_logger().warning(f"Failed to initialize performance actor: {e}")
 
-        
         # ==========================
         # Initialize ClickHouse db
         # ==========================
@@ -361,14 +362,15 @@ class SimulationEngine:
         except Exception as e:
             get_logger().warning(f"Failed to initialize ClickHouse actor: {e}")
 
-
         try:
             # ====================
             # Initialize the LLM
             # ====================
             get_logger().info("Initializing LLM...")
             self._llm = LLM(
-                self._config.llm, prometheus_actor=self._prometheus_actor, db_actor=self._clickhouse_actor
+                self._config.llm,
+                metrics_actor=self._metrics_actor,
+                db_actor=self._clickhouse_actor,
             )
             get_logger().info("LLM initialized")
 
@@ -1040,7 +1042,7 @@ class SimulationEngine:
 
             get_logger().info("Adding Prometheus tool to Agents...")
             # Add performance tool to toolbox
-            agent_toolbox.add_tool(prometheus_tool)
+            agent_toolbox.add_tool(metrics_tool)
 
             get_logger().info("Adding clickhouse tool to Agents...")
             agent_toolbox.add_tool(self._clickhouse_tool)
@@ -1078,9 +1080,11 @@ class SimulationEngine:
             ):
                 catboost_model_path = self._config.env.catboost_model_path
                 get_logger().info(
-                    f"Loading CatBoost model from {catboost_model_path}...")
+                    f"Loading CatBoost model from {catboost_model_path}..."
+                )
                 get_logger().info(
-                    f"NEEDS PCA from {self._config.env.needs_pca_path}...")
+                    f"NEEDS PCA from {self._config.env.needs_pca_path}..."
+                )
                 get_logger().info(
                     f"NEEDS Mahalanobis params from {self._config.env.needs_mahalanobis_params_path}...",
                 )
@@ -1138,7 +1142,7 @@ class SimulationEngine:
         get_logger().info("Closing ClickHouse tool...")
         if self._clickhouse_actor is not None:
             try:
-              await self._clickhouse_actor.close.remote()
+                await self._clickhouse_actor.close.remote()
             except Exception as e:
                 get_logger().warning(f"Error closing ClickHouse actor: {e}")
 
@@ -1705,7 +1709,9 @@ class SimulationEngine:
                         step=self._total_steps,
                     )
                 except Exception as e:
-                    get_logger().warning(f"Error adding simulation step to ClickHouse: {e}")
+                    get_logger().warning(
+                        f"Error adding simulation step to ClickHouse: {e}"
+                    )
 
             await self._message_dispatch()
             # main agent workflow
@@ -1744,18 +1750,20 @@ class SimulationEngine:
             # ======================
             # Log metrics from BlockPerformance
             # ======================
-            if self._prometheus_actor is not None:
+            if self._metrics_actor is not None:
                 try:
-                    perf_stats = ray.get(self._prometheus_actor.get_block_performance_stats.remote())
+                    perf_stats = ray.get(
+                        self._metrics_actor.get_block_performance_stats.remote()
+                    )
                     if perf_stats:
-                        for block_func, metrics in perf_stats.items():
-                            get_logger().info(
-                                f"  {block_func}: "
-                                f"calls={metrics['calls']}, "
-                                f"avg_duration={metrics['average_duration']:.3f}s, "
-                                f"total_tokens_in={metrics['total_token_input']}, "
-                                f"total_tokens_out={metrics['total_token_output']}"
-                            )
+                        #     for block_func, metrics in perf_stats.items():
+                        #         get_logger().info(
+                        #             f"  {block_func}: "
+                        #             f"calls={metrics['calls']}, "
+                        #             f"avg_duration={metrics['average_duration']:.3f}s, "
+                        #             f"total_tokens_in={metrics['total_token_input']}, "
+                        #             f"total_tokens_out={metrics['total_token_output']}"
+                        #         )
 
                         # Convert nested stats to flat format for database
                         if self._database_writer is not None:
@@ -1801,17 +1809,17 @@ class SimulationEngine:
             # Log metrics from RoutingTracker
             # ======================
 
-            if self._prometheus_actor is not None:
+            if self._metrics_actor is not None:
                 try:
-                    perf_stats = ray.get(self._prometheus_actor.get_routing_stats.remote())
+                    perf_stats = ray.get(self._metrics_actor.get_routing_stats.remote())
                     if perf_stats:
-                        for block_func, metrics in perf_stats.items():
-                            get_logger().info(
-                                f"  {block_func}: "
-                                f"calls={metrics['calls']}, "
-                                f"routing_ratio={metrics['routing_ratio']:.3f}, "
+                        # for block_func, metrics in perf_stats.items():
+                        #     get_logger().info(
+                        #         f"  {block_func}: "
+                        #         f"calls={metrics['calls']}, "
+                        #         f"routing_ratio={metrics['routing_ratio']:.3f}, "
 
-                            )
+                        #     )
 
                         # Convert nested stats to flat format for database
                         if self._database_writer is not None:
@@ -1954,6 +1962,8 @@ class SimulationEngine:
                         )
                     ]
                 )
+
+                self._metrics_actor.record_simulation_step_duration.remote(step_duration)
 
             # ======================
             # Log metrics from environment

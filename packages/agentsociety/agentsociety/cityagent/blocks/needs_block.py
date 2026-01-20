@@ -516,7 +516,7 @@ class NeedsBlock(Block):
         - Processes LLM response and updates satisfaction values
         - Implements retry logic for invalid responses
         """
-        prometheus_tool = self.toolbox.get_tool("prometheus_actor")
+        metrics_tool = self.toolbox.get_tool("metrics_actor")
         modernbert_tool = self.toolbox.get_tool("modernbert_regression_actor")
         catboost_tool = self.toolbox.get_tool("catboost_adjust_needs_actor")
         db_tool = self.toolbox.get_tool("clickhouse_actor")
@@ -557,8 +557,8 @@ class NeedsBlock(Block):
                 duration = end_time - start_time
 
                 if should_use and response_list is not None:
-                    if prometheus_tool:
-                        prometheus_tool.get_tool().record_block_performance.remote(
+                    if metrics_tool:
+                        metrics_tool.get_tool().record_block_performance.remote(
                             block_name="NeedsBlock",
                             func_name="evaluate_and_adjust_needs",
                             actor="catboost",
@@ -568,7 +568,7 @@ class NeedsBlock(Block):
                             token_output=0,
                         )
 
-                        prometheus_tool.get_tool().record_routing.remote(
+                        metrics_tool.get_tool().record_routing.remote(
                             block_name="NeedsBlock",
                             func_name="evaluate_and_adjust_needs",
                             agent_id=self.id,
@@ -620,7 +620,7 @@ class NeedsBlock(Block):
                         get_logger().warning(f"Original response: {response_list}")
 
                 else:
-                    prometheus_tool.get_tool().record_routing.remote(
+                    metrics_tool.get_tool().record_routing.remote(
                         block_name="NeedsBlock",
                         func_name="evaluate_and_adjust_needs",
                         agent_id=self.id,

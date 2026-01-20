@@ -1,5 +1,7 @@
 from typing import Literal
 
+from .MetricsTracker import MetricsTracker
+
 from .BlockPerformance import BlockPerformance
 from .RoutingTracker import RoutingTrackerActor
 from ..logger import get_logger
@@ -21,6 +23,7 @@ class PrometheusActor:
 
         self.blockPerformance = BlockPerformance(exp_id)
         self.routingTracker = RoutingTrackerActor(exp_id)
+        self.metricsTracker = MetricsTracker(exp_id)
 
     def record_block_performance(
         self,
@@ -55,6 +58,11 @@ class PrometheusActor:
             agent_id,
             routed,
         )
+
+
+    def record_simulation_step_duration(self, duration: float) -> None:
+        """Log the duration of a simulation step."""
+        self.metricsTracker.record_simulation_step_duration(duration)
 
     def get_block_performance_stats(self):
         return self.blockPerformance.get_stats()
