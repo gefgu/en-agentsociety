@@ -41,7 +41,7 @@ async def async_parse(res: Awaitable[T], dict_return: bool) -> Union[dict[str, A
     if dict_return:
         return MessageToDict(
             await res,
-            including_default_value_fields=True,
+            always_print_fields_with_no_presence=True,
             preserving_proto_field_name=True,
             use_integers_for_enums=True,
         )
@@ -61,7 +61,7 @@ def pb2dict(pb: Message):
     """
     return MessageToDict(
         pb,
-        including_default_value_fields=True,
+        always_print_fields_with_no_presence=True,
         preserving_proto_field_name=True,
         use_integers_for_enums=True,
     )
