@@ -1,0 +1,29 @@
+// 1. RECEIVE Data
+// Listen on all interfaces so the Host (Python) can reach it via mapped ports
+otelcol.receiver.otlp "default" {
+  grpc { endpoint = "0.0.0.0:4317" }
+  http { endpoint = "0.0.0.0:4318" }
+
+  output {
+    logs    = [otelcol.processor.batch.default.input]
+  }
+}
+
+// 2. PROCESS (Batching)
+otelcol.processor.batch "default" {
+  output {
+    logs    = [otelcol.exporter.loki.default.input]
+  }
+}
+
+// 3. EXPORT to Loki
+otelcol.exporter.loki "default" {
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    // USE SERVICE NAME "loki"
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

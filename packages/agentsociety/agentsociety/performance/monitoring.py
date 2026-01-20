@@ -3,7 +3,6 @@ import time
 import os
 
 from ..logger import get_logger
-from prometheus_client import start_http_server
 
 
 def start_monitoring(user_data_path: str):

@@ -12,7 +12,7 @@ class RoutingTrackerActor:
         self.blocks_data = []  # Register blocks here if necessary
 
         self.calls = Counter(
-            "llm_routing_calls_total",
+            "routing_llm_calls_total",
             "Number of routing calls to LLMs",
             ["exp_id", "block_name", "func_name", "routed", "agent_id"],
         )

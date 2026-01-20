@@ -55,7 +55,7 @@ from ..configs import (
 )
 from ..environment import EnvironmentStarter
 from ..llm import LLM
-from ..logger import get_logger, set_logger_level
+from ..logger import attach_otlp_handler, get_logger, set_logger_level
 from ..memory import Memory
 from ..message import Message, MessageInterceptor, MessageKind, Messager
 from ..s3 import S3Config
@@ -319,6 +319,7 @@ class SimulationEngine:
         # ===========================
         try:
             start_monitoring(self._config.env.data_dir)
+            attach_otlp_handler()
         except Exception as e:
             get_logger().warning(f"Failed to start monitoring services: {e}")
 

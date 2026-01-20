@@ -10,8 +10,12 @@ services:
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
-    network_mode: "host"
+      - "--web.enable-remote-write-receiver" # Necessary for Alloy to push metrics
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - monitoring
 
   grafana:
     image: grafana/grafana:latest
@@ -26,11 +30,13 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_SECURITY_ALLOW_EMBEDDING=true
       - GF_AUTH_ANONYMOUS_ENABLED=true
-    network_mode: "host"
+    networks:
+      - monitoring
     restart: unless-stopped
     depends_on:
       - prometheus
       - clickhouse
+      - loki
 
   clickhouse:
     image: clickhouse/clickhouse-server:latest
@@ -41,8 +47,8 @@ services:
       - ./clickhouse/config.xml:/etc/clickhouse-server/config.d/custom-config.xml
       - ./clickhouse/users.xml:/etc/clickhouse-server/users.d/custom-users.xml
     ports:
-      - "8123:8123"  # HTTP interface
-      - "9000:9000"  # Native client
+      - "8123:8123" # HTTP interface
+      - "9010:9000"
     environment:
       - CLICKHOUSE_DB=fastsociety
       - CLICKHOUSE_USER=default
@@ -52,7 +58,8 @@ services:
       nofile:
         soft: 262144
         hard: 262144
-    network_mode: "host"
+    networks:
+      - monitoring
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
@@ -60,8 +67,60 @@ services:
       timeout: 5s
       retries: 5
 
+  loki-init:
+    image: alpine:latest
+    container_name: fastsociety-loki-init
+    command: chown -R 10001:10001 /tmp/loki
+    volumes:
+      - loki-data:/tmp/loki
+    networks:
+      - monitoring
+
+  loki:
+    image: grafana/loki:latest
+    container_name: fastsociety-loki
+    volumes:
+      - ./loki/loki-config.yaml:/etc/loki/local-config.yaml
+      - loki-data:/tmp/loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - monitoring
+    restart: unless-stopped
+    depends_on:
+      loki-init:
+        condition: service_completed_successfully
+
+  alloy:
+    image: grafana/alloy:latest
+    container_name: fastsociety-alloy
+    volumes:
+      # FIX 2: Mount as config.alloy to match the command below
+      # Ensure your local file is actually named 'config.alloy' inside the ./alloy folder
+      - ./alloy/config.alloy:/etc/alloy/config.alloy
+      - alloy-data:/var/lib/alloy/data
+    ports:
+      - "12345:12345" # Internal API
+      - "4317:4317" # OTLP gRPC (Exposed for your Python script)
+      - "4318:4318" # OTLP HTTP
+    # Command expects /etc/alloy/config.alloy
+    command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
+    networks:
+      - monitoring
+    restart: unless-stopped
+    depends_on:
+      - loki
+      - prometheus
+
 volumes:
   prometheus-data:
   grafana-data:
   clickhouse-data:
   clickhouse-logs:
+  loki-data:
+  alloy-data:
+
+networks:
+  monitoring:
+    driver: bridge

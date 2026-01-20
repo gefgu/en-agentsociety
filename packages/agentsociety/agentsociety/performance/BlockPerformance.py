@@ -11,17 +11,17 @@ class BlockPerformance:
         self.blocks_data = []  # Register blocks here if necessary
 
         self.calls = Counter(
-            "block_calls_total",
+            "performance_block_calls_total",
             "Number of calls to blocks",
             ["exp_id", "block_name", "func_name", "agent_id", "actor"],
         )
         self.block_duration = Histogram(
-            "block_execution_duration_seconds",
+            "performance_block_execution_duration_seconds",
             "Time spent in block execution",
             ["exp_id", "block_name", "func_name", "agent_id", "actor"],
         )
         self.token_counter = Counter(
-            "tokens_total",
+            "performance_tokens_total",
             "Number of tokens processed by LLMs",
             ["exp_id", "direction", "actor", "block_name", "func_name", "agent_id"],
         )

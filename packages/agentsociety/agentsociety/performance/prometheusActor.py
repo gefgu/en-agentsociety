@@ -11,11 +11,11 @@ from prometheus_client import Counter, Histogram, Gauge, start_http_server
 
 @ray.remote
 class PrometheusActor:
-    def __init__(self, exp_id: str):
+    def __init__(self, exp_id: str, port: int = 8001):
         self.exp_id = exp_id
 
         try:
-            start_http_server(9091)
+            start_http_server(port)
         except Exception as e:
             get_logger().warning(f"Failed to start Prometheus HTTP server: {e}")
 
