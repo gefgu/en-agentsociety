@@ -30,7 +30,8 @@ export default {
         exportArtifacts: "Export Artifacts",
         delete: "Delete",
         createExperiment: "Create Experiment",
-        grafana: "Grafana"
+        grafana: "Grafana",
+        charts: "Charts"
     },
     modals: {
         experimentDetail: "Experiment Detail",

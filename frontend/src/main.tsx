@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import './index.css'
-import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom'
+import { Navigate, Outlet, RouterProvider, createBrowserRouter } from 'react-router-dom'
 import { ConfigProvider, ThemeConfig } from 'antd'
 import RootLayout from './Layout'
 import Console from './pages/Console/index'
@@ -25,181 +25,196 @@ import Bill from './pages/Bill'
 import AgentTemplateForm from './pages/AgentTemplate/AgentTemplateForm'
 import { WITH_AUTH } from './components/fetch'
 import GrafanaPage from './pages/Grafana'
+import ChartsPage from './pages/Charts';
+import ErrorPage from './pages/ErrorPage'
 
 const authProvider = (children: React.ReactNode) => {
-    if (WITH_AUTH) {
-        return (
-            <AuthProvider sdkConfig={sdkConfig}>
-                {children}
-            </AuthProvider>
-        )
-    }
-    return children;
+  if (WITH_AUTH) {
+    return (
+      <AuthProvider sdkConfig={sdkConfig}>
+        {children}
+      </AuthProvider>
+    )
+  }
+  return children;
 }
 
-const router = createBrowserRouter([
+const router = createBrowserRouter([{
+  element: <Outlet />,
+
+  errorElement: <ErrorPage />,
+
+  children: [
     {
-        path: "/",
-        element: <RootLayout selectedKey='/' homePage><Home /></RootLayout>,
+      path: "/",
+      element: <RootLayout selectedKey='/' homePage><Home /></RootLayout>,
     },
     {
-        path: "/console",
-        element: (
-            authProvider(
-                <RootLayout selectedKey='/console'><Console /></RootLayout>
-            )
-        ),
+      path: "/console",
+      element: (
+        authProvider(
+          <RootLayout selectedKey='/console'><Console /></RootLayout>
+        )
+      ),
     },
     {
-        path: "/exp/:id",
-        element: (
-            authProvider(
-                <RootLayout selectedKey='/console'><Replay /></RootLayout>
-            )
-        ),
+      path: "/exp/:id",
+      element: (
+        authProvider(
+          <RootLayout selectedKey='/console'><Replay /></RootLayout>
+        )
+      ),
     },
     {
-        path: "/survey",
-        element: (
-            authProvider(
-                <RootLayout selectedKey='/survey'><Survey /></RootLayout>
-            )
-        ),
+      path: "/survey",
+      element: (
+        authProvider(
+          <RootLayout selectedKey='/survey'><Survey /></RootLayout>
+        )
+      ),
     },
     {
-        path: "/create-experiment",
-        element: (
-            authProvider(
-                <RootLayout selectedKey='/create-experiment'><CreateExperiment /></RootLayout>
-            )
-        ),
+      path: "/create-experiment",
+      element: (
+        authProvider(
+          <RootLayout selectedKey='/create-experiment'><CreateExperiment /></RootLayout>
+        )
+      ),
     },
     {
-        path: "/llms",
-        element: (
-            authProvider(
-                <RootLayout selectedKey='/llms'><LLM /></RootLayout>
-            )
-        ),
+      path: "/llms",
+      element: (
+        authProvider(
+          <RootLayout selectedKey='/llms'><LLM /></RootLayout>
+        )
+      ),
     },
     {
-        path: "/agents",
-        element: (
-            authProvider(
-                <RootLayout selectedKey='/agents'><AgentList /></RootLayout>
-            )
-        ),
+      path: "/agents",
+      element: (
+        authProvider(
+          <RootLayout selectedKey='/agents'><AgentList /></RootLayout>
+        )
+      ),
     },
     {
-        path: "/profiles",
-        element: (
-            authProvider(
-                <RootLayout selectedKey='/profiles'><ProfileList /></RootLayout>
-            )
-        ),
+      path: "/profiles",
+      element: (
+        authProvider(
+          <RootLayout selectedKey='/profiles'><ProfileList /></RootLayout>
+        )
+      ),
     },
     {
-        path: "/workflows",
-        element: (
-            authProvider(
-                <RootLayout selectedKey='/workflows'><WorkflowList /></RootLayout>
-            )
-        ),
+      path: "/workflows",
+      element: (
+        authProvider(
+          <RootLayout selectedKey='/workflows'><WorkflowList /></RootLayout>
+        )
+      ),
     },
     {
-        path: "/maps",
-        element: (
-            authProvider(
-                <RootLayout selectedKey='/maps'><Map /></RootLayout>
-            )
-        ),
+      path: "/maps",
+      element: (
+        authProvider(
+          <RootLayout selectedKey='/maps'><Map /></RootLayout>
+        )
+      ),
     },
     {
-        path: "/bill",
-        element: (
-            authProvider(
-                <RootLayout selectedKey='/bill'><Bill /></RootLayout>
-            )
-        ),
+      path: "/bill",
+      element: (
+        authProvider(
+          <RootLayout selectedKey='/bill'><Bill /></RootLayout>
+        )
+      ),
     },
     {
-        path: "/callback",
-        element: <Callback />,
+      path: "/callback",
+      element: <Callback />,
     },
     {
-        path: "/agent-templates",
-        element: (
-            authProvider(
-                <RootLayout selectedKey='/agent-templates'><AgentTemplate /></RootLayout>
-            )
-        ),
+      path: "/agent-templates",
+      element: (
+        authProvider(
+          <RootLayout selectedKey='/agent-templates'><AgentTemplate /></RootLayout>
+        )
+      ),
     },
     {
-        path: "/agent-templates/create",
-        element: (
-            authProvider(
-                <RootLayout selectedKey='/agent-templates'><AgentTemplateForm /></RootLayout>
-            )
-        ),
+      path: "/agent-templates/create",
+      element: (
+        authProvider(
+          <RootLayout selectedKey='/agent-templates'><AgentTemplateForm /></RootLayout>
+        )
+      ),
     },
     {
-        path: "/agent-templates/edit/:id",
-        element: (
-            authProvider(
-                <RootLayout selectedKey='/agent-templates'><AgentTemplateForm /></RootLayout>
-            )
-        ),
+      path: "/agent-templates/edit/:id",
+      element: (
+        authProvider(
+          <RootLayout selectedKey='/agent-templates'><AgentTemplateForm /></RootLayout>
+        )
+      ),
     },
     {
-        path: "/grafana/:exp_id?",
-        element: (
-            authProvider(
-                <RootLayout selectedKey='/grafana'><GrafanaPage /></RootLayout>
-            )
-        ),
+      path: "/grafana/:exp_id?",
+      element: (
+        authProvider(
+          <RootLayout selectedKey='/grafana'><GrafanaPage /></RootLayout>
+        )
+      ),
     },
     {
-        path: "*",
-        element: <Navigate to="/" />,
-    }
-])
+      path: "/charts/:exp_id?",
+      element: (
+        authProvider(
+          <RootLayout selectedKey='/charts'><ChartsPage /></RootLayout>
+        )
+      ),
+    },
+    {
+      path: "*",
+      element: <Navigate to="/" />,
+    }]
+}])
 
 const theme: ThemeConfig = {
-    token: {
-        colorPrimary: "#000000",
-        colorInfo: "#000000",
-        borderRadius: 16,
-        colorBgContainer: "#FFFFFF",
-        colorBgLayout: "#FFFFFF",
+  token: {
+    colorPrimary: "#000000",
+    colorInfo: "#000000",
+    borderRadius: 16,
+    colorBgContainer: "#FFFFFF",
+    colorBgLayout: "#FFFFFF",
+  },
+  components: {
+    Layout: {
+      lightSiderBg: "#F8F8F8",
+      headerBg: "#FFFFFF",
     },
-    components: {
-        Layout: {
-            lightSiderBg: "#F8F8F8",
-            headerBg: "#FFFFFF",
-        },
-        Button: {
-            algorithm: true,
-            colorBgContainer: "#FFFFFF",
-        },
-        Select: {
-            colorBgContainer: "#FFFFFF",
-        }
+    Button: {
+      algorithm: true,
+      colorBgContainer: "#FFFFFF",
+    },
+    Select: {
+      colorBgContainer: "#FFFFFF",
     }
+  }
 };
 
 const App = () => {
-    const { i18n } = useTranslation()
+  const { i18n } = useTranslation()
 
-    return (
-        <ConfigProvider
-            theme={theme}
-            locale={i18n.language === 'en' ? enUS : zhCN}
-        >
-            <RouterProvider router={router} />
-        </ConfigProvider>
-    )
+  return (
+    <ConfigProvider
+      theme={theme}
+      locale={i18n.language === 'en' ? enUS : zhCN}
+    >
+      <RouterProvider router={router} />
+    </ConfigProvider>
+  )
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-    <App />
+  <App />
 )

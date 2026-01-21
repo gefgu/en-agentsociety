@@ -156,6 +156,13 @@ const Page = () => {
                                     }
                                 },
                                 {
+                                    key: 'charts',
+                                    label: t('console.buttons.charts'),
+                                    onClick: () => {
+                                        navigate(`/charts/${record.id}`);
+                                    }
+                                },
+                                {
                                     key: 'exportArtifacts',
                                     label: t('console.buttons.exportArtifacts'),
                                     onClick: () => {

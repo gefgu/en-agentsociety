@@ -125,7 +125,7 @@ def create_app(
 
     # create FastAPI app
     app = FastAPI(
-        title="AgentSociety WebUI API",
+        title="FastSociety WebUI API",
         lifespan=lifespan,
         openapi_url="/api/openapi.json",
         docs_url="/api/docs",

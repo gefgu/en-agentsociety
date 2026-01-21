@@ -1,0 +1,942 @@
+import { useEffect, useState, useRef } from "react";
+
+import { Col, Row, message, Table, Button, Space, Popconfirm, Modal, Dropdown, Select } from 'antd';
+import { parseT } from "../../components/util";
+import { useNavigate, useParams } from "react-router-dom";
+import { Experiment } from "../../components/type";
+import { ProColumns, ProDescriptions, ProTable } from "@ant-design/pro-components";
+import { ActionType } from "@ant-design/pro-table";
+import { EllipsisOutlined, ReloadOutlined, PlusOutlined } from "@ant-design/icons";
+import { fetchCustom, postDownloadCustom } from "../../components/fetch";
+import { useTranslation } from "react-i18next";
+import * as echarts from 'echarts'; // Import ECharts
+import VisitDistributionBarChart from "../../components/VisitDistributionBarChart";
+import DailyActivityChart from "../../components/DailyActivityChart";
+
+// const sample_data = [
+//   {
+//     "start_timestamp": "2024-01-01T00:00:00",
+//     "end_timestamp": "2024-01-01T03:10:00",
+//     "lat": 48.79352569580078,
+//     "lng": 2.3603355884552,
+//     "start_step": 0,
+//     "end_step": 19,
+//     "duration_minutes": 190,
+//     "agent_id": 5,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 0,
+//     "timestamp": "2026-01-21T10:16:46.157000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   },
+// ]
+//   {
+//     "start_timestamp": "2024-01-01T00:00:00",
+//     "end_timestamp": "2024-01-01T07:40:00",
+//     "lat": 48.88688659667969,
+//     "lng": 2.504136085510254,
+//     "start_step": 0,
+//     "end_step": 46,
+//     "duration_minutes": 460,
+//     "agent_id": 6,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 0,
+//     "timestamp": "2026-01-21T10:16:46.155000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T00:00:00",
+//     "end_timestamp": "2024-01-02T01:20:00",
+//     "lat": 48.77383041381836,
+//     "lng": 2.3153889179229736,
+//     "start_step": 0,
+//     "end_step": 152,
+//     "duration_minutes": 1520,
+//     "agent_id": 7,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 0,
+//     "timestamp": "2026-01-21T10:16:46.157000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T00:00:00",
+//     "end_timestamp": "2024-01-02T17:50:00",
+//     "lat": 48.92894744873047,
+//     "lng": 2.2022857666015625,
+//     "start_step": 0,
+//     "end_step": 251,
+//     "duration_minutes": 2510,
+//     "agent_id": 10,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 0,
+//     "timestamp": "2026-01-21T10:16:46.160000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T00:00:00",
+//     "end_timestamp": "2024-01-02T17:50:00",
+//     "lat": 48.82414627075195,
+//     "lng": 2.3969740867614746,
+//     "start_step": 0,
+//     "end_step": 251,
+//     "duration_minutes": 2510,
+//     "agent_id": 11,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 0,
+//     "timestamp": "2026-01-21T10:16:46.158000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T00:00:00",
+//     "end_timestamp": "2024-01-01T23:50:00",
+//     "lat": 48.84859848022461,
+//     "lng": 2.510230302810669,
+//     "start_step": 0,
+//     "end_step": 143,
+//     "duration_minutes": 1430,
+//     "agent_id": 12,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 0,
+//     "timestamp": "2026-01-21T10:16:46.160000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T00:00:00",
+//     "end_timestamp": "2024-01-01T01:30:00",
+//     "lat": 48.930259704589844,
+//     "lng": 2.301952600479126,
+//     "start_step": 0,
+//     "end_step": 9,
+//     "duration_minutes": 90,
+//     "agent_id": 9,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 0,
+//     "timestamp": "2026-01-21T10:16:46.156000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T00:00:00",
+//     "end_timestamp": "2024-01-02T17:50:00",
+//     "lat": 48.910614013671875,
+//     "lng": 2.4909045696258545,
+//     "start_step": 0,
+//     "end_step": 251,
+//     "duration_minutes": 2510,
+//     "agent_id": 8,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 0,
+//     "timestamp": "2026-01-21T10:16:46.159000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T00:00:00",
+//     "end_timestamp": "2024-01-01T06:40:00",
+//     "lat": 48.91288757324219,
+//     "lng": 2.385413646697998,
+//     "start_step": 0,
+//     "end_step": 40,
+//     "duration_minutes": 400,
+//     "agent_id": 14,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 0,
+//     "timestamp": "2026-01-21T10:16:46.162000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T00:00:00",
+//     "end_timestamp": "2024-01-01T03:50:00",
+//     "lat": 48.92793655395508,
+//     "lng": 2.262629985809326,
+//     "start_step": 0,
+//     "end_step": 23,
+//     "duration_minutes": 230,
+//     "agent_id": 13,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 0,
+//     "timestamp": "2026-01-21T10:16:46.161000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T02:10:00",
+//     "end_timestamp": "2024-01-01T04:00:00",
+//     "lat": 48.92147445678711,
+//     "lng": 2.445408582687378,
+//     "start_step": 13,
+//     "end_step": 24,
+//     "duration_minutes": 110,
+//     "agent_id": 9,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 12,
+//     "timestamp": "2026-01-21T10:21:03.264000",
+//     "location_type": "amenity|parking_entrance",
+//     "purpose": "PURCHASE"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T03:30:00",
+//     "end_timestamp": "2024-01-01T12:20:00",
+//     "lat": 48.77485656738281,
+//     "lng": 2.3541102409362793,
+//     "start_step": 21,
+//     "end_step": 74,
+//     "duration_minutes": 530,
+//     "agent_id": 5,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 20,
+//     "timestamp": "2026-01-21T10:23:45.751000",
+//     "location_type": "work",
+//     "purpose": "WORK"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T04:20:00",
+//     "end_timestamp": "2024-01-01T06:30:00",
+//     "lat": 48.90568923950195,
+//     "lng": 2.345442533493042,
+//     "start_step": 26,
+//     "end_step": 39,
+//     "duration_minutes": 130,
+//     "agent_id": 13,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 25,
+//     "timestamp": "2026-01-21T10:25:35.728000",
+//     "location_type": "amenity|bicycle_parking",
+//     "purpose": "PURCHASE"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T04:30:00",
+//     "end_timestamp": "2024-01-01T10:00:00",
+//     "lat": 48.894474029541016,
+//     "lng": 2.490154266357422,
+//     "start_step": 27,
+//     "end_step": 60,
+//     "duration_minutes": 330,
+//     "agent_id": 9,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 26,
+//     "timestamp": "2026-01-21T10:25:59.712000",
+//     "location_type": "work",
+//     "purpose": "WORK"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T07:10:00",
+//     "end_timestamp": "2024-01-01T09:30:00",
+//     "lat": 48.84678649902344,
+//     "lng": 2.213482141494751,
+//     "start_step": 43,
+//     "end_step": 57,
+//     "duration_minutes": 140,
+//     "agent_id": 13,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 42,
+//     "timestamp": "2026-01-21T10:33:27.334000",
+//     "location_type": "amenity|post_office",
+//     "purpose": "PURCHASE"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T07:20:00",
+//     "end_timestamp": "2024-01-01T11:00:00",
+//     "lat": 48.786380767822266,
+//     "lng": 2.4505932331085205,
+//     "start_step": 44,
+//     "end_step": 66,
+//     "duration_minutes": 220,
+//     "agent_id": 14,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 43,
+//     "timestamp": "2026-01-21T10:33:54.463000",
+//     "location_type": "amenity|parking_space",
+//     "purpose": "PURCHASE"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T08:20:00",
+//     "end_timestamp": "2024-01-01T12:50:00",
+//     "lat": 48.83625793457031,
+//     "lng": 2.3950302600860596,
+//     "start_step": 50,
+//     "end_step": 77,
+//     "duration_minutes": 270,
+//     "agent_id": 6,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 49,
+//     "timestamp": "2026-01-21T10:36:33.331000",
+//     "location_type": "amenity|fast_food",
+//     "purpose": "LEISURE"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T10:20:00",
+//     "end_timestamp": "2024-01-01T13:50:00",
+//     "lat": 48.89430618286133,
+//     "lng": 2.4664111137390137,
+//     "start_step": 62,
+//     "end_step": 83,
+//     "duration_minutes": 210,
+//     "agent_id": 13,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 61,
+//     "timestamp": "2026-01-21T10:42:06.571000",
+//     "location_type": "work",
+//     "purpose": "WORK"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T11:40:00",
+//     "end_timestamp": "2024-01-01T12:20:00",
+//     "lat": 48.894474029541016,
+//     "lng": 2.490154266357422,
+//     "start_step": 70,
+//     "end_step": 74,
+//     "duration_minutes": 40,
+//     "agent_id": 9,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 69,
+//     "timestamp": "2026-01-21T10:45:57.016000",
+//     "location_type": "work",
+//     "purpose": "WORK"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T11:50:00",
+//     "end_timestamp": "2024-01-01T14:50:00",
+//     "lat": 48.878395080566406,
+//     "lng": 2.216137647628784,
+//     "start_step": 71,
+//     "end_step": 89,
+//     "duration_minutes": 180,
+//     "agent_id": 14,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 70,
+//     "timestamp": "2026-01-21T10:46:25.068000",
+//     "location_type": "amenity|waste_basket",
+//     "purpose": "LEISURE"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T13:00:00",
+//     "end_timestamp": "2024-01-01T13:50:00",
+//     "lat": 48.87747573852539,
+//     "lng": 2.4565818309783936,
+//     "start_step": 78,
+//     "end_step": 83,
+//     "duration_minutes": 50,
+//     "agent_id": 5,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 77,
+//     "timestamp": "2026-01-21T10:49:29.299000",
+//     "location_type": "leisure|park",
+//     "purpose": "UNKNOWN"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T13:10:00",
+//     "end_timestamp": "2024-01-01T13:30:00",
+//     "lat": 48.777191162109375,
+//     "lng": 2.296461582183838,
+//     "start_step": 79,
+//     "end_step": 81,
+//     "duration_minutes": 20,
+//     "agent_id": 9,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 78,
+//     "timestamp": "2026-01-21T10:49:57.353000",
+//     "location_type": "amenity|restaurant",
+//     "purpose": "LEISURE"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T13:30:00",
+//     "end_timestamp": "2024-01-01T13:40:00",
+//     "lat": 48.87828063964844,
+//     "lng": 2.358201026916504,
+//     "start_step": 81,
+//     "end_step": 82,
+//     "duration_minutes": 10,
+//     "agent_id": 6,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 80,
+//     "timestamp": "2026-01-21T10:50:48.469000",
+//     "location_type": "amenity|restaurant",
+//     "purpose": "LEISURE"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T14:20:00",
+//     "end_timestamp": "2024-01-01T19:00:00",
+//     "lat": 48.88688659667969,
+//     "lng": 2.504136085510254,
+//     "start_step": 86,
+//     "end_step": 114,
+//     "duration_minutes": 280,
+//     "agent_id": 6,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 85,
+//     "timestamp": "2026-01-21T10:53:00.435000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T14:30:00",
+//     "end_timestamp": "2024-01-01T15:20:00",
+//     "lat": 48.92009735107422,
+//     "lng": 2.185054063796997,
+//     "start_step": 87,
+//     "end_step": 92,
+//     "duration_minutes": 50,
+//     "agent_id": 13,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 86,
+//     "timestamp": "2026-01-21T10:53:27.083000",
+//     "location_type": "amenity|reception_desk",
+//     "purpose": "UNKNOWN"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T14:30:00",
+//     "end_timestamp": "2024-01-01T15:20:00",
+//     "lat": 48.890113830566406,
+//     "lng": 2.3032240867614746,
+//     "start_step": 87,
+//     "end_step": 92,
+//     "duration_minutes": 50,
+//     "agent_id": 9,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 86,
+//     "timestamp": "2026-01-21T10:53:27.080000",
+//     "location_type": "amenity|pharmacy",
+//     "purpose": "HEALTH"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T14:40:00",
+//     "end_timestamp": "2024-01-01T20:10:00",
+//     "lat": 48.79352569580078,
+//     "lng": 2.3603355884552,
+//     "start_step": 88,
+//     "end_step": 121,
+//     "duration_minutes": 330,
+//     "agent_id": 5,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 87,
+//     "timestamp": "2026-01-21T10:53:37.957000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T15:30:00",
+//     "end_timestamp": "2024-01-02T03:40:00",
+//     "lat": 48.91288757324219,
+//     "lng": 2.385413646697998,
+//     "start_step": 93,
+//     "end_step": 166,
+//     "duration_minutes": 730,
+//     "agent_id": 14,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 92,
+//     "timestamp": "2026-01-21T10:55:32.172000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T15:50:00",
+//     "end_timestamp": "2024-01-02T02:20:00",
+//     "lat": 48.92793655395508,
+//     "lng": 2.262629985809326,
+//     "start_step": 95,
+//     "end_step": 158,
+//     "duration_minutes": 630,
+//     "agent_id": 13,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 94,
+//     "timestamp": "2026-01-21T10:56:23.042000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T16:00:00",
+//     "end_timestamp": "2024-01-01T16:10:00",
+//     "lat": 48.88732147216797,
+//     "lng": 2.462968349456787,
+//     "start_step": 96,
+//     "end_step": 97,
+//     "duration_minutes": 10,
+//     "agent_id": 9,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 95,
+//     "timestamp": "2026-01-21T10:56:48.107000",
+//     "location_type": "amenity|public_bookcase",
+//     "purpose": "LEISURE"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T17:00:00",
+//     "end_timestamp": "2024-01-02T17:50:00",
+//     "lat": 48.930259704589844,
+//     "lng": 2.301952600479126,
+//     "start_step": 102,
+//     "end_step": 251,
+//     "duration_minutes": 1490,
+//     "agent_id": 9,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 101,
+//     "timestamp": "2026-01-21T10:59:25.599000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T19:20:00",
+//     "end_timestamp": "2024-01-01T20:10:00",
+//     "lat": 48.89513397216797,
+//     "lng": 2.500974655151367,
+//     "start_step": 116,
+//     "end_step": 121,
+//     "duration_minutes": 50,
+//     "agent_id": 6,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 115,
+//     "timestamp": "2026-01-21T11:05:44.524000",
+//     "location_type": "work",
+//     "purpose": "WORK"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T20:30:00",
+//     "end_timestamp": "2024-01-02T17:50:00",
+//     "lat": 48.88688659667969,
+//     "lng": 2.504136085510254,
+//     "start_step": 123,
+//     "end_step": 251,
+//     "duration_minutes": 1280,
+//     "agent_id": 6,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 122,
+//     "timestamp": "2026-01-21T11:09:01.046000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T20:30:00",
+//     "end_timestamp": "2024-01-01T22:20:00",
+//     "lat": 48.77485656738281,
+//     "lng": 2.3541102409362793,
+//     "start_step": 123,
+//     "end_step": 134,
+//     "duration_minutes": 110,
+//     "agent_id": 5,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 122,
+//     "timestamp": "2026-01-21T11:09:01.044000",
+//     "location_type": "work",
+//     "purpose": "WORK"
+//   },
+//   {
+//     "start_timestamp": "2024-01-01T22:40:00",
+//     "end_timestamp": "2024-01-02T02:50:00",
+//     "lat": 48.79352569580078,
+//     "lng": 2.3603355884552,
+//     "start_step": 136,
+//     "end_step": 161,
+//     "duration_minutes": 250,
+//     "agent_id": 5,
+//     "day_of_week": "monday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 135,
+//     "timestamp": "2026-01-21T11:15:03.160000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   },
+//   {
+//     "start_timestamp": "2024-01-02T00:30:00",
+//     "end_timestamp": "2024-01-02T01:20:00",
+//     "lat": 48.8251953125,
+//     "lng": 2.374509572982788,
+//     "start_step": 147,
+//     "end_step": 152,
+//     "duration_minutes": 50,
+//     "agent_id": 12,
+//     "day_of_week": "tuesday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 146,
+//     "timestamp": "2026-01-21T11:20:18.996000",
+//     "location_type": "work",
+//     "purpose": "WORK"
+//   },
+//   {
+//     "start_timestamp": "2024-01-02T01:50:00",
+//     "end_timestamp": "2024-01-02T02:10:00",
+//     "lat": 48.84859848022461,
+//     "lng": 2.510230302810669,
+//     "start_step": 155,
+//     "end_step": 157,
+//     "duration_minutes": 20,
+//     "agent_id": 12,
+//     "day_of_week": "tuesday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 154,
+//     "timestamp": "2026-01-21T11:23:30.614000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   },
+//   {
+//     "start_timestamp": "2024-01-02T02:20:00",
+//     "end_timestamp": "2024-01-02T10:00:00",
+//     "lat": 48.91246795654297,
+//     "lng": 2.1850783824920654,
+//     "start_step": 158,
+//     "end_step": 204,
+//     "duration_minutes": 460,
+//     "agent_id": 7,
+//     "day_of_week": "tuesday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 157,
+//     "timestamp": "2026-01-21T11:24:33.016000",
+//     "location_type": "work",
+//     "purpose": "WORK"
+//   },
+//   {
+//     "start_timestamp": "2024-01-02T02:50:00",
+//     "end_timestamp": "2024-01-02T06:50:00",
+//     "lat": 48.8251953125,
+//     "lng": 2.374509572982788,
+//     "start_step": 161,
+//     "end_step": 185,
+//     "duration_minutes": 240,
+//     "agent_id": 12,
+//     "day_of_week": "tuesday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 160,
+//     "timestamp": "2026-01-21T11:25:56.160000",
+//     "location_type": "work",
+//     "purpose": "WORK"
+//   },
+//   {
+//     "start_timestamp": "2024-01-02T03:00:00",
+//     "end_timestamp": "2024-01-02T11:00:00",
+//     "lat": 48.89430618286133,
+//     "lng": 2.4664111137390137,
+//     "start_step": 162,
+//     "end_step": 210,
+//     "duration_minutes": 480,
+//     "agent_id": 13,
+//     "day_of_week": "tuesday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 161,
+//     "timestamp": "2026-01-21T11:26:21.906000",
+//     "location_type": "work",
+//     "purpose": "WORK"
+//   },
+//   {
+//     "start_timestamp": "2024-01-02T03:10:00",
+//     "end_timestamp": "2024-01-02T12:30:00",
+//     "lat": 48.77485656738281,
+//     "lng": 2.3541102409362793,
+//     "start_step": 163,
+//     "end_step": 219,
+//     "duration_minutes": 560,
+//     "agent_id": 5,
+//     "day_of_week": "tuesday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 162,
+//     "timestamp": "2026-01-21T11:26:46.252000",
+//     "location_type": "work",
+//     "purpose": "WORK"
+//   },
+//   {
+//     "start_timestamp": "2024-01-02T04:20:00",
+//     "end_timestamp": "2024-01-02T04:50:00",
+//     "lat": 48.77118682861328,
+//     "lng": 2.403627395629883,
+//     "start_step": 170,
+//     "end_step": 173,
+//     "duration_minutes": 30,
+//     "agent_id": 14,
+//     "day_of_week": "tuesday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 169,
+//     "timestamp": "2026-01-21T11:29:54.240000",
+//     "location_type": "amenity|fast_food",
+//     "purpose": "LEISURE"
+//   },
+//   {
+//     "start_timestamp": "2024-01-02T05:10:00",
+//     "end_timestamp": "2024-01-02T05:40:00",
+//     "lat": 48.80552291870117,
+//     "lng": 2.375746488571167,
+//     "start_step": 175,
+//     "end_step": 178,
+//     "duration_minutes": 30,
+//     "agent_id": 14,
+//     "day_of_week": "tuesday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 174,
+//     "timestamp": "2026-01-21T11:32:14.015000",
+//     "location_type": "amenity|restaurant",
+//     "purpose": "LEISURE"
+//   },
+//   {
+//     "start_timestamp": "2024-01-02T06:20:00",
+//     "end_timestamp": "2024-01-02T17:50:00",
+//     "lat": 48.91288757324219,
+//     "lng": 2.385413646697998,
+//     "start_step": 182,
+//     "end_step": 251,
+//     "duration_minutes": 690,
+//     "agent_id": 14,
+//     "day_of_week": "tuesday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 181,
+//     "timestamp": "2026-01-21T11:35:25.745000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   },
+//   {
+//     "start_timestamp": "2024-01-02T07:30:00",
+//     "end_timestamp": "2024-01-02T07:40:00",
+//     "lat": 48.88252639770508,
+//     "lng": 2.3394412994384766,
+//     "start_step": 189,
+//     "end_step": 190,
+//     "duration_minutes": 10,
+//     "agent_id": 12,
+//     "day_of_week": "tuesday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 188,
+//     "timestamp": "2026-01-21T11:38:51.823000",
+//     "location_type": "amenity|theatre",
+//     "purpose": "LEISURE"
+//   },
+//   {
+//     "start_timestamp": "2024-01-02T08:20:00",
+//     "end_timestamp": "2024-01-02T08:50:00",
+//     "lat": 48.859222412109375,
+//     "lng": 2.1834867000579834,
+//     "start_step": 194,
+//     "end_step": 197,
+//     "duration_minutes": 30,
+//     "agent_id": 12,
+//     "day_of_week": "tuesday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 193,
+//     "timestamp": "2026-01-21T11:41:10.912000",
+//     "location_type": "amenity|post_box",
+//     "purpose": "PURCHASE"
+//   },
+//   {
+//     "start_timestamp": "2024-01-02T10:10:00",
+//     "end_timestamp": "2024-01-02T17:50:00",
+//     "lat": 48.84859848022461,
+//     "lng": 2.510230302810669,
+//     "start_step": 205,
+//     "end_step": 251,
+//     "duration_minutes": 460,
+//     "agent_id": 12,
+//     "day_of_week": "tuesday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 204,
+//     "timestamp": "2026-01-21T11:45:26.665000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   },
+//   {
+//     "start_timestamp": "2024-01-02T10:30:00",
+//     "end_timestamp": "2024-01-02T10:50:00",
+//     "lat": 48.89371109008789,
+//     "lng": 2.323598623275757,
+//     "start_step": 207,
+//     "end_step": 209,
+//     "duration_minutes": 20,
+//     "agent_id": 7,
+//     "day_of_week": "tuesday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 206,
+//     "timestamp": "2026-01-21T11:46:20.398000",
+//     "location_type": "amenity|pharmacy",
+//     "purpose": "HEALTH"
+//   },
+//   {
+//     "start_timestamp": "2024-01-02T11:40:00",
+//     "end_timestamp": "2024-01-02T17:50:00",
+//     "lat": 48.92793655395508,
+//     "lng": 2.262629985809326,
+//     "start_step": 214,
+//     "end_step": 251,
+//     "duration_minutes": 370,
+//     "agent_id": 13,
+//     "day_of_week": "tuesday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 213,
+//     "timestamp": "2026-01-21T11:49:37.531000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   },
+//   {
+//     "start_timestamp": "2024-01-02T12:20:00",
+//     "end_timestamp": "2024-01-02T12:30:00",
+//     "lat": 48.80134201049805,
+//     "lng": 2.4936633110046387,
+//     "start_step": 218,
+//     "end_step": 219,
+//     "duration_minutes": 10,
+//     "agent_id": 7,
+//     "day_of_week": "tuesday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 217,
+//     "timestamp": "2026-01-21T11:51:30.867000",
+//     "location_type": "amenity|car_rental",
+//     "purpose": "PURCHASE"
+//   },
+//   {
+//     "start_timestamp": "2024-01-02T13:20:00",
+//     "end_timestamp": "2024-01-02T17:50:00",
+//     "lat": 48.77383041381836,
+//     "lng": 2.3153889179229736,
+//     "start_step": 224,
+//     "end_step": 251,
+//     "duration_minutes": 270,
+//     "agent_id": 7,
+//     "day_of_week": "tuesday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 223,
+//     "timestamp": "2026-01-21T11:54:24.024000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   },
+//   {
+//     "start_timestamp": "2024-01-02T14:00:00",
+//     "end_timestamp": "2024-01-02T17:50:00",
+//     "lat": 48.79352569580078,
+//     "lng": 2.3603355884552,
+//     "start_step": 228,
+//     "end_step": 251,
+//     "duration_minutes": 230,
+//     "agent_id": 5,
+//     "day_of_week": "tuesday",
+//     "exp_id": "bae62161-e524-48ef-bb20-4a26e55cb10e",
+//     "simulation_step": 227,
+//     "timestamp": "2026-01-21T11:56:14.727000",
+//     "location_type": "home",
+//     "purpose": "HOME"
+//   }
+// ]
+
+
+const ChartsPage = () => {
+  const { t } = useTranslation();
+  const navigate = useNavigate(); // 获取导航函数
+  const { exp_id } = useParams<{ exp_id?: string }>();
+
+  if (!exp_id) {
+    return (
+      <div style={{ padding: '24px' }}>
+        <Row gutter={[16, 16]}>
+          <Col span={24}>
+            <h2 style={{ fontSize: 48 }}>{t('charts.title')}</h2>
+          </Col>
+          <Col span={24}>
+            <p style={{ fontSize: '18px' }}>{t('charts.no_exp_id')}</p>
+          </Col>
+        </Row>
+      </div>
+    );
+  }
+
+
+  const [visit_data, setVisitData] = useState<any[]>([]);
+
+  const fetchVisitData = async (experimentId: string) => {
+    try {
+      const res = await fetchCustom(`/api/agent-visits?exp_id=${experimentId}`);
+      if (res.ok) {
+        const data = await res.json();
+        console.log('Fetched visit data:', data);
+        setVisitData(data["data"]);
+      } else {
+        throw new Error(await res.text());
+      }
+    } catch (err) {
+      console.error('Failed to fetch visit data:', err);
+      message.error('Failed to fetch visit data: ' + err);
+      return null;
+    }
+  }
+
+  useEffect(() => {
+    if (exp_id) {
+      fetchVisitData(exp_id);
+    }
+  }, [exp_id]);
+
+  if (visit_data.length === 0) {
+    return (
+      <div style={{ padding: '24px' }}>
+        <Row gutter={[16, 16]}>
+          <Col span={24}>
+            <h2 style={{ fontSize: 48 }}>{t('charts.title')}</h2>
+          </Col>
+          <Col span={24}>
+            <p style={{ fontSize: '18px' }}>{t('charts.loading')}</p>
+          </Col>
+        </Row>
+      </div>
+    );
+  }
+
+
+  return (
+    <div style={{ padding: '24px' }}>
+      <Row gutter={[16, 16]}>
+        <Col span={22}>
+          <h2 style={{ fontSize: 48 }}>{t('charts.title')}</h2>
+        </Col>
+        <Col span={2}>
+          <Button
+            type="primary"
+            onClick={() => fetchVisitData(exp_id!)} // 返回上一页
+            style={{ height: '40px', }}
+          >
+            {t('charts.reload')}
+          </Button>
+        </Col>
+        <Col span={8}>
+          {/* Container for the chart */}
+          <VisitDistributionBarChart visit_data={visit_data} width="100%" height="400px" />
+        </Col>
+        <Col span={16}>
+          <DailyActivityChart visit_data={visit_data} width="100%" height="450px" />
+        </Col>
+      </Row>
+    </div>
+  );
+}
+
+export default ChartsPage;

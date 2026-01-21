@@ -24,6 +24,7 @@ export default function RootLayout({
     const menuStyle = {
         background: '#14213d',
         color: 'white',
+        fontSize: '1.25em',
     }
 
     // get the height of the header to set the content height

@@ -29,6 +29,8 @@ import enProfile from './locales/en/profile';
 import zhProfile from './locales/zh/profile';
 import enExperiment from './locales/en/experiment';
 import zhExperiment from './locales/zh/experiment';
+import enCharts from './locales/en/charts';
+// import zhCharts from './locales/zh/charts';
 
 // Combine translations
 const resources = {
@@ -47,7 +49,8 @@ const resources = {
             template: enTemplate,
             profile: enProfile,
             experiment: enExperiment,
-        }
+            charts: enCharts,
+        } 
     },
     zh: {
         translation: {
