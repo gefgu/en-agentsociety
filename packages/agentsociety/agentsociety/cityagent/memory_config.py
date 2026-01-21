@@ -538,6 +538,13 @@ def memory_config_societyagent(
             description="agent's background story",
             whether_embedding=True,
         ),
+        "pending_destination_type": MemoryAttribute(
+            name="pending_destination_type",
+            type=str,
+            default_or_value="none",
+            description="agent's pending destination type",
+            whether_embedding=False,
+        ),
     }
 
     # Add base attributes

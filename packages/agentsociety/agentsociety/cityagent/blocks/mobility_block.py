@@ -271,24 +271,36 @@ class PlaceSelectionBlock(Block):
             limit=self.search_limit,
         )
 
+        poi_type = "unknown"
         if pois:
             pois = gravity_model(pois)
             probabilities = [item[2] for item in pois]
             selected = np.random.choice(len(pois), p=probabilities)
             next_place = (pois[selected][0], pois[selected][1])
+            poi_type = levelTwoType
         else:  # Fallback random selection
             all_pois = self.environment.map.get_all_pois()
             next_place = random.choice(all_pois)
-            next_place = (next_place["name"], next_place["id"])
+            poi_type = next_place.get("category", "unknown")
+            next_place = (next_place["name"], next_place["id"], poi_type)
+            get_logger().warning(
+                f"MobilityBlock: No POIs found for type {levelTwoType} within {radius}m. Randomly selected {next_place}",
+                extra={"agent_id": self.agent.id},
+            )
 
         context["next_place"] = next_place
+        context["next_place_type"] = poi_type
+
+        await self.memory.status.update("pending_destination_type", poi_type)
+
         node_id = await self.memory.stream.add(
             topic="mobility",
-            description=f"For {context['current_step']['intention']}, selected: {next_place}",
+            description=f"For {context['current_step']['intention']}, selected: {next_place} (type: {poi_type})",
         )
         return {
             "success": True,
             "evaluation": f"Selected destination: {next_place}",
+            "poi_type": poi_type,
             "consumed_time": 5,
             "node_id": node_id,
         }
@@ -312,6 +324,7 @@ class MoveBlock(Block):
         place_knowledge = await self.memory.status.get("location_knowledge")
         known_places = list(place_knowledge.keys())
         places = ["home", "workplace"] + known_places + ["other"]
+        poi_type = None
         await self.placeAnalysisPrompt.format(
             plan=context["plan_context"]["plan"],
             intention=context["current_step"]["intention"],
@@ -332,10 +345,12 @@ class MoveBlock(Block):
             response = json_repair.loads(response)["place_type"]  # type: ignore
         except Exception:
             get_logger().warning(
-                f"MobilityBlock: Place Analysis: wrong type of place, raw response: {response}"
+                f"MobilityBlock: Place Analysis: wrong type of place, raw response: {response}",
+                extra={"agent_id": self.agent.id},
             )
             response = "home"
         if response == "home":
+            await self.memory.status.update("pending_destination_type", "home")
             # go back home
             home = await self.memory.status.get("home")
             home = home["aoi_position"]["aoi_id"]
@@ -370,6 +385,7 @@ class MoveBlock(Block):
                 "node_id": node_id,
             }
         elif response == "workplace":
+            await self.memory.status.update("pending_destination_type", "workplace")
             # back to workplace
             work = await self.memory.status.get("work")
             work = work["aoi_position"]["aoi_id"]
@@ -437,6 +453,7 @@ class MoveBlock(Block):
             }
         else:
             # move to other places
+            poi_type = None
             next_place = context.get("next_place", None)
             nowPlace = await self.memory.status.get("position")
             node_id = await self.memory.stream.add(
@@ -444,6 +461,7 @@ class MoveBlock(Block):
                 description=f"I went to {next_place}",
             )
             if next_place is not None:
+                poi_type = context.get("next_place_type", "unknown")
                 await self.environment.set_aoi_schedules(
                     person_id=agent_id,
                     target_positions=next_place[1],
@@ -456,18 +474,27 @@ class MoveBlock(Block):
                         r_poi = random.choice(r_aoi["poi_ids"])
                         break
                 poi = self.environment.map.get_poi(r_poi)
-                next_place = (poi["name"], poi["aoi_id"])
+                poi_type = poi.get("category", "unknown")
+                next_place = (poi["name"], poi["aoi_id"], poi_type)
+                get_logger().warning(
+                    f"MobilityBlock (Agent {self.agent.id}): Move to other place: no next_place provided, randomly selected {next_place}",
+                    extra={"agent_id": self.agent.id},
+                )
+
                 await self.environment.set_aoi_schedules(
                     person_id=agent_id,
                     target_positions=next_place[1],
                 )
             number_poi_visited = await self.memory.status.get("number_poi_visited")
             number_poi_visited += 1
+
+            await self.memory.status.update("pending_destination_type", poi_type)
             await self.memory.status.update("number_poi_visited", number_poi_visited)
             return {
                 "success": True,
                 "evaluation": f"Successfully reached the destination: {next_place}",
                 "to_place": next_place[1],
+                "poi_type": poi_type,
                 "consumed_time": 45,
                 "node_id": node_id,
             }

@@ -220,8 +220,8 @@ class SimulationEngine:
         self._embedding: Optional[SparseTextEmbedding] = None
         self._text_embedding: Optional[TextEmbedding] = None
         self._metrics_actor: Optional[PrometheusActor] = None
-        self._clickhouse_actor: Optional[ClickHouseActor] = None
-        self._clickhouse_tool: Optional[CustomTool] = None
+        self._db_actor: Optional[ClickHouseActor] = None
+        self._db_tool: Optional[CustomTool] = None
         self._id2agent: dict[int, Agent] = {}
         yaml_config = yaml.dump(
             self._config.model_dump(
@@ -349,13 +349,14 @@ class SimulationEngine:
         # Initialize ClickHouse db
         # ==========================
         try:
-            self._clickhouse_actor = ClickHouseActor.remote(
-                self.exp_id,
-                self._config.env.data_dir,
+            self._db_actor = ClickHouseActor.remote(
+                exp_id=self.exp_id,
+                home_dir=self._config.env.data_dir,
+                metrics_actor=self._metrics_actor
             )
-            self._clickhouse_tool = CustomTool(
-                name="clickhouse_actor",
-                tool=self._clickhouse_actor,
+            self._db_tool = CustomTool(
+                name="db_actor",
+                tool=self._db_actor,
                 description="Ray actor for storing simulation data in ClickHouse database",
             )
             get_logger().info("ClickHouse actor initialized")
@@ -370,7 +371,7 @@ class SimulationEngine:
             self._llm = LLM(
                 self._config.llm,
                 metrics_actor=self._metrics_actor,
-                db_actor=self._clickhouse_actor,
+                db_actor=self._db_actor,
             )
             get_logger().info("LLM initialized")
 
@@ -1045,7 +1046,7 @@ class SimulationEngine:
             agent_toolbox.add_tool(metrics_tool)
 
             get_logger().info("Adding clickhouse tool to Agents...")
-            agent_toolbox.add_tool(self._clickhouse_tool)
+            agent_toolbox.add_tool(self._db_tool)
 
             get_logger().info("Initializing the agents...")
 
@@ -1140,9 +1141,9 @@ class SimulationEngine:
         # close clickhouse
         # ===============================
         get_logger().info("Closing ClickHouse tool...")
-        if self._clickhouse_actor is not None:
+        if self._db_actor is not None:
             try:
-                await self._clickhouse_actor.close.remote()
+                await self._db_actor.close.remote()
             except Exception as e:
                 get_logger().warning(f"Error closing ClickHouse actor: {e}")
 
@@ -1624,6 +1625,18 @@ class SimulationEngine:
                     created_at=created_at,
                 )
                 statuses.append(status)
+
+                if self._db_actor:
+                    self._db_actor.insert_step_agent_status_record.remote(
+                        agent_id=agent.id,
+                        lng=lng,
+                        lat=lat,
+                        parent_id=parent_id,
+                        action=action,
+                        status=status_summary,
+                        timestamp=time.time(),
+                    )
+                    
             elif isinstance(
                 agent, (FirmAgentBase, BankAgentBase, NBSAgentBase, GovernmentAgentBase)
             ):
@@ -1703,9 +1716,9 @@ class SimulationEngine:
                 f"Start simulation day {day} at {t}, step {self._total_steps}"
             )
             # Add simulation step to ClickHouse
-            if self._clickhouse_actor is not None:
+            if self._db_actor is not None:
                 try:
-                    await self._clickhouse_actor.set_simulation_step.remote(
+                    await self._db_actor.set_simulation_step.remote(
                         step=self._total_steps,
                     )
                 except Exception as e:

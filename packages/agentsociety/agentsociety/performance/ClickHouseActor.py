@@ -3,6 +3,8 @@ from datetime import datetime
 import clickhouse_connect
 from clickhouse_connect.driver.client import Client
 from pathlib import Path
+
+from .prometheusActor import PrometheusActor
 from ..logger import get_logger
 import ray
 import time
@@ -59,6 +61,36 @@ ORDER BY (exp_id, agent_id, timestamp)
 PARTITION BY exp_id
 """
 
+user_location_type_table_query = """
+CREATE TABLE IF NOT EXISTS agent_location_type (
+  exp_id LowCardinality(String),
+  simulation_step Int32,
+  timestamp DateTime64(3),
+  agent_id Int32,
+  location_type LowCardinality(String)
+)
+ENGINE = MergeTree()
+ORDER BY (exp_id, agent_id, timestamp)
+PARTITION BY exp_id
+"""
+
+step_agent_status_table_query = """
+CREATE TABLE IF NOT EXISTS step_agent_status (
+  exp_id LowCardinality(String),
+  agent_id Int32,
+  simulation_step Int32,
+  timestamp DateTime64(3),
+  lat Float32,
+  lng Float32,
+  parent_id Int32,
+  action LowCardinality(String),
+  status String CODEC(ZSTD(3))
+)
+ENGINE = MergeTree()
+ORDER BY (exp_id, agent_id, timestamp)
+PARTITION BY exp_id
+"""
+
 
 class AdjustNeedsRecord(TypedDict):
     exp_id: Optional[str]
@@ -95,6 +127,7 @@ class ClickHouseActor:
         batch_size: int = 128,
         batch_timeout: float = 30.0,
         auto_create_database: bool = True,
+        metrics_actor: Optional[ray.actor.ActorHandle[PrometheusActor]] = None,
     ):
         """
         Initialize ClickHouse client and create necessary tables.
@@ -120,6 +153,7 @@ class ClickHouseActor:
         self.auto_create_database = auto_create_database
         self.db_path = self.home_dir / "clickhouse"
         self.db_path.mkdir(parents=True, exist_ok=True)
+        self._metrics_actor = metrics_actor
 
         self.batch_size = batch_size
         self.batch_timeout = batch_timeout
@@ -128,6 +162,10 @@ class ClickHouseActor:
         self.last_adjust_needs_flush_time = time.time()
         self.prompt_responses_batch: deque = deque()
         self.last_prompt_responses_flush_time = time.time()
+        self.location_type_batch: deque = deque()
+        self.last_location_type_flush_time = time.time()
+        self.step_agent_status_batch: deque = deque()
+        self.last_step_agent_status_flush_time = time.time()
 
         self.simulation_step = -1
 
@@ -187,6 +225,8 @@ class ClickHouseActor:
         try:
             self.client.command(create_adjust_needs_table_query)
             self.client.command(prompt_and_responses_table_query)
+            self.client.command(user_location_type_table_query)
+            self.client.command(step_agent_status_table_query)
             get_logger().info("Tables created successfully in ClickHouse database.")
         except Exception as e:
             get_logger().error(f"Failed to create tables in ClickHouse database: {e}")
@@ -194,6 +234,21 @@ class ClickHouseActor:
     def set_simulation_step(self, step: int):
         """Set the current simulation step."""
         self.simulation_step = step
+
+    def _clean_incoming_record(self, timestamp: Any, agent_id: Any):
+        if isinstance(timestamp, (int, float)):
+            timestamp = datetime.fromtimestamp(timestamp)
+        elif not isinstance(timestamp, datetime):
+            timestamp = datetime.now()
+
+        if not isinstance(agent_id, int):
+            try:
+                agent_id = int(agent_id)
+            except (ValueError, TypeError):
+                # If conversion fails, use -1 as a sentinel value
+                agent_id = -1
+
+        return timestamp, agent_id
 
     def _flush_adjust_needs_batch(self):
         """Flush the adjust_needs batch to ClickHouse."""
@@ -256,8 +311,8 @@ class ClickHouseActor:
             self.adjust_needs_batch.clear()
             self.last_adjust_needs_flush_time = time.time()
 
-            get_logger().info(
-                f"Flushed {len(records)} adjust_needs records to ClickHouse."
+            self._metrics_actor.record_table_records.remote(
+                "NeedsBlock_adjust_needs", len(records)
             )
 
         except Exception as e:
@@ -308,26 +363,16 @@ class ClickHouseActor:
 
         try:
 
-            if isinstance(timestamp, (int, float)):
-                timestamp = datetime.fromtimestamp(timestamp)
-            elif not isinstance(timestamp, datetime):
-                timestamp = datetime.now()
-
-            if not isinstance(agent_id, int):
-              try:
-                  agent_id = int(agent_id)
-              except (ValueError, TypeError):
-                  # If conversion fails, use -1 as a sentinel value
-                  agent_id = -1
+            timestamp, agent_id = self._clean_incoming_record(timestamp, agent_id)
 
             # Convert response to string if it's not already
             if not isinstance(response, str):
                 # Handle ChatCompletion objects
-                if hasattr(response, 'choices') and len(response.choices) > 0:
+                if hasattr(response, "choices") and len(response.choices) > 0:
                     response = response.choices[0].message.content or ""
                 else:
                     response = str(response)
-            
+
             # Convert prompt to string if it's not already
             if not isinstance(prompt, str):
                 prompt = str(prompt)
@@ -366,10 +411,6 @@ class ClickHouseActor:
 
         records = list(self.prompt_responses_batch)
 
-        get_logger().debug(
-            f"Flushing {len(records)} prompt-response records to ClickHouse."
-        )
-
         # Convert to columnar format
         column_data = [
             [r["exp_id"] for r in records],
@@ -400,13 +441,191 @@ class ClickHouseActor:
             column_oriented=True,
         )
 
+        self._metrics_actor.record_table_records.remote(
+            "prompt_responses", len(records)
+        )
+
         self.prompt_responses_batch.clear()
         self.last_prompt_responses_flush_time = time.time()
+
+    def insert_user_location_type_record(
+        self,
+        timestamp: datetime,
+        agent_id: int,
+        location_type: str,
+    ):
+        """Insert an agent location type record into ClickHouse."""
+        if self.client is None:
+            get_logger().error(
+                "ClickHouse client is not connected. Cannot insert agent location type record."
+            )
+            return
+
+        try:
+
+            timestamp, agent_id = self._clean_incoming_record(timestamp, agent_id)
+
+            self.location_type_batch.append(
+                {
+                    "exp_id": self.exp_id,
+                    "simulation_step": self.simulation_step,
+                    "timestamp": timestamp,
+                    "agent_id": agent_id,
+                    "location_type": location_type,
+                }
+            )
+
+            if (len(self.location_type_batch) >= self.batch_size) or (
+                time.time() - self.last_location_type_flush_time >= self.batch_timeout
+            ):
+                self._flush_user_location_type_batch()
+
+        except Exception as e:
+            get_logger().error(f"Failed to insert agent location type record: {e}")
+
+    def _flush_user_location_type_batch(self):
+        if self.client is None:
+            get_logger().error(
+                "ClickHouse client is not connected. Cannot flush batch."
+            )
+            return
+
+        if not self.location_type_batch or len(self.location_type_batch) == 0:
+            return
+
+        records = list(self.location_type_batch)
+
+        # Convert to columnar format
+        column_data = [
+            [r["exp_id"] for r in records],
+            [r["simulation_step"] for r in records],
+            [r["timestamp"] for r in records],
+            [r["agent_id"] for r in records],
+            [r["location_type"] for r in records],
+        ]
+
+        column_names = [
+            "exp_id",
+            "simulation_step",
+            "timestamp",
+            "agent_id",
+            "location_type",
+        ]
+
+        self.client.insert(
+            "agent_location_type",
+            column_data,
+            column_names=column_names,
+            column_oriented=True,
+        )
+
+        self._metrics_actor.record_table_records.remote(
+            "agent_location_type", len(records)
+        )
+
+        self.location_type_batch.clear()
+        self.last_location_type_flush_time = time.time()
+
+    def insert_step_agent_status_record(
+        self,
+        agent_id: int,
+        timestamp: datetime,
+        lat: float,
+        lng: float,
+        parent_id: int,
+        action: str,
+        status: str,
+    ):
+        """Insert a step agent status record into ClickHouse."""
+        if self.client is None:
+            get_logger().error(
+                "ClickHouse client is not connected. Cannot insert step agent status record."
+            )
+            return
+
+        try:
+            timestamp, agent_id = self._clean_incoming_record(timestamp, agent_id)
+
+            self.step_agent_status_batch.append(
+                {
+                    "exp_id": self.exp_id,
+                    "agent_id": agent_id,
+                    "simulation_step": self.simulation_step,
+                    "timestamp": timestamp,
+                    "lat": lat,
+                    "lng": lng,
+                    "parent_id": parent_id,
+                    "action": action,
+                    "status": status,
+                }
+            )
+
+            if (len(self.step_agent_status_batch) >= self.batch_size) or (
+                time.time() - self.last_step_agent_status_flush_time >= self.batch_timeout
+            ):
+                self._flush_step_agent_status_batch()
+
+        except Exception as e:
+            get_logger().error(f"Failed to insert step agent status record: {e}")
+
+
+    def _flush_step_agent_status_batch(self):
+        if self.client is None:
+            get_logger().error(
+                "ClickHouse client is not connected. Cannot flush batch."
+            )
+            return
+
+        if not self.step_agent_status_batch or len(self.step_agent_status_batch) == 0:
+            return
+
+        records = list(self.step_agent_status_batch)
+
+        # Convert to columnar format
+        column_data = [
+            [r["exp_id"] for r in records],
+            [r["agent_id"] for r in records],
+            [r["simulation_step"] for r in records],
+            [r["timestamp"] for r in records],
+            [r["lat"] for r in records],
+            [r["lng"] for r in records],
+            [r["parent_id"] for r in records],
+            [r["action"] for r in records],
+            [r["status"] for r in records],
+        ]
+
+        column_names = [
+            "exp_id",
+            "agent_id",
+            "simulation_step",
+            "timestamp",
+            "lat",
+            "lng",
+            "parent_id",
+            "action",
+            "status",
+        ]
+
+        self.client.insert(
+            "step_agent_status",
+            column_data,
+            column_names=column_names,
+            column_oriented=True,
+        )
+
+        self._metrics_actor.record_table_records.remote(
+            "step_agent_status", len(records)
+        )
+
+        self.step_agent_status_batch.clear()
+        self.last_step_agent_status_flush_time = time.time()
 
     def flush_all_batches(self):
         """Flush all batches to ClickHouse."""
         self._flush_adjust_needs_batch()
         self._flush_prompt_responses_batch()
+        self._flush_user_location_type_batch()
+        self._flush_step_agent_status_batch()
 
     def close(self):
         """Close ClickHouse client connection."""

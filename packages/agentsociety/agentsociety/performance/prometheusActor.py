@@ -64,6 +64,10 @@ class PrometheusActor:
         """Log the duration of a simulation step."""
         self.metricsTracker.record_simulation_step_duration(duration)
 
+    def record_table_records(self, table_name: str, record_count: int) -> None:
+        """Log the number of records inserted into a ClickHouse table."""
+        self.metricsTracker.record_table_records(table_name, record_count)
+
     def get_block_performance_stats(self):
         return self.blockPerformance.get_stats()
 

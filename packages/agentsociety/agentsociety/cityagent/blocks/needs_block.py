@@ -519,7 +519,7 @@ class NeedsBlock(Block):
         metrics_tool = self.toolbox.get_tool("metrics_actor")
         modernbert_tool = self.toolbox.get_tool("modernbert_regression_actor")
         catboost_tool = self.toolbox.get_tool("catboost_adjust_needs_actor")
-        db_tool = self.toolbox.get_tool("clickhouse_actor")
+        db_tool = self.toolbox.get_tool("db_actor")
 
         # Retrieve the executed plan and evaluation results
         evaluation_results = []

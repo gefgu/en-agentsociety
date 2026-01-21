@@ -146,10 +146,92 @@ class CitizenAgentBase(Agent):
         """
         if self.environment is None:
             raise ValueError("Environment is not initialized")
+
+        # Get previous position (use default empty dict if not exists)
+        old_position = await self.status.get("position", {})
+        old_aoi = (
+            old_position.get("aoi_position", {}).get("aoi_id") if old_position else None
+        )
+        old_poi = (
+            old_position.get("aoi_position", {}).get("poi_id") if old_position else None
+        )
+
+        # Update position
         resp = await self.environment.get_person(self.id)
         resp_dict = resp["person"]
         for k, v in resp_dict.get("motion", {}).items():
             await self.status.update(k, v, mode="replace")
+
+        # Check if AOI or POI changed
+        new_position = await self.status.get("position", {})
+        new_aoi = (
+            new_position.get("aoi_position", {}).get("aoi_id") if new_position else None
+        )
+        new_poi = (
+            new_position.get("aoi_position", {}).get("poi_id") if new_position else None
+        )
+
+        # Trigger location save if AOI changed OR if POI changed within the same AOI
+        if new_aoi and (new_aoi != old_aoi or (new_poi and new_poi != old_poi)):
+            # AOI or POI changed, save location type
+            await self._save_location_type_on_update_motion(new_aoi)
+
+    async def _save_location_type_on_update_motion(self, aoi_id: int):
+        """Save location type when arriving at a new location via motion update."""
+        try:
+            db_tool = self.toolbox.get_tool("db_actor")
+            if not db_tool:
+                get_logger().warning(
+                    f"Agent {self.id}: No db_actor tool found in toolbox.",
+                    extra={"agent_id": str(self.id)},
+                )
+                return
+
+            # Get home and work locations
+            home = await self.status.get("home", {})
+            work = await self.status.get("work", {})
+            place_knowledge = await self.status.get("place_knowledge", {})
+
+            # Determine location type
+            location_type = "other"
+            home_aoi = home.get("aoi_position", {}).get("aoi_id")
+            work_aoi = work.get("aoi_position", {}).get("aoi_id")
+
+            if aoi_id == home_aoi:
+                location_type = "home"
+            elif aoi_id == work_aoi:
+                location_type = "work"
+            else:
+                # First, try to get the pending destination type from memory
+                pending_type = await self.status.get("pending_destination_type", None)
+                if pending_type:
+                    location_type = pending_type
+                    # Clear the pending type after using it
+                    await self.status.update("pending_destination_type", None)
+                else:
+                    # Fallback: check place_knowledge for other location types
+                    for place_name, place_info in place_knowledge.items():
+                        if place_info.get("aoi_position", {}).get("aoi_id") == aoi_id:
+                            location_type = place_info.get("type", "other")
+                            break
+
+            # Record to database
+            db_tool.get_tool().insert_user_location_type_record.remote(
+                timestamp=time.time(),
+                agent_id=self.id,
+                location_type=location_type,
+            )
+
+            get_logger().debug(
+                f"Agent {self.id}: Saved location type '{location_type}' for AOI {aoi_id}",
+                extra={"agent_id": str(self.id)},
+            )
+
+        except Exception as e:
+            get_logger().warning(
+                f"Agent {self.id}: Error saving location type on motion update: {str(e)}",
+                extra={"agent_id": str(self.id)},
+            )
 
     async def do_survey(self, survey: Survey) -> str:
         """
