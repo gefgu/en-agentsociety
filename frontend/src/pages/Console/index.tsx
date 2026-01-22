@@ -164,7 +164,7 @@ const Page = () => {
                 {
                   key: 'charts',
                   label: <Link
-                    to={`/charts/${record.id}`}
+                    to={`/charts/${record.id}/${encodeURIComponent(record.name)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{ display: 'block' }} // Ensures the link fills the menu item area

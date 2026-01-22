@@ -853,7 +853,8 @@ import DailyActivityChart from "../../components/DailyActivityChart";
 const ChartsPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate(); // 获取导航函数
-  const { exp_id } = useParams<{ exp_id?: string }>();
+  const { exp_id, name: EncodedName } = useParams<{ exp_id?: string, name?: string }>();
+  const name = EncodedName ? decodeURIComponent(EncodedName) : 'Experiment';
 
   if (!exp_id) {
     return (
@@ -870,48 +871,6 @@ const ChartsPage = () => {
     );
   }
 
-
-  const [visit_data, setVisitData] = useState<any[]>([]);
-
-  const fetchVisitData = async (experimentId: string) => {
-    try {
-      const res = await fetchCustom(`/api/agent-visits?exp_id=${experimentId}`);
-      if (res.ok) {
-        const data = await res.json();
-        console.log('Fetched visit data:', data);
-        setVisitData(data["data"]);
-      } else {
-        throw new Error(await res.text());
-      }
-    } catch (err) {
-      console.error('Failed to fetch visit data:', err);
-      message.error('Failed to fetch visit data: ' + err);
-      return null;
-    }
-  }
-
-  useEffect(() => {
-    if (exp_id) {
-      fetchVisitData(exp_id);
-    }
-  }, [exp_id]);
-
-  if (visit_data.length === 0) {
-    return (
-      <div style={{ padding: '24px' }}>
-        <Row gutter={[16, 16]}>
-          <Col span={24}>
-            <h2 style={{ fontSize: 48 }}>{t('charts.title')}</h2>
-          </Col>
-          <Col span={24}>
-            <p style={{ fontSize: '18px' }}>{t('charts.loading')}</p>
-          </Col>
-        </Row>
-      </div>
-    );
-  }
-
-
   return (
     <div style={{ padding: '24px' }}>
       <Row gutter={[16, 16]}>
@@ -921,18 +880,18 @@ const ChartsPage = () => {
         <Col span={2}>
           <Button
             type="primary"
-            onClick={() => fetchVisitData(exp_id!)} // 返回上一页
+            onClick={() => {} } 
             style={{ height: '40px', }}
           >
             {t('charts.reload')}
           </Button>
         </Col>
-        <Col span={8}>
+        <Col md={24} xl={8}>
           {/* Container for the chart */}
-          <VisitDistributionBarChart visit_data={visit_data} width="100%" height="400px" />
+          <VisitDistributionBarChart exp_id={exp_id!} exp_name={name} width="100%" height="400px" />
         </Col>
-        <Col span={16}>
-          <DailyActivityChart visit_data={visit_data} width="100%" height="450px" />
+        <Col md={24} xl={16}>
+          <DailyActivityChart exp_id={exp_id!} exp_name={name} width="100%" height="450px" />
         </Col>
       </Row>
     </div>

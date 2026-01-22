@@ -167,7 +167,7 @@ const router = createBrowserRouter([{
       ),
     },
     {
-      path: "/charts/:exp_id?",
+      path: "/charts/:exp_id?/:name?",
       element: (
         authProvider(
           <RootLayout selectedKey='/charts'><ChartsPage /></RootLayout>

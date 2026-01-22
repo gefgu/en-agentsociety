@@ -1,38 +1,70 @@
 import * as echarts from 'echarts'; // Import ECharts
 import { count } from 'echarts/types/src/component/dataZoom/history.js';
 import React, { useState, useEffect, useRef } from 'react';
+import { fetchCustom } from './fetch';
+import message from 'antd/lib/message';
+
+
+type VisitPurposeDistribution = {
+  purpose: string;
+  proportion: number;
+  count: number;
+}
+
+type VisitDistributionResponse = {
+  data: {
+    distributions: VisitPurposeDistribution[];
+    total_visits: number;
+  }
+}
+
 
 const VisitDistributionBarChart = ({
-  visit_data, width, height,
+  exp_id, exp_name, width, height,
 }: {
-  visit_data: any,
+  exp_id: string,
+  exp_name: string,
   width: string,
   height: string,
 }) => {
   const chartRef = useRef(null);
   const heightOffset = parseFloat(height.replace('px', '')) * 0.2; // Offset to position the graphic box lower
 
+  const [visit_data, setVisitData] = useState<VisitDistributionResponse>();
+
+  const fetchVisitData = async (experimentId: string) => {
+    try {
+      const res = await fetchCustom(`/api/visits/purpose-distributions?exp_id=${experimentId}`);
+      if (res.ok) {
+        const data = await res.json();
+        console.log('Fetched visit data:', data);
+        setVisitData(data);
+      } else {
+        throw new Error(await res.text());
+      }
+    } catch (err) {
+      console.error('Failed to fetch visit data:', err);
+      message.error('Failed to fetch visit data: ' + err);
+      return null;
+    }
+  }
+
+  useEffect(() => {
+    if (exp_id) {
+      fetchVisitData(exp_id);
+    }
+  }, [exp_id]);
+
+
   useEffect(() => {
     if (chartRef.current) {
       const myChart = echarts.init(chartRef.current);
-      const totalTrips = visit_data.length;
-
-      const purposeCounts = visit_data.reduce((acc: any, visit: any) => {
-        const purpose = visit.purpose || 'UNKNOWN';
-        acc[purpose] = (acc[purpose] || 0) + 1;
-        return acc;
-      }, {});
-
-      const chartData = Object.keys(purposeCounts).map((purpose) => ({
-        name: purpose,
-        value: parseFloat(((purposeCounts[purpose] / totalTrips) * 100).toFixed(1)),
-        count: purposeCounts[purpose],
-      })).sort((a, b) => b.value - a.value);
-
+      const data = visit_data?.data.distributions || [];
+      const totalTrips = visit_data?.data.total_visits || 0;
 
       const option = {
         title: {
-          text: 'Visit Purpose Distribution',
+          text: `Visit Purpose Distribution`,
           left: 'center',
           textStyle: {
             fontSize: 32,
@@ -82,7 +114,7 @@ const VisitDistributionBarChart = ({
         },
         xAxis: {
           type: 'category',
-          data: chartData.map(item => item.name),
+          data: data.map(item => item.purpose),
           axisLabel: {
             fontWeight: 'bold',
             fontSize: 14,
@@ -104,24 +136,35 @@ const VisitDistributionBarChart = ({
             fontSize: 28
           }
         },
+        toolbox: {
+            show: true,
+            feature: {
+              saveAsImage: {
+                show: true,
+                title: 'Save as Image',
+                type: 'png', // or 'jpeg'
+                name: `visit_distribution_${exp_name || exp_id}`, // Default naming
+                pixelRatio: 2 // This makes it High Resolution (Retina quality)
+              }
+            },
+            right: 20,
+            top: 20
+          },
         series: [
           {
             name: 'Purpose',
             type: 'bar',
-            data: chartData, // Pass the full object so tooltip can access .count
+            // Convert proportions to 0-100 scale for the Y-Axis
+            data: data.map(item => ({
+              value: parseFloat((item.proportion * 100).toFixed(2)),
+              // Keep the original metadata for the tooltip
+              count: item.count,
+              proportion: item.proportion
+            })),
             barWidth: '60%',
             itemStyle: {
-              // Function to assign different colors per bar based on index
               color: (params) => {
-                const colorList = [
-                  '#d95f02', // Home (Orange/Brown)
-                  '#e6ab02', // Work (Mustard)
-                  '#e7298a', // Purchase (Pink)
-                  '#7570b3', // Leisure (Purple)
-                  '#1b9e77', // Health (Teal)
-                  '#66a61e', // Studies/Other
-                  '#90ed7d'
-                ];
+                const colorList = ['#d95f02', '#e6ab02', '#e7298a', '#7570b3', '#1b9e77', '#66a61e', '#90ed7d'];
                 return colorList[params.dataIndex % colorList.length];
               }
             }
