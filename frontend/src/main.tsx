@@ -27,6 +27,7 @@ import { WITH_AUTH } from './components/fetch'
 import GrafanaPage from './pages/Grafana'
 import ChartsPage from './pages/Charts';
 import ErrorPage from './pages/ErrorPage'
+import LokiPage from './pages/Loki'
 
 const authProvider = (children: React.ReactNode) => {
   if (WITH_AUTH) {
@@ -170,6 +171,14 @@ const router = createBrowserRouter([{
       element: (
         authProvider(
           <RootLayout selectedKey='/charts'><ChartsPage /></RootLayout>
+        )
+      ),
+    },
+    {
+      path: "/loki/:exp_id?",
+      element: (
+        authProvider(
+          <RootLayout selectedKey='/loki'><LokiPage /></RootLayout>
         )
       ),
     },

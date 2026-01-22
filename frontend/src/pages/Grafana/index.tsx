@@ -14,8 +14,8 @@ const GrafanaPage = () => {
 
   // Build the Grafana URL with exp_id if available
   const grafanaUrl = exp_id 
-    ? `http://localhost:3000/d/ad49hcv/llm-performance-dashboard?orgId=1&timezone=browser&var-exp_id=${exp_id}&refresh=1m`
-    : `http://localhost:3000/d/ad49hcv/llm-performance-dashboard?orgId=1&timezone=browser&refresh=1m`;
+    ? `http://localhost:3000/d/adt6tmn/llm-performance-dashboard?orgId=1&from=now-6h&to=now&timezone=browser&var-exp_id=${exp_id}&refresh=1m`
+    : `http://localhost:3000/d/adt6tmn/llm-performance-dashboard?orgId=1&from=now-6h&to=now&timezone=browser&refresh=1m`;
   return (
     <iframe
       src={grafanaUrl}

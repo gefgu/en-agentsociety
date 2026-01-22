@@ -19,7 +19,8 @@ export default {
         bill: 'Billing',
         profiles: 'Profiles',
         grafana: 'Grafana',
-        charts: "Charts"
+        charts: "Charts",
+        loki: "Loki"
     },
     common: {
         name: "Name",
