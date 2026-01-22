@@ -333,7 +333,7 @@ class ClickHouseActor:
 
         # convert timestamp to datetime
         if isinstance(record["timestamp"], int):
-            timestamp = datetime.fromtimestamp(record["timestamp"] / 1000.0)
+            timestamp = datetime.fromtimestamp(record["timestamp"])
             record["timestamp"] = timestamp
 
         record["exp_id"] = self.exp_id

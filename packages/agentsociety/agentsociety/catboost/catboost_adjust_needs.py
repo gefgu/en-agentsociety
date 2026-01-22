@@ -1,3 +1,5 @@
+import os
+from ..logger import get_logger
 import re
 import ray
 import pandas as pd
@@ -7,6 +9,10 @@ from fastembed import TextEmbedding
 from scipy.spatial.distance import mahalanobis
 from sklearn.preprocessing import StandardScaler
 import numpy as np
+from fastembed import TextEmbedding
+
+N_CPUS = 1
+        
 
 # Patterns for extracting satisfaction values
 hunger_pattern = r"(hunger_satisfaction):\s*([\d\.]+)"
@@ -35,69 +41,103 @@ def format_prompt(prompt, need):
     return cleaned.strip()
 
 
-# @ray.remote(num_cpus=1)
-# class CatBoostAdjustNeedsActor:
-#     """A Ray actor for CatBoost model inference."""
+@ray.remote(num_cpus=N_CPUS)
+class CatBoostAdjustNeedsActor:
+    """A Ray actor for CatBoost model inference."""
 
-#     def __init__(self, model_path: str):
-#         """
-#         Initialize CatBoost model.
+    def __init__(
+        self,
+        model_path: str,
+        pca_path: str,
+        mahalanobis_params_path: str,
+    ):
+        """
+        Initialize CatBoost model.
 
-#         :param model_path: Path to the pretrained CatBoost model.
-#         """
-#         self.model = CatBoostRegressor()
-#         self.model.load_model(model_path)
+        :param model_path: Path to the pretrained CatBoost model.
+        """
+        os.environ["OMP_NUM_THREADS"] = str(N_CPUS)
+        os.environ["MKL_NUM_THREADS"] = str(N_CPUS)
+        os.environ["ONNXRUNTIME_INTRA_OP_NUM_THREADS"] = str(N_CPUS)
+        self.model = CatBoostRegressor()
+        self.model.load_model(model_path)
 
-#         self.feature_columns = [
-#             "prompt",
-#             "current_need",
-#             "current_hunger",
-#             "current_energy",
-#             "current_safety",
-#             "current_social",
-#         ]
+        self.pca = joblib.load(pca_path)
+        self.mahalanobis_params = joblib.load(mahalanobis_params_path)
+        self.embedding = TextEmbedding(threads=N_CPUS)
 
-#     def predict(
-#         self,
-#         prompt,
-#         current_need,
-#         current_hunger,
-#         current_energy,
-#         current_safety,
-#         current_social,
-#     ) -> dict[str, float]:
-#         """
-#         Runs prediction on the input features.
+        self.feature_columns = [
+            "prompt",
+            "current_need",
+            "current_hunger",
+            "current_energy",
+            "current_safety",
+            "current_social",
+        ]
 
-#         :param features: A pandas DataFrame containing the input features.
-#         :return: A pandas Series containing the predicted values.
-#         """
+    def predict(
+        self,
+        prompt,
+        current_need,
+        current_hunger,
+        current_energy,
+        current_safety,
+        current_social,
+    ) -> tuple[bool, dict[str, float]]:
+        """
+        Runs prediction on the input features.
 
-#         input_data = pd.DataFrame(
-#             [
-#                 {
-#                     "prompt": format_prompt(prompt, current_need),
-#                     "current_need": current_need,
-#                     "current_hunger": current_hunger,
-#                     "current_energy": current_energy,
-#                     "current_safety": current_safety,
-#                     "current_social": current_social,
-#                 }
-#             ]
-#         )
+        :param features: A pandas DataFrame containing the input features.
+        :return: A pandas Series containing the predicted values.
+        """
+        if prompt is None or len(prompt.strip()) == 0:
+            get_logger().warning("Empty prompt received for CatBoost prediction.")
+            return False, {}
 
-#         predictions = self.model.predict(input_data[self.feature_columns]).tolist()[0]
+        embeddings = list(self.embedding.embed([format_prompt(prompt, current_need)]))
+        reduced_embeddings = self.pca.transform(embeddings)
 
-#         predictions = [max(0.0, min(1.0, pred)) for pred in predictions]
+        mahal_dist = mahalanobis(
+            reduced_embeddings[0],
+            self.mahalanobis_params["mean_vector"],
+            self.mahalanobis_params["inv_cov_matrix"],
+        )
 
-#         response = {
-#             "hunger_satisfaction": float(predictions[0]),
-#             "energy_satisfaction": float(predictions[1]),
-#             "safety_satisfaction": float(predictions[2]),
-#             "social_satisfaction": float(predictions[3]),
-#         }
+        if mahal_dist > self.mahalanobis_params["threshold"]:
+            return False, {}
 
-#         return response
+        # Step 4: Prepare features for CatBoost
+        # Create feature array in the same order as training
+        sample_features = np.array(
+            [
+                [
+                    current_need,
+                    current_hunger,
+                    current_energy,
+                    current_safety,
+                    current_social,
+                ]
+            ]
+        )
+
+        # Combine categorical/numerical features with PCA embeddings
+        sample_combined = np.hstack([sample_features, reduced_embeddings])
+
+        # Step 5: Make CatBoost prediction
+        prediction = self.model.predict(sample_combined)[0]
+
+        # Step 6: Clamp predictions to valid range [0, 1]
+        predictions = [max(0.0, min(1.0, pred)) for pred in prediction]
+
+        # Step 7: Format response
+        response = {
+            "hunger_satisfaction": float(predictions[0]),
+            "energy_satisfaction": float(predictions[1]),
+            "safety_satisfaction": float(predictions[2]),
+            "social_satisfaction": float(predictions[3]),
+        }
+
+        return True, response
 
 
 class CatBoostAdjustNeedsLocal:

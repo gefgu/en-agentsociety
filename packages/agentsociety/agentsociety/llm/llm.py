@@ -411,9 +411,6 @@ class LLM:
         client_i = index % len(self.configs)
         actor_i = index % len(self._actors)
         start_time = time.perf_counter()
-        # if time.time() - self._last_show_time > 10:
-        #     get_logger().info(f"LLM request count: {index}")
-        #     self._last_show_time = time.time()
         async with self._semaphores[client_i]:
             content, log = await self._actors[actor_i].call.remote(  # type: ignore
                 self.configs[client_i],

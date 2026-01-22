@@ -8,6 +8,8 @@ from ...agent import AgentToolbox, Block, FormatPrompt, DotDict
 from ...logger import get_logger
 from ...memory import Memory
 from .utils import clean_json_response
+from ...catboost import catboost_adjust_needs  
+
 
 INITIAL_NEEDS_PROMPT = """You are an intelligent agent satisfaction initialization system. Based on the profile information below, please help initialize the agent's satisfaction levels and related parameters.
 
@@ -538,13 +540,22 @@ class NeedsBlock(Block):
         current_safety = await self.memory.status.get("safety_satisfaction")
         current_social = await self.memory.status.get("social_satisfaction")
 
+        await self.evaluation_prompt.format(
+            current_need=current_need,
+            plan_target=completed_plan["target"],
+            evaluation_results=evaluation_results,
+            hunger_satisfaction=current_hunger,
+            energy_satisfaction=current_energy,
+            safety_satisfaction=current_safety,
+            social_satisfaction=current_social,
+        )
+
         if catboost_tool:
             try:
                 start_time = time.perf_counter()
                 context_text = self.evaluation_prompt.to_dialog()[0]["content"]
 
-                catboost_pool = catboost_tool.get_tool()
-                should_use, response_list = catboost_pool.predict(
+                should_use, response_list = await catboost_tool.get_tool().predict.remote(
                     prompt=context_text,
                     current_need=current_need,
                     current_hunger=current_hunger,
@@ -590,7 +601,7 @@ class NeedsBlock(Block):
                         if db_tool:
                             db_tool.get_tool().insert_adjust_needs_record.remote({
                                 "agent_id": self.id,
-                                "prompt": context_text,
+                                "prompt": catboost_adjust_needs.format_prompt(context_text, current_need),
                                 "current_need": current_need,
                                 "current_hunger": current_hunger,
                                 "current_energy": current_energy,
@@ -678,15 +689,6 @@ class NeedsBlock(Block):
                 get_logger().warning(f"ModernBERT evaluation failed: {str(e)}")
                 # Fallback to original LLM evaluation
 
-        await self.evaluation_prompt.format(
-            current_need=current_need,
-            plan_target=completed_plan["target"],
-            evaluation_results=evaluation_results,
-            hunger_satisfaction=current_hunger,
-            energy_satisfaction=current_energy,
-            safety_satisfaction=current_safety,
-            social_satisfaction=current_social,
-        )
         retry = 3
         while retry > 0:
 

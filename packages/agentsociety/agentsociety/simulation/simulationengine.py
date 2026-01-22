@@ -20,7 +20,7 @@ from ..performance.ClickHouseActor import ClickHouseActor
 from ..performance.prometheusActor import PrometheusActor
 
 from ..catboost.catboost_adjust_needs import (
-    CatBoostAdjustNeedsLocal,
+    CatBoostAdjustNeedsActor,
 )
 
 from ..performance.monitoring import start_monitoring, stop_monitoring
@@ -218,7 +218,6 @@ class SimulationEngine:
         self._message_interceptor: Optional[MessageInterceptor] = None
         self._database_writer: Optional[DatabaseWriter] = None
         self._embedding: Optional[SparseTextEmbedding] = None
-        self._text_embedding: Optional[TextEmbedding] = None
         self._metrics_actor: Optional[PrometheusActor] = None
         self._db_actor: Optional[ClickHouseActor] = None
         self._db_tool: Optional[CustomTool] = None
@@ -293,7 +292,6 @@ class SimulationEngine:
             cache_dir=os.path.join(self._config.env.home_dir, "huggingface_cache"),
             threads=cpu_count(),
         )
-        self._text_embedding = TextEmbedding()
         get_logger().info("Embedding models initialized successfully")
 
     async def init(self):
@@ -1092,11 +1090,10 @@ class SimulationEngine:
 
                 # catboost_pool = CatBoostAdjustNeedsActor.remote(catboost_model_path)
 
-                catboost_model = CatBoostAdjustNeedsLocal(
+                catboost_model = CatBoostAdjustNeedsActor.remote(
                     catboost_model_path,
                     pca_path=self._config.env.needs_pca_path,
                     mahalanobis_params_path=self._config.env.needs_mahalanobis_params_path,
-                    embedding=self._text_embedding,
                 )
 
                 catboost_tool = CustomTool(
