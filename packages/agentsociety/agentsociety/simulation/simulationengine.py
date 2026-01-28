@@ -15,6 +15,8 @@ from typing import Any, Callable, Literal, Optional, Union, cast
 import time
 import yaml
 
+from ..catboost.dispatcher import CatBoostDispatcherActor
+
 from ..performance.ClickHouseActor import ClickHouseActor
 
 from ..performance.prometheusActor import PrometheusActor
@@ -1075,7 +1077,7 @@ class SimulationEngine:
             if (
                 self._config.env.catboost_model_path
                 and self._config.env.needs_pca_path
-                and self._config.env.needs_mahalanobis_params_path
+                # and self._config.env.needs_mahalanobis_params_path
             ):
                 catboost_model_path = self._config.env.catboost_model_path
                 get_logger().info(
@@ -1084,16 +1086,16 @@ class SimulationEngine:
                 get_logger().info(
                     f"NEEDS PCA from {self._config.env.needs_pca_path}..."
                 )
-                get_logger().info(
-                    f"NEEDS Mahalanobis params from {self._config.env.needs_mahalanobis_params_path}...",
-                )
+                # get_logger().info(
+                #     f"NEEDS Mahalanobis params from {self._config.env.needs_mahalanobis_params_path}...",
+                # )
 
                 # catboost_pool = CatBoostAdjustNeedsActor.remote(catboost_model_path)
 
                 catboost_model = CatBoostAdjustNeedsActor.remote(
                     catboost_model_path,
                     pca_path=self._config.env.needs_pca_path,
-                    mahalanobis_params_path=self._config.env.needs_mahalanobis_params_path,
+                    # mahalanobis_params_path=self._config.env.needs_mahalanobis_params_path,
                 )
 
                 catboost_tool = CustomTool(
@@ -1103,6 +1105,24 @@ class SimulationEngine:
                 )
                 agent_toolbox.add_tool(catboost_tool)
                 get_logger().info("CatBoost model loaded and tool added to toolbox.")
+
+            if (self._config.env.dispatcher_catboost_path is not None):
+                dispatcher_model_path = self._config.env.dispatcher_catboost_path
+                get_logger().info(
+                    f"Loading CatBoost Dispatcher model from {dispatcher_model_path}..."
+                )
+
+                dispatcher_model = CatBoostDispatcherActor.remote(
+                    dispatcher_model_path,
+                )
+
+                dispatcher_tool = CustomTool(
+                    name="catboost_dispatcher_actor",
+                    tool=dispatcher_model,
+                    description="Ray actor for CatBoost Dispatcher model",
+                )
+                agent_toolbox.add_tool(dispatcher_tool)
+                get_logger().info("CatBoost Dispatcher model loaded and tool added to toolbox.")
 
             # ===================================
             # save the experiment info

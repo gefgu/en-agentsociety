@@ -1,4 +1,6 @@
-from typing import Any
+import re
+import time
+from typing import Any, List
 import json_repair
 from openai.types.chat import ChatCompletionToolParam
 
@@ -117,6 +119,46 @@ class BlockDispatcher:
             function_schema = self._get_function_schema()
             await self.dispatcher_prompt.format(context=context)
             agent_id = await self.memory.status.get("id")
+            db_tool = self.toolbox.get_tool("db_actor")
+            catboost_tool = self.toolbox.get_tool("catboost_dispatcher_actor")
+            metrics_tool = self.toolbox.get_tool("metrics_actor")
+
+            success = False
+            selected_block = None
+            if catboost_tool is not None:
+                start_time = time.perf_counter()
+                success, predicted_block = await catboost_tool.get_tool().predict.remote(  # type: ignore
+                    function_schema=function_schema,
+                    context=context,
+                    agent_id=agent_id,
+                )
+                if success and predicted_block != "no_suitable_block":
+                    if predicted_block in self.blocks:
+                        get_logger().debug(
+                            f"Dispatched intention to block: {predicted_block} using CatBoost."
+                        )
+                        end_time = time.perf_counter()
+                        duration = end_time - start_time
+                        metrics_tool.get_tool().record_block_performance.remote(
+                            block_name="BlockDispatcher",
+                            func_name="dispatch",
+                            actor="catboost",
+                            agent_id=agent_id,
+                            duration=round(duration, 4),
+                            token_input=0,
+                            token_output=0,
+                        )
+                        metrics_tool.get_tool().record_routing.remote(  # type: ignore
+                            block_name="BlockDispatcher",
+                            func_name="dispatch",
+                            agent_id=str(agent_id),
+                            routed=False,
+                        )
+                        return self.blocks[predicted_block]
+                    else:
+                        get_logger().warning(
+                            f"Predicted block '{predicted_block}' not found in registered blocks."
+                        )
 
             # Call LLM with tools schema
             response = await self.toolbox.llm.atext_request(
@@ -127,7 +169,7 @@ class BlockDispatcher:
                     "block_name": "BlockDispatcher",
                     "func_name": "dispatch",
                     "agent_id": str(agent_id),
-                }
+                },
             )
             function_args: Any = json_repair.loads(
                 response.choices[0].message.tool_calls[0].function.arguments
@@ -139,7 +181,25 @@ class BlockDispatcher:
                 function_args = function_args["arguments"]
 
             selected_block = function_args.get("block_name")
+
             reason = function_args.get("reason", "No reason provided")
+
+            if (metrics_tool is not None) and catboost_tool is not None:
+                await metrics_tool.get_tool().record_routing.remote(  # type: ignore
+                    block_name="BlockDispatcher",
+                    func_name="dispatch",
+                    agent_id=str(agent_id),
+                    routed=True,
+                )
+
+            await self.log_dispatch(  # type: ignore
+                db_tool=db_tool,
+                agent_id=agent_id,
+                selected_block=selected_block,
+                reason=reason,
+                function_schema=function_schema,
+                context=context,
+            )
 
             if selected_block == "no_suitable_block":
                 get_logger().debug(
@@ -160,3 +220,55 @@ class BlockDispatcher:
         except Exception as e:
             get_logger().warning(f"Failed to dispatch block: {e}")
             return None
+
+    async def log_dispatch(
+        self,
+        db_tool: Any,
+        agent_id: int,
+        selected_block: str,
+        reason: str,
+        function_schema: dict,
+        context: dict,
+    ) -> None:
+        """Log dispatcher activity.
+
+        Args:
+            context: Context dictionary
+            dialog: Conversation dialog
+            content: LLM response content
+            tools: Tools used in the LLM call
+        """
+
+        def _parse_temperature(temp_str: str) -> float:
+            """Extracts numerical temperature from strings like '15C' or 'Temp is 22.5°'."""
+            try:
+                # Matches integers or decimals. Handles negative numbers.
+                match = re.search(r"([-+]?\d*\.?\d+)", temp_str)
+                return int(match.group(1)) if match else 0
+            except (ValueError, AttributeError):
+                return 0
+
+        possible_blocks = function_schema["function"]["parameters"]["properties"][
+            "block_name"
+        ]["enum"]
+        raw_temp_str = context.get("temperature", "0")
+        temp_value = _parse_temperature(raw_temp_str)
+
+        db_tool.get_tool().insert_block_dispatcher_record.remote(
+            agent_id=agent_id,
+            timestamp=time.time(),
+            target_block=selected_block,
+            reason=reason,
+            possible_blocks=possible_blocks,
+            ctx_time=context.get("current_time", ""),
+            ctx_need=context.get("current_need", ""),
+            ctx_intention=context.get("current_intention", ""),
+            ctx_emotion=context.get("current_emotion", ""),
+            ctx_thought=context.get("current_thought", ""),
+            ctx_location=context.get("current_location", ""),
+            ctx_area_info=context.get("area_information", ""),
+            ctx_weather=context.get("weather", ""),
+            ctx_temperature=temp_value,
+            ctx_other_info=context.get("other_information", ""),
+            ctx_plan_target=context.get("plan_target", ""),
+        )

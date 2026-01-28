@@ -41,6 +41,14 @@ class EnvConfig(BaseModel):
     needs_mahalanobis_params_path: Optional[str] = Field(default=None)
     """Path to the Mahalanobis parameters, if not set, Mahalanobis features will be disabled"""
 
+    enforce_place_selection: bool = Field(default=False)
+    """Whether to enforce place selection in the environment"""
+
+    dispatcher_catboost_path: Optional[str] = Field(default=None)
+    """Path to the CatBoost dispatcher model, if not set, speed up dispatcher features will be disabled"""
+
+
+
     @property
     def fs_client(self) -> Union[S3Client, FileSystemClient]:
         if self.s3.enabled:

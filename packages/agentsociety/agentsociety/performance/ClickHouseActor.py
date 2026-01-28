@@ -91,6 +91,35 @@ ORDER BY (exp_id, agent_id, timestamp)
 PARTITION BY exp_id
 """
 
+block_dispatcher_table_query = """
+CREATE TABLE IF NOT EXISTS block_dispatcher (
+    exp_id LowCardinality(String),
+    simulation_step Int32,
+    timestamp DateTime64(3),
+    agent_id Int32,
+
+    target_block LowCardinality(String),
+    reason String CODEC(ZSTD(3)),
+
+    possible_blocks Array(LowCardinality(String)),
+
+    ctx_time String CODEC(ZSTD(3)),
+    ctx_need String CODEC(ZSTD(3)),
+    ctx_intention String CODEC(ZSTD(3)),
+    ctx_emotion String CODEC(ZSTD(3)),
+    ctx_thought String CODEC(ZSTD(3)),
+    ctx_location String CODEC(ZSTD(3)),
+    ctx_area_info String CODEC(ZSTD(3)),
+    ctx_weather String CODEC(ZSTD(3)),
+    ctx_temperature Int32,
+    ctx_other_info String CODEC(ZSTD(3)),
+    ctx_plan_target String CODEC(ZSTD(3))
+)
+ENGINE = MergeTree()
+ORDER BY (exp_id, agent_id, timestamp)
+PARTITION BY exp_id
+"""
+
 
 class AdjustNeedsRecord(TypedDict):
     exp_id: Optional[str]
@@ -166,6 +195,8 @@ class ClickHouseActor:
         self.last_location_type_flush_time = time.time()
         self.step_agent_status_batch: deque = deque()
         self.last_step_agent_status_flush_time = time.time()
+        self.block_dispatcher_batch: deque = deque()
+        self.last_block_dispatcher_flush_time = time.time()
 
         self.simulation_step = -1
 
@@ -227,6 +258,7 @@ class ClickHouseActor:
             self.client.command(prompt_and_responses_table_query)
             self.client.command(user_location_type_table_query)
             self.client.command(step_agent_status_table_query)
+            self.client.command(block_dispatcher_table_query)
             get_logger().info("Tables created successfully in ClickHouse database.")
         except Exception as e:
             get_logger().error(f"Failed to create tables in ClickHouse database: {e}")
@@ -620,12 +652,147 @@ class ClickHouseActor:
         self.step_agent_status_batch.clear()
         self.last_step_agent_status_flush_time = time.time()
 
+
+    def insert_block_dispatcher_record(
+        self,
+        agent_id: int,
+        timestamp: datetime,
+        target_block: str,
+        reason: str,
+        possible_blocks: List[str],
+        ctx_time: str,
+        ctx_need: str,
+        ctx_intention: str,
+        ctx_emotion: str,
+        ctx_thought: str,
+        ctx_location: str,
+        ctx_area_info: str,
+        ctx_weather: str,
+        ctx_temperature: int,
+        ctx_other_info: str,
+        ctx_plan_target: str,
+    ):
+        """Insert a block dispatcher batch record into ClickHouse."""
+        if self.client is None:
+            get_logger().error(
+                "ClickHouse client is not connected. Cannot insert block dispatcher record."
+            )
+            return
+
+        try:
+            timestamp, agent_id = self._clean_incoming_record(timestamp, agent_id)
+
+            record = {
+                    "exp_id": self.exp_id,
+                    "agent_id": agent_id,
+                    "simulation_step": self.simulation_step,
+                    "timestamp": timestamp,
+                    "target_block": target_block,
+                    "reason": reason,
+                    "possible_blocks": possible_blocks,
+                    "ctx_time": ctx_time,
+                    "ctx_need": ctx_need,
+                    "ctx_intention": ctx_intention,
+                    "ctx_emotion": ctx_emotion,
+                    "ctx_thought": ctx_thought,
+                    "ctx_location": ctx_location,
+                    "ctx_area_info": ctx_area_info,
+                    "ctx_weather": ctx_weather,
+                    "ctx_temperature": ctx_temperature,
+                    "ctx_other_info": ctx_other_info,
+                    "ctx_plan_target": ctx_plan_target,
+                }
+
+            self.block_dispatcher_batch.append(
+                record
+            )
+
+            if (len(self.block_dispatcher_batch) >= self.batch_size) or (
+                time.time() - self.last_block_dispatcher_flush_time >= self.batch_timeout
+            ):
+                self._flush_block_dispatcher_batch()
+
+        except Exception as e:
+            get_logger().error(f"Failed to insert block dispatcher record: {e}. Record: {record}")
+
+
+    def _flush_block_dispatcher_batch(self):
+        if self.client is None:
+            get_logger().error(
+                "ClickHouse client is not connected. Cannot flush batch."
+            )
+            return
+
+        if not self.block_dispatcher_batch or len(self.block_dispatcher_batch) == 0:
+            return
+
+        records = list(self.block_dispatcher_batch)
+
+        # Convert to columnar format
+        column_data = [
+            [r["exp_id"] for r in records],
+            [r["agent_id"] for r in records],
+            [r["simulation_step"] for r in records],
+            [r["timestamp"] for r in records],
+            [r["target_block"] for r in records],
+            [r["reason"] for r in records],
+            [r["possible_blocks"] for r in records],
+            [r["ctx_time"] for r in records],
+            [r["ctx_need"] for r in records],
+            [r["ctx_intention"] for r in records],
+            [r["ctx_emotion"] for r in records],
+            [r["ctx_thought"] for r in records],
+            [r["ctx_location"] for r in records],
+            [r["ctx_area_info"] for r in records],
+            [r["ctx_weather"] for r in records],
+            [r["ctx_temperature"] for r in records],
+            [r["ctx_other_info"] for r in records],
+            [r["ctx_plan_target"] for r in records],
+        ]
+
+        column_names = [
+            "exp_id",
+            "agent_id",
+            "simulation_step",
+            "timestamp",
+            "target_block",
+            "reason",
+            "possible_blocks",
+            "ctx_time",
+            "ctx_need",
+            "ctx_intention",
+            "ctx_emotion",
+            "ctx_thought",
+            "ctx_location",
+            "ctx_area_info",
+            "ctx_weather",
+            "ctx_temperature",
+            "ctx_other_info",
+            "ctx_plan_target",
+        ]
+
+        self.client.insert(
+            "block_dispatcher",
+            column_data,
+            column_names=column_names,
+            column_oriented=True,
+        )
+
+        self._metrics_actor.record_table_records.remote(
+            "block_dispatcher", len(records)
+        )
+
+        self.block_dispatcher_batch.clear()
+        self.last_block_dispatcher_flush_time = time.time()
+
+
     def flush_all_batches(self):
         """Flush all batches to ClickHouse."""
         self._flush_adjust_needs_batch()
         self._flush_prompt_responses_batch()
         self._flush_user_location_type_batch()
         self._flush_step_agent_status_batch()
+        self._flush_block_dispatcher_batch()
 
     def close(self):
         """Close ClickHouse client connection."""
