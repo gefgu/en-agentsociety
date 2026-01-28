@@ -41,7 +41,7 @@ class MapData:
             s3client = S3Client(s3config)
         map_data = None
         # 1. try to load from cache
-        cache_path = config.file_path+'.cache'
+        cache_path = config.file_path + ".cache"
         exists = (
             s3client.exists(cache_path)
             if s3client is not None
@@ -72,7 +72,7 @@ class MapData:
                     "class": "header",
                     "data": MessageToDict(
                         pb.header,
-                        including_default_value_fields=True,
+                        always_print_fields_with_no_presence=True,
                         preserving_proto_field_name=True,
                         use_integers_for_enums=True,
                     ),
@@ -85,7 +85,7 @@ class MapData:
                         "class": "aoi",
                         "data": MessageToDict(
                             aoi,
-                            including_default_value_fields=True,
+                            always_print_fields_with_no_presence=True,
                             preserving_proto_field_name=True,
                             use_integers_for_enums=True,
                         ),
@@ -98,7 +98,7 @@ class MapData:
                         "class": "poi",
                         "data": MessageToDict(
                             poi,
-                            including_default_value_fields=True,
+                            always_print_fields_with_no_presence=True,
                             preserving_proto_field_name=True,
                             use_integers_for_enums=True,
                         ),
@@ -220,6 +220,7 @@ class MapData:
         get_logger().info("Finish process aoi geos in MapData")
         # 处理Poi的Geos
         get_logger().info("Start process poi geos in MapData")
+        get_logger().info(f"Total pois to process: {len(pois)}")
         for poi in pois.values():
             point = Point(poi["position"]["x"], poi["position"]["y"])
             poi["shapely_xy"] = point
@@ -304,23 +305,26 @@ class MapData:
         if radius is None:
             if return_distance:
                 pois = [(p, center.distance(p["shapely_xy"])) for p in self._poi_list]
+                get_logger().debug(f"No Radius, all pois with distance. Category prefix: {category_prefix}. pois[:10]: {pois[:10]}")
             else:
                 pois = [p for p in self._poi_list]
+                get_logger().debug(f"No Radius, all pois. Category prefix: {category_prefix}. pois[:10]: {pois[:10]}")
         else:
             # 获取半径内的poi
             indices = self._poi_tree.query(center.buffer(radius))
             # 过滤掉不满足类别前缀的poi
             pois = []
+            possible_pois = []
             for index in indices:
                 poi = self._poi_list[index]
-                if category_prefix is None or poi["category"].startswith(
-                    category_prefix
-                ):
+                possible_pois.append(poi)
+                if (category_prefix is None) or (category_prefix in poi["category"]):
                     if return_distance:
                         distance = center.distance(poi["shapely_xy"])
                         pois.append((poi, distance))
                     else:
                         pois.append(poi)
+            get_logger().debug(f"Radius, filtered pois. Category prefix: {category_prefix}. pois[:10]: {pois[:10]}. Possible pois[:10]: {possible_pois[:10]}")
         if return_distance:
             # 按照距离排序
             pois = sorted(pois, key=lambda x: x[1])
