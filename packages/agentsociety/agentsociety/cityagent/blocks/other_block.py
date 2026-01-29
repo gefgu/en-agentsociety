@@ -96,7 +96,7 @@ class SleepBlock(Block):
             return {
                 "success": True,
                 "evaluation": f'Sleep: {context["current_step"]["intention"]}',
-                "consumed_time": result["time"],
+                "consumed_time": int(result["time"]),
                 "node_id": node_id,
             }
         except Exception as e:
@@ -155,7 +155,7 @@ class OtherNoneBlock(Block):
             return {
                 "success": True,
                 "evaluation": f'Finished executing {context["current_step"]["intention"]}',
-                "consumed_time": result["time"],
+                "consumed_time": int(result["time"]),
                 "node_id": node_id,
             }
         except Exception as e:
