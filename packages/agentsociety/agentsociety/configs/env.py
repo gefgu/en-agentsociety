@@ -1,5 +1,6 @@
 from typing import Optional, Union
 
+from ..environment.sim.person_service import VehicleConfigurableAttributes
 from pydantic import BaseModel, Field
 
 from ..filesystem import FileSystemClient
@@ -10,6 +11,22 @@ __all__ = [
     "EnvConfig",
 ]
 
+
+# default_car_attribute = VehicleConfigurableAttributes(
+#   max_speed=60 / 3.6, # 60 km/h to m/s
+# )
+
+# default_taxi_attribute = VehicleConfigurableAttributes(
+#   max_speed=60 / 3.6, # 60 km/h to m/s
+# )
+
+# default_bus_attribute = VehicleConfigurableAttributes(
+#   max_speed=50 / 3.6, # 50 km/h to m/s
+# )
+
+# default_subway_attribute = VehicleConfigurableAttributes(
+#   max_speed=80 / 3.6, # 60 km/h to m/s
+# )
 
 class EnvConfig(BaseModel):
     """Environment configuration class."""
@@ -41,12 +58,26 @@ class EnvConfig(BaseModel):
     needs_mahalanobis_params_path: Optional[str] = Field(default=None)
     """Path to the Mahalanobis parameters, if not set, Mahalanobis features will be disabled"""
 
-    enforce_place_selection: bool = Field(default=False)
+    enforce_place_selection: bool = Field(default=False) # TODO
     """Whether to enforce place selection in the environment"""
 
     dispatcher_catboost_path: Optional[str] = Field(default=None)
     """Path to the CatBoost dispatcher model, if not set, speed up dispatcher features will be disabled"""
 
+    use_transportation_mode_choice: bool = Field(default=False) # TODO
+    """Whether to use transportation mode choice model"""
+
+    car_attributes: VehicleConfigurableAttributes = Field(default=default_car_attribute)
+    """Default car attributes for vehicles in the environment"""
+
+    taxi_attributes: VehicleConfigurableAttributes = Field(default=default_taxi_attribute)
+    """Default taxi attributes for vehicles in the environment"""
+
+    bus_attributes: VehicleConfigurableAttributes = Field(default=default_bus_attribute)
+    """Default bus attributes for vehicles in the environment"""
+
+    subway_attributes: VehicleConfigurableAttributes = Field(default=default_subway_attribute)
+    """Default subway attributes for vehicles in the environment"""
 
 
     @property

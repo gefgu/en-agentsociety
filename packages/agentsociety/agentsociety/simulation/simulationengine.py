@@ -378,6 +378,13 @@ class SimulationEngine:
             # ====================
             # Initialize the environment
             # ====================
+
+            transport_attributes = {
+                "car": self._config.env.car_attributes,
+                "taxi": self._config.env.taxi_attributes,
+                "bus": self._config.env.bus_attributes,
+                "subway": self._config.env.subway_attributes,
+            }
             get_logger().info("Initializing environment...")
             self._environment = EnvironmentStarter(
                 self._config.map,
@@ -391,6 +398,7 @@ class SimulationEngine:
                     "simulator_log",
                 ),
                 self._config.env.home_dir,
+                transport_attributes=transport_attributes,
             )
             await self._environment.init()
             get_logger().info("Environment initialized")

@@ -1,5 +1,5 @@
 from collections.abc import Awaitable, Coroutine
-from typing import Any, Literal, Union, cast, overload
+from typing import Any, Literal, TypedDict, Union, cast, overload
 
 import grpc
 from google.protobuf.json_format import ParseDict
@@ -21,6 +21,9 @@ from pycityproto.city.person.v2.person_pb2 import (
 from ..utils.protobuf import async_parse, pb2dict
 
 __all__ = ["PersonService"]
+  
+class VehicleConfigurableAttributes(TypedDict):
+    max_speed: float # m/s
 
 
 def default_person_template_generator() -> Person:
@@ -30,7 +33,7 @@ def default_person_template_generator() -> Person:
         vehicle_attribute=VehicleAttribute(
             length=5,
             width=2,
-            max_speed=150 / 3.6,
+            max_speed=150 / 3.6,  # 150 km/h to m/s
             max_acceleration=3,
             max_braking_acceleration=-10,
             usual_acceleration=2,
@@ -184,7 +187,6 @@ class PersonService:
         )
         return async_parse(res, dict_return)
 
-
     def ResetPersonPosition(
         self,
         req: Union[person_service.ResetPersonPositionRequest, dict[str, Any]],
@@ -246,5 +248,31 @@ class PersonService:
         res = cast(
             Awaitable[person_service.GetGlobalStatisticsResponse],
             self._aio_stub.GetGlobalStatistics(req),
+        )
+        return async_parse(res, dict_return)
+
+    def SetPersonVehicleAttribute(
+        self,
+        req: Union[person_service.SetPersonVehicleAttributeRequest, dict[str, Any]],
+        dict_return: bool = True,
+    ) -> Coroutine[
+        Any,
+        Any,
+        Union[dict[str, Any], person_service.SetPersonVehicleAttributeResponse],
+    ]:
+        """
+        Set person's vehicle attribute
+
+        - **Args**:
+        - req (dict): https://cityproto.sim.fiblab.net/#city.person.v2.SetPersonVehicleAttributeRequest
+
+        - **Returns**:
+        - https://cityproto.sim.fiblab.net/#city.person.v2.SetPersonVehicleAttributeResponse
+        """
+        if not isinstance(req, person_service.SetPersonVehicleAttributeRequest):
+            req = ParseDict(req, person_service.SetPersonVehicleAttributeRequest())
+        res = cast(
+            Awaitable[person_service.SetPersonVehicleAttributeResponse],
+            self._aio_stub.SetPersonVehicleAttribute(req),
         )
         return async_parse(res, dict_return)

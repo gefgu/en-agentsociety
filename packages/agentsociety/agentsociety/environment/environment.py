@@ -8,6 +8,7 @@ from subprocess import Popen
 from typing import Any, Literal, Optional, Tuple, Union, overload
 
 import yaml
+from .sim.person_service import VehicleConfigurableAttributes
 from pycityproto.city.map.v2 import map_pb2 as map_pb2
 from pycityproto.city.person.v2 import person_pb2 as person_pb2
 from pycityproto.city.person.v2 import person_service_pb2 as person_service
@@ -27,6 +28,7 @@ from .utils.base64 import encode_to_base64
 from .utils.const import POI_CATG_DICT
 from .utils.protobuf import dict2pb
 from .download_sim import download_binary
+from enum import Enum
 
 __all__ = [
     "Environment",
@@ -36,6 +38,40 @@ __all__ = [
 
 
 POI_START_ID = 7_0000_0000
+
+
+class TransportModeEnum(Enum):
+    CAR = "car"
+    WALK = "walk"
+    BIKE = "bike"
+    BUS = "bus"
+    SUBWAY = "subway"
+    TAXI = "taxi"
+
+# Individual attribute sets
+default_car_attribute: VehicleConfigurableAttributes = {
+    "max_speed": 60 / 3.6  # 60 km/h to m/s
+}
+
+default_taxi_attribute: VehicleConfigurableAttributes = {
+    "max_speed": 60 / 3.6  # 60 km/h to m/s
+}
+
+default_bus_attribute: VehicleConfigurableAttributes = {
+    "max_speed": 50 / 3.6  # 50 km/h to m/s
+}
+
+default_subway_attribute: VehicleConfigurableAttributes = {
+    "max_speed": 80 / 3.6  # 80 km/h to m/s
+}
+
+# The master dictionary mapping transport types to their attributes
+default_transport_attributes: dict[str, VehicleConfigurableAttributes] = {
+    "car": default_car_attribute,
+    "taxi": default_taxi_attribute,
+    "bus": default_bus_attribute,
+    "subway": default_subway_attribute,
+}
 
 
 class EnvironmentConfig(BaseModel):
@@ -86,6 +122,7 @@ class Environment:
         bank_ids: set[int] = set(),
         nbs_ids: set[int] = set(),
         government_ids: set[int] = set(),
+        transport_attributes: Optional[dict[str, VehicleConfigurableAttributes]] = default_transport_attributes,
     ):
         """
         Initialize the Environment.
@@ -133,6 +170,15 @@ class Environment:
         self._server_addr = server_addr
         self._city_client: Optional[CityClient] = None
         self._economy_client: Optional[EconomyClient] = None
+
+
+        self.transport_attributes = transport_attributes
+        self.transport_enum_to_transport_attr = {
+            TransportModeEnum.CAR: self.transport_attributes["car"],
+            TransportModeEnum.TAXI: self.transport_attributes["taxi"],
+            TransportModeEnum.BUS: self.transport_attributes["bus"],
+            TransportModeEnum.SUBWAY: self.transport_attributes["subway"],
+        }
 
     def init(self) -> Any:
         assert self._server_addr is not None, "Server address not initialized"
@@ -559,6 +605,33 @@ class Environment:
             pois.append(poi)
         return pois
 
+    async def set_person_vehicle_attribute(
+        self,
+        person_id: int,
+        transport_mode: TransportModeEnum,
+    ) -> dict:
+        """
+        Update a person's vehicle attributes dynamically.
+
+        - **Args**:
+            - `person_id` (`int`): The ID of the person
+            - `transport_mode` (`TransportModeEnum`): The mode of transport
+            - `**kwargs`: Other VehicleAttribute fields
+        """
+        pass
+
+        
+
+        if transport_mode == TransportModeEnum.WALK or transport_mode == TransportModeEnum.BIKE:
+            get_logger().warning(
+                f"Transport mode {transport_mode} does not require vehicle attributes."
+            )
+            return {}
+
+        vehicle_attr = self.transport_enum_to_transport_attr[transport_mode]
+        req = {"person_id": person_id, "vehicle_attribute": vehicle_attr}
+        return await self.city_client.person_service.SetPersonVehicleAttribute(req)
+
 
 class EnvironmentStarter(Environment):
     """
@@ -576,6 +649,7 @@ class EnvironmentStarter(Environment):
         s3config: S3Config,
         log_dir: str,
         home_dir: str,
+        transport_attributes: Optional[dict[str, VehicleConfigurableAttributes]] = default_transport_attributes,
     ):
         """
         Environment config
@@ -584,6 +658,7 @@ class EnvironmentStarter(Environment):
             - `map_config` (MapConfig): Map config
             - `simulator_config` (SimulatorConfig): Simulator config
             - `environment_config` (EnvironmentConfig): Environment config
+            - `env_config` (EnvConfig): Environment config
         """
         self._sim_bin_path = download_binary(home_dir)
         self._map_config = map_config
@@ -591,9 +666,10 @@ class EnvironmentStarter(Environment):
         self._s3config = s3config
         self._log_dir = log_dir
         self._home_dir = home_dir
+        self.transport_attributes = transport_attributes
         mapdata = MapData(map_config, s3config)
 
-        super().__init__(mapdata, None, environment_config)
+        super().__init__(mapdata, None, environment_config, transport_attributes=transport_attributes)
 
         self._last_metric_tick = -1e999
 
@@ -705,15 +781,16 @@ class EnvironmentStarter(Environment):
         - **Returns**:
             - `List[Tuple[str, float, int]]`: A list of tuples, each containing the metric name, value, and step.
         """
-        if self._last_metric_tick + self._environment_config.metric_interval > self._tick:
+        if (
+            self._last_metric_tick + self._environment_config.metric_interval
+            > self._tick
+        ):
             return []
 
         # Add mobility metrics
         # 1. cumulative travel distance
         # 2. cumulative number of trips
-        stat = await self._city_client.person_service.GetGlobalStatistics(
-            {}, True
-        )
+        stat = await self._city_client.person_service.GetGlobalStatistics({}, True)
         num_completed_trips = stat["num_completed_trips"]
         total_travel_time = stat["running_total_travel_time"]
         total_travel_distance = stat["running_total_travel_distance"]
