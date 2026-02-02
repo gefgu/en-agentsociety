@@ -3,7 +3,7 @@ import random
 import time
 from typing import Optional
 
-from ...environment.environment import TransportModeEnum
+# from ...environment.environment import TransportModeEnum
 import json_repair
 import numpy as np
 from pydantic import Field
@@ -22,6 +22,16 @@ from ...memory import Memory
 from ...agent.dispatcher import BlockDispatcher
 from ..sharing_params import SocietyAgentBlockOutput
 from .utils import clean_json_response
+from enum import Enum
+
+
+class TransportModeEnum(Enum):
+    WALK = "walk"
+    BIKE = "bike"
+    CAR = "car"
+    BUS = "bus"
+    SUBWAY = "subway"
+
 
 # Prompt templates for LLM interactions
 PLACE_TYPE_SELECTION_PROMPT = """
@@ -344,6 +354,8 @@ class MoveBlock(Block):
         self,
         toolbox: AgentToolbox,
         agent_memory: Memory,
+        enforce_place_selection=False,
+        enforce_transport_mode_selection=False,
         place_selection_block: "PlaceSelectionBlock" = None,
         transport_mode_block: "TransportModeSelectionBlock" = None,
     ):
@@ -354,39 +366,108 @@ class MoveBlock(Block):
         self.placeAnalysisPrompt = FormatPrompt(PLACE_ANALYSIS_PROMPT)
         self.place_selection_block = place_selection_block
         self.transport_mode_block = transport_mode_block
+        self.enforce_place_selection = enforce_place_selection
+        self.enforce_transport_mode_selection = enforce_transport_mode_selection
 
     async def _execute_movement(
         self, context: DotDict, target_place_id: any, description: str
     ):
-        context["to_place"] = target_place_id
+        db_tool = self.toolbox.get_tool("db_actor")
+        if self.enforce_transport_mode_selection:
+            context["to_place"] = target_place_id
 
-        transport_result = await self.transport_mode_block.forward(context)
-        selected_mode = transport_result.get("transport_mode", "car")
+            transport_result = await self.transport_mode_block.forward(context)
+            selected_mode = transport_result.get("transport_mode", "car")
 
-        node_id = await self.memory.stream.add(
-            topic="mobility",
-            description=description,
-        )
-        trip_mode = TripMode.TRIP_MODE_DRIVE_ONLY
-        if selected_mode == "walk":
-            trip_mode = TripMode.TRIP_MODE_WALK_ONLY
-        elif selected_mode == "bike":
-            trip_mode = TripMode.TRIP_MODE_BIKE_ONLY
+            node_id = await self.memory.stream.add(
+                topic="mobility",
+                description=description,
+            )
+            trip_mode = TripMode.TRIP_MODE_DRIVE_ONLY
+            if selected_mode == "walk":
+                trip_mode = TripMode.TRIP_MODE_WALK_ONLY
+            elif selected_mode == "bike":
+                trip_mode = TripMode.TRIP_MODE_BIKE_WALK
 
-        await self.environment.set_aoi_schedules(
-            person_id=self.agent.id,
-            target_positions=target_place_id,
-            modes=[trip_mode],
-        )
+            try:
+                await self.environment.set_aoi_schedules(
+                    person_id=self.agent.id,
+                    target_positions=target_place_id,
+                    modes=[trip_mode],
+                )
+            except Exception as e:
+                try:
+                    get_logger().warning(
+                        f"MoveBlock: Failed to set aoi schedules with transport mode {selected_mode}: {e}. Trying with car",
+                        extra={"agent_id": self.agent.id},
+                    )
+                    await self.environment.set_aoi_schedules(
+                        person_id=self.agent.id,
+                        target_positions=target_place_id,
+                        modes=[TripMode.TRIP_MODE_DRIVE_ONLY],
+                    )
+                    selected_mode = "car"
+                except Exception as e:
+                    get_logger().error(
+                        f"MoveBlock: Failed to set aoi schedules with car mode as fallback: {e}",
+                        extra={"agent_id": self.agent.id},
+                    )
+                    return {
+                        "success": False,
+                        "evaluation": f"Failed to move to {target_place_id} using any transport mode",
+                        "to_place": target_place_id,
+                        "transport_mode": None,
+                        "consumed_time": 0,
+                        "node_id": node_id,
+                    }
 
-        return {
-            "success": True,
-            "evaluation": f"Successfully moved to {target_place_id} using {selected_mode}",
-            "to_place": target_place_id,
-            "transport_mode": selected_mode,
-            "consumed_time": 45,
-            "node_id": node_id,
-        }
+            if db_tool:
+                db_tool.get_tool().insert_user_transport_type_record.remote(
+                    timestamp=time.time(),
+                    agent_id=self.agent.id,
+                    transport_type=selected_mode,
+                )
+
+            return {
+                "success": True,
+                "evaluation": f"Successfully moved to {target_place_id} using {selected_mode}",
+                "to_place": target_place_id,
+                "transport_mode": selected_mode,
+                "consumed_time": 45,
+                "node_id": node_id,
+            }
+        else:
+            try:
+                await self.environment.set_aoi_schedules(
+                    person_id=self.agent.id,
+                    target_positions=target_place_id,
+                    # modes=[get_random_transport_mode()],
+                )
+            except Exception as e:
+                get_logger().error(
+                    f"MoveBlock: Failed to set aoi schedules: {e}",
+                    extra={"agent_id": self.agent.id},
+                )
+                return {
+                    "success": False,
+                    "evaluation": f"Failed to move to {target_place_id}",
+                    "to_place": target_place_id,
+                    "transport_mode": None,
+                    "consumed_time": 0,
+                    "node_id": None,
+                }
+            node_id = await self.memory.stream.add(
+                topic="mobility",
+                description=description,
+            )
+            return {
+                "success": True,
+                "evaluation": f"Successfully moved to {target_place_id}",
+                "to_place": target_place_id,
+                "transport_mode": None,
+                "consumed_time": 45,
+                "node_id": node_id,
+            }
 
     async def forward(self, context: DotDict):
         agent_id = await self.memory.status.get("id")
@@ -512,7 +593,7 @@ class MoveBlock(Block):
             next_place = context.get("next_place", None)
             nowPlace = await self.memory.status.get("position")
 
-            if next_place is None:
+            if next_place is None and self.enforce_place_selection:
                 get_logger().info(
                     f"MobilityBlock (Agent {self.agent.id}): No next_place provided, calling PlaceSelectionBlock",
                     extra={"agent_id": self.agent.id},

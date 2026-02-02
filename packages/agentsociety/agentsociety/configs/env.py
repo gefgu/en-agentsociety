@@ -44,6 +44,9 @@ class EnvConfig(BaseModel):
     enforce_place_selection: bool = Field(default=False)
     """Whether to enforce place selection in the environment"""
 
+    enforce_transport_mode_selection: bool = Field(default=False)
+    """Whether to enforce transport mode selection in the environment"""
+
     dispatcher_catboost_path: Optional[str] = Field(default=None)
     """Path to the CatBoost dispatcher model, if not set, speed up dispatcher features will be disabled"""
 

@@ -72,6 +72,7 @@ from ..storage.type import (
 from ..survey.models import Survey
 from .type import ExperimentStatus, Logs
 import ray
+from enum import Enum
 
 __all__ = ["SimulationEngine"]
 

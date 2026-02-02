@@ -120,6 +120,19 @@ ORDER BY (exp_id, agent_id, timestamp)
 PARTITION BY exp_id
 """
 
+user_transport_type_table_query = """
+CREATE TABLE IF NOT EXISTS agent_transport_type (
+  exp_id LowCardinality(String),
+  simulation_step Int32,
+  timestamp DateTime64(3),
+  agent_id Int32,
+  transport_type LowCardinality(String)
+)
+ENGINE = MergeTree()
+ORDER BY (exp_id, agent_id, timestamp)
+PARTITION BY exp_id
+"""
+
 
 class AdjustNeedsRecord(TypedDict):
     exp_id: Optional[str]
@@ -197,6 +210,8 @@ class ClickHouseActor:
         self.last_step_agent_status_flush_time = time.time()
         self.block_dispatcher_batch: deque = deque()
         self.last_block_dispatcher_flush_time = time.time()
+        self.transport_type_batch: deque = deque()
+        self.last_transport_type_flush_time = time.time()
 
         self.simulation_step = -1
 
@@ -257,6 +272,7 @@ class ClickHouseActor:
             self.client.command(create_adjust_needs_table_query)
             self.client.command(prompt_and_responses_table_query)
             self.client.command(user_location_type_table_query)
+            self.client.command(user_transport_type_table_query)
             self.client.command(step_agent_status_table_query)
             self.client.command(block_dispatcher_table_query)
             get_logger().info("Tables created successfully in ClickHouse database.")
@@ -558,6 +574,85 @@ class ClickHouseActor:
         self.location_type_batch.clear()
         self.last_location_type_flush_time = time.time()
 
+    def insert_user_transport_type_record(
+        self,
+        timestamp: datetime,
+        agent_id: int,
+        transport_type: str,
+    ):
+        """Insert an agent transport type record into ClickHouse."""
+        if self.client is None:
+            get_logger().error(
+                "ClickHouse client is not connected. Cannot insert agent transport type record."
+            )
+            return
+
+        try:
+
+            timestamp, agent_id = self._clean_incoming_record(timestamp, agent_id)
+
+            self.transport_type_batch.append(
+                {
+                    "exp_id": self.exp_id,
+                    "simulation_step": self.simulation_step,
+                    "timestamp": timestamp,
+                    "agent_id": agent_id,
+                    "transport_type": transport_type,
+                }
+            )
+
+            if (len(self.transport_type_batch) >= self.batch_size) or (
+                time.time() - self.last_transport_type_flush_time >= self.batch_timeout
+            ):
+                self._flush_user_transport_type_batch()
+
+        except Exception as e:
+            get_logger().error(f"Failed to insert agent transport type record: {e}")
+
+    def _flush_user_transport_type_batch(self):
+        if self.client is None:
+            get_logger().error(
+                "ClickHouse client is not connected. Cannot flush batch."
+            )
+            return
+
+        if not self.transport_type_batch or len(self.transport_type_batch) == 0:
+            return
+
+        records = list(self.transport_type_batch)
+
+        # Convert to columnar format
+        column_data = [
+            [r["exp_id"] for r in records],
+            [r["simulation_step"] for r in records],
+            [r["timestamp"] for r in records],
+            [r["agent_id"] for r in records],
+            [r["transport_type"] for r in records],
+        ]
+
+        column_names = [
+            "exp_id",
+            "simulation_step",
+            "timestamp",
+            "agent_id",
+            "transport_type",
+        ]
+
+        self.client.insert(
+            "agent_transport_type",
+            column_data,
+            column_names=column_names,
+            column_oriented=True,
+        )
+
+        self._metrics_actor.record_table_records.remote(
+            "agent_transport_type", len(records)
+        )
+
+        self.transport_type_batch.clear()
+        self.last_transport_type_flush_time = time.time()
+
+
     def insert_step_agent_status_record(
         self,
         agent_id: int,
@@ -793,6 +888,7 @@ class ClickHouseActor:
         self._flush_user_location_type_batch()
         self._flush_step_agent_status_batch()
         self._flush_block_dispatcher_batch()
+        self._flush_user_transport_type_batch()
 
     def close(self):
         """Close ClickHouse client connection."""
