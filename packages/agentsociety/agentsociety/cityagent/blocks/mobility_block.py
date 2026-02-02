@@ -1,28 +1,28 @@
 import math
 import random
 import time
+from enum import Enum
 from typing import Optional
 
 # from ...environment.environment import TransportModeEnum
 import json_repair
 import numpy as np
-from pydantic import Field
 from pycityproto.city.trip.v2.trip_pb2 import TripMode
+from pydantic import Field
 
 from ...agent import (
+    AgentToolbox,
     Block,
-    FormatPrompt,
+    BlockContext,
     BlockParams,
     DotDict,
-    BlockContext,
-    AgentToolbox,
+    FormatPrompt,
 )
+from ...agent.dispatcher import BlockDispatcher
 from ...logger import get_logger
 from ...memory import Memory
-from ...agent.dispatcher import BlockDispatcher
 from ..sharing_params import SocietyAgentBlockOutput
 from .utils import clean_json_response
-from enum import Enum
 
 
 class TransportModeEnum(Enum):
@@ -178,16 +178,31 @@ def gravity_model(pois):
                 distanceProb.append(1 / math.sqrt(distance))
                 break
 
+    # Handle case with no results
+    if len(res) == 0:
+        return []
+
     # Normalize probabilities and sample
     distanceProb = np.array(distanceProb)
     distanceProb /= distanceProb.sum()
 
-    # Randomly sample 50 candidates weighted by distance probabilities
-    sample_indices = np.random.choice(len(res), size=50, p=distanceProb)
+    # Adjust sample size to not exceed available POIs
+    sample_size = min(50, len(res))
+    # Randomly sample candidates weighted by distance probabilities
+    sample_indices = np.random.choice(
+        len(res), size=sample_size, p=distanceProb, replace=False
+    )
     sampled_pois = [res[i] for i in sample_indices]
 
     # Normalize weights for final selection
     total_weight = sum(item[2] for item in sampled_pois)
+    # Handle case where total_weight is zero
+    if total_weight == 0:
+        # Assign equal weights if all weights are zero
+        return [
+            (item[0], item[1], 1.0 / len(sampled_pois), item[3])
+            for item in sampled_pois
+        ]
     return [
         (item[0], item[1], item[2] / total_weight, item[3]) for item in sampled_pois
     ]
@@ -310,7 +325,7 @@ class PlaceSelectionBlock(Block):
         )
 
         poi_type = "unknown"
-        if pois:
+        if pois and len(pois) > 0:
             pois = gravity_model(pois)
             probabilities = [item[2] for item in pois]
             selected = np.random.choice(len(pois), p=probabilities)
@@ -821,6 +836,14 @@ class MobilityBlockParams(BlockParams):
     search_limit: int = Field(
         default=50, description="Number of POIs to retrieve from map service"
     )
+    enforce_place_selection: bool = Field(
+        default=False,
+        description="Whether to enforce place selection when next_place is not provided",
+    )
+    enforce_transport_mode_selection: bool = Field(
+        default=False,
+        description="Whether to enforce transport mode selection for movements",
+    )
 
 
 class MobilityBlockContext(BlockContext):
@@ -869,6 +892,8 @@ class MobilityBlock(Block):
             agent_memory,
             place_selection_block=self.place_selection_block,
             transport_mode_block=self.transport_mode_block,
+            enforce_place_selection=self.params.enforce_place_selection,
+            enforce_transport_mode_selection=self.params.enforce_transport_mode_selection,
         )
         self.mobility_none_block = MobilityNoneBlock(toolbox, agent_memory)
         self.trigger_time = 0  # Block invocation counter

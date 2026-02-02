@@ -25,7 +25,7 @@ def parse(res: T, dict_return: bool) -> Union[dict[str, Any], T]:
     if dict_return:
         return MessageToDict(
             res,
-            including_default_value_fields=True,
+            always_print_fields_with_no_presence=True,
             preserving_proto_field_name=True,
             use_integers_for_enums=True,
         )

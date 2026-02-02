@@ -52,34 +52,51 @@ class FormattedOLTPHandler(LoggingHandler):
     """
 
     def emit(self, record: logging.LogRecord) -> None:
+        # Store original values
         original_args = record.args
-
-        attributes = {}
-        if isinstance(original_args, dict):
-            attributes.update(original_args)
-
-        context_attrs = {
-            "code.filepath": record.pathname,
-            "code.lineno": record.lineno,
-            "code.func": record.funcName,
-            "code.module": record.module,
-        }
-
-        if hasattr(record, "agent_id"):
-            context_attrs["agent_id"] = record.agent_id
-        if hasattr(record, "exp_id"):
-            context_attrs["exp_id"] = record.exp_id
-
-        attributes.update(context_attrs)
-
-        record.args = attributes
+        original_msg = record.msg
 
         try:
+            # Extract attributes from args if it's a dict
+            attributes = {}
+            if isinstance(original_args, dict):
+                attributes.update(original_args)
+
+            # Add context attributes
+            context_attrs = {
+                "code.filepath": record.pathname,
+                "code.lineno": record.lineno,
+                "code.func": record.funcName,
+                "code.module": record.module,
+            }
+
+            if hasattr(record, "exp_id"):
+                context_attrs["exp_id"] = record.exp_id
+
+            attributes.update(context_attrs)
+
+            # Format the message first to avoid issues
+            if original_args and not isinstance(original_args, dict):
+                try:
+                    record.msg = original_msg % original_args
+                    record.args = None
+                except (TypeError, ValueError):
+                    pass
+
+            # Set attributes directly on the record instead of using args
+            if not hasattr(record, 'attributes') or record.attributes is None:
+                record.attributes = {}
+            record.attributes.update(attributes)
+
             super().emit(record)
         except Exception as e:
             self.handleError(record)
         finally:
+            # Restore original values
             record.args = original_args
+            record.msg = original_msg
+            if hasattr(record, 'attributes'):
+                delattr(record, 'attributes')
 
 
 def get_logger():
