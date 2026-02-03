@@ -346,32 +346,39 @@ class PlaceSelectionBlock(Block):
             selected = np.random.choice(len(pois), p=probabilities)
             next_place = (pois[selected][0], pois[selected][1])
             poi_type = levelTwoType
-        else:  # Fallback random selection
-            all_pois = self.environment.map.get_all_pois()
-            next_place = random.choice(all_pois)
-            poi_type = next_place.get("category", "unknown")
-            next_place = (next_place["name"], next_place["id"], poi_type)
-            get_logger().warning(
-                f"MobilityBlock: No POIs found for type {levelTwoType} within {radius}m. Randomly selected {next_place}",
+
+            context["next_place"] = next_place
+            context["next_place_type"] = poi_type
+            await self.memory.status.update("pending_destination_type", poi_type)
+
+            node_id = await self.memory.stream.add(
+                topic="mobility",
+                description=f"For {context['current_step']['intention']}, selected: {next_place} (type: {poi_type})",
+            )
+            return {
+                "success": True,
+                "evaluation": f"Selected destination: {next_place}",
+                "poi_type": poi_type,
+                "consumed_time": 5,
+                "node_id": node_id,
+            }
+        else:
+            # No POIs found - return failure instead of random selection
+            get_logger().error(
+                f"PlaceSelectionBlock: No POIs found for type {levelTwoType} within {radius}m. Cannot select destination.",
                 extra={"agent_id": self.agent.id},
             )
-
-        context["next_place"] = next_place
-        context["next_place_type"] = poi_type
-
-        await self.memory.status.update("pending_destination_type", poi_type)
-
-        node_id = await self.memory.stream.add(
-            topic="mobility",
-            description=f"For {context['current_step']['intention']}, selected: {next_place} (type: {poi_type})",
-        )
-        return {
-            "success": True,
-            "evaluation": f"Selected destination: {next_place}",
-            "poi_type": poi_type,
-            "consumed_time": 5,
-            "node_id": node_id,
-        }
+            node_id = await self.memory.stream.add(
+                topic="mobility",
+                description=f"Failed to find suitable destination for {context['current_step']['intention']}",
+            )
+            return {
+                "success": False,
+                "evaluation": f"No POIs found for type {levelTwoType} within {radius}m",
+                "poi_type": None,
+                "consumed_time": 5,
+                "node_id": node_id,
+            }
 
 
 class MoveBlock(Block):
@@ -901,13 +908,8 @@ class MobilityBlock(Block):
         self.place_selection_block = PlaceSelectionBlock(
             toolbox, agent_memory, self.params.search_limit
         )
-        enforce_trasnport_mode_selection = self.params.enforce_transport_mode_selection
-        if enforce_trasnport_mode_selection:
-            self.transport_mode_block = TransportModeSelectionBlock(
-                toolbox, agent_memory
-            )
-        else:
-            self.transport_mode_block = None
+        enforce_transport_mode_selection = self.params.enforce_transport_mode_selection
+        self.transport_mode_block = TransportModeSelectionBlock(toolbox, agent_memory)
 
         self.move_block = MoveBlock(
             toolbox,
@@ -915,7 +917,7 @@ class MobilityBlock(Block):
             place_selection_block=self.place_selection_block,
             transport_mode_block=self.transport_mode_block,
             enforce_place_selection=self.params.enforce_place_selection,
-            enforce_transport_mode_selection=self.params.enforce_trasnport_mode_selection,
+            enforce_transport_mode_selection=enforce_transport_mode_selection,
         )
         self.mobility_none_block = MobilityNoneBlock(toolbox, agent_memory)
         self.trigger_time = 0  # Block invocation counter
@@ -931,7 +933,7 @@ class MobilityBlock(Block):
             self.mobility_none_block,
         ]
 
-        if enforce_trasnport_mode_selection:
+        if enforce_transport_mode_selection:
             blocks.append(self.transport_mode_block)
 
         self.dispatcher.register_blocks(blocks)
