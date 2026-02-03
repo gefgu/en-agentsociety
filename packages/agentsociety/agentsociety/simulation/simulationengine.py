@@ -27,8 +27,8 @@ from ..catboost.catboost_adjust_needs import (
 
 from ..performance.monitoring import start_monitoring, stop_monitoring
 from ..agent import CustomTool
-from fastembed import SparseTextEmbedding, TextEmbedding
-from ..modernbert.modernbert_regression_actor import ModernBERTRegressionActor
+from fastembed import SparseTextEmbedding
+# from ..modernbert.modernbert_regression_actor import ModernBERTRegressionActor
 import ray
 
 from ..agent import (
@@ -1056,23 +1056,23 @@ class SimulationEngine:
             # ================================
             # Needs ModernBert model
             # ================================
-            modernbert_model_path = self._config.env.modernbert_model_path
-            if modernbert_model_path:
-                get_logger().info(
-                    f"Loading ModernBert model from {modernbert_model_path}..."
-                )
+            # modernbert_model_path = self._config.env.modernbert_model_path
+            # if modernbert_model_path:
+            #     get_logger().info(
+            #         f"Loading ModernBert model from {modernbert_model_path}..."
+            #     )
 
-                modernbert_pool = ModernBERTRegressionActor.remote(
-                    modernbert_model_path
-                )
+            #     modernbert_pool = ModernBERTRegressionActor.remote(
+            #         modernbert_model_path
+            #     )
 
-                modernbert_tool = CustomTool(
-                    name="modernbert_regression_actor",
-                    tool=modernbert_pool,
-                    description="Ray actor for ModernBert regression model",
-                )
-                agent_toolbox.add_tool(modernbert_tool)
-                get_logger().info("ModernBert model loaded and tool added to toolbox.")
+            #     modernbert_tool = CustomTool(
+            #         name="modernbert_regression_actor",
+            #         tool=modernbert_pool,
+            #         description="Ray actor for ModernBert regression model",
+            #     )
+            #     agent_toolbox.add_tool(modernbert_tool)
+            #     get_logger().info("ModernBert model loaded and tool added to toolbox.")
 
             # ================================
             # Needs CatBoost model

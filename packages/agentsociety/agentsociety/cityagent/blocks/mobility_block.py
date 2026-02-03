@@ -145,6 +145,9 @@ def gravity_model(pois):
         List of tuples: (name, id, normalized_weight, distance)
         with selection probabilities based on gravity model
     """
+    # Handle empty input
+    if not pois:
+        return []
     # Initialize distance bins
     pois_Dis = {f"{d}k": [] for d in range(1, 11)}
     pois_Dis["more"] = []
@@ -164,6 +167,7 @@ def gravity_model(pois):
     distanceProb = []
     # Calculate weights for each POI
     for poi in pois:
+        classified = False
         for d in range(1, 11):
             if (d - 1) * 1000 <= poi[1] < d * 1000:
                 n = len(pois_Dis[f"{d}k"])
@@ -176,7 +180,18 @@ def gravity_model(pois):
                 weight = density / (distance**2)
                 res.append((poi[0]["name"], poi[0]["id"], weight, distance))
                 distanceProb.append(1 / math.sqrt(distance))
+                classified = True
                 break
+        # Handle POIs beyond 10km that weren't classified
+        if not classified:
+            n = len(pois_Dis["more"])
+            # Use a large ring area for POIs beyond 10km
+            S = math.pi * (20000**2 - 10000**2)  # Assume 10-20km ring
+            density = n / S
+            distance = max(poi[1], 1)
+            weight = density / (distance**2)
+            res.append((poi[0]["name"], poi[0]["id"], weight, distance))
+            distanceProb.append(1 / math.sqrt(distance))
 
     # Handle case with no results
     if len(res) == 0:
