@@ -901,14 +901,21 @@ class MobilityBlock(Block):
         self.place_selection_block = PlaceSelectionBlock(
             toolbox, agent_memory, self.params.search_limit
         )
-        self.transport_mode_block = TransportModeSelectionBlock(toolbox, agent_memory)
+        enforce_trasnport_mode_selection = self.params.enforce_transport_mode_selection
+        if enforce_trasnport_mode_selection:
+            self.transport_mode_block = TransportModeSelectionBlock(
+                toolbox, agent_memory
+            )
+        else:
+            self.transport_mode_block = None
+
         self.move_block = MoveBlock(
             toolbox,
             agent_memory,
             place_selection_block=self.place_selection_block,
             transport_mode_block=self.transport_mode_block,
             enforce_place_selection=self.params.enforce_place_selection,
-            enforce_transport_mode_selection=self.params.enforce_transport_mode_selection,
+            enforce_transport_mode_selection=self.params.enforce_trasnport_mode_selection,
         )
         self.mobility_none_block = MobilityNoneBlock(toolbox, agent_memory)
         self.trigger_time = 0  # Block invocation counter
@@ -917,14 +924,17 @@ class MobilityBlock(Block):
         # Initialize block routing system
         self.dispatcher = BlockDispatcher(self._toolbox, agent_memory)
         # register all blocks
-        self.dispatcher.register_blocks(
-            [
-                self.place_selection_block,
-                self.move_block,
-                self.mobility_none_block,
-                self.transport_mode_block,
-            ]
-        )
+
+        blocks = [
+            self.place_selection_block,
+            self.move_block,
+            self.mobility_none_block,
+        ]
+
+        if enforce_trasnport_mode_selection:
+            blocks.append(self.transport_mode_block)
+
+        self.dispatcher.register_blocks(blocks)
 
     def set_agent(self, agent: any) -> None:
         """Associate the block and its sub-blocks with a specific agent.
