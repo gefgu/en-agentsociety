@@ -110,12 +110,18 @@ class BlockDispatcher:
             - Can return None if no suitable block is found.
 
         - **Args**:
-            - `intention` (str): Intention of the task
+            - `context` (DotDict): Context dictionary containing task information
 
         - **Returns**:
             - `Block | None`: Selected Block instance for handling the task, or None if no suitable block exists
         """
         try:
+            if not isinstance(context, DotDict):
+                # If it's a regular dict, convert to DotDict
+                context = DotDict(context)
+
+            get_logger().debug(f"Dispatching with context: {context}")
+
             function_schema = self._get_function_schema()
             await self.dispatcher_prompt.format(context=context)
             agent_id = await self.memory.status.get("id")
@@ -139,21 +145,22 @@ class BlockDispatcher:
                         )
                         end_time = time.perf_counter()
                         duration = end_time - start_time
-                        metrics_tool.get_tool().record_block_performance.remote(
-                            block_name="BlockDispatcher",
-                            func_name="dispatch",
-                            actor="catboost",
-                            agent_id=agent_id,
-                            duration=round(duration, 4),
-                            token_input=0,
-                            token_output=0,
-                        )
-                        metrics_tool.get_tool().record_routing.remote(  # type: ignore
-                            block_name="BlockDispatcher",
-                            func_name="dispatch",
-                            agent_id=str(agent_id),
-                            routed=False,
-                        )
+                        if metrics_tool is not None:
+                            metrics_tool.get_tool().record_block_performance.remote(
+                                block_name="BlockDispatcher",
+                                func_name="dispatch",
+                                actor="catboost",
+                                agent_id=agent_id,
+                                duration=round(duration, 4),
+                                token_input=0,
+                                token_output=0,
+                            )
+                            metrics_tool.get_tool().record_routing.remote(  # type: ignore
+                                block_name="BlockDispatcher",
+                                func_name="dispatch",
+                                agent_id=str(agent_id),
+                                routed=False,
+                            )
                         return self.blocks[predicted_block]
                     else:
                         get_logger().warning(
@@ -175,6 +182,13 @@ class BlockDispatcher:
                 response.choices[0].message.tool_calls[0].function.arguments
             )
 
+            get_logger().debug(f"LLM response for block dispatching: {function_args}")
+            if isinstance(function_args, list):
+                function_args = function_args[1][0] # Mistral
+            if isinstance(function_args, str):
+                get_logger().debug(f"Function arguments is a string, attempting to parse: {response}")
+
+
             if "arguments" in function_args and isinstance(
                 function_args["arguments"], dict
             ):
@@ -192,14 +206,15 @@ class BlockDispatcher:
                     routed=True,
                 )
 
-            await self.log_dispatch(  # type: ignore
-                db_tool=db_tool,
-                agent_id=agent_id,
-                selected_block=selected_block,
-                reason=reason,
-                function_schema=function_schema,
-                context=context,
-            )
+            if db_tool is not None:
+                await self.log_dispatch(  # type: ignore
+                    db_tool=db_tool,
+                    agent_id=agent_id,
+                    selected_block=selected_block,
+                    reason=reason,
+                    function_schema=function_schema,
+                    context=context,
+                )
 
             if selected_block == "no_suitable_block":
                 get_logger().debug(
@@ -239,6 +254,7 @@ class BlockDispatcher:
             tools: Tools used in the LLM call
         """
 
+
         def _parse_temperature(temp_str: str) -> float:
             """Extracts numerical temperature from strings like '15C' or 'Temp is 22.5°'."""
             try:
@@ -248,27 +264,33 @@ class BlockDispatcher:
             except (ValueError, AttributeError):
                 return 0
 
-        possible_blocks = function_schema["function"]["parameters"]["properties"][
-            "block_name"
-        ]["enum"]
-        raw_temp_str = context.get("temperature", "0")
-        temp_value = _parse_temperature(raw_temp_str)
+        try:
+          possible_blocks = function_schema["function"]["parameters"]["properties"][
+              "block_name"
+          ]["enum"]
+          raw_temp_str = context.get("temperature", "0")
+          temp_value = _parse_temperature(raw_temp_str)
+          plan_target = context.get("plan_target", "")
+          if isinstance(plan_target, list):
+              plan_target = plan_target[0] if len(plan_target) > 0 else ""
 
-        db_tool.get_tool().insert_block_dispatcher_record.remote(
-            agent_id=agent_id,
-            timestamp=time.time(),
-            target_block=selected_block,
-            reason=reason,
-            possible_blocks=possible_blocks,
-            ctx_time=context.get("current_time", ""),
-            ctx_need=context.get("current_need", ""),
-            ctx_intention=context.get("current_intention", ""),
-            ctx_emotion=context.get("current_emotion", ""),
-            ctx_thought=context.get("current_thought", ""),
-            ctx_location=context.get("current_location", ""),
-            ctx_area_info=context.get("area_information", ""),
-            ctx_weather=context.get("weather", ""),
-            ctx_temperature=temp_value,
-            ctx_other_info=context.get("other_information", ""),
-            ctx_plan_target=context.get("plan_target", ""),
-        )
+          db_tool.get_tool().insert_block_dispatcher_record.remote(
+              agent_id=agent_id,
+              timestamp=time.time(),
+              target_block=selected_block,
+              reason=reason,
+              possible_blocks=possible_blocks,
+              ctx_time=context.get("current_time", ""),
+              ctx_need=context.get("current_need", ""),
+              ctx_intention=context.get("current_intention", ""),
+              ctx_emotion=context.get("current_emotion", ""),
+              ctx_thought=context.get("current_thought", ""),
+              ctx_location=context.get("current_location", ""),
+              ctx_area_info=context.get("area_information", ""),
+              ctx_weather=context.get("weather", ""),
+              ctx_temperature=temp_value,
+              ctx_other_info=context.get("other_information", ""),
+              ctx_plan_target=context.get("plan_target", ""),
+          )
+        except Exception as e:
+            get_logger().warning(f"Failed to log dispatcher activity: {e}")

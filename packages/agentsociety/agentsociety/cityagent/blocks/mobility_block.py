@@ -507,17 +507,18 @@ class MoveBlock(Block):
             }
 
     async def forward(self, context: DotDict):
-        agent_id = await self.memory.status.get("id")
         place_knowledge = await self.memory.status.get("location_knowledge")
         known_places = list(place_knowledge.keys())
         places = ["home", "workplace"] + known_places + ["other"]
-        poi_type = None
+
+        # 1. LLM Decision
         await self.placeAnalysisPrompt.format(
             plan=context["plan_context"]["plan"],
             intention=context["current_step"]["intention"],
             place_list=places,
             other_info=self.environment.environment.get("other_information", "None"),
         )
+
         response = await self.llm.atext_request(
             self.placeAnalysisPrompt.to_dialog(),
             response_format={"type": "json_object"},
@@ -527,134 +528,58 @@ class MoveBlock(Block):
                 "agent_id": self.agent.id,
             },
         )
+
         try:
             response = clean_json_response(response)
-            response = json_repair.loads(response)["place_type"]  # type: ignore
+            response_type = json_repair.loads(response)["place_type"]  # type: ignore
         except Exception:
             get_logger().warning(
                 f"MobilityBlock: Place Analysis: wrong type of place, raw response: {response}",
                 extra={"agent_id": self.agent.id},
             )
-            response = "home"
-        if response == "home":
-            await self.memory.status.update("pending_destination_type", "home")
-            # go back home
-            home = await self.memory.status.get("home")
-            home = home["aoi_position"]["aoi_id"]
-            nowPlace = await self.memory.status.get("position")
-            node_id = await self.memory.stream.add(
-                topic="mobility",
-                description="I returned home",
-            )
-            if (
-                "aoi_position" in nowPlace
-                and nowPlace["aoi_position"]["aoi_id"] == home
-            ):
-                return {
-                    "success": True,
-                    "evaluation": "Successfully returned home (already at home)",
-                    "to_place": home,
-                    "consumed_time": 0,
-                    "node_id": node_id,
-                }
+            response_type = "home"
 
-            number_poi_visited = await self.memory.status.get("number_poi_visited")
-            number_poi_visited += 1
-            await self.memory.status.update("number_poi_visited", number_poi_visited)
-            return await self._execute_movement(context, home, "I returned home")
-        elif response == "workplace":
-            await self.memory.status.update("pending_destination_type", "workplace")
-            # back to workplace
-            work = await self.memory.status.get("work")
-            work = work["aoi_position"]["aoi_id"]
-            nowPlace = await self.memory.status.get("position")
-            node_id = await self.memory.stream.add(
-                topic="mobility",
-                description="I went to my workplace",
-            )
-            if (
-                "aoi_position" in nowPlace
-                and nowPlace["aoi_position"]["aoi_id"] == work
-            ):
-                return {
-                    "success": True,
-                    "evaluation": "Successfully reached the workplace (already at the workplace)",
-                    "to_place": work,
-                    "consumed_time": 0,
-                    "node_id": node_id,
-                }
-            # await self.environment.set_aoi_schedules(
-            #     person_id=agent_id,
-            #     target_positions=work,
-            #     # modes=[get_random_transport_mode()],
-            # )
-            number_poi_visited = await self.memory.status.get("number_poi_visited")
-            number_poi_visited += 1
-            await self.memory.status.update("number_poi_visited", number_poi_visited)
+        # 2. Resolve Destination Variables
+        target_aoi_id = None
+        destination_type = None
+        description_str = None
 
-            return await self._execute_movement(context, work, "I went to my workplace")
+        if response_type == "home":
+            home_data = await self.memory.status.get("home")
+            target_aoi_id = home_data["aoi_position"]["aoi_id"]
+            destination_type = "home"
+            description_str = "I returned home"
 
-        elif response in known_places:
-            the_place = place_knowledge[response]["id"]
-            nowPlace = await self.memory.status.get("position")
-            node_id = await self.memory.stream.add(
-                topic="mobility",
-                description=f"I went to {response}",
-            )
-            if (
-                "aoi_position" in nowPlace
-                and nowPlace["aoi_position"]["aoi_id"] == the_place
-            ):
-                return {
-                    "success": True,
-                    "evaluation": f"Successfully reached {response} (already at {response})",
-                    "to_place": the_place,
-                    "consumed_time": 0,
-                    "node_id": node_id,
-                }
-            # await self.environment.set_aoi_schedules(
-            #     person_id=agent_id,
-            #     target_positions=the_place,
-            #     # modes=[get_random_transport_mode()],
-            # )
-            number_poi_visited = await self.memory.status.get("number_poi_visited")
-            number_poi_visited += 1
-            await self.memory.status.update("number_poi_visited", number_poi_visited)
-            return await self._execute_movement(
-                context, the_place, f"I went to {response}"
-            )
+        elif response_type == "workplace":
+            work_data = await self.memory.status.get("work")
+            target_aoi_id = work_data["aoi_position"]["aoi_id"]
+            destination_type = "workplace"
+            description_str = "I went to my workplace"
+
+        elif response_type in known_places:
+            place_info = place_knowledge[response_type]
+            target_aoi_id = place_info["id"]
+            # Try to get type from knowledge, fallback to known_places key or unknown
+            destination_type = place_info.get("type", "unknown")
+            description_str = f"I went to {response_type}"
 
         else:
-            # move to other places
-            poi_type = None
+            # Handle "other" places
             next_place = context.get("next_place", None)
-            nowPlace = await self.memory.status.get("position")
-
+            # 2a. If not provided, try Place Selection Block
             if next_place is None and self.enforce_place_selection:
                 get_logger().info(
                     f"MobilityBlock (Agent {self.agent.id}): No next_place provided, calling PlaceSelectionBlock",
                     extra={"agent_id": self.agent.id},
                 )
-                # Enforce place selection if not provided
                 place_selection_result = await self.place_selection_block.forward(
                     context
                 )
                 if place_selection_result["success"]:
                     next_place = context.get("next_place", None)
 
-            node_id = await self.memory.stream.add(
-                topic="mobility",
-                description=f"I went to {next_place}",
-            )
-            if next_place is not None:
-                poi_type = context.get("next_place_type", "unknown")
-
-                # await self.environment.set_aoi_schedules(
-                #     person_id=agent_id,
-                #     target_positions=next_place[1],
-                #     # modes=[get_random_transport_mode()],
-                # )
-            else:
+            # 2b. If still None, pick Random
+            if next_place is None:
                 aois = self.environment.map.get_all_aois()
                 while True:
                     r_aoi = random.choice(aois)
@@ -662,27 +587,54 @@ class MoveBlock(Block):
                         r_poi = random.choice(r_aoi["poi_ids"])
                         break
                 poi = self.environment.map.get_poi(r_poi)
-                poi_type = poi.get("category", "unknown")
-                next_place = (poi["name"], poi["aoi_id"], poi_type)
+                poi_cat = poi.get("category", "unknown")
+                # Structure: (Name, AOI_ID, Type)
+                next_place = (poi["name"], poi["aoi_id"], poi_cat)
                 get_logger().warning(
                     f"MobilityBlock (Agent {self.agent.id}): Move to other place: no next_place provided, randomly selected {next_place}",
                     extra={"agent_id": self.agent.id},
                 )
 
-                # await self.environment.set_aoi_schedules(
-                #     person_id=agent_id,
-                #     target_positions=next_place[1],
-                #     # modes=[get_random_transport_mode()],
-                # )
-            number_poi_visited = await self.memory.status.get("number_poi_visited")
-            number_poi_visited += 1
+            # 2c. Unpack tuple
+            # Assumes next_place is (Name, AOI_ID, Type) based on your original random logic
+            place_name = next_place[0]
+            target_aoi_id = next_place[1]
+            # Determine type: check tuple index 2, context, or fallback
+            if len(next_place) > 2:
+                destination_type = next_place[2]
+            else:
+                destination_type = context.get("next_place_type", "unknown")
 
-            await self.memory.status.update("pending_destination_type", poi_type)
-            await self.memory.status.update("number_poi_visited", number_poi_visited)
+            description_str = f"I went to {place_name}"
 
-            return await self._execute_movement(
-                context, next_place[1], f"I went to {next_place}"
-            )
+        # 3. Update State & Check Position
+        await self.memory.status.update("pending_destination_type", destination_type)
+        now_place = await self.memory.status.get("position")
+        # Add memory stream item
+        node_id = await self.memory.stream.add(
+            topic="mobility",
+            description=description_str,
+        )
+
+        # Check if we are already there
+        if (
+            "aoi_position" in now_place
+            and now_place["aoi_position"]["aoi_id"] == target_aoi_id
+        ):
+            return {
+                "success": True,
+                "evaluation": f"Successfully reached destination (already at {target_aoi_id})",
+                "to_place": target_aoi_id,
+                "consumed_time": 0,
+                "node_id": node_id,
+            }
+
+        # 4. Execute Movement
+        number_poi_visited = await self.memory.status.get("number_poi_visited")
+        number_poi_visited += 1
+        await self.memory.status.update("number_poi_visited", number_poi_visited)
+
+        return await self._execute_movement(context, target_aoi_id, description_str)
 
 
 class TransportModeSelectionBlock(Block):
@@ -889,6 +841,7 @@ class MobilityBlock(Block):
     actions = {
         "place_selection": "Support the place selection action",
         "move": "Support the move action",
+        "transport_mode_selection": "Support the transport mode selection action",
         "mobility_none": "Support other mobility operations",
     }
     NeedAgent = True
