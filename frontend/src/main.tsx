@@ -28,6 +28,7 @@ import GrafanaPage from './pages/Grafana'
 import ChartsPage from './pages/Charts';
 import ErrorPage from './pages/ErrorPage'
 import LokiPage from './pages/Loki'
+import DailySchedule from './pages/DailySchedule'
 
 const authProvider = (children: React.ReactNode) => {
   if (WITH_AUTH) {
@@ -179,6 +180,14 @@ const router = createBrowserRouter([{
       element: (
         authProvider(
           <RootLayout selectedKey='/loki'><LokiPage /></RootLayout>
+        )
+      ),
+    },
+    {
+      path: "/daily-schedule/:exp_id?/:name?",
+      element: (
+        authProvider(
+          <RootLayout selectedKey='/daily-schedule'><DailySchedule /></RootLayout>
         )
       ),
     },

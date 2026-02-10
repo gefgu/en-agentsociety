@@ -1,4 +1,4 @@
-import { GithubOutlined, ExperimentOutlined, ApiOutlined, TeamOutlined, GlobalOutlined, NodeIndexOutlined, SettingOutlined, LineChartOutlined, BarChartOutlined, FileSearchOutlined } from "@ant-design/icons";
+import { GithubOutlined, ExperimentOutlined, ApiOutlined, TeamOutlined, GlobalOutlined, NodeIndexOutlined, SettingOutlined, LineChartOutlined, BarChartOutlined, FileSearchOutlined, CalendarOutlined } from "@ant-design/icons";
 import { Menu, MenuProps, Space, Dropdown, Button } from "antd";
 import { Link } from "react-router-dom";
 import Account from "./components/Account";
@@ -76,6 +76,11 @@ const RootMenu = ({ selectedKey, style }: {
       key: "/loki",
       label: <Link to="/loki">{t('menu.loki')}</Link>,
       icon: <FileSearchOutlined />,
+    },
+    {
+      key: "/daily-schedule",
+      label: <Link to="/daily-schedule">{t('menu.dailySchedule')}</Link>,
+      icon: <CalendarOutlined />,
     },
     { key: "/survey", label: <Link to="/survey">{t('menu.survey')}</Link> },
     ...(WITH_AUTH ? [{ key: "/bill", label: <Link to="/bill">{t('menu.bill')}</Link> }] : []),
