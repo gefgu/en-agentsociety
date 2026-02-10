@@ -1,4 +1,3 @@
-import { Row, Col, Card } from "antd";
 import { ATTRIBUTE_TO_EMOJI, BLOCKS } from "../pages/DailySchedule";
 
 // Block to attributes mapping
@@ -41,45 +40,94 @@ const BLOCK_TO_ATTRIBUTES: Record<string, string[]> = {
 
 const BlocksLegend = () => {
   return (
-    <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
-      {BLOCKS.map((block) => (
-        <Col key={block.name} xs={24} sm={12} md={12} lg={8} xl={6}>
-          <Card
+    <div style={{ 
+      padding: '25px',
+      backgroundColor: 'white',
+      borderRadius: '8px'
+    }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+        gap: '16px',
+        maxWidth: '100%'
+      }}>
+        {BLOCKS.map((block) => (
+          <div
+            key={block.name}
             style={{
               backgroundColor: block.color,
               border: '3px solid #333',
-              borderRadius: 15,
-              textAlign: 'center',
-              minHeight: 200,
+              borderRadius: '15px',
+              padding: '24px 16px',
               display: 'flex',
               flexDirection: 'column',
+              alignItems: 'center',
               justifyContent: 'space-between',
+              minHeight: '250px',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              cursor: 'default'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = 'none';
             }}
           >
-            <div>
-              <div style={{ fontSize: 50 }}>{block.emoji}</div>
-              <div style={{ fontSize: 18, fontWeight: 'bold', marginTop: 8 }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '60px', lineHeight: 1 }}>
+                {block.emoji}
+              </div>
+              <div style={{ 
+                fontSize: '20px', 
+                fontWeight: 'bold', 
+                marginTop: '12px',
+                color: '#000'
+              }}>
                 {block.name}
               </div>
-              <div style={{ fontSize: 14, color: '#333', marginTop: 4 }}>
+              <div style={{ 
+                fontSize: '15px', 
+                color: '#333', 
+                marginTop: '6px',
+                lineHeight: 1.3
+              }}>
                 {block.desc}
               </div>
             </div>
 
             {/* Show attribute emojis for this block */}
             {BLOCK_TO_ATTRIBUTES[block.name] && (
-              <div style={{ marginTop: 12, minHeight: 40 }}>
+              <div style={{ 
+                marginTop: '16px', 
+                minHeight: '50px',
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
                 {BLOCK_TO_ATTRIBUTES[block.name]
                   .filter(attr => ATTRIBUTE_TO_EMOJI[attr])
                   .map((attr, idx) => (
                     <span
                       key={idx}
-                      title={attr}
+                      title={attr.replace(/_/g, ' ')}
                       style={{
-                        fontSize: 18,
-                        margin: '0 3px',
-                        opacity: 1,
-                        cursor: 'help'
+                        fontSize: '22px',
+                        opacity: 0.85,
+                        cursor: 'help',
+                        transition: 'transform 0.15s, opacity 0.15s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.3)';
+                        e.currentTarget.style.opacity = '1';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.opacity = '0.85';
                       }}
                     >
                       {ATTRIBUTE_TO_EMOJI[attr]}
@@ -87,10 +135,10 @@ const BlocksLegend = () => {
                   ))}
               </div>
             )}
-          </Card>
-        </Col>
-      ))}
-    </Row>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 };
 
