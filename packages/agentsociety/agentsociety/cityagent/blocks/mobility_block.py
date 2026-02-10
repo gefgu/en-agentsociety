@@ -1,37 +1,25 @@
 import math
 import random
 import time
-from enum import Enum
 from typing import Optional
 
-# from ...environment.environment import TransportModeEnum
 import json_repair
 import numpy as np
-from pycityproto.city.trip.v2.trip_pb2 import TripMode
 from pydantic import Field
 
 from ...agent import (
-    AgentToolbox,
     Block,
-    BlockContext,
+    FormatPrompt,
     BlockParams,
     DotDict,
-    FormatPrompt,
+    BlockContext,
+    AgentToolbox,
 )
-from ...agent.dispatcher import BlockDispatcher
 from ...logger import get_logger
 from ...memory import Memory
+from ...agent.dispatcher import BlockDispatcher
 from ..sharing_params import SocietyAgentBlockOutput
 from .utils import clean_json_response
-
-
-class TransportModeEnum(Enum):
-    WALK = "walk"
-    BIKE = "bike"
-    CAR = "car"
-    BUS = "bus"
-    SUBWAY = "subway"
-
 
 # Prompt templates for LLM interactions
 PLACE_TYPE_SELECTION_PROMPT = """
@@ -103,32 +91,6 @@ Please response in json format (Do not return any other text), example:
 }}
 """
 
-TRANSPORT_MODE_SELECTION_PROMPT = """
-As an intelligent transport decision system, please select the most appropriate transport mode for the user based on the current context and their persona.
-You are approximating a utility function where you maximize the user's comfort, efficiency, and preference.
-
-Context:
-- Trip Distance: {distance} meters
-- Current Time: {time}
-- Month: {month}
-- Weather: {weather}
-- Temperature: {temperature}
-- User Persona: {persona}
-- User Current Emotion/Thought: {emotion}
-
-Available Transport Modes:
-{available_modes}
-
-Please analyze the utility of each mode given the weather (e.g., avoid walking in heavy rain), distance (e.g., avoid walking for >2km), and persona.
-Select one mode and provide a brief reason.
-
-Please response in json format (Do not return any other text), example:
-{{
-    "mode": "TRIP_MODE_DRIVE_ONLY",
-    "reason": "Given the heavy rain and the 5km distance, driving is the most comfortable option despite the traffic."
-}}
-"""
-
 
 def gravity_model(pois):
     """
@@ -145,9 +107,6 @@ def gravity_model(pois):
         List of tuples: (name, id, normalized_weight, distance)
         with selection probabilities based on gravity model
     """
-    # Handle empty input
-    if not pois:
-        return []
     # Initialize distance bins
     pois_Dis = {f"{d}k": [] for d in range(1, 11)}
     pois_Dis["more"] = []
@@ -167,7 +126,6 @@ def gravity_model(pois):
     distanceProb = []
     # Calculate weights for each POI
     for poi in pois:
-        classified = False
         for d in range(1, 11):
             if (d - 1) * 1000 <= poi[1] < d * 1000:
                 n = len(pois_Dis[f"{d}k"])
@@ -180,44 +138,18 @@ def gravity_model(pois):
                 weight = density / (distance**2)
                 res.append((poi[0]["name"], poi[0]["id"], weight, distance))
                 distanceProb.append(1 / math.sqrt(distance))
-                classified = True
                 break
-        # Handle POIs beyond 10km that weren't classified
-        if not classified:
-            n = len(pois_Dis["more"])
-            # Use a large ring area for POIs beyond 10km
-            S = math.pi * (20000**2 - 10000**2)  # Assume 10-20km ring
-            density = n / S
-            distance = max(poi[1], 1)
-            weight = density / (distance**2)
-            res.append((poi[0]["name"], poi[0]["id"], weight, distance))
-            distanceProb.append(1 / math.sqrt(distance))
-
-    # Handle case with no results
-    if len(res) == 0:
-        return []
 
     # Normalize probabilities and sample
     distanceProb = np.array(distanceProb)
     distanceProb /= distanceProb.sum()
 
-    # Adjust sample size to not exceed available POIs
-    sample_size = min(50, len(res))
-    # Randomly sample candidates weighted by distance probabilities
-    sample_indices = np.random.choice(
-        len(res), size=sample_size, p=distanceProb, replace=False
-    )
+    # Randomly sample 50 candidates weighted by distance probabilities
+    sample_indices = np.random.choice(len(res), size=50, p=distanceProb)
     sampled_pois = [res[i] for i in sample_indices]
 
     # Normalize weights for final selection
     total_weight = sum(item[2] for item in sampled_pois)
-    # Handle case where total_weight is zero
-    if total_weight == 0:
-        # Assign equal weights if all weights are zero
-        return [
-            (item[0], item[1], 1.0 / len(sampled_pois), item[3])
-            for item in sampled_pois
-        ]
     return [
         (item[0], item[1], item[2] / total_weight, item[3]) for item in sampled_pois
     ]
@@ -340,45 +272,38 @@ class PlaceSelectionBlock(Block):
         )
 
         poi_type = "unknown"
-        if pois and len(pois) > 0:
+        if pois:
             pois = gravity_model(pois)
             probabilities = [item[2] for item in pois]
             selected = np.random.choice(len(pois), p=probabilities)
             next_place = (pois[selected][0], pois[selected][1])
             poi_type = levelTwoType
-
-            context["next_place"] = next_place
-            context["next_place_type"] = poi_type
-            await self.memory.status.update("pending_destination_type", poi_type)
-
-            node_id = await self.memory.stream.add(
-                topic="mobility",
-                description=f"For {context['current_step']['intention']}, selected: {next_place} (type: {poi_type})",
-            )
-            return {
-                "success": True,
-                "evaluation": f"Selected destination: {next_place}",
-                "poi_type": poi_type,
-                "consumed_time": 5,
-                "node_id": node_id,
-            }
-        else:
-            # No POIs found - return failure instead of random selection
-            get_logger().error(
-                f"PlaceSelectionBlock: No POIs found for type {levelTwoType} within {radius}m. Cannot select destination.",
+        else:  # Fallback random selection
+            all_pois = self.environment.map.get_all_pois()
+            next_place = random.choice(all_pois)
+            poi_type = next_place.get("category", "unknown")
+            next_place = (next_place["name"], next_place["id"], poi_type)
+            get_logger().warning(
+                f"MobilityBlock: No POIs found for type {levelTwoType} within {radius}m. Randomly selected {next_place}",
                 extra={"agent_id": self.agent.id},
             )
-            node_id = await self.memory.stream.add(
-                topic="mobility",
-                description=f"Failed to find suitable destination for {context['current_step']['intention']}",
-            )
-            return {
-                "success": False,
-                "evaluation": f"No POIs found for type {levelTwoType} within {radius}m",
-                "poi_type": None,
-                "consumed_time": 5,
-                "node_id": node_id,
-            }
+
+        context["next_place"] = next_place
+        context["next_place_type"] = poi_type
+
+        await self.memory.status.update("pending_destination_type", poi_type)
+
+        node_id = await self.memory.stream.add(
+            topic="mobility",
+            description=f"For {context['current_step']['intention']}, selected: {next_place} (type: {poi_type})",
+        )
+        return {
+            "success": True,
+            "evaluation": f"Selected destination: {next_place}",
+            "poi_type": poi_type,
+            "consumed_time": 5,
+            "node_id": node_id,
+        }
 
 
 class MoveBlock(Block):
@@ -387,138 +312,25 @@ class MoveBlock(Block):
     name = "MoveBlock"
     description = "Executes mobility operations between locations"
 
-    def __init__(
-        self,
-        toolbox: AgentToolbox,
-        agent_memory: Memory,
-        enforce_place_selection=False,
-        enforce_transport_mode_selection=False,
-        place_selection_block: "PlaceSelectionBlock" = None,
-        transport_mode_block: "TransportModeSelectionBlock" = None,
-    ):
+    def __init__(self, toolbox: AgentToolbox, agent_memory: Memory):
         super().__init__(
             toolbox=toolbox,
             agent_memory=agent_memory,
         )
         self.placeAnalysisPrompt = FormatPrompt(PLACE_ANALYSIS_PROMPT)
-        self.place_selection_block = place_selection_block
-        self.transport_mode_block = transport_mode_block
-        self.enforce_place_selection = enforce_place_selection
-        self.enforce_transport_mode_selection = enforce_transport_mode_selection
-
-    async def _execute_movement(
-        self, context: DotDict, target_place_id: any, description: str
-    ):
-        db_tool = self.toolbox.get_tool("db_actor")
-        if self.enforce_transport_mode_selection:
-            context["to_place"] = target_place_id
-
-            transport_result = await self.transport_mode_block.forward(context)
-            selected_mode = transport_result.get("transport_mode", "car")
-
-            node_id = await self.memory.stream.add(
-                topic="mobility",
-                description=description,
-            )
-            trip_mode = TripMode.TRIP_MODE_DRIVE_ONLY
-            if selected_mode == "walk":
-                trip_mode = TripMode.TRIP_MODE_WALK_ONLY
-            elif selected_mode == "bike":
-                trip_mode = TripMode.TRIP_MODE_BIKE_WALK
-
-            try:
-                await self.environment.set_aoi_schedules(
-                    person_id=self.agent.id,
-                    target_positions=target_place_id,
-                    modes=[trip_mode],
-                )
-            except Exception as e:
-                try:
-                    get_logger().warning(
-                        f"MoveBlock: Failed to set aoi schedules with transport mode {selected_mode}: {e}. Trying with car",
-                        extra={"agent_id": self.agent.id},
-                    )
-                    await self.environment.set_aoi_schedules(
-                        person_id=self.agent.id,
-                        target_positions=target_place_id,
-                        modes=[TripMode.TRIP_MODE_DRIVE_ONLY],
-                    )
-                    selected_mode = "car"
-                except Exception as e:
-                    get_logger().error(
-                        f"MoveBlock: Failed to set aoi schedules with car mode as fallback: {e}",
-                        extra={"agent_id": self.agent.id},
-                    )
-                    return {
-                        "success": False,
-                        "evaluation": f"Failed to move to {target_place_id} using any transport mode",
-                        "to_place": target_place_id,
-                        "transport_mode": None,
-                        "consumed_time": 0,
-                        "node_id": node_id,
-                    }
-
-            if db_tool:
-                db_tool.get_tool().insert_user_transport_type_record.remote(
-                    timestamp=time.time(),
-                    agent_id=self.agent.id,
-                    transport_type=selected_mode,
-                )
-
-            return {
-                "success": True,
-                "evaluation": f"Successfully moved to {target_place_id} using {selected_mode}",
-                "to_place": target_place_id,
-                "transport_mode": selected_mode,
-                "consumed_time": 45,
-                "node_id": node_id,
-            }
-        else:
-            try:
-                await self.environment.set_aoi_schedules(
-                    person_id=self.agent.id,
-                    target_positions=target_place_id,
-                    # modes=[get_random_transport_mode()],
-                )
-            except Exception as e:
-                get_logger().error(
-                    f"MoveBlock: Failed to set aoi schedules: {e}",
-                    extra={"agent_id": self.agent.id},
-                )
-                return {
-                    "success": False,
-                    "evaluation": f"Failed to move to {target_place_id}",
-                    "to_place": target_place_id,
-                    "transport_mode": None,
-                    "consumed_time": 0,
-                    "node_id": None,
-                }
-            node_id = await self.memory.stream.add(
-                topic="mobility",
-                description=description,
-            )
-            return {
-                "success": True,
-                "evaluation": f"Successfully moved to {target_place_id}",
-                "to_place": target_place_id,
-                "transport_mode": None,
-                "consumed_time": 45,
-                "node_id": node_id,
-            }
 
     async def forward(self, context: DotDict):
+        agent_id = await self.memory.status.get("id")
         place_knowledge = await self.memory.status.get("location_knowledge")
         known_places = list(place_knowledge.keys())
         places = ["home", "workplace"] + known_places + ["other"]
-
-        # 1. LLM Decision
+        poi_type = None
         await self.placeAnalysisPrompt.format(
             plan=context["plan_context"]["plan"],
             intention=context["current_step"]["intention"],
             place_list=places,
             other_info=self.environment.environment.get("other_information", "None"),
         )
-
         response = await self.llm.atext_request(
             self.placeAnalysisPrompt.to_dialog(),
             response_format={"type": "json_object"},
@@ -528,58 +340,133 @@ class MoveBlock(Block):
                 "agent_id": self.agent.id,
             },
         )
-
         try:
             response = clean_json_response(response)
-            response_type = json_repair.loads(response)["place_type"]  # type: ignore
+            response = json_repair.loads(response)["place_type"]  # type: ignore
         except Exception:
             get_logger().warning(
                 f"MobilityBlock: Place Analysis: wrong type of place, raw response: {response}",
                 extra={"agent_id": self.agent.id},
             )
-            response_type = "home"
-
-        # 2. Resolve Destination Variables
-        target_aoi_id = None
-        destination_type = None
-        description_str = None
-
-        if response_type == "home":
-            home_data = await self.memory.status.get("home")
-            target_aoi_id = home_data["aoi_position"]["aoi_id"]
-            destination_type = "home"
-            description_str = "I returned home"
-
-        elif response_type == "workplace":
-            work_data = await self.memory.status.get("work")
-            target_aoi_id = work_data["aoi_position"]["aoi_id"]
-            destination_type = "workplace"
-            description_str = "I went to my workplace"
-
-        elif response_type in known_places:
-            place_info = place_knowledge[response_type]
-            target_aoi_id = place_info["id"]
-            # Try to get type from knowledge, fallback to known_places key or unknown
-            destination_type = place_info.get("type", "unknown")
-            description_str = f"I went to {response_type}"
-
+            response = "home"
+        if response == "home":
+            await self.memory.status.update("pending_destination_type", "home")
+            # go back home
+            home = await self.memory.status.get("home")
+            home = home["aoi_position"]["aoi_id"]
+            nowPlace = await self.memory.status.get("position")
+            node_id = await self.memory.stream.add(
+                topic="mobility",
+                description="I returned home",
+            )
+            if (
+                "aoi_position" in nowPlace
+                and nowPlace["aoi_position"]["aoi_id"] == home
+            ):
+                return {
+                    "success": True,
+                    "evaluation": "Successfully returned home (already at home)",
+                    "to_place": home,
+                    "consumed_time": 0,
+                    "node_id": node_id,
+                }
+            await self.environment.set_aoi_schedules(
+                person_id=agent_id,
+                target_positions=home,
+            )
+            number_poi_visited = await self.memory.status.get("number_poi_visited")
+            number_poi_visited += 1
+            await self.memory.status.update("number_poi_visited", number_poi_visited)
+            return {
+                "success": True,
+                "evaluation": "Successfully returned home",
+                "to_place": home,
+                "consumed_time": 45,
+                "node_id": node_id,
+            }
+        elif response == "workplace":
+            await self.memory.status.update("pending_destination_type", "workplace")
+            # back to workplace
+            work = await self.memory.status.get("work")
+            work = work["aoi_position"]["aoi_id"]
+            nowPlace = await self.memory.status.get("position")
+            node_id = await self.memory.stream.add(
+                topic="mobility",
+                description="I went to my workplace",
+            )
+            if (
+                "aoi_position" in nowPlace
+                and nowPlace["aoi_position"]["aoi_id"] == work
+            ):
+                return {
+                    "success": True,
+                    "evaluation": "Successfully reached the workplace (already at the workplace)",
+                    "to_place": work,
+                    "consumed_time": 0,
+                    "node_id": node_id,
+                }
+            await self.environment.set_aoi_schedules(
+                person_id=agent_id,
+                target_positions=work,
+            )
+            number_poi_visited = await self.memory.status.get("number_poi_visited")
+            number_poi_visited += 1
+            await self.memory.status.update("number_poi_visited", number_poi_visited)
+            return {
+                "success": True,
+                "evaluation": "Successfully reached the workplace",
+                "to_place": work,
+                "consumed_time": 45,
+                "node_id": node_id,
+            }
+        elif response in known_places:
+            the_place = place_knowledge[response]["id"]
+            nowPlace = await self.memory.status.get("position")
+            node_id = await self.memory.stream.add(
+                topic="mobility",
+                description=f"I went to {response}",
+            )
+            if (
+                "aoi_position" in nowPlace
+                and nowPlace["aoi_position"]["aoi_id"] == the_place
+            ):
+                return {
+                    "success": True,
+                    "evaluation": f"Successfully reached {response} (already at {response})",
+                    "to_place": the_place,
+                    "consumed_time": 0,
+                    "node_id": node_id,
+                }
+            await self.environment.set_aoi_schedules(
+                person_id=agent_id,
+                target_positions=the_place,
+            )
+            number_poi_visited = await self.memory.status.get("number_poi_visited")
+            number_poi_visited += 1
+            await self.memory.status.update("number_poi_visited", number_poi_visited)
+            return {
+                "success": True,
+                "evaluation": f"Successfully reached {response}",
+                "to_place": the_place,
+                "consumed_time": 45,
+                "node_id": node_id,
+            }
         else:
-            # Handle "other" places
+            # move to other places
+            poi_type = None
             next_place = context.get("next_place", None)
-            # 2a. If not provided, try Place Selection Block
-            if next_place is None and self.enforce_place_selection:
-                get_logger().info(
-                    f"MobilityBlock (Agent {self.agent.id}): No next_place provided, calling PlaceSelectionBlock",
-                    extra={"agent_id": self.agent.id},
+            nowPlace = await self.memory.status.get("position")
+            node_id = await self.memory.stream.add(
+                topic="mobility",
+                description=f"I went to {next_place}",
+            )
+            if next_place is not None:
+                poi_type = context.get("next_place_type", "unknown")
+                await self.environment.set_aoi_schedules(
+                    person_id=agent_id,
+                    target_positions=next_place[1],
                 )
-                place_selection_result = await self.place_selection_block.forward(
-                    context
-                )
-                if place_selection_result["success"]:
-                    next_place = context.get("next_place", None)
-
-            # 2b. If still None, pick Random
-            if next_place is None:
+            else:
                 aois = self.environment.map.get_all_aois()
                 while True:
                     r_aoi = random.choice(aois)
@@ -587,191 +474,30 @@ class MoveBlock(Block):
                         r_poi = random.choice(r_aoi["poi_ids"])
                         break
                 poi = self.environment.map.get_poi(r_poi)
-                poi_cat = poi.get("category", "unknown")
-                # Structure: (Name, AOI_ID, Type)
-                next_place = (poi["name"], poi["aoi_id"], poi_cat)
+                poi_type = poi.get("category", "unknown")
+                next_place = (poi["name"], poi["aoi_id"], poi_type)
                 get_logger().warning(
                     f"MobilityBlock (Agent {self.agent.id}): Move to other place: no next_place provided, randomly selected {next_place}",
                     extra={"agent_id": self.agent.id},
                 )
 
-            # 2c. Unpack tuple
-            # Assumes next_place is (Name, AOI_ID, Type) based on your original random logic
-            place_name = next_place[0]
-            target_aoi_id = next_place[1]
-            # Determine type: check tuple index 2, context, or fallback
-            if len(next_place) > 2:
-                destination_type = next_place[2]
-            else:
-                destination_type = context.get("next_place_type", "unknown")
+                await self.environment.set_aoi_schedules(
+                    person_id=agent_id,
+                    target_positions=next_place[1],
+                )
+            number_poi_visited = await self.memory.status.get("number_poi_visited")
+            number_poi_visited += 1
 
-            description_str = f"I went to {place_name}"
-
-        # 3. Update State & Check Position
-        await self.memory.status.update("pending_destination_type", destination_type)
-        now_place = await self.memory.status.get("position")
-        # Add memory stream item
-        node_id = await self.memory.stream.add(
-            topic="mobility",
-            description=description_str,
-        )
-
-        # Check if we are already there
-        if (
-            "aoi_position" in now_place
-            and now_place["aoi_position"]["aoi_id"] == target_aoi_id
-        ):
+            await self.memory.status.update("pending_destination_type", poi_type)
+            await self.memory.status.update("number_poi_visited", number_poi_visited)
             return {
                 "success": True,
-                "evaluation": f"Successfully reached destination (already at {target_aoi_id})",
-                "to_place": target_aoi_id,
-                "consumed_time": 0,
+                "evaluation": f"Successfully reached the destination: {next_place}",
+                "to_place": next_place[1],
+                "poi_type": poi_type,
+                "consumed_time": 45,
                 "node_id": node_id,
             }
-
-        # 4. Execute Movement
-        number_poi_visited = await self.memory.status.get("number_poi_visited")
-        number_poi_visited += 1
-        await self.memory.status.update("number_poi_visited", number_poi_visited)
-
-        return await self._execute_movement(context, target_aoi_id, description_str)
-
-
-class TransportModeSelectionBlock(Block):
-    """
-    Block for selecting transport mode based on utility approximation.
-
-    Formula: v* = arg max_v U(d, t, m, w, T, p, theta, V)
-    Where:
-      d: distance
-      t: time
-      m: month
-      w: weather
-      T: temperature
-      p: persona
-      V: available vehicles
-    """
-
-    name = "TransportModeSelectionBlock"
-    description = "Selects the transport mode for a trip"
-    NeedAgent = True
-
-    def __init__(self, toolbox: AgentToolbox, agent_memory: Memory):
-        super().__init__(
-            toolbox=toolbox,
-            agent_memory=agent_memory,
-        )
-        self.modeSelectionPrompt = FormatPrompt(TRANSPORT_MODE_SELECTION_PROMPT)
-        self.transportation_modes = [m.value for m in TransportModeEnum]
-
-    def _calculate_distance(self, start_xy, end_xy):
-        """Calculates Euclidean distance in meters."""
-        return math.sqrt(
-            (start_xy["x"] - end_xy["x"]) ** 2 + (start_xy["y"] - end_xy["y"]) ** 2
-        )
-
-    async def forward(self, context: DotDict):
-        """Select transport mode based on context"""
-        current_pos = await self.memory.status.get("position")
-        start_xy = current_pos["xy_position"]
-        target_id = (
-            context.get("to_place") or context.get("next_place", [None, None])[1]
-        )
-
-        if target_id:
-            try:
-                target_obj = self.environment.map.get_poi(target_id)
-            except KeyError:
-                target_obj = self.environment.map.get_aoi(target_id)
-            if target_obj:
-                target_xy = target_obj.get("position", {"x": 0, "y": 0})
-                distance = int(self._calculate_distance(start_xy, target_xy))
-            else:
-                get_logger().warning(
-                    f"TransportModeSelectionBlock (Agent {self.agent.id}): Target ID {target_id} not found in map."
-                )
-                distance = 0
-        else:
-            get_logger().warning(
-                f"TransportModeSelectionBlock (Agent {self.agent.id}): No target position provided. Context {context}"
-            )
-            distance = 0
-
-        sim_time = self.environment.get_datetime(True)
-        month = "Current Month"  # TODO.
-        weather = self.environment.environment.get("weather", "Don't know")
-        temperature = self.environment.environment.get("temperature", "Don't know")
-
-        name = await self.memory.status.get("name")
-        age = await self.memory.status.get("age")
-        gender = await self.memory.status.get("gender")
-        occupation = await self.memory.status.get("occupation")
-        personality = await self.memory.status.get("personality")
-
-        # Construct the persona string manually
-        persona = f"Name: {name}, Age: {age}, Gender: {gender}, Occupation: {occupation}, Personality: {personality}"
-        # ------------------------
-        emotion = await self.memory.status.get("emotion")
-
-        available_modes_list = self.transportation_modes
-
-        # 2. Format Prompt
-        await self.modeSelectionPrompt.format(
-            distance=distance,
-            time=sim_time,
-            month=month,
-            weather=weather,
-            temperature=temperature,
-            persona=persona,
-            emotion=emotion,
-            available_modes=", ".join(available_modes_list),
-        )
-
-        try:
-            response = await self.llm.atext_request(
-                self.modeSelectionPrompt.to_dialog(),
-                response_format={"type": "json_object"},
-                context={
-                    "block_name": self.name,
-                    "func_name": "forward",
-                    "agent_id": self.agent.id,
-                },
-            )
-            response = clean_json_response(response)
-            response = json_repair.loads(response)
-            selected_mode_str = response.get("mode", "car")
-            reason = response.get("reason", "No reason provided.")
-
-        except Exception as e:
-            get_logger().warning(
-                f"TransportModeSelectionBlock (Agent {self.agent.id}): Mode selection failed: {e}",
-                extra={"agent_id": self.agent.id},
-            )
-            selected_mode_str = TransportModeEnum.CAR.value
-            reason = "CAR selected due to LLM failure."
-
-        node_id = await self.memory.stream.add(
-            topic="transport_mode_selection",
-            description=f"Selected transport mode: {selected_mode_str}. Reason: {reason}",
-        )
-
-        get_logger().info(
-            f"TransportModeSelectionBlock (Agent {self.agent.id}): Selected transport mode: {selected_mode_str}. Reason: {reason}",
-            extra={"agent_id": self.agent.id},
-        )
-
-        # await self.environment.set_person_vehicle_attribute(
-        #     person_id=self.agent.id,
-        #     transport_mode=TransportModeEnum(selected_mode_str),
-        # ) # TODO
-
-        return {
-            "success": True,
-            "evaluation": f"Selected transport mode: {selected_mode_str}",
-            "transport_mode": selected_mode_str,
-            "consumed_time": 2,
-            "node_id": node_id,
-        }
 
 
 class MobilityNoneBlock(Block):
@@ -810,14 +536,6 @@ class MobilityBlockParams(BlockParams):
     search_limit: int = Field(
         default=50, description="Number of POIs to retrieve from map service"
     )
-    enforce_place_selection: bool = Field(
-        default=False,
-        description="Whether to enforce place selection when next_place is not provided",
-    )
-    enforce_transport_mode_selection: bool = Field(
-        default=False,
-        description="Whether to enforce transport mode selection for movements",
-    )
 
 
 class MobilityBlockContext(BlockContext):
@@ -841,7 +559,6 @@ class MobilityBlock(Block):
     actions = {
         "place_selection": "Support the place selection action",
         "move": "Support the move action",
-        "transport_mode_selection": "Support the transport mode selection action",
         "mobility_none": "Support other mobility operations",
     }
     NeedAgent = True
@@ -861,17 +578,7 @@ class MobilityBlock(Block):
         self.place_selection_block = PlaceSelectionBlock(
             toolbox, agent_memory, self.params.search_limit
         )
-        enforce_transport_mode_selection = self.params.enforce_transport_mode_selection
-        self.transport_mode_block = TransportModeSelectionBlock(toolbox, agent_memory)
-
-        self.move_block = MoveBlock(
-            toolbox,
-            agent_memory,
-            place_selection_block=self.place_selection_block,
-            transport_mode_block=self.transport_mode_block,
-            enforce_place_selection=self.params.enforce_place_selection,
-            enforce_transport_mode_selection=enforce_transport_mode_selection,
-        )
+        self.move_block = MoveBlock(toolbox, agent_memory)
         self.mobility_none_block = MobilityNoneBlock(toolbox, agent_memory)
         self.trigger_time = 0  # Block invocation counter
         self.token_consumption = 0  # LLM token tracker
@@ -879,17 +586,9 @@ class MobilityBlock(Block):
         # Initialize block routing system
         self.dispatcher = BlockDispatcher(self._toolbox, agent_memory)
         # register all blocks
-
-        blocks = [
-            self.place_selection_block,
-            self.move_block,
-            self.mobility_none_block,
-        ]
-
-        if enforce_transport_mode_selection:
-            blocks.append(self.transport_mode_block)
-
-        self.dispatcher.register_blocks(blocks)
+        self.dispatcher.register_blocks(
+            [self.place_selection_block, self.move_block, self.mobility_none_block]
+        )
 
     def set_agent(self, agent: any) -> None:
         """Associate the block and its sub-blocks with a specific agent.
@@ -901,7 +600,6 @@ class MobilityBlock(Block):
         self.place_selection_block.set_agent(agent)
         self.move_block.set_agent(agent)
         self.mobility_none_block.set_agent(agent)
-        self.transport_mode_block.set_agent(agent)
 
     async def forward(self, agent_context: DotDict) -> SocietyAgentBlockOutput:
         """Main entry point - delegates to sub-blocks"""
