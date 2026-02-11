@@ -94,6 +94,56 @@ class LLMConfig(BaseModel):
         return self
 
 
+def _convert_system_role_to_user(
+    dialog: list[ChatCompletionMessageParam],
+) -> list[ChatCompletionMessageParam]:
+    """
+    Convert system role messages to user messages for providers that don't support system role.
+    Merges consecutive system and user messages.
+    
+    Args:
+        dialog: Original dialog with potential system role messages
+        
+    Returns:
+        Modified dialog with system messages converted to user messages
+    """
+    if not dialog:
+        return dialog
+    
+    converted = []
+    i = 0
+    
+    while i < len(dialog):
+        msg = dialog[i]
+        
+        # If it's a system message
+        if msg.get("role") == "system":
+            system_content = msg.get("content", "")
+            
+            # Check if next message is a user message
+            if i + 1 < len(dialog) and dialog[i + 1].get("role") == "user":
+                # Merge system message into user message
+                user_content = dialog[i + 1].get("content", "")
+                merged_content = f"{system_content}\n\n{user_content}"
+                converted.append({
+                    "role": "user",
+                    "content": merged_content
+                })
+                i += 2  # Skip both messages
+            else:
+                # Convert system message to user message
+                converted.append({
+                    "role": "user",
+                    "content": system_content
+                })
+                i += 1
+        else:
+            # Keep non-system messages as is
+            converted.append(msg)
+            i += 1
+    
+    return converted
+
 @ray.remote
 class LLMActor:
     """
@@ -112,6 +162,10 @@ class LLMActor:
                 max_keepalive_connections=20, max_connections=100, keepalive_expiry=30.0
             ),
         )
+
+        self.support_system_role = False
+
+    
 
     async def call(
         self,
@@ -179,6 +233,10 @@ class LLMActor:
         for attempt in range(retries):
             response = None
             try:
+
+                if not self.support_system_role:
+                    dialog = _convert_system_role_to_user(dialog)
+
                 response = await client.chat.completions.create(
                     model=config.model,
                     messages=dialog,
@@ -219,6 +277,15 @@ class LLMActor:
                     raise e
             except OpenAIError as e:
                 error_message = str(e)
+
+                if "System role not supported".lower() in error_message.lower():
+                    get_logger().warning(
+                        f"LLM provider does not support system role. Converting system messages to user messages and retrying. Original error: `{e}` for request {dialog} {tools} {tool_choice}. Retry {attempt+1} of {retries}"
+                    )
+                    dialog = _convert_system_role_to_user(dialog)
+                    self.support_system_role = False
+                    continue  # Retry immediately with modified dialog
+
                 get_logger().warning(
                     f"OpenAIError: {error_message} for request {dialog} {tools} {tool_choice}. original response: `{response}`. Retry {attempt+1} of {retries}"
                 )

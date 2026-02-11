@@ -182,21 +182,38 @@ class BlockDispatcher:
                 response.choices[0].message.tool_calls[0].function.arguments
             )
 
-            get_logger().debug(f"LLM response for block dispatching: {function_args}")
+            get_logger().info(f"LLM response for block dispatching: {response}")
+            
+            # Handle various response formats from different LLM providers
             if isinstance(function_args, list):
-                function_args = function_args[1][0] # Mistral
+                function_args = function_args[1][0]  # Mistral format
+            
             if isinstance(function_args, str):
-                get_logger().debug(f"Function arguments is a string, attempting to parse: {response}")
+                get_logger().warning(f"Function arguments is a string, attempting to parse: {function_args}")
+                try:
+                    function_args = json_repair.loads(function_args)
+                except Exception as e:
+                    get_logger().warning(f"Failed to parse function_args string: {e}")
+                    function_args = {}
 
-
-            if "arguments" in function_args and isinstance(
+            # Handle nested arguments structure
+            if isinstance(function_args, dict) and "arguments" in function_args and isinstance(
                 function_args["arguments"], dict
             ):
                 function_args = function_args["arguments"]
 
-            selected_block = function_args.get("block_name")
+            # Ensure function_args is a dict
+            if not isinstance(function_args, dict):
+                get_logger().warning(f"Unexpected function_args type: {type(function_args)}. {function_args}, defaulting to empty dict")
+                function_args = {}
 
+            selected_block = function_args.get("block_name")
             reason = function_args.get("reason", "No reason provided")
+
+
+            if selected_block is None:
+                selected_block = "no_suitable_block"
+                reason = "Failed to parse LLM response or no block name provided"
 
             if (metrics_tool is not None) and catboost_tool is not None:
                 await metrics_tool.get_tool().record_routing.remote(  # type: ignore
@@ -205,6 +222,7 @@ class BlockDispatcher:
                     agent_id=str(agent_id),
                     routed=True,
                 )
+
 
             if db_tool is not None:
                 await self.log_dispatch(  # type: ignore

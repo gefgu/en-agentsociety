@@ -7,7 +7,6 @@ from ..cityagent.blocks.mobility_block import MobilityBlock, MobilityBlockParams
 from ..cityagent.blocks.other_block import OtherBlock, OtherBlockParams
 from ..cityagent.blocks.social_block import SocialBlock, SocialBlockParams
 from ..configs import InstitutionAgentClass, AgentConfig, Config
-from ..logger import get_logger
 from .bankagent import BankAgent
 from .firmagent import FirmAgent
 from .governmentagent import GovernmentAgent
@@ -54,19 +53,12 @@ BLOCK_MAPPING = {
 }
 
 
-def _fill_in_agent_class_and_memory_config(
-    self: AgentConfig, env_config: Config
-) -> AgentConfig:
+def _fill_in_agent_class_and_memory_config(self: AgentConfig, env_config: Config) -> AgentConfig:
     if isinstance(self.agent_class, str):
         if self.agent_class == "citizen":
             self.agent_class = SocietyAgent
-            get_logger().debug(
-                f"Filling in citizen agent class as SocietyAgent. Blocks: {self.blocks}. Env: {env_config}"
-            )
             if self.agent_params is not None:
-                self.agent_params = SocietyAgent.ParamsType.model_validate(
-                    self.agent_params
-                )
+                self.agent_params = SocietyAgent.ParamsType.model_validate(self.agent_params)
             if self.memory_config_func is None:
                 self.memory_config_func = copy.deepcopy(memory_config_societyagent)
             distributions = cast(
@@ -89,49 +81,13 @@ def _fill_in_agent_class_and_memory_config(
             else:
                 blocks = {}
                 for key, value in self.blocks.items():
-                    # 1. Handle case where key is a String (loading from config dict)
                     if isinstance(key, str) and key in BLOCK_MAPPING:
-                        block_cls = BLOCK_MAPPING[key]
-                        if block_cls == MobilityBlock:
-                            blocks[block_cls] = block_cls.ParamsType(
-                                **value,
-                                enforce_place_selection=env_config.enforce_place_selection,
-                                enforce_transport_mode_selection=env_config.enforce_transport_mode_selection,
-                            )
-                        else:
-                            blocks[block_cls] = block_cls.ParamsType(**value)
-
-                    # 2. Handle case where key is ALREADY the MobilityBlock Class (pre-instantiated)
-                    elif key == MobilityBlock:
-                        # Extract existing data from the params object or dict
-                        if isinstance(value, dict):
-                            data = value
-                        elif hasattr(value, "model_dump"):  # Pydantic v2
-                            data = value.model_dump()
-                        elif hasattr(value, "dict"):  # Pydantic v1
-                            data = value.dict()
-                        else:
-                            data = value.__dict__
-
-                        # Apply overrides from environment config
-                        data["enforce_place_selection"] = (
-                            env_config.enforce_place_selection
+                        blocks[BLOCK_MAPPING[key]] = BLOCK_MAPPING[key].ParamsType(
+                            **value
                         )
-                        data["enforce_transport_mode_selection"] = (
-                            env_config.enforce_transport_mode_selection
-                        )
-
-                        # Re-instantiate the params
-                        blocks[key] = MobilityBlock.ParamsType(**data)
-
-                    # 3. Pass through all other blocks unchanged
                     else:
                         blocks[key] = value
-
                 self.blocks = blocks
-
-            get_logger().debug(f"Final blocks for citizen: {self.blocks}")
-
         elif self.agent_class == InstitutionAgentClass.FIRM.value:
             self.agent_class = FirmAgent
             if self.agent_params is not None:
@@ -169,10 +125,7 @@ def default(config: Config) -> Config:
     # =====================
     # fill orgnizations
     # =====================
-    if any(
-        citizen_config.agent_class == "citizen"
-        for citizen_config in config.agents.citizens
-    ):
+    if any(citizen_config.agent_class == "citizen" for citizen_config in config.agents.citizens):
         if len(config.agents.firms) == 0:
             config.agents.firms = [
                 AgentConfig(
