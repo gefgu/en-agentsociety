@@ -73,16 +73,18 @@ class MessagePromptManager:
             )
 
         # Get Big Five personality traits
-        openness = await memory.status.get("openness", 2)
-        conscientiousness = await memory.status.get("conscientiousness", 2)
-        extraversion = await memory.status.get("extraversion", 2)
-        agreeableness = await memory.status.get("agreeableness", 2)
-        neuroticism = await memory.status.get("neuroticism", 2)
-        
+        big5 = await memory.status.get("big5", {})
+
         # Get household and life stage
         household = await memory.status.get("household", "unknown")
         life_stage = await memory.status.get("life_stage", "unknown")
-        
+        hobbies = await memory.status.get("hobbies", [])
+        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
+
+        # Get preferences
+        preferences = await memory.status.get("preferences", {})
+        social_frequency = preferences.get("social_frequency", 0.5)
+
         # Format prompt
         format_prompt = FormatPrompt(template)
         await format_prompt.format(
@@ -106,11 +108,13 @@ class MessagePromptManager:
             environment_info=environment_info,
             household=household,
             life_stage=life_stage,
-            openness=openness,
-            conscientiousness=conscientiousness,
-            extraversion=extraversion,
-            agreeableness=agreeableness,
-            neuroticism=neuroticism,
+            hobbies=hobbies_str,
+            openness=big5.get("openness", 2),
+            conscientiousness=big5.get("conscientiousness", 2),
+            extraversion=big5.get("extraversion", 2),
+            agreeableness=big5.get("agreeableness", 2),
+            neuroticism=big5.get("neuroticism", 2),
+            social_frequency=social_frequency,
         )
 
         return format_prompt.to_dialog()
@@ -139,29 +143,34 @@ class SocialNoneBlock(Block):
             A result dictionary indicating success/failure, time consumed, and execution details.
         """
         intention = str(context["current_step"].get("intention", "socialize"))
-        
+
         # Get Big Five personality traits
-        openness = await self.memory.status.get("openness", 2)
-        conscientiousness = await self.memory.status.get("conscientiousness", 2)
-        extraversion = await self.memory.status.get("extraversion", 2)
-        agreeableness = await self.memory.status.get("agreeableness", 2)
-        neuroticism = await self.memory.status.get("neuroticism", 2)
-        
+        big5 = await self.memory.status.get("big5", {})
+
         # Get household and life stage
         household = await self.memory.status.get("household", "unknown")
         life_stage = await self.memory.status.get("life_stage", "unknown")
-        
+        hobbies = await self.memory.status.get("hobbies", [])
+        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
+
+        # Get preferences
+        preferences = await self.memory.status.get("preferences", {})
+        chronotype = preferences.get("chronotype", "standard")
+        work_ethic = preferences.get("work_ethic", 0.5)
+        leisure_preference = preferences.get("leisure_preference", "indoor")
+        social_frequency = preferences.get("social_frequency", 0.5)
+
         await self.guidance_prompt.format(
             plan=context["plan_context"]["plan"],
             intention=intention,
             emotion_types=await self.memory.status.get("emotion_types"),
             household=household,
             life_stage=life_stage,
-            openness=openness,
-            conscientiousness=conscientiousness,
-            extraversion=extraversion,
-            agreeableness=agreeableness,
-            neuroticism=neuroticism,
+            hobbies=hobbies_str,
+            big5=big5,
+            chronotype=chronotype,
+            work_ethic=work_ethic,
+            leisure_preference=leisure_preference,
         )
         result = await self.llm.atext_request(
             self.guidance_prompt.to_dialog(),
@@ -225,6 +234,7 @@ Based on the following information, help me select the most suitable target to i
     - Background story: {background_story}
     - Household type: {household}
     - Life stage: {life_stage}
+    - Hobbies: {hobbies}
 
 2. Your Current Intention: {intention}
 
@@ -239,7 +249,10 @@ Based on the following information, help me select the most suitable target to i
     - Agreeableness: {agreeableness}
     - Neuroticism: {neuroticism}
 
-6. Your social network (shown as id-to-relationship pairs):
+6. Behavioral Preferences:
+    - Social Frequency: {social_frequency} (0.0=Rarely seeks social contact, 1.0=Frequently seeks interaction)
+
+7. Your social network (shown as id-to-relationship pairs):
     {friend_info}
     Note: For each target, the relationship strength (0-1) indicates how close we are
 
@@ -288,16 +301,20 @@ Please output in JSON format, a dictionary:
                 """
 
             # Get Big Five personality traits
-            openness = await self.memory.status.get("openness", 2)
-            conscientiousness = await self.memory.status.get("conscientiousness", 2)
-            extraversion = await self.memory.status.get("extraversion", 2)
-            agreeableness = await self.memory.status.get("agreeableness", 2)
-            neuroticism = await self.memory.status.get("neuroticism", 2)
-            
+            big5 = await self.memory.status.get("big5", {})
+
             # Get household and life stage
             household = await self.memory.status.get("household", "unknown")
             life_stage = await self.memory.status.get("life_stage", "unknown")
-            
+            hobbies = await self.memory.status.get("hobbies", [])
+            hobbies_str = (
+                ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
+            )
+
+            # Get preferences
+            preferences = await self.memory.status.get("preferences", {})
+            social_frequency = preferences.get("social_frequency", 0.5)
+
             # Format the prompt
             formatted_prompt = FormatPrompt(self.prompt)
             await formatted_prompt.format(
@@ -312,11 +329,9 @@ Please output in JSON format, a dictionary:
                 friend_info=relationship_info,
                 household=household,
                 life_stage=life_stage,
-                openness=openness,
-                conscientiousness=conscientiousness,
-                extraversion=extraversion,
-                agreeableness=agreeableness,
-                neuroticism=neuroticism,
+                hobbies=hobbies_str,
+                big5=big5,
+                social_frequency=social_frequency,
             )
 
             # Get LLM response
@@ -403,6 +418,7 @@ My current thought is: {thought}.
 My background story is: {background_story}.
 Household type: {household}
 Life stage: {life_stage}
+Hobbies: {hobbies}
 
 Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Openness: {openness}

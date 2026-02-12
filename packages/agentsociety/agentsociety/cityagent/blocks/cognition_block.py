@@ -46,6 +46,94 @@ DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
 DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
 """
 
+INITIAL_HOBBIES_PROMPT = """You are an intelligent agent profile generator. Based on the demographic and psychographic information below, please generate a list of suitable hobbies for this agent.
+
+Profile Information:
+- Gender: ${profile.gender}
+- Age: ${profile.age}
+- Occupation: ${profile.occupation}
+- Income: ${profile.income}
+- Education: ${profile.education}
+- Household type: {household}
+- Life stage: {life_stage}
+
+Psychographic Traits (1-3 scale):
+- Openness: {openness}
+- Conscientiousness: {conscientiousness}
+- Extraversion: {extraversion}
+- Agreeableness: {agreeableness}
+- Neuroticism: {neuroticism}
+
+Please generate a list of 2-5 hobbies. 
+- Ensure the hobbies fit the agent's income level and age (e.g., "Golf" for higher income, "Video Games" for younger cohorts).
+- Ensure the hobbies reflect their Big 5 personality (e.g., High Extraversion -> Team Sports; High Openness -> Painting/Travel; High Conscientiousness -> Gardening/Chess).
+- These hobbies will be used to determine the agent's daily locations and routines.
+
+Return the values in JSON format with the following structure:
+
+{{
+    "hobbies": [
+        "Hobby Name 1",
+        "Hobby Name 2",
+        "Hobby Name 3"
+    ]
+}}
+
+Example Response:
+{{
+    "hobbies": [
+        "Photography",
+        "Hiking",
+        "Reading Sci-Fi"
+    ]
+}}
+
+DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
+"""
+
+INITIAL_PREFERENCES_PROMPT = """You are an intelligent agent behavioral analyst. Based on the demographic and psychographic profile below, please initialize the agent's daily habits and behavioral preferences.
+
+Profile Information:
+- Age: ${profile.age}
+- Occupation: ${profile.occupation}
+- Income: ${profile.income}
+- Household Composition: ${profile.household}
+
+Psychographic Traits (1-3 scale):
+- Openness: {openness}
+- Conscientiousness: {conscientiousness}
+- Extraversion: {extraversion}
+- Agreeableness: {agreeableness}
+- Neuroticism: {neuroticism}
+
+Please generate specific behavioral parameters. Use the personality traits to guide these values (e.g., High Conscientiousness = Early Riser, Low Consumption; High Extraversion = High Social Frequency).
+
+Return the values in JSON format with the following structure:
+
+- chronotype: "early_bird" (wakes ~6am), "night_owl" (wakes ~10am), or "standard" (wakes ~7-8am).
+- risk_tolerance: Float 0.0-1.0 (propensity to take financial or physical risks).
+- spending_tendency: Float 0.0-1.0 (0=Frugal/Saver, 1=Impulsive/Spender).
+- social_frequency: Float 0.0-1.0 (desired probability of initiating social interactions per day).
+- work_ethic: Float 0.0-1.0 (tendency to work overtime or prioritize work tasks).
+- leisure_preference: "outdoor", "indoor", "social", or "solitary" (dominant preference for free time).
+
+Example Response:
+{{
+    "preferences": {{
+        "chronotype": "night_owl",
+        "risk_tolerance": 0.7,
+        "spending_tendency": 0.8,
+        "social_frequency": 0.9,
+        "work_ethic": 0.3,
+        "leisure_preference": "social"
+    }}
+}}
+
+DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
+DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
+DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
+"""
+
 
 
 def extract_json(output_str):
@@ -121,6 +209,8 @@ class CognitionBlock(Block):
         self.last_check_day = None
         self.agent_id = agent_id
         self.initialized_big5 = False
+        self.initialized_hobbies = False
+        self.initialized_preferences = False
 
     async def set_status(self, status):
         """Update multiple status fields in memory.
@@ -293,6 +383,7 @@ class CognitionBlock(Block):
         disgust = emotion["disgust"]
         anger = emotion["anger"]
         surprise = emotion["surprise"]
+        big5 = await self.memory.status.get("big5", {})
         await question_prompt.format(
             gender=await self.memory.status.get("gender"),
             age=await self.memory.status.get("age"),
@@ -316,11 +407,7 @@ class CognitionBlock(Block):
             emotion=await self.memory.status.get("emotion"),
             thought=await self.memory.status.get("thought"),
             emotion_types=await self.memory.status.get("emotion_types"),
-            openness=await self.memory.status.get("openness"),
-            conscientiousness=await self.memory.status.get("conscientiousness"),
-            extraversion=await self.memory.status.get("extraversion"),
-            agreeableness=await self.memory.status.get("agreeableness"),
-            neuroticism=await self.memory.status.get("neuroticism"),
+            big5=big5,
         )
 
         evaluation = True
@@ -452,11 +539,7 @@ class CognitionBlock(Block):
             emotion=await self.memory.status.get("emotion"),
             thought=await self.memory.status.get("thought"),
             emotion_types=await self.memory.status.get("emotion_types"),
-            openness=await self.memory.status.get("openness"),
-            conscientiousness=await self.memory.status.get("conscientiousness"),
-            extraversion=await self.memory.status.get("extraversion"),
-            agreeableness=await self.memory.status.get("agreeableness"),
-            neuroticism=await self.memory.status.get("neuroticism"),
+            big5=await self.memory.status.get("big5"),
         )
 
         evaluation = True
@@ -515,6 +598,18 @@ class CognitionBlock(Block):
         if self.initialized_big5:
             return
 
+        current_big5 = await self.memory.status.get("big5", {})
+        current_openness = current_big5.get("openness", 2)
+        current_conscientiousness = current_big5.get("conscientiousness", 2)
+        current_extraversion = current_big5.get("extraversion", 2)
+        current_agreeableness = current_big5.get("agreeableness", 2)
+        current_neuroticism = current_big5.get("neuroticism", 2)
+
+        # See if already set
+        if (current_openness != 2 or current_conscientiousness != 2 or current_extraversion != 2 or current_agreeableness != 2 or current_neuroticism != 2):
+            self.initialized_big5 = True
+            return
+
         profile = {
             "gender": await self.memory.status.get("gender"),
             "education": await self.memory.status.get("education"),
@@ -544,11 +639,7 @@ class CognitionBlock(Block):
                 response = json_repair.loads(response)
 
                 psychographic_traits = response["psychographic_traits"]
-                await self.memory.status.update("openness", psychographic_traits["openness"])
-                await self.memory.status.update("conscientiousness", psychographic_traits["conscientiousness"])
-                await self.memory.status.update("extraversion", psychographic_traits["extraversion"])
-                await self.memory.status.update("agreeableness", psychographic_traits["agreeableness"])
-                await self.memory.status.update("neuroticism", psychographic_traits["neuroticism"])
+                await self.memory.status.update("big5", psychographic_traits)
 
                 break
             except Exception:
@@ -557,4 +648,148 @@ class CognitionBlock(Block):
         if retry == 0:
             get_logger().warning(f"CognitionBlock.initalize_big5: Failed to parse JSON response after 3 attempts. Final response: {response}")
         else:
-            self.initialize_big5 = True
+            self.initialized_big5 = True
+
+    async def initialize_hobbies(self):
+        """Initialize the agent's hobbies based on profile and psychographic information.
+
+        Workflow:
+        1. Retrieve agent's profile and Big Five traits from memory.
+        2. Construct a prompt using the INITIAL_HOBBIES_PROMPT template.
+        3. Query LLM to generate a list of suitable hobbies.
+        4. Retry up to 10 times on LLM failures.
+        5. Update memory with initialized hobbies.
+
+        Raises:
+            Exception: If all LLM retries fail.
+        """
+
+        if self.initialized_hobbies:
+            return
+
+        current_hobbies = await self.memory.status.get("hobbies")
+        if len(current_hobbies) > 0:
+            return
+
+        profile = {
+            "gender": await self.memory.status.get("gender"),
+            "age": await self.memory.status.get("age"),
+            "occupation": await self.memory.status.get("occupation"),
+            "income": await self.memory.status.get("income"),
+            "education": await self.memory.status.get("education"),
+        }
+
+        big5 = await self.memory.status.get("big5", {})
+
+        household = await self.memory.status.get("household")
+        life_stage = await self.memory.status.get("life_stage")
+
+        prompt = FormatPrompt(INITIAL_HOBBIES_PROMPT)
+        await prompt.format(
+            profile=profile,
+            openness=big5.get("openness", 2),
+            conscientiousness=big5.get("conscientiousness", 2),
+            extraversion=big5.get("extraversion", 2),
+            agreeableness=big5.get("agreeableness", 2),
+            neuroticism=big5.get("neuroticism", 2),
+            household=household,
+            life_stage=life_stage
+        )
+
+        response = await self.llm.atext_request(
+            prompt.to_dialog(),
+            response_format={"type": "json_object"},
+            context={
+                "block_name": self.name,
+                "func_name": "initialize_hobbies",
+                "agent_id": self.agent_id
+            }
+        )
+        response = clean_json_response(response)
+        retry = 3
+        while retry > 0:
+            try:
+                response = json_repair.loads(response)
+                hobbies = response["hobbies"]
+                await self.memory.status.update("hobbies", hobbies)
+                break
+            except Exception:
+                get_logger().warning(f"CognitionBlock.initalize_hobbies: Failed to parse JSON response, retrying... ({3 - retry + 1}/3)")
+                retry -= 1
+        if retry == 0:            
+            get_logger().warning(f"CognitionBlock.initalize_hobbies: Failed to parse JSON response after 3 attempts. Final response: {response}")
+        else:
+            self.initialized_hobbies = True
+
+        
+
+    async def initialize_preferences(self):
+        """Initialize the agent's behavioral preferences based on profile and psychographic information.
+
+        Workflow:
+        1. Retrieve agent's profile and Big Five traits from memory.
+        2. Construct a prompt using the INITIAL_PREFERENCES_PROMPT template.
+        3. Query LLM to generate specific behavioral parameters.
+        4. Retry up to 10 times on LLM failures.
+        5. Update memory with initialized preferences.
+
+        Raises:
+            Exception: If all LLM retries fail.
+        """
+        if self.initialized_preferences:
+            return
+
+        current_preferences = await self.memory.status.get("preferences")
+        if current_preferences and (
+            current_preferences.get("chronotype") != "standard" or
+            current_preferences.get("risk_tolerance") != 0.5 or
+            current_preferences.get("spending_tendency") != 0.5 or
+            current_preferences.get("social_frequency") != 0.5 or 
+            current_preferences.get("work_ethic") != 0.5 or
+            current_preferences.get("leisure_preference") != "indoor"
+        ):
+            return
+
+        profile = {
+            "age": await self.memory.status.get("age"),
+            "occupation": await self.memory.status.get("occupation"),
+            "income": await self.memory.status.get("income"),
+            "household": await self.memory.status.get("household"),
+        }
+
+        big5 = await self.memory.status.get("big5", {})
+
+        prompt = FormatPrompt(INITIAL_PREFERENCES_PROMPT)
+        await prompt.format(
+            profile=profile,
+            openness=big5.get("openness", 2),
+            conscientiousness=big5.get("conscientiousness", 2),
+            extraversion=big5.get("extraversion", 2),
+            agreeableness=big5.get("agreeableness", 2),
+            neuroticism=big5.get("neuroticism", 2),
+        )
+
+        response = await self.llm.atext_request(
+            prompt.to_dialog(),
+            response_format={"type": "json_object"},
+            context={
+                "block_name": self.name,
+                "func_name": "initialize_preferences",
+                "agent_id": self.agent_id
+            }
+        )
+        response = clean_json_response(response)
+        retry = 3
+        while retry > 0:
+            try:
+                response = json_repair.loads(response)
+                preferences = response["preferences"]
+                await self.memory.status.update("preferences", preferences)
+                break
+            except Exception:
+                get_logger().warning(f"CognitionBlock.initalize_preferences: Failed to parse JSON response, retrying... ({3 - retry + 1}/3)")
+                retry -= 1
+        if retry == 0:
+            get_logger().warning(f"CognitionBlock.initalize_preferences: Failed to parse JSON response after 3 attempts. Final response: {response}")
+        else:
+            self.initialized_preferences = True

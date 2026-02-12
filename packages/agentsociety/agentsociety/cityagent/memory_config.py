@@ -520,6 +520,27 @@ def memory_config_societyagent(
             description="agent's consumption pattern",
             whether_embedding=True,
         ),
+        "hobbies": MemoryAttribute(
+            name="hobbies",
+            type=list,
+            default_or_value=[],
+            description="agent's hobbies",
+            whether_embedding=True,
+        ),
+        "preferences": MemoryAttribute(
+            name="preferences",
+            type=dict,
+            default_or_value={
+                "chronotype": "standard",
+                "risk_tolerance": 0.5,
+                "spending_tendency": 0.5,
+                "social_frequency": 0.5,
+                "work_ethic": 0.5,
+                "leisure_preference": "indoor"
+            },
+            description="agent's behavioral preferences",
+            whether_embedding=False,
+        ),
         "personality": MemoryAttribute(
             name="personality",
             type=str,
@@ -527,36 +548,18 @@ def memory_config_societyagent(
             description="agent's personality",
             whether_embedding=True,
         ),
-        # Psychographic Traits
-        "openness": MemoryAttribute(
-            name="openness",
-            type=int,
-            default_or_value=2,
-            description="Big Five: Openness to experience, 1-3",
-        ),
-        "conscientiousness": MemoryAttribute(
-            name="conscientiousness",
-            type=int,
-            default_or_value=2,
-            description="Big Five: Conscientiousness, 1-3",
-        ),
-        "extraversion": MemoryAttribute(
-            name="extraversion",
-            type=int,
-            default_or_value=2,
-            description="Big Five: Extraversion, 1-3",
-        ),
-        "agreeableness": MemoryAttribute(
-            name="agreeableness",
-            type=int,
-            default_or_value=2,
-            description="Big Five: Agreeableness, 1-3",
-        ),
-        "neuroticism": MemoryAttribute(
-            name="neuroticism",
-            type=int,
-            default_or_value=2,
-            description="Big Five: Neuroticism, 1-3",
+        "big5": MemoryAttribute(
+            name="big5",
+            type=dict,
+            default_or_value={
+                "openness": 2,
+                "conscientiousness": 2,
+                "extraversion": 2,
+                "agreeableness": 2,
+                "neuroticism": 2
+            },
+            description="agent's Big Five personality traits",
+            whether_embedding=False,
         ),
         "income": MemoryAttribute(
             name="income",

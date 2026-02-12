@@ -31,6 +31,7 @@ Current emotion: ${status.emotion_types}
 
 Household type: {household}
 Life stage: {life_stage}
+Hobbies: {hobbies}
 
 Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Openness: {openness}
@@ -38,6 +39,10 @@ Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Extraversion: {extraversion}
 - Agreeableness: {agreeableness}
 - Neuroticism: {neuroticism}
+
+Behavioral Preferences:
+- Chronotype: {chronotype} (early_bird: wakes ~6am and goes to bed early, standard: wakes ~7-8am, night_owl: wakes ~10am and stays up late)
+- Leisure Preference: {leisure_preference} (outdoor/indoor/social/solitary - affects activity duration)
 
 Examples:
 - "Learn programming": {{"time": 120}}
@@ -90,25 +95,31 @@ class SleepBlock(Block):
             Dictionary with execution status, evaluation, time consumed, and node ID.
         """
         # Get Big Five personality traits
-        openness = await self.memory.status.get("openness", 2)
-        conscientiousness = await self.memory.status.get("conscientiousness", 2)
-        extraversion = await self.memory.status.get("extraversion", 2)
-        agreeableness = await self.memory.status.get("agreeableness", 2)
-        neuroticism = await self.memory.status.get("neuroticism", 2)
+        big5 = await self.memory.status.get("big5", {})
         
         # Get household and life stage
         household = await self.memory.status.get("household", "unknown")
         life_stage = await self.memory.status.get("life_stage", "unknown")
+        hobbies = await self.memory.status.get("hobbies", [])
+        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
+        
+        # Get preferences
+        preferences = await self.memory.status.get("preferences", {})
+        chronotype = preferences.get("chronotype", "standard")
+        leisure_preference = preferences.get("leisure_preference", "indoor")
         
         await self.guidance_prompt.format(
             context=context,
             household=household,
             life_stage=life_stage,
-            openness=openness,
-            conscientiousness=conscientiousness,
-            extraversion=extraversion,
-            agreeableness=agreeableness,
-            neuroticism=neuroticism,
+            hobbies=hobbies_str,
+            openness=big5.get("openness", 2),
+            conscientiousness=big5.get("conscientiousness", 2),
+            extraversion=big5.get("extraversion", 2),
+            agreeableness=big5.get("agreeableness", 2),
+            neuroticism=big5.get("neuroticism", 2),
+            chronotype=chronotype,
+            leisure_preference=leisure_preference,
         )
         result = await self.llm.atext_request(
             self.guidance_prompt.to_dialog(),
@@ -162,14 +173,18 @@ class OtherNoneBlock(Block):
 
     async def forward(self, context: DotDict):
 
-        openness = await self.memory.status.get("openness", 2)
-        conscientiousness = await self.memory.status.get("conscientiousness", 2)
-        extraversion = await self.memory.status.get("extraversion", 2)
-        agreeableness = await self.memory.status.get("agreeableness", 2)
-        neuroticism = await self.memory.status.get("neuroticism", 2)
+        big5 = await self.memory.status.get("big5", {})
         
         household = await self.memory.status.get("household", "unknown")
         life_stage = await self.memory.status.get("life_stage", "unknown")
+        hobbies = await self.memory.status.get("hobbies", [])
+        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
+        
+        # Get preferences
+        preferences = await self.memory.status.get("preferences", {})
+        chronotype = preferences.get("chronotype", "standard")
+        work_ethic = preferences.get("work_ethic", 0.5)
+        leisure_preference = preferences.get("leisure_preference", "indoor")
 
         await self.guidance_prompt.format(
             plan=context["plan_context"]["plan"],
@@ -177,11 +192,15 @@ class OtherNoneBlock(Block):
             emotion_types=await self.memory.status.get("emotion_types"),
             household=household,
             life_stage=life_stage,
-            openness=openness,
-            conscientiousness=conscientiousness,
-            extraversion=extraversion,
-            agreeableness=agreeableness,
-            neuroticism=neuroticism,
+            hobbies=hobbies_str,
+            openness=big5.get("openness", 2),
+            conscientiousness=big5.get("conscientiousness", 2),
+            extraversion=big5.get("extraversion", 2),
+            agreeableness=big5.get("agreeableness", 2),
+            neuroticism=big5.get("neuroticism", 2),
+            chronotype=chronotype,
+            work_ethic=work_ethic,
+            leisure_preference=leisure_preference,
         )
         result = await self.llm.atext_request(
             self.guidance_prompt.to_dialog(),

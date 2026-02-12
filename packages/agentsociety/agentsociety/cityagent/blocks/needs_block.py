@@ -22,12 +22,15 @@ Profile Information:
 - Monthly Income: ${profile.income}
 - Household type: {household}
 - Life stage: {life_stage}
+- Hobbies: {hobbies}
 - Big Five Personality Traits (1=Low, 2=Medium, 3=High):
   - Openness: {openness}
   - Conscientiousness: {conscientiousness}
   - Extraversion: {extraversion}
   - Agreeableness: {agreeableness}
   - Neuroticism: {neuroticism}
+- Behavioral Preferences:
+  - Social Frequency: {social_frequency} (0.0=Rarely initiates social contact, 1.0=Frequently seeks social interaction)
 
 Current Time: ${context.current_time}
 
@@ -37,7 +40,7 @@ Current satisfaction levels (0-1 float values, lower means less satisfied):
 - hunger_satisfaction: Hunger satisfaction level (Normally, the agent will be less satisfied with hunger at eating time)
 - energy_satisfaction: Energy satisfaction level (Normally, at night, the agent will be less satisfied with energy)
 - safety_satisfaction: Safety satisfaction level (Normally, the agent will be more satisfied with safety when they have high income and currency)
-- social_satisfaction: Social satisfaction level
+- social_satisfaction: Social satisfaction level (Consider social_frequency: higher value means more need for social interaction)
 
 Please response in json format, example:
 {{
@@ -67,6 +70,7 @@ Current satisfaction:
 
 Household type: {household}
 Life stage: {life_stage}
+Hobbies: {hobbies}
 
 Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Openness: {openness}
@@ -74,6 +78,9 @@ Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Extraversion: {extraversion}
 - Agreeableness: {agreeableness}
 - Neuroticism: {neuroticism}
+
+Behavioral Preferences:
+- Social Frequency: {social_frequency} (0.0=Rarely initiates social contact, 1.0=Frequently seeks social interaction)
 
 Please evaluate and adjust the value of {current_need} satisfaction based on the execution results above.
 
@@ -83,7 +90,8 @@ Notes:
    - 0 means the need is completely unsatisfied 
    - Higher values indicate greater need satisfaction
 2. If the current need is not "whatever", only return the new value for the current need. Otherwise, return both safe and social need values.
-3. Ensure the return value is in valid JSON format, examples below:
+3. Consider social_frequency when evaluating social satisfaction: higher social_frequency means social activities have greater impact.
+4. Ensure the return value is in valid JSON format, examples below:
 
 Please response in json format for specific need (hungry here) adjustment (Do not return any other text), example:
 {{
@@ -112,6 +120,7 @@ And the agent's current needs are:
 
 Household type: {household}
 Life stage: {life_stage}
+Hobbies: {hobbies}
 
 Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Openness: {openness}
@@ -119,6 +128,9 @@ Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Extraversion: {extraversion}
 - Agreeableness: {agreeableness}
 - Neuroticism: {neuroticism}
+
+Behavioral Preferences:
+- Social Frequency: {social_frequency} (0.0=Rarely initiates social contact, 1.0=Frequently seeks social interaction)
 
 The agent's current action is:
 --------------------------------
@@ -235,25 +247,29 @@ class NeedsBlock(Block):
 
         if not self.initialized:
             # Get Big Five personality traits
-            openness = await self.memory.status.get("openness", 2)
-            conscientiousness = await self.memory.status.get("conscientiousness", 2)
-            extraversion = await self.memory.status.get("extraversion", 2)
-            agreeableness = await self.memory.status.get("agreeableness", 2)
-            neuroticism = await self.memory.status.get("neuroticism", 2)
+            big5 = await self.memory.status.get("big5", {})
             
             # Get household and life stage
             household = await self.memory.status.get("household", "unknown")
             life_stage = await self.memory.status.get("life_stage", "unknown")
+            hobbies = await self.memory.status.get("hobbies", [])
+            hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
+            
+            # Get preferences
+            preferences = await self.memory.status.get("preferences", {})
+            social_frequency = preferences.get("social_frequency", 0.5)
             
             await self.initial_prompt.format(
                 context=self.context,
                 household=household,
                 life_stage=life_stage,
-                openness=openness,
-                conscientiousness=conscientiousness,
-                extraversion=extraversion,
-                agreeableness=agreeableness,
-                neuroticism=neuroticism,
+                hobbies=hobbies_str,
+                openness=big5.get("openness", 2),
+                conscientiousness=big5.get("conscientiousness", 2),
+                extraversion=big5.get("extraversion", 2),
+                agreeableness=big5.get("agreeableness", 2),
+                neuroticism=big5.get("neuroticism", 2),
+                social_frequency=social_frequency,
             )
             response = await self.llm.atext_request(
                 self.initial_prompt.to_dialog(),
@@ -312,15 +328,17 @@ class NeedsBlock(Block):
         )
         
         # Get Big Five personality traits
-        openness = await self.memory.status.get("openness", 2)
-        conscientiousness = await self.memory.status.get("conscientiousness", 2)
-        extraversion = await self.memory.status.get("extraversion", 2)
-        agreeableness = await self.memory.status.get("agreeableness", 2)
-        neuroticism = await self.memory.status.get("neuroticism", 2)
+        big5 = await self.memory.status.get("big5", {})
         
         # Get household and life stage
         household = await self.memory.status.get("household", "unknown")
         life_stage = await self.memory.status.get("life_stage", "unknown")
+        hobbies = await self.memory.status.get("hobbies", [])
+        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
+        
+        # Get preferences
+        preferences = await self.memory.status.get("preferences", {})
+        social_frequency = preferences.get("social_frequency", 0.5)
         
         await self.reflection_prompt.format(
             intervention_message=intervention,
@@ -331,11 +349,13 @@ class NeedsBlock(Block):
             social_satisfaction=await self.memory.status.get("social_satisfaction"),
             household=household,
             life_stage=life_stage,
-            openness=openness,
-            conscientiousness=conscientiousness,
-            extraversion=extraversion,
-            agreeableness=agreeableness,
-            neuroticism=neuroticism,
+            hobbies=hobbies_str,
+            openness=big5.get("openness", 2),
+            conscientiousness=big5.get("conscientiousness", 2),
+            extraversion=big5.get("extraversion", 2),
+            agreeableness=big5.get("agreeableness", 2),
+            neuroticism=big5.get("neuroticism", 2),
+            social_frequency=social_frequency,
         )
         response = await self.llm.atext_request(
             self.reflection_prompt.to_dialog(),
@@ -608,15 +628,17 @@ class NeedsBlock(Block):
         current_social = await self.memory.status.get("social_satisfaction")
         
         # Get Big Five personality traits
-        openness = await self.memory.status.get("openness", 2)
-        conscientiousness = await self.memory.status.get("conscientiousness", 2)
-        extraversion = await self.memory.status.get("extraversion", 2)
-        agreeableness = await self.memory.status.get("agreeableness", 2)
-        neuroticism = await self.memory.status.get("neuroticism", 2)
+        big5 = await self.memory.status.get("big5", {})
         
         # Get household and life stage
         household = await self.memory.status.get("household", "unknown")
         life_stage = await self.memory.status.get("life_stage", "unknown")
+        hobbies = await self.memory.status.get("hobbies", [])
+        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
+        
+        # Get preferences
+        preferences = await self.memory.status.get("preferences", {})
+        social_frequency = preferences.get("social_frequency", 0.5)
 
         await self.evaluation_prompt.format(
             current_need=current_need,
@@ -628,11 +650,13 @@ class NeedsBlock(Block):
             social_satisfaction=current_social,
             household=household,
             life_stage=life_stage,
-            openness=openness,
-            conscientiousness=conscientiousness,
-            extraversion=extraversion,
-            agreeableness=agreeableness,
-            neuroticism=neuroticism,
+            hobbies=hobbies_str,
+            openness=big5.get("openness", 2),
+            conscientiousness=big5.get("conscientiousness", 2),
+            extraversion=big5.get("extraversion", 2),
+            agreeableness=big5.get("agreeableness", 2),
+            neuroticism=big5.get("neuroticism", 2),
+            social_frequency=social_frequency,
         )
 
         if catboost_tool:
@@ -738,8 +762,8 @@ class NeedsBlock(Block):
                 end_time = time.perf_counter()
                 duration = end_time - start_time
 
-                if block_performance_tool:
-                    block_performance_tool.get_tool().record_performance.remote(
+                if metrics_tool:
+                    metrics_tool.get_tool().record_performance.remote(
                         block_name="NeedsBlock",
                         func_name="evaluate_and_adjust_needs_modernbert",
                         actor="modernbert",

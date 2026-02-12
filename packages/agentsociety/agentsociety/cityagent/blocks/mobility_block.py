@@ -40,8 +40,12 @@ User Plan: {plan}
 User requirement: {intention}
 Household type: {household}
 Life stage: {life_stage}
+Hobbies: {hobbies}
 Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
 openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
+Your behavioral preferences are:
+- Leisure Preference: {leisure_preference} (outdoor/indoor/social/solitary preference for free time)
+- Risk Tolerance: {risk_tolerance} (0.0=Risk-averse, 1.0=Risk-seeking for new/unfamiliar places)
 Other information: 
 -------------------------
 {other_info}
@@ -60,8 +64,12 @@ User Plan: {plan}
 User requirement: {intention}
 Household type: {household}
 Life stage: {life_stage}
+Hobbies: {hobbies}
 Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
 openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
+Your behavioral preferences are:
+- Leisure Preference: {leisure_preference} (outdoor/indoor/social/solitary preference for free time)
+- Risk Tolerance: {risk_tolerance} (0.0=Risk-averse, 1.0=Risk-seeking for new/unfamiliar places)
 Other information: 
 -------------------------
 {other_info}
@@ -81,8 +89,12 @@ User Plan: {plan}
 User requirement: {intention}
 Household type: {household}
 Life stage: {life_stage}
+Hobbies: {hobbies}
 Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
 openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
+Your behavioral preferences are:
+- Leisure Preference: {leisure_preference} (outdoor/indoor/social/solitary preference for free time)
+- Risk Tolerance: {risk_tolerance} (0.0=Risk-averse, 1.0=Risk-seeking for new/unfamiliar places)
 Other information: 
 -------------------------
 {other_info}
@@ -104,14 +116,17 @@ Your current emotion: ${context.current_emotion}
 Your current thought: ${context.current_thought}
 Household type: {household}
 Life stage: {life_stage}
+Hobbies: {hobbies}
 Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
 openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
+Your behavioral preferences:
+- Risk Tolerance: {risk_tolerance} (0.0=Risk-averse/prefers nearby, 1.0=Risk-seeking/willing to travel far)
 Other information: 
 -------------------------
 ${context.other_information}
 -------------------------
 
-Please analyze how these emotions would affect travel willingness and return only a single integer number between 3000-200000 representing the maximum travel radius in meters. A more positive emotional state generally leads to greater willingness to travel further.
+Please analyze how these emotions and preferences would affect travel willingness and return only a single integer number between 3000-200000 representing the maximum travel radius in meters. A more positive emotional state and higher risk tolerance generally lead to greater willingness to travel further.
 
 Please response in json format (Do not return any other text), example:
 {{
@@ -132,18 +147,21 @@ Context:
 - User Persona: {persona}
 - Household type: {household}
 - Life stage: {life_stage}
+- Hobbies: {hobbies}
 - User Big Five Personality Traits: (1=Low, 2=Medium, 3=High)
   - Openness: {openness}
   - Conscientiousness: {conscientiousness}
   - Extraversion: {extraversion}
   - Agreeableness: {agreeableness}
   - Neuroticism: {neuroticism}
+- User Behavioral Preferences:
+  - Risk Tolerance: {risk_tolerance} (0.0=Prefers safe/familiar modes, 1.0=Open to new/adventurous modes)
 - User Current Emotion/Thought: {emotion}
 
 Available Transport Modes:
 {available_modes}
 
-Please analyze the utility of each mode given the weather (e.g., avoid walking in heavy rain), distance (e.g., avoid walking for >2km), and persona.
+Please analyze the utility of each mode given the weather (e.g., avoid walking in heavy rain), distance (e.g., avoid walking for >2km), persona, and risk tolerance.
 Select one mode and provide a brief reason.
 
 Please response in json format (Do not return any other text), example:
@@ -286,16 +304,19 @@ class PlaceSelectionBlock(Block):
     async def forward(self, context: DotDict):
         """Execute the destination selection workflow"""
         # Get Big Five personality traits
-        openness = await self.memory.status.get("openness", 2)
-        conscientiousness = await self.memory.status.get("conscientiousness", 2)
-        extraversion = await self.memory.status.get("extraversion", 2)
-        agreeableness = await self.memory.status.get("agreeableness", 2)
-        neuroticism = await self.memory.status.get("neuroticism", 2)
-        
+        big5 = await self.memory.status.get("big5", {})
+
         # Get household and life stage
         household = await self.memory.status.get("household", "unknown")
         life_stage = await self.memory.status.get("life_stage", "unknown")
-        
+        hobbies = await self.memory.status.get("hobbies", [])
+        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
+
+        # Get preferences
+        preferences = await self.memory.status.get("preferences", {})
+        leisure_preference = preferences.get("leisure_preference", "indoor")
+        risk_tolerance = preferences.get("risk_tolerance", 0.5)
+
         # Stage 1: Select primary POI category
         poi_cate = self.environment.get_poi_cate()
         await self.typeSelectionPrompt.format(
@@ -305,11 +326,14 @@ class PlaceSelectionBlock(Block):
             other_info=self.environment.environment.get("other_information", "None"),
             household=household,
             life_stage=life_stage,
-            openness=openness,
-            conscientiousness=conscientiousness,
-            extraversion=extraversion,
-            agreeableness=agreeableness,
-            neuroticism=neuroticism,
+            hobbies=hobbies_str,
+            openness=big5.get("openness", 2),
+            conscientiousness=big5.get("conscientiousness", 2),
+            extraversion=big5.get("extraversion", 2),
+            agreeableness=big5.get("agreeableness", 2),
+            neuroticism=big5.get("neuroticism", 2),
+            leisure_preference=leisure_preference,
+            risk_tolerance=risk_tolerance,
         )
         try:
             # LLM-based category selection
@@ -340,11 +364,14 @@ class PlaceSelectionBlock(Block):
                 ),
                 household=household,
                 life_stage=life_stage,
-                openness=openness,
-                conscientiousness=conscientiousness,
-                extraversion=extraversion,
-                agreeableness=agreeableness,
-                neuroticism=neuroticism,
+                hobbies=hobbies_str,
+                openness=big5.get("openness", 2),
+                conscientiousness=big5.get("conscientiousness", 2),
+                extraversion=big5.get("extraversion", 2),
+                agreeableness=big5.get("agreeableness", 2),
+                neuroticism=big5.get("neuroticism", 2),
+                leisure_preference=leisure_preference,
+                risk_tolerance=risk_tolerance,
             )
             levelTwoType = await self.llm.atext_request(
                 self.secondTypeSelectionPrompt.to_dialog(),
@@ -362,7 +389,18 @@ class PlaceSelectionBlock(Block):
 
         # Get travel radius from LLM
         try:
-            await self.radiusPrompt.format(context=context, household=household, life_stage=life_stage, openness=openness, conscientiousness=conscientiousness, extraversion=extraversion, agreeableness=agreeableness, neuroticism=neuroticism)
+            await self.radiusPrompt.format(
+                context=context,
+                household=household,
+                life_stage=life_stage,
+                hobbies=hobbies_str,
+                openness=big5.get("openness", 2),
+                conscientiousness=big5.get("conscientiousness", 2),
+                extraversion=big5.get("extraversion", 2),
+                agreeableness=big5.get("agreeableness", 2),
+                neuroticism=big5.get("neuroticism", 2),
+                risk_tolerance=risk_tolerance,
+            )
             radius = await self.llm.atext_request(
                 self.radiusPrompt.to_dialog(),
                 response_format={"type": "json_object"},
@@ -557,16 +595,19 @@ class MoveBlock(Block):
 
     async def forward(self, context: DotDict):
         # Get Big Five personality traits
-        openness = await self.memory.status.get("openness", 2)
-        conscientiousness = await self.memory.status.get("conscientiousness", 2)
-        extraversion = await self.memory.status.get("extraversion", 2)
-        agreeableness = await self.memory.status.get("agreeableness", 2)
-        neuroticism = await self.memory.status.get("neuroticism", 2)
-        
+        big5 = await self.memory.status.get("big5", {})
+
         # Get household and life stage
         household = await self.memory.status.get("household", "unknown")
         life_stage = await self.memory.status.get("life_stage", "unknown")
-        
+        hobbies = await self.memory.status.get("hobbies", [])
+        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
+
+        # Get preferences
+        preferences = await self.memory.status.get("preferences", {})
+        leisure_preference = preferences.get("leisure_preference", "indoor")
+        risk_tolerance = preferences.get("risk_tolerance", 0.5)
+
         place_knowledge = await self.memory.status.get("location_knowledge")
         known_places = list(place_knowledge.keys())
         places = ["home", "workplace"] + known_places + ["other"]
@@ -579,11 +620,14 @@ class MoveBlock(Block):
             other_info=self.environment.environment.get("other_information", "None"),
             household=household,
             life_stage=life_stage,
-            openness=openness,
-            conscientiousness=conscientiousness,
-            extraversion=extraversion,
-            agreeableness=agreeableness,
-            neuroticism=neuroticism,
+            hobbies=hobbies_str,
+            openness=big5.get("openness", 2),
+            conscientiousness=big5.get("conscientiousness", 2),
+            extraversion=big5.get("extraversion", 2),
+            agreeableness=big5.get("agreeableness", 2),
+            neuroticism=big5.get("neuroticism", 2),
+            leisure_preference=leisure_preference,
+            risk_tolerance=risk_tolerance,
         )
 
         response = await self.llm.atext_request(
@@ -779,17 +823,19 @@ class TransportModeSelectionBlock(Block):
         persona = f"Name: {name}, Age: {age}, Gender: {gender}, Occupation: {occupation}, Personality: {personality}"
         # ------------------------
         emotion = await self.memory.status.get("emotion")
-        
+
         # Get Big Five personality traits
-        openness = await self.memory.status.get("openness", 2)
-        conscientiousness = await self.memory.status.get("conscientiousness", 2)
-        extraversion = await self.memory.status.get("extraversion", 2)
-        agreeableness = await self.memory.status.get("agreeableness", 2)
-        neuroticism = await self.memory.status.get("neuroticism", 2)
-        
+        big5 = await self.memory.status.get("big5", {})
+
         # Get household and life stage
         household = await self.memory.status.get("household", "unknown")
         life_stage = await self.memory.status.get("life_stage", "unknown")
+        hobbies = await self.memory.status.get("hobbies", [])
+        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
+
+        # Get preferences
+        preferences = await self.memory.status.get("preferences", {})
+        risk_tolerance = preferences.get("risk_tolerance", 0.5)
 
         available_modes_list = self.transportation_modes
 
@@ -805,11 +851,13 @@ class TransportModeSelectionBlock(Block):
             available_modes=", ".join(available_modes_list),
             household=household,
             life_stage=life_stage,
-            openness=openness,
-            conscientiousness=conscientiousness,
-            extraversion=extraversion,
-            agreeableness=agreeableness,
-            neuroticism=neuroticism,
+            hobbies=hobbies_str,
+            openness=big5.get("openness", 2),
+            conscientiousness=big5.get("conscientiousness", 2),
+            extraversion=big5.get("extraversion", 2), 
+            agreeableness=big5.get("agreeableness", 2),
+            neuroticism=big5.get("neuroticism", 2),
+            risk_tolerance=risk_tolerance,
         )
 
         try:

@@ -12,6 +12,7 @@ Current emotion: {emotion_types}
 
 Household type: {household}
 Life stage: {life_stage}
+Hobbies: {hobbies}
 
 Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Openness: {openness}
@@ -19,6 +20,11 @@ Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Extraversion: {extraversion}
 - Agreeableness: {agreeableness}
 - Neuroticism: {neuroticism}
+
+Behavioral Preferences:
+- Chronotype: {chronotype} (early_bird: wakes ~6am, standard: wakes ~7-8am, night_owl: wakes ~10am)
+- Work Ethic: {work_ethic} (0.0=Low priority on work, 1.0=High priority, tends to work overtime)
+- Leisure Preference: {leisure_preference} (outdoor/indoor/social/solitary)
 
 Examples:
 - "Learn programming": {{"time": 120}}
