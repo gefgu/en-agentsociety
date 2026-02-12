@@ -482,6 +482,37 @@ def memory_config_societyagent(
             description="agent's personality",
             whether_embedding=True,
         ),
+        # Psychographic Traits
+        "openness": MemoryAttribute(
+            name="openness",
+            type=int,
+            default_or_value=2,
+            description="Big Five: Openness to experience, 1-3",
+        ),
+        "conscientiousness": MemoryAttribute(
+            name="conscientiousness",
+            type=int,
+            default_or_value=2,
+            description="Big Five: Conscientiousness, 1-3",
+        ),
+        "extraversion": MemoryAttribute(
+            name="extraversion",
+            type=int,
+            default_or_value=2,
+            description="Big Five: Extraversion, 1-3",
+        ),
+        "agreeableness": MemoryAttribute(
+            name="agreeableness",
+            type=int,
+            default_or_value=2,
+            description="Big Five: Agreeableness, 1-3",
+        ),
+        "neuroticism": MemoryAttribute(
+            name="neuroticism",
+            type=int,
+            default_or_value=2,
+            description="Big Five: Neuroticism, 1-3",
+        ),
         "income": MemoryAttribute(
             name="income",
             type=float,
@@ -603,9 +634,7 @@ def memory_config_firm(
             name="location",
             type=dict,
             default_or_value={
-                "aoi_position": {
-                    "aoi_id": sample_field_value(distributions, "aoi_id")
-                }
+                "aoi_position": {"aoi_id": sample_field_value(distributions, "aoi_id")}
             },
             description="firm location",
             whether_embedding=False,
@@ -725,7 +754,9 @@ def memory_config_firm(
         "bracket_cutoffs": MemoryAttribute(
             name="bracket_cutoffs",
             type=list,
-            default_or_value=list(np.array([0, 9875, 40125, 85525, 163300, 207350, 518400]) / 12),
+            default_or_value=list(
+                np.array([0, 9875, 40125, 85525, 163300, 207350, 518400]) / 12
+            ),
             description="bracket cutoffs",
             whether_embedding=False,
         ),
@@ -792,7 +823,9 @@ def memory_config_government(
         "bracket_cutoffs": MemoryAttribute(
             name="bracket_cutoffs",
             type=list,
-            default_or_value=list(np.array([0, 9875, 40125, 85525, 163300, 207350, 518400]) / 12),
+            default_or_value=list(
+                np.array([0, 9875, 40125, 85525, 163300, 207350, 518400]) / 12
+            ),
             description="bracket cutoffs",
             whether_embedding=False,
         ),
@@ -971,7 +1004,9 @@ def memory_config_bank(
         "bracket_cutoffs": MemoryAttribute(
             name="bracket_cutoffs",
             type=list,
-            default_or_value=list(np.array([0, 9875, 40125, 85525, 163300, 207350, 518400]) / 12),
+            default_or_value=list(
+                np.array([0, 9875, 40125, 85525, 163300, 207350, 518400]) / 12
+            ),
             description="bracket cutoffs",
             whether_embedding=False,
         ),
@@ -1234,7 +1269,9 @@ def memory_config_nbs(
         "bracket_cutoffs": MemoryAttribute(
             name="bracket_cutoffs",
             type=list,
-            default_or_value=list(np.array([0, 9875, 40125, 85525, 163300, 207350, 518400]) / 12),
+            default_or_value=list(
+                np.array([0, 9875, 40125, 85525, 163300, 207350, 518400]) / 12
+            ),
             description="bracket cutoffs",
             whether_embedding=False,
         ),

@@ -20,6 +20,12 @@ Profile Information:
 - Occupation: ${profile.occupation}
 - Age: ${profile.age}
 - Monthly Income: ${profile.income}
+- Big Five Personality Traits (1=Low, 2=Medium, 3=High):
+  - Openness: {openness}
+  - Conscientiousness: {conscientiousness}
+  - Extraversion: {extraversion}
+  - Agreeableness: {agreeableness}
+  - Neuroticism: {neuroticism}
 
 Current Time: ${context.current_time}
 
@@ -57,6 +63,13 @@ Current satisfaction:
 - safety_satisfaction: {safety_satisfaction}
 - social_satisfaction: {social_satisfaction}
 
+Big Five Personality Traits (1=Low, 2=Medium, 3=High):
+- Openness: {openness}
+- Conscientiousness: {conscientiousness}
+- Extraversion: {extraversion}
+- Agreeableness: {agreeableness}
+- Neuroticism: {neuroticism}
+
 Please evaluate and adjust the value of {current_need} satisfaction based on the execution results above.
 
 Notes:
@@ -91,6 +104,13 @@ And the agent's current needs are:
 - energy_satisfaction: {energy_satisfaction}
 - safety_satisfaction: {safety_satisfaction}
 - social_satisfaction: {social_satisfaction}
+
+Big Five Personality Traits (1=Low, 2=Medium, 3=High):
+- Openness: {openness}
+- Conscientiousness: {conscientiousness}
+- Extraversion: {extraversion}
+- Agreeableness: {agreeableness}
+- Neuroticism: {neuroticism}
 
 The agent's current action is:
 --------------------------------
@@ -206,7 +226,21 @@ class NeedsBlock(Block):
                 self.need_work = False
 
         if not self.initialized:
-            await self.initial_prompt.format(context=self.context)
+            # Get Big Five personality traits
+            openness = await self.memory.status.get("openness", 2)
+            conscientiousness = await self.memory.status.get("conscientiousness", 2)
+            extraversion = await self.memory.status.get("extraversion", 2)
+            agreeableness = await self.memory.status.get("agreeableness", 2)
+            neuroticism = await self.memory.status.get("neuroticism", 2)
+            
+            await self.initial_prompt.format(
+                context=self.context,
+                openness=openness,
+                conscientiousness=conscientiousness,
+                extraversion=extraversion,
+                agreeableness=agreeableness,
+                neuroticism=neuroticism,
+            )
             response = await self.llm.atext_request(
                 self.initial_prompt.to_dialog(),
                 response_format={"type": "json_object"},
@@ -262,6 +296,14 @@ class NeedsBlock(Block):
             if current_action["intention"] != ""
             else "None"
         )
+        
+        # Get Big Five personality traits
+        openness = await self.memory.status.get("openness", 2)
+        conscientiousness = await self.memory.status.get("conscientiousness", 2)
+        extraversion = await self.memory.status.get("extraversion", 2)
+        agreeableness = await self.memory.status.get("agreeableness", 2)
+        neuroticism = await self.memory.status.get("neuroticism", 2)
+        
         await self.reflection_prompt.format(
             intervention_message=intervention,
             current_action=action_message,
@@ -269,6 +311,11 @@ class NeedsBlock(Block):
             energy_satisfaction=await self.memory.status.get("energy_satisfaction"),
             safety_satisfaction=await self.memory.status.get("safety_satisfaction"),
             social_satisfaction=await self.memory.status.get("social_satisfaction"),
+            openness=openness,
+            conscientiousness=conscientiousness,
+            extraversion=extraversion,
+            agreeableness=agreeableness,
+            neuroticism=neuroticism,
         )
         response = await self.llm.atext_request(
             self.reflection_prompt.to_dialog(),
@@ -539,6 +586,13 @@ class NeedsBlock(Block):
         current_energy = await self.memory.status.get("energy_satisfaction")
         current_safety = await self.memory.status.get("safety_satisfaction")
         current_social = await self.memory.status.get("social_satisfaction")
+        
+        # Get Big Five personality traits
+        openness = await self.memory.status.get("openness", 2)
+        conscientiousness = await self.memory.status.get("conscientiousness", 2)
+        extraversion = await self.memory.status.get("extraversion", 2)
+        agreeableness = await self.memory.status.get("agreeableness", 2)
+        neuroticism = await self.memory.status.get("neuroticism", 2)
 
         await self.evaluation_prompt.format(
             current_need=current_need,
@@ -548,6 +602,11 @@ class NeedsBlock(Block):
             energy_satisfaction=current_energy,
             safety_satisfaction=current_safety,
             social_satisfaction=current_social,
+            openness=openness,
+            conscientiousness=conscientiousness,
+            extraversion=extraversion,
+            agreeableness=agreeableness,
+            neuroticism=neuroticism,
         )
 
         if catboost_tool:

@@ -494,8 +494,11 @@ class MonthEconomyPlanBlock(Block):
                 tax_prompt = f"{tax_prompt} Specifically, the government directly provides ${self.ubi} per capita in each month."
             price_prompt = f"""Meanwhile, in the consumption market, the average price of essential goods is now at ${price:.2f}."""
             job_prompt = prettify_document(job_prompt)
+
+            personality_prompt = f"""Your personality traits are as follows: openness {await self.memory.status.get("openness")}, conscientiousness {await self.memory.status.get("conscientiousness")}, extraversion {await self.memory.status.get("extraversion")}, agreeableness {await self.memory.status.get("agreeableness")}, and neuroticism {await self.memory.status.get("neuroticism")}."""
+
             obs_prompt = f"""
-                            {problem_prompt} {job_prompt} {consumption_prompt} {tax_prompt} {price_prompt}
+                            {problem_prompt} {job_prompt} {consumption_prompt} {tax_prompt} {price_prompt} {personality_prompt}
                             Your current savings account balance is ${wealth:.2f}. Interest rates, as set by your bank, stand at {interest_rate*100:.2f}%. 
                             Your goal is to maximize your utility by deciding how much to work and how much to consume. Your utility is determined by your consumption, income, saving, social service recieved and leisure time. You will spend the time you do not work on leisure activities. 
                             With all these factors in play, and considering aspects like your living costs, any future aspirations, and the broader economic trends, how is your willingness to work this month? Furthermore, how would you plan your expenditures on essential goods, keeping in mind good price?
@@ -570,7 +573,7 @@ class MonthEconomyPlanBlock(Block):
 
             if self.forward_times % 3 == 0:
                 obs_prompt = f"""
-                                {problem_prompt} {job_prompt} {consumption_prompt} {tax_prompt} {price_prompt}
+                                {problem_prompt} {job_prompt} {consumption_prompt} {tax_prompt} {price_prompt} {personality_prompt}
                                 Your current savings account balance is ${wealth:.2f}. Interest rates, as set by your bank, stand at {interest_rate*100:.2f}%. 
                                 Please fill in the following questionnaire:
                                 Indicate how often you have felt this way during the last week by choosing one of the following options:

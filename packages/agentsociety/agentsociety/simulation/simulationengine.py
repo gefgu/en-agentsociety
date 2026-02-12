@@ -1008,6 +1008,11 @@ class SimulationEngine:
                         "occupation",
                         "marriage_status",
                         "persona",
+                        "openness",
+                        "conscientiousness",
+                        "extraversion",
+                        "agreeableness",
+                        "neuroticism",
                         "background_story",
                     ]
                 )

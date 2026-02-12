@@ -72,6 +72,13 @@ class MessagePromptManager:
                 f"Limit your discussion to the following topics: {topics}."
             )
 
+        # Get Big Five personality traits
+        openness = await memory.status.get("openness", 2)
+        conscientiousness = await memory.status.get("conscientiousness", 2)
+        extraversion = await memory.status.get("extraversion", 2)
+        agreeableness = await memory.status.get("agreeableness", 2)
+        neuroticism = await memory.status.get("neuroticism", 2)
+        
         # Format prompt
         format_prompt = FormatPrompt(template)
         await format_prompt.format(
@@ -93,6 +100,11 @@ class MessagePromptManager:
             intention=step.get("intention", ""),
             discussion_constraint=discussion_constraint,
             environment_info=environment_info,
+            openness=openness,
+            conscientiousness=conscientiousness,
+            extraversion=extraversion,
+            agreeableness=agreeableness,
+            neuroticism=neuroticism,
         )
 
         return format_prompt.to_dialog()
@@ -121,10 +133,23 @@ class SocialNoneBlock(Block):
             A result dictionary indicating success/failure, time consumed, and execution details.
         """
         intention = str(context["current_step"].get("intention", "socialize"))
+        
+        # Get Big Five personality traits
+        openness = await self.memory.status.get("openness", 2)
+        conscientiousness = await self.memory.status.get("conscientiousness", 2)
+        extraversion = await self.memory.status.get("extraversion", 2)
+        agreeableness = await self.memory.status.get("agreeableness", 2)
+        neuroticism = await self.memory.status.get("neuroticism", 2)
+        
         await self.guidance_prompt.format(
             plan=context["plan_context"]["plan"],
             intention=intention,
             emotion_types=await self.memory.status.get("emotion_types"),
+            openness=openness,
+            conscientiousness=conscientiousness,
+            extraversion=extraversion,
+            agreeableness=agreeableness,
+            neuroticism=neuroticism,
         )
         result = await self.llm.atext_request(
             self.guidance_prompt.to_dialog(),
@@ -193,7 +218,14 @@ Based on the following information, help me select the most suitable target to i
 
 4. Your Current Thought: {thought}
 
-5. Your social network (shown as id-to-relationship pairs):
+5. Big Five Personality Traits (1=Low, 2=Medium, 3=High):
+    - Openness: {openness}
+    - Conscientiousness: {conscientiousness}
+    - Extraversion: {extraversion}
+    - Agreeableness: {agreeableness}
+    - Neuroticism: {neuroticism}
+
+6. Your social network (shown as id-to-relationship pairs):
     {friend_info}
     Note: For each target, the relationship strength (0-1) indicates how close we are
 
@@ -241,6 +273,13 @@ Please output in JSON format, a dictionary:
                 - target_id: {relation.target_id}, relationship_type: {relation.kind}, relationship_strength: {relation.strength}
                 """
 
+            # Get Big Five personality traits
+            openness = await self.memory.status.get("openness", 2)
+            conscientiousness = await self.memory.status.get("conscientiousness", 2)
+            extraversion = await self.memory.status.get("extraversion", 2)
+            agreeableness = await self.memory.status.get("agreeableness", 2)
+            neuroticism = await self.memory.status.get("neuroticism", 2)
+            
             # Format the prompt
             formatted_prompt = FormatPrompt(self.prompt)
             await formatted_prompt.format(
@@ -253,6 +292,11 @@ Please output in JSON format, a dictionary:
                 emotion_types=str(await self.memory.status.get("emotion_types")),
                 thought=str(await self.memory.status.get("thought")),
                 friend_info=relationship_info,
+                openness=openness,
+                conscientiousness=conscientiousness,
+                extraversion=extraversion,
+                agreeableness=agreeableness,
+                neuroticism=neuroticism,
             )
 
             # Get LLM response
@@ -337,6 +381,13 @@ My personality is {personality}.
 My current emotion is: {emotion_types}.
 My current thought is: {thought}.
 My background story is: {background_story}.
+
+Big Five Personality Traits (1=Low, 2=Medium, 3=High):
+- Openness: {openness}
+- Conscientiousness: {conscientiousness}
+- Extraversion: {extraversion}
+- Agreeableness: {agreeableness}
+- Neuroticism: {neuroticism}
 
 Now, I want to generate a social message to a target, my relationship with him/her:
 Our relationship type is: {relationship_type}

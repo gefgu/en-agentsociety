@@ -29,6 +29,13 @@ Current action: ${context.current_step["intention"]}
 
 Current emotion: ${status.emotion_types}
 
+Big Five Personality Traits (1=Low, 2=Medium, 3=High):
+- Openness: {openness}
+- Conscientiousness: {conscientiousness}
+- Extraversion: {extraversion}
+- Agreeableness: {agreeableness}
+- Neuroticism: {neuroticism}
+
 Examples:
 - "Learn programming": {{"time": 120}}
 - "Watch a movie": {{"time": 150}} 
@@ -79,7 +86,21 @@ class SleepBlock(Block):
         Returns:
             Dictionary with execution status, evaluation, time consumed, and node ID.
         """
-        await self.guidance_prompt.format(context=context)
+        # Get Big Five personality traits
+        openness = await self.memory.status.get("openness", 2)
+        conscientiousness = await self.memory.status.get("conscientiousness", 2)
+        extraversion = await self.memory.status.get("extraversion", 2)
+        agreeableness = await self.memory.status.get("agreeableness", 2)
+        neuroticism = await self.memory.status.get("neuroticism", 2)
+        
+        await self.guidance_prompt.format(
+            context=context,
+            openness=openness,
+            conscientiousness=conscientiousness,
+            extraversion=extraversion,
+            agreeableness=agreeableness,
+            neuroticism=neuroticism,
+        )
         result = await self.llm.atext_request(
             self.guidance_prompt.to_dialog(),
             response_format={"type": "json_object"},
@@ -131,10 +152,22 @@ class OtherNoneBlock(Block):
         self.guidance_prompt = FormatPrompt(template=TIME_ESTIMATE_PROMPT)
 
     async def forward(self, context: DotDict):
+
+        openness = await self.memory.status.get("openness", 2)
+        conscientiousness = await self.memory.status.get("conscientiousness", 2)
+        extraversion = await self.memory.status.get("extraversion", 2)
+        agreeableness = await self.memory.status.get("agreeableness", 2)
+        neuroticism = await self.memory.status.get("neuroticism", 2)
+
         await self.guidance_prompt.format(
             plan=context["plan_context"]["plan"],
             intention=context["current_step"]["intention"],
             emotion_types=await self.memory.status.get("emotion_types"),
+            openness=openness,
+            conscientiousness=conscientiousness,
+            extraversion=extraversion,
+            agreeableness=agreeableness,
+            neuroticism=neuroticism,
         )
         result = await self.llm.atext_request(
             self.guidance_prompt.to_dialog(),

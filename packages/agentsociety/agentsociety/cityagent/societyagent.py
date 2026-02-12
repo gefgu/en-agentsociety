@@ -28,6 +28,13 @@ Your occupation: {occupation}
 Your age: {age}
 Your current emotion: {emotion_types}
 
+Big Five Personality Traits (1=Low, 2=Medium, 3=High):
+- Openness: {openness}
+- Conscientiousness: {conscientiousness}
+- Extraversion: {extraversion}
+- Agreeableness: {agreeableness}
+- Neuroticism: {neuroticism}
+
 In your current location, you can sense the following information:
 {area_information}
 
@@ -251,6 +258,13 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         education = await self.memory.status.get("education")
         personality = await self.memory.status.get("personality")
         background_story = await self.memory.status.get("background_story")
+        
+        # Get Big Five personality traits
+        openness = await self.memory.status.get("openness", 2)
+        conscientiousness = await self.memory.status.get("conscientiousness", 2)
+        extraversion = await self.memory.status.get("extraversion", 2)
+        agreeableness = await self.memory.status.get("agreeableness", 2)
+        neuroticism = await self.memory.status.get("neuroticism", 2)
 
         # Current Status
         current_need = self.context.current_need
@@ -272,6 +286,12 @@ Based on the following information, provide a concise 1-2 sentence description o
 - Education: {education}
 - Personality: {personality}
 - Background: {background_story}
+- Big Five Personality Traits (1=Low, 2=Medium, 3=High):
+  - Openness: {openness}
+  - Conscientiousness: {conscientiousness}
+  - Extraversion: {extraversion}
+  - Agreeableness: {agreeableness}
+  - Neuroticism: {neuroticism}
 
 **Current Environment:**
 - Time: {current_time}
@@ -392,7 +412,20 @@ Example:
         """Reflect to the environment"""
         aoi_info = await self.get_aoi_info()
         if aoi_info:
-            await self.environment_reflection_prompt.format()
+            # Get Big Five personality traits
+            openness = await self.memory.status.get("openness", 2)
+            conscientiousness = await self.memory.status.get("conscientiousness", 2)
+            extraversion = await self.memory.status.get("extraversion", 2)
+            agreeableness = await self.memory.status.get("agreeableness", 2)
+            neuroticism = await self.memory.status.get("neuroticism", 2)
+            
+            await self.environment_reflection_prompt.format(
+                openness=openness,
+                conscientiousness=conscientiousness,
+                extraversion=extraversion,
+                agreeableness=agreeableness,
+                neuroticism=neuroticism,
+            )
             reflection = await self.llm.atext_request(
                 self.environment_reflection_prompt.to_dialog(),
                 context={
@@ -408,6 +441,10 @@ Example:
         """Main agent loop coordinating status updates, plan execution, and cognition."""
         start_time = time.time()
         self.step_count += 1
+
+        if self.step_count == 0:
+            # initalize big5 
+            await self.cognition_block.initialize_big5()
 
         # reflect to environment
         await self.reflect_to_environment()

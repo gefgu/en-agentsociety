@@ -1,4 +1,5 @@
 from typing import Any, Optional
+from .utils import clean_json_response
 import json_repair
 from pydantic import Field
 from ...logger import get_logger
@@ -6,6 +7,45 @@ from ...memory import Memory
 from ...agent import AgentToolbox, Block, FormatPrompt, BlockParams
 
 __all__ = ["CognitionBlock"]
+
+
+INITIAL_BIG5_PROMPT = """You are an intelligent agent psychographic initialization system. Based on the profile information below, please help initialize the agent's Big Five personality traits.
+
+Profile Information:
+- Gender: ${profile.gender}
+- Education Level: ${profile.education} 
+- Consumption Level: ${profile.consumption}
+- Occupation: ${profile.occupation}
+- Age: ${profile.age}
+- Monthly Income: ${profile.income}
+- Background Story: ${profile.background_story}
+
+Please initialize the agent's Big Five personality traits based on the profile above. Consider generally accepted associations between the provided demographic/socioeconomic factors and personality (e.g., occupation requirements, age maturity principles).
+
+Return the values in JSON format with the following structure:
+
+Psychographic Traits (Integer values 1-3, where 1=Low, 2=Medium, 3=High):
+- openness: Openness to experience (creativity, curiosity, preference for novelty)
+- conscientiousness: Conscientiousness (discipline, organization, dependability)
+- extraversion: Extraversion (sociability, energy, assertiveness)
+- agreeableness: Agreeableness (compassion, cooperativeness, trust)
+- neuroticism: Neuroticism (emotional instability, anxiety, moodiness)
+
+Please response in json format, example:
+{{
+    "psychographic_traits": {{
+        "openness": 2,
+        "conscientiousness": 3,
+        "extraversion": 2,
+        "agreeableness": 2,
+        "neuroticism": 1
+    }}
+}}
+DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
+DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
+DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
+"""
+
 
 
 def extract_json(output_str):
@@ -80,6 +120,7 @@ class CognitionBlock(Block):
         )
         self.last_check_day = None
         self.agent_id = agent_id
+        self.initialized_big5 = False
 
     async def set_status(self, status):
         """Update multiple status fields in memory.
@@ -122,6 +163,11 @@ class CognitionBlock(Block):
             "skill": await self.memory.status.get("skill"),
             "thought": await self.memory.status.get("thought"),
             "emotion_types": await self.memory.status.get("emotion_types"),
+            "openness": await self.memory.status.get("openness"),
+            "conscientiousness": await self.memory.status.get("conscientiousness"),
+            "extraversion": await self.memory.status.get("extraversion"),
+            "agreeableness": await self.memory.status.get("agreeableness"),
+            "neuroticism": await self.memory.status.get("neuroticism"),
         }
         for topic in attitude:
             description_prompt = """
@@ -132,6 +178,8 @@ class CognitionBlock(Block):
             Your income is {income}, and you are skilled in {skill}.
             My current emotion intensities are (0 meaning not at all, 10 meaning very much):
             sadness: {sadness}, joy: {joy}, fear: {fear}, disgust: {disgust}, anger: {anger}, surprise: {surprise}.
+            Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
+            openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
             You have the following thoughts: {thought}.
             In the following 21 words, I have chosen {emotion_types} to represent your current status:
             Joy, Distress, Resentment, Pity, Hope, Fear, Satisfaction, Relief, Disappointment, Pride, Admiration, Shame, Reproach, Liking, Disliking, Gratitude, Anger, Gratification, Remorse, Love, Hate.
@@ -219,6 +267,8 @@ class CognitionBlock(Block):
         Your income is {income}, and you are skilled in {skill}.
         My current emotion intensities are (0 meaning not at all, 10 meaning very much):
         sadness: {sadness}, joy: {joy}, fear: {fear}, disgust: {disgust}, anger: {anger}, surprise: {surprise}.
+        Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
+        openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
         You have the following thoughts: {thought}.
         In the following 21 words, I have chosen {emotion_types} to represent your current status:
         Joy, Distress, Resentment, Pity, Hope, Fear, Satisfaction, Relief, Disappointment, Pride, Admiration, Shame, Reproach, Liking, Disliking, Gratitude, Anger, Gratification, Remorse, Love, Hate.
@@ -266,6 +316,11 @@ class CognitionBlock(Block):
             emotion=await self.memory.status.get("emotion"),
             thought=await self.memory.status.get("thought"),
             emotion_types=await self.memory.status.get("emotion_types"),
+            openness=await self.memory.status.get("openness"),
+            conscientiousness=await self.memory.status.get("conscientiousness"),
+            extraversion=await self.memory.status.get("extraversion"),
+            agreeableness=await self.memory.status.get("agreeableness"),
+            neuroticism=await self.memory.status.get("neuroticism"),
         )
 
         evaluation = True
@@ -353,6 +408,8 @@ class CognitionBlock(Block):
         Your income is {income}, and you are skilled in {skill}.
         My current emotion intensities are (0 meaning not at all, 10 meaning very much):
         sadness: {sadness}, joy: {joy}, fear: {fear}, disgust: {disgust}, anger: {anger}, surprise: {surprise}.
+        Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
+        openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
         You have the following thoughts: {thought}.
         In the following 21 words, choose one word to represent your current status:
         [Joy, Distress, Resentment, Pity, Hope, Fear, Satisfaction, Relief, Disappointment, Pride, Admiration, Shame, Reproach, Liking, Disliking, Gratitude, Anger, Gratification, Remorse, Love, Hate].
@@ -395,6 +452,11 @@ class CognitionBlock(Block):
             emotion=await self.memory.status.get("emotion"),
             thought=await self.memory.status.get("thought"),
             emotion_types=await self.memory.status.get("emotion_types"),
+            openness=await self.memory.status.get("openness"),
+            conscientiousness=await self.memory.status.get("conscientiousness"),
+            extraversion=await self.memory.status.get("extraversion"),
+            agreeableness=await self.memory.status.get("agreeableness"),
+            neuroticism=await self.memory.status.get("neuroticism"),
         )
 
         evaluation = True
@@ -436,3 +498,63 @@ class CognitionBlock(Block):
         )
         await self.memory.status.update("emotion_types", str(response["word"]))
         return response["conclusion"]
+
+    async def initialize_big5(self):
+        """Initialize the agent's Big Five personality traits based on profile information.
+
+        Workflow:
+        1. Retrieve agent's profile details from memory.
+        2. Construct a prompt using the INITIAL_BIG5_PROMPT template.
+        3. Query LLM to generate Big Five trait scores (1-3 scale).
+        4. Retry up to 10 times on LLM failures.
+        5. Update memory with initialized personality traits.
+
+        Raises:
+            Exception: If all LLM retries fail.
+        """
+        if self.initialized_big5:
+            return
+
+        profile = {
+            "gender": await self.memory.status.get("gender"),
+            "education": await self.memory.status.get("education"),
+            "consumption": await self.memory.status.get("consumption"),
+            "occupation": await self.memory.status.get("occupation"),
+            "age": await self.memory.status.get("age"),
+            "income": await self.memory.status.get("income"),
+            "background_story": await self.memory.status.get("background_story"),
+        }
+
+        prompt = FormatPrompt(INITIAL_BIG5_PROMPT)
+        await prompt.format(profile=profile)
+
+        response = await self.llm.atext_request(
+            prompt.to_dialog(),
+            response_format={"type": "json_object"},
+            context={
+                "block_name": self.name,
+                "func_name": "initialize_big5",
+                "agent_id": self.agent_id
+            })
+        
+        response = clean_json_response(response)
+        retry = 3
+        while retry > 0:
+            try:
+                response = json_repair.loads(response)
+
+                psychographic_traits = response["psychographic_traits"]
+                await self.memory.status.update("openness", psychographic_traits["openness"])
+                await self.memory.status.update("conscientiousness", psychographic_traits["conscientiousness"])
+                await self.memory.status.update("extraversion", psychographic_traits["extraversion"])
+                await self.memory.status.update("agreeableness", psychographic_traits["agreeableness"])
+                await self.memory.status.update("neuroticism", psychographic_traits["neuroticism"])
+
+                break
+            except Exception:
+                get_logger().warning(f"CognitionBlock.initalize_big5: Failed to parse JSON response, retrying... ({3 - retry + 1}/3)")
+                retry -= 1
+        if retry == 0:
+            get_logger().warning(f"CognitionBlock.initalize_big5: Failed to parse JSON response after 3 attempts. Final response: {response}")
+        else:
+            self.initialize_big5 = True

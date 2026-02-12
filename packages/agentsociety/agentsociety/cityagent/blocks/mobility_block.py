@@ -38,6 +38,8 @@ PLACE_TYPE_SELECTION_PROMPT = """
 As an intelligent decision system, please determine the type of place the user needs to visit based on their input requirement.
 User Plan: {plan}
 User requirement: {intention}
+Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
+openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
 Other information: 
 -------------------------
 {other_info}
@@ -54,6 +56,8 @@ PLACE_SECOND_TYPE_SELECTION_PROMPT = """
 As an intelligent decision system, please determine the type of place the user needs to visit based on their input requirement.
 User Plan: {plan}
 User requirement: {intention}
+Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
+openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
 Other information: 
 -------------------------
 {other_info}
@@ -71,6 +75,8 @@ PLACE_ANALYSIS_PROMPT = """
 As an intelligent analysis system, please determine the type of place the user needs to visit based on their input requirement.
 User Plan: {plan}
 User requirement: {intention}
+Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
+openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
 Other information: 
 -------------------------
 {other_info}
@@ -90,6 +96,8 @@ Current weather: ${context.weather}
 Current temperature: ${context.temperature}
 Your current emotion: ${context.current_emotion}
 Your current thought: ${context.current_thought}
+Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
+openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
 Other information: 
 -------------------------
 ${context.other_information}
@@ -114,6 +122,12 @@ Context:
 - Weather: {weather}
 - Temperature: {temperature}
 - User Persona: {persona}
+- User Big Five Personality Traits: (1=Low, 2=Medium, 3=High)
+  - Openness: {openness}
+  - Conscientiousness: {conscientiousness}
+  - Extraversion: {extraversion}
+  - Agreeableness: {agreeableness}
+  - Neuroticism: {neuroticism}
 - User Current Emotion/Thought: {emotion}
 
 Available Transport Modes:
@@ -261,6 +275,13 @@ class PlaceSelectionBlock(Block):
 
     async def forward(self, context: DotDict):
         """Execute the destination selection workflow"""
+        # Get Big Five personality traits
+        openness = await self.memory.status.get("openness", 2)
+        conscientiousness = await self.memory.status.get("conscientiousness", 2)
+        extraversion = await self.memory.status.get("extraversion", 2)
+        agreeableness = await self.memory.status.get("agreeableness", 2)
+        neuroticism = await self.memory.status.get("neuroticism", 2)
+        
         # Stage 1: Select primary POI category
         poi_cate = self.environment.get_poi_cate()
         await self.typeSelectionPrompt.format(
@@ -268,6 +289,11 @@ class PlaceSelectionBlock(Block):
             intention=context["current_step"]["intention"],
             poi_category=list(poi_cate.keys()),
             other_info=self.environment.environment.get("other_information", "None"),
+            openness=openness,
+            conscientiousness=conscientiousness,
+            extraversion=extraversion,
+            agreeableness=agreeableness,
+            neuroticism=neuroticism,
         )
         try:
             # LLM-based category selection
@@ -296,6 +322,11 @@ class PlaceSelectionBlock(Block):
                 other_info=self.environment.environment.get(
                     "other_information", "None"
                 ),
+                openness=openness,
+                conscientiousness=conscientiousness,
+                extraversion=extraversion,
+                agreeableness=agreeableness,
+                neuroticism=neuroticism,
             )
             levelTwoType = await self.llm.atext_request(
                 self.secondTypeSelectionPrompt.to_dialog(),
@@ -507,6 +538,13 @@ class MoveBlock(Block):
             }
 
     async def forward(self, context: DotDict):
+        # Get Big Five personality traits
+        openness = await self.memory.status.get("openness", 2)
+        conscientiousness = await self.memory.status.get("conscientiousness", 2)
+        extraversion = await self.memory.status.get("extraversion", 2)
+        agreeableness = await self.memory.status.get("agreeableness", 2)
+        neuroticism = await self.memory.status.get("neuroticism", 2)
+        
         place_knowledge = await self.memory.status.get("location_knowledge")
         known_places = list(place_knowledge.keys())
         places = ["home", "workplace"] + known_places + ["other"]
@@ -517,6 +555,11 @@ class MoveBlock(Block):
             intention=context["current_step"]["intention"],
             place_list=places,
             other_info=self.environment.environment.get("other_information", "None"),
+            openness=openness,
+            conscientiousness=conscientiousness,
+            extraversion=extraversion,
+            agreeableness=agreeableness,
+            neuroticism=neuroticism,
         )
 
         response = await self.llm.atext_request(
@@ -712,6 +755,13 @@ class TransportModeSelectionBlock(Block):
         persona = f"Name: {name}, Age: {age}, Gender: {gender}, Occupation: {occupation}, Personality: {personality}"
         # ------------------------
         emotion = await self.memory.status.get("emotion")
+        
+        # Get Big Five personality traits
+        openness = await self.memory.status.get("openness", 2)
+        conscientiousness = await self.memory.status.get("conscientiousness", 2)
+        extraversion = await self.memory.status.get("extraversion", 2)
+        agreeableness = await self.memory.status.get("agreeableness", 2)
+        neuroticism = await self.memory.status.get("neuroticism", 2)
 
         available_modes_list = self.transportation_modes
 
@@ -725,6 +775,11 @@ class TransportModeSelectionBlock(Block):
             persona=persona,
             emotion=emotion,
             available_modes=", ".join(available_modes_list),
+            openness=openness,
+            conscientiousness=conscientiousness,
+            extraversion=extraversion,
+            agreeableness=agreeableness,
+            neuroticism=neuroticism,
         )
 
         try:
