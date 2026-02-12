@@ -34,8 +34,14 @@ class SocialRelation(BaseModel):
     )
     target_id: int = Field(..., description="The id of the target agent")
     kind: RelationType = Field(..., description="The type of the relation")
-    strength: Optional[float] = Field(
-        default=0.0, description="The strength of the relation", ge=0.0, le=1.0
+    affinity: Optional[float] = Field(
+        default=0.0, description="The affinity of the relation", ge=-1.0, le=1.0
+    )
+    trust: Optional[float] = Field(
+        default=0.0, description="The trust of the relation", ge=-1.0, le=1.0
+    )
+    familiarity: Optional[float] = Field(
+        default=0.0, description="The familiarity of the relation", ge=-1.0, le=1.0
     )
 
 

@@ -18,6 +18,7 @@ from ...agent.dispatcher import BlockDispatcher
 from .utils import TIME_ESTIMATE_PROMPT, clean_json_response
 from ..sharing_params import SocietyAgentBlockOutput
 from pydantic import Field
+import numpy as np
 
 
 class MessagePromptManager:
@@ -167,7 +168,11 @@ class SocialNoneBlock(Block):
             household=household,
             life_stage=life_stage,
             hobbies=hobbies_str,
-            big5=big5,
+            openness=big5.get("openness", 2),
+            conscientiousness=big5.get("conscientiousness", 2),
+            extraversion=big5.get("extraversion", 2),
+            agreeableness=big5.get("agreeableness", 2),
+            neuroticism=big5.get("neuroticism", 2),
             chronotype=chronotype,
             work_ethic=work_ethic,
             leisure_preference=leisure_preference,
@@ -223,50 +228,6 @@ class FindPersonBlock(Block):
             agent_memory=agent_memory,
         )
 
-        self.prompt = """
-Based on the following information, help me select the most suitable target to interact with:
-
-1. Your Profile:
-    - Gender: {gender}
-    - Education: {education}
-    - Personality: {personality}
-    - Occupation: {occupation}
-    - Background story: {background_story}
-    - Household type: {household}
-    - Life stage: {life_stage}
-    - Hobbies: {hobbies}
-
-2. Your Current Intention: {intention}
-
-3. Your Current Emotion: {emotion_types}
-
-4. Your Current Thought: {thought}
-
-5. Big Five Personality Traits (1=Low, 2=Medium, 3=High):
-    - Openness: {openness}
-    - Conscientiousness: {conscientiousness}
-    - Extraversion: {extraversion}
-    - Agreeableness: {agreeableness}
-    - Neuroticism: {neuroticism}
-
-6. Behavioral Preferences:
-    - Social Frequency: {social_frequency} (0.0=Rarely seeks social contact, 1.0=Frequently seeks interaction)
-
-7. Your social network (shown as id-to-relationship pairs):
-    {friend_info}
-    Note: For each target, the relationship strength (0-1) indicates how close we are
-
-Please analyze and select:
-1. The most appropriate target based on relationship strength and my current intention
-2. Whether we should meet online or offline (online: chat, offline: meet in person)
-
-Please output in JSON format, a dictionary:
-{{
-    "mode": "online" or "offline",
-    "target_id": int
-}}
-        """
-
     async def forward(self, context: DotDict):
         """Identifies a target agent and interaction mode (online/offline).
 
@@ -291,92 +252,32 @@ Please output in JSON format, a dictionary:
                     "node_id": node_id,
                 }
 
-            # Different relationship types
-            relationship_info = """
-            My social network:
-            """
+            person_weights = []
             for relation in my_social_network:
-                relationship_info += f"""
-                - target_id: {relation.target_id}, relationship_type: {relation.kind}, relationship_strength: {relation.strength}
-                """
+                weight = (relation.affinity + relation.trust + relation.familiarity) / 3
+                person_weights.append((relation.target_id, relation.kind, weight))
+            
+            total_weight = sum(weight for _, _, weight in person_weights)
+            if total_weight == 0:
+                # If all weights are zero, assign equal probability
+                person_weights = [(target_id, kind, 1 / len(person_weights)) for target_id, kind, weight in person_weights]
+            else:
+                person_weights = [(target_id, kind, weight / total_weight) for target_id, kind, weight in person_weights]
 
-            # Get Big Five personality traits
-            big5 = await self.memory.status.get("big5", {})
-
-            # Get household and life stage
-            household = await self.memory.status.get("household", "unknown")
-            life_stage = await self.memory.status.get("life_stage", "unknown")
-            hobbies = await self.memory.status.get("hobbies", [])
-            hobbies_str = (
-                ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
-            )
-
-            # Get preferences
-            preferences = await self.memory.status.get("preferences", {})
-            social_frequency = preferences.get("social_frequency", 0.5)
-
-            # Format the prompt
-            formatted_prompt = FormatPrompt(self.prompt)
-            await formatted_prompt.format(
-                gender=str(await self.memory.status.get("gender")),
-                education=str(await self.memory.status.get("education")),
-                personality=str(await self.memory.status.get("personality")),
-                occupation=str(await self.memory.status.get("occupation")),
-                background_story=str(await self.memory.status.get("background_story")),
-                intention=str(context["current_step"].get("intention", "socialize")),
-                emotion_types=str(await self.memory.status.get("emotion_types")),
-                thought=str(await self.memory.status.get("thought")),
-                friend_info=relationship_info,
-                household=household,
-                life_stage=life_stage,
-                hobbies=hobbies_str,
-                big5=big5,
-                social_frequency=social_frequency,
-            )
-
-            # Get LLM response
-            response = await self.llm.atext_request(
-                formatted_prompt.to_dialog(),
-                timeout=300,
-                context={
-                    "block_name": self.name,
-                    "func_name": "forward",
-                    "agent_id": self.agent.id,
-                },
-            )
-
-            try:
-                # Parse the response
-                response = json_repair.loads(response)
-                mode = response["mode"]  # type: ignore
-                target_id = response["target_id"]  # type: ignore
-
-                # Validate the response format
-                if not isinstance(mode, str) or mode not in ["online", "offline"]:
-                    raise ValueError("Invalid mode")
-                if not isinstance(target_id, int):
-                    raise ValueError("Invalid target id")
-
-                # Convert index to ID
-                target = target_id
-                if context is not None:
-                    context["target"] = target
-            except Exception:
-                # If parsing fails, select the friend with the strongest relationship as the default option
-                get_logger().warning(f"Error parsing find person response: {response}")
-                target = my_social_network[0].target_id
-                mode = "online"
+            target_person = np.random.choice(person_weights, p=[weight for _, _, weight in person_weights])
+            target_id, relationship_type, _ = target_person
+            mode = "online"
 
             node_id = await self.memory.stream.add(
                 topic="social",
-                description=f"I selected the friend {target} for {mode} interaction",
+                description=f"I selected the friend {target_id} for {mode} interaction",
             )
             return {
                 "success": True,
-                "evaluation": f"Selected friend {target} for {mode} interaction",
+                "evaluation": f"Selected friend {target_id} for {mode} interaction",
                 "consumed_time": 15,
                 "mode": mode,
-                "target": target,
+                "target": target_id,
                 "node_id": node_id,
             }
 

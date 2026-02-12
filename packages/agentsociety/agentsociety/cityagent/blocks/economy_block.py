@@ -122,17 +122,17 @@ class WorkBlock(Block):
         """
         # Get Big Five personality traits
         big5 = await self.memory.status.get("big5", {})
-        
+
         # Get household and life stage
         household = await self.memory.status.get("household", "unknown")
         life_stage = await self.memory.status.get("life_stage", "unknown")
         hobbies = await self.memory.status.get("hobbies", [])
         hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
-        
+
         # Get preferences
         preferences = await self.memory.status.get("preferences", {})
         work_ethic = preferences.get("work_ethic", 0.5)
-        
+
         await self.guidance_prompt.format(
             context=context,
             household=household,
@@ -146,12 +146,13 @@ class WorkBlock(Block):
             neuroticism=big5.get("neuroticism", 2),
         )
         result = await self.llm.atext_request(
-            self.guidance_prompt.to_dialog(), response_format={"type": "json_object"},
+            self.guidance_prompt.to_dialog(),
+            response_format={"type": "json_object"},
             context={
                 "block_name": self.name,
                 "func_name": "forward",
                 "agent_id": self.agent.id,
-            }
+            },
         )
         result = clean_json_response(result)
         try:
@@ -444,6 +445,7 @@ class MonthEconomyPlanBlock(Block):
         economy_client: Interface to economic system
         llm_error: Counter for LLM failures
     """
+
     name = "MonthEconomyPlanBlock"
     description = "Handles monthly economic planning and mental health assessment"
 
@@ -533,7 +535,8 @@ class MonthEconomyPlanBlock(Block):
             price_prompt = f"""Meanwhile, in the consumption market, the average price of essential goods is now at ${price:.2f}."""
             job_prompt = prettify_document(job_prompt)
 
-            personality_prompt = f"""Your personality traits are as follows: openness {await self.memory.status.get("openness")}, conscientiousness {await self.memory.status.get("conscientiousness")}, extraversion {await self.memory.status.get("extraversion")}, agreeableness {await self.memory.status.get("agreeableness")}, and neuroticism {await self.memory.status.get("neuroticism")}. Your household type is {await self.memory.status.get("household", "unknown")} and your life stage is {await self.memory.status.get("life_stage", "unknown")}."""
+            big5 = await self.memory.status.get("big5", {})
+            personality_prompt = f"""Your personality traits are as follows: openness {big5.get("openness", 2)}, conscientiousness {big5.get("conscientiousness", 2)}, extraversion {big5.get("extraversion", 2)}, agreeableness {big5.get("agreeableness", 2)}, and neuroticism {big5.get("neuroticism", 2)}. Your household type is {await self.memory.status.get("household", "unknown")} and your life stage is {await self.memory.status.get("life_stage", "unknown")}."""
 
             obs_prompt = f"""
                             {problem_prompt} {job_prompt} {consumption_prompt} {tax_prompt} {price_prompt} {personality_prompt}
@@ -554,11 +557,15 @@ class MonthEconomyPlanBlock(Block):
                     mode="merge",
                 )
                 dialog_queue = await self.memory.status.get("dialog_queue")
-                content = await self.llm.atext_request(list(dialog_queue), timeout=300, context={
-                    "block_name": self.name,
-                    "func_name": "forward",
-                    "agent_id": agent_id,
-                })
+                content = await self.llm.atext_request(
+                    list(dialog_queue),
+                    timeout=300,
+                    context={
+                        "block_name": self.name,
+                        "func_name": "forward",
+                        "agent_id": agent_id,
+                    },
+                )
                 await self.memory.status.update(
                     "dialog_queue",
                     [{"role": "assistant", "content": content}],
@@ -644,12 +651,13 @@ class MonthEconomyPlanBlock(Block):
                             """
                 obs_prompt = prettify_document(obs_prompt)
                 content = await self.llm.atext_request(
-                    [{"role": "user", "content": obs_prompt}], timeout=300,
+                    [{"role": "user", "content": obs_prompt}],
+                    timeout=300,
                     context={
                         "block_name": self.name,
                         "func_name": "forward",
                         "agent_id": agent_id,
-                    }
+                    },
                 )
                 inverse_score_items = [3, 8, 12, 16]
                 category2score = {"rarely": 0, "some": 1, "occasionally": 2, "most": 3}
@@ -673,12 +681,13 @@ class MonthEconomyPlanBlock(Block):
                             """
                 obs_prompt = prettify_document(obs_prompt)
                 content = await self.llm.atext_request(
-                    [{"role": "user", "content": obs_prompt}], timeout=300,
+                    [{"role": "user", "content": obs_prompt}],
+                    timeout=300,
                     context={
                         "block_name": self.name,
                         "func_name": "forward",
                         "agent_id": agent_id,
-                    }
+                    },
                 )
                 await self.memory.status.update("ubi_opinion", [content], mode="merge")
 

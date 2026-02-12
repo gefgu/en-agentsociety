@@ -172,99 +172,6 @@ Please response in json format (Do not return any other text), example:
 """
 
 
-def gravity_model(pois):
-    """
-    Calculate selection probabilities for POIs using a gravity model.
-
-    The model considers both distance decay (prefer closer locations)
-    and spatial density (avoid overcrowded areas). Distances are grouped
-    into 1km bins up to 10km, with POIs beyond 10km in a 'more' category.
-
-    Args:
-        pois: List of POI tuples containing (poi_data, distance)
-
-    Returns:
-        List of tuples: (name, id, normalized_weight, distance)
-        with selection probabilities based on gravity model
-    """
-    # Handle empty input
-    if not pois:
-        return []
-    # Initialize distance bins
-    pois_Dis = {f"{d}k": [] for d in range(1, 11)}
-    pois_Dis["more"] = []
-
-    # Categorize POIs into distance bins
-    for poi in pois:
-        classified = False
-        for d in range(1, 11):
-            if (d - 1) * 1000 <= poi[1] < d * 1000:
-                pois_Dis[f"{d}k"].append(poi)
-                classified = True
-                break
-        if not classified:
-            pois_Dis["more"].append(poi)
-
-    res = []
-    distanceProb = []
-    # Calculate weights for each POI
-    for poi in pois:
-        classified = False
-        for d in range(1, 11):
-            if (d - 1) * 1000 <= poi[1] < d * 1000:
-                n = len(pois_Dis[f"{d}k"])
-                # Calculate ring area between (d-1)km and d km
-                S = math.pi * ((d * 1000) ** 2 - ((d - 1) * 1000) ** 2)
-                density = n / S  # POIs per square meter
-                distance = max(poi[1], 1)  # Avoid division by zero
-
-                # Inverse square distance decay combined with density
-                weight = density / (distance**2)
-                res.append((poi[0]["name"], poi[0]["id"], weight, distance))
-                distanceProb.append(1 / math.sqrt(distance))
-                classified = True
-                break
-        # Handle POIs beyond 10km that weren't classified
-        if not classified:
-            n = len(pois_Dis["more"])
-            # Use a large ring area for POIs beyond 10km
-            S = math.pi * (20000**2 - 10000**2)  # Assume 10-20km ring
-            density = n / S
-            distance = max(poi[1], 1)
-            weight = density / (distance**2)
-            res.append((poi[0]["name"], poi[0]["id"], weight, distance))
-            distanceProb.append(1 / math.sqrt(distance))
-
-    # Handle case with no results
-    if len(res) == 0:
-        return []
-
-    # Normalize probabilities and sample
-    distanceProb = np.array(distanceProb)
-    distanceProb /= distanceProb.sum()
-
-    # Adjust sample size to not exceed available POIs
-    sample_size = min(50, len(res))
-    # Randomly sample candidates weighted by distance probabilities
-    sample_indices = np.random.choice(
-        len(res), size=sample_size, p=distanceProb, replace=False
-    )
-    sampled_pois = [res[i] for i in sample_indices]
-
-    # Normalize weights for final selection
-    total_weight = sum(item[2] for item in sampled_pois)
-    # Handle case where total_weight is zero
-    if total_weight == 0:
-        # Assign equal weights if all weights are zero
-        return [
-            (item[0], item[1], 1.0 / len(sampled_pois), item[3])
-            for item in sampled_pois
-        ]
-    return [
-        (item[0], item[1], item[2] / total_weight, item[3]) for item in sampled_pois
-    ]
-
-
 class PlaceSelectionBlock(Block):
     """
     Block for selecting destinations based on user intention.
@@ -300,6 +207,70 @@ class PlaceSelectionBlock(Block):
             memory=agent_memory,
         )
         self.search_limit = search_limit  # Default config value
+
+    async def gravity_model(self, pois):
+      """
+      Calculate selection probabilities for POIs using a gravity model.
+
+      The model considers both distance decay (prefer closer locations)
+      and spatial density (avoid overcrowded areas). Distances are grouped
+      into 1km bins up to 10km, with POIs beyond 10km in a 'more' category.
+
+      Args:
+          pois: List of POI tuples containing (poi_data, distance)
+
+      Returns:
+          List of tuples: (name, id, normalized_weight, distance)
+          with selection probabilities based on gravity model
+      """
+
+      get_logger().info(f"Gravity Model: Starting with {len(pois)} POIs", extra={"agent_id": self.agent.id})
+
+      # Handle empty input
+      if not pois:
+          return []
+
+      epsilon = 1e-6  # Small constant to prevent division by zero
+      distance_decay = 2
+      pois_with_weights = []
+      for poi in pois:
+          try:
+              node = await self.memory.spatial.retrieve_location(poi[0]["id"], poi[0].get("description", poi[0].get("category", "unknown")))
+
+              if node:
+                beliefs = {"price": node.price, "atmosphere": node.atmosphere, "convenience": node.convenience, "satisfaction": node.satisfaction}
+              else:
+                beliefs = {"price": 0.5, "atmosphere": 0.5, "convenience": 0.5, "satisfaction": 0.5}
+                
+              bj = (beliefs["price"] + beliefs["atmosphere"] + beliefs["convenience"] + beliefs["satisfaction"]) / 4
+
+              distance = poi[1]
+              distance = distance ** (1 + (distance_decay) * (bj - 0.5))
+
+              weight = (bj + epsilon) / (distance + epsilon)
+
+              pois_with_weights.append((poi[0]["name"], poi[0]["id"], weight, distance))
+
+
+          except Exception as e:
+              get_logger().warning(f"Gravity Model: Failed to retrieve memory node for POI {poi[0]['id']}: {e}")
+
+
+              weight = (0.5 + epsilon) / (poi[1] + epsilon)
+
+              pois_with_weights.append((poi[0]["name"], poi[0]["id"], weight, poi[1]))
+
+        # Normalize weights
+      total_weight = sum(item[2] for item in pois_with_weights)
+      if total_weight == 0:
+          # Assign equal weights if all weights are zero
+          pois_with_weights = [(item[0], item[1], 1.0 / len(pois_with_weights), item[3]) for item in pois_with_weights]
+      else:
+          pois_with_weights = [(item[0], item[1], item[2] / total_weight, item[3]) for item in pois_with_weights]
+
+      
+      return pois_with_weights
+      
 
     async def forward(self, context: DotDict):
         """Execute the destination selection workflow"""
@@ -428,7 +399,7 @@ class PlaceSelectionBlock(Block):
 
         poi_type = "unknown"
         if pois and len(pois) > 0:
-            pois = gravity_model(pois)
+            pois = await self.gravity_model(pois)
             probabilities = [item[2] for item in pois]
             selected = np.random.choice(len(pois), p=probabilities)
             next_place = (pois[selected][0], pois[selected][1])

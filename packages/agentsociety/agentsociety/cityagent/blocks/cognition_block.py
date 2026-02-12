@@ -237,6 +237,7 @@ class CognitionBlock(Block):
             Exception: If all LLM retries fail.
         """
         attitude = await self.memory.status.get("attitude")
+        big5 = await self.memory.status.get("big5", {})
         prompt_data = {
             "gender": await self.memory.status.get("gender"),
             "age": await self.memory.status.get("age"),
@@ -253,11 +254,11 @@ class CognitionBlock(Block):
             "skill": await self.memory.status.get("skill"),
             "thought": await self.memory.status.get("thought"),
             "emotion_types": await self.memory.status.get("emotion_types"),
-            "openness": await self.memory.status.get("openness"),
-            "conscientiousness": await self.memory.status.get("conscientiousness"),
-            "extraversion": await self.memory.status.get("extraversion"),
-            "agreeableness": await self.memory.status.get("agreeableness"),
-            "neuroticism": await self.memory.status.get("neuroticism"),
+            "openness": big5.get("openness", 2),
+            "conscientiousness": big5.get("conscientiousness", 2),
+            "extraversion": big5.get("extraversion", 2),
+            "agreeableness": big5.get("agreeableness", 2),
+            "neuroticism": big5.get("neuroticism", 2),
         }
         for topic in attitude:
             description_prompt = """
@@ -407,7 +408,11 @@ class CognitionBlock(Block):
             emotion=await self.memory.status.get("emotion"),
             thought=await self.memory.status.get("thought"),
             emotion_types=await self.memory.status.get("emotion_types"),
-            big5=big5,
+            openness=big5.get("openness", 2),
+            conscientiousness=big5.get("conscientiousness", 2),
+            extraversion=big5.get("extraversion", 2),
+            agreeableness=big5.get("agreeableness", 2),
+            neuroticism=big5.get("neuroticism", 2),
         )
 
         evaluation = True
@@ -516,6 +521,7 @@ class CognitionBlock(Block):
         disgust = emotion["disgust"]
         anger = emotion["anger"]
         surprise = emotion["surprise"]
+        big5 = await self.memory.status.get("big5", {})
         await question_prompt.format(
             gender=await self.memory.status.get("gender"),
             age=await self.memory.status.get("age"),
@@ -539,7 +545,11 @@ class CognitionBlock(Block):
             emotion=await self.memory.status.get("emotion"),
             thought=await self.memory.status.get("thought"),
             emotion_types=await self.memory.status.get("emotion_types"),
-            big5=await self.memory.status.get("big5"),
+            openness=big5.get("openness", 2),
+            conscientiousness=big5.get("conscientiousness", 2),
+            extraversion=big5.get("extraversion", 2),
+            agreeableness=big5.get("agreeableness", 2),
+            neuroticism=big5.get("neuroticism", 2),
         )
 
         evaluation = True

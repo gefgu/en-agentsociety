@@ -632,7 +632,7 @@ Example:
                 relationship_type = "I don't know him/her"
                 for relation in my_social_network:
                     if relation.target_id == sender_id:
-                        relationship_strength = relation.strength
+                        relationship_strength = f"Affinity: {relation.affinity}, Trust: {relation.trust}, Familiarity: {relation.familiarity} (0-1 Scale)"
                         relationship_type = relation.kind
                         break
 
