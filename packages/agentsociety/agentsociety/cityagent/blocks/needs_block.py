@@ -20,6 +20,8 @@ Profile Information:
 - Occupation: ${profile.occupation}
 - Age: ${profile.age}
 - Monthly Income: ${profile.income}
+- Household type: {household}
+- Life stage: {life_stage}
 - Big Five Personality Traits (1=Low, 2=Medium, 3=High):
   - Openness: {openness}
   - Conscientiousness: {conscientiousness}
@@ -63,6 +65,9 @@ Current satisfaction:
 - safety_satisfaction: {safety_satisfaction}
 - social_satisfaction: {social_satisfaction}
 
+Household type: {household}
+Life stage: {life_stage}
+
 Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Openness: {openness}
 - Conscientiousness: {conscientiousness}
@@ -104,6 +109,9 @@ And the agent's current needs are:
 - energy_satisfaction: {energy_satisfaction}
 - safety_satisfaction: {safety_satisfaction}
 - social_satisfaction: {social_satisfaction}
+
+Household type: {household}
+Life stage: {life_stage}
 
 Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Openness: {openness}
@@ -233,8 +241,14 @@ class NeedsBlock(Block):
             agreeableness = await self.memory.status.get("agreeableness", 2)
             neuroticism = await self.memory.status.get("neuroticism", 2)
             
+            # Get household and life stage
+            household = await self.memory.status.get("household", "unknown")
+            life_stage = await self.memory.status.get("life_stage", "unknown")
+            
             await self.initial_prompt.format(
                 context=self.context,
+                household=household,
+                life_stage=life_stage,
                 openness=openness,
                 conscientiousness=conscientiousness,
                 extraversion=extraversion,
@@ -304,6 +318,10 @@ class NeedsBlock(Block):
         agreeableness = await self.memory.status.get("agreeableness", 2)
         neuroticism = await self.memory.status.get("neuroticism", 2)
         
+        # Get household and life stage
+        household = await self.memory.status.get("household", "unknown")
+        life_stage = await self.memory.status.get("life_stage", "unknown")
+        
         await self.reflection_prompt.format(
             intervention_message=intervention,
             current_action=action_message,
@@ -311,6 +329,8 @@ class NeedsBlock(Block):
             energy_satisfaction=await self.memory.status.get("energy_satisfaction"),
             safety_satisfaction=await self.memory.status.get("safety_satisfaction"),
             social_satisfaction=await self.memory.status.get("social_satisfaction"),
+            household=household,
+            life_stage=life_stage,
             openness=openness,
             conscientiousness=conscientiousness,
             extraversion=extraversion,
@@ -593,6 +613,10 @@ class NeedsBlock(Block):
         extraversion = await self.memory.status.get("extraversion", 2)
         agreeableness = await self.memory.status.get("agreeableness", 2)
         neuroticism = await self.memory.status.get("neuroticism", 2)
+        
+        # Get household and life stage
+        household = await self.memory.status.get("household", "unknown")
+        life_stage = await self.memory.status.get("life_stage", "unknown")
 
         await self.evaluation_prompt.format(
             current_need=current_need,
@@ -602,6 +626,8 @@ class NeedsBlock(Block):
             energy_satisfaction=current_energy,
             safety_satisfaction=current_safety,
             social_satisfaction=current_social,
+            household=household,
+            life_stage=life_stage,
             openness=openness,
             conscientiousness=conscientiousness,
             extraversion=extraversion,

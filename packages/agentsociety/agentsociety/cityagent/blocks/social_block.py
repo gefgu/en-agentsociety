@@ -79,6 +79,10 @@ class MessagePromptManager:
         agreeableness = await memory.status.get("agreeableness", 2)
         neuroticism = await memory.status.get("neuroticism", 2)
         
+        # Get household and life stage
+        household = await memory.status.get("household", "unknown")
+        life_stage = await memory.status.get("life_stage", "unknown")
+        
         # Format prompt
         format_prompt = FormatPrompt(template)
         await format_prompt.format(
@@ -100,6 +104,8 @@ class MessagePromptManager:
             intention=step.get("intention", ""),
             discussion_constraint=discussion_constraint,
             environment_info=environment_info,
+            household=household,
+            life_stage=life_stage,
             openness=openness,
             conscientiousness=conscientiousness,
             extraversion=extraversion,
@@ -141,10 +147,16 @@ class SocialNoneBlock(Block):
         agreeableness = await self.memory.status.get("agreeableness", 2)
         neuroticism = await self.memory.status.get("neuroticism", 2)
         
+        # Get household and life stage
+        household = await self.memory.status.get("household", "unknown")
+        life_stage = await self.memory.status.get("life_stage", "unknown")
+        
         await self.guidance_prompt.format(
             plan=context["plan_context"]["plan"],
             intention=intention,
             emotion_types=await self.memory.status.get("emotion_types"),
+            household=household,
+            life_stage=life_stage,
             openness=openness,
             conscientiousness=conscientiousness,
             extraversion=extraversion,
@@ -211,6 +223,8 @@ Based on the following information, help me select the most suitable target to i
     - Personality: {personality}
     - Occupation: {occupation}
     - Background story: {background_story}
+    - Household type: {household}
+    - Life stage: {life_stage}
 
 2. Your Current Intention: {intention}
 
@@ -280,6 +294,10 @@ Please output in JSON format, a dictionary:
             agreeableness = await self.memory.status.get("agreeableness", 2)
             neuroticism = await self.memory.status.get("neuroticism", 2)
             
+            # Get household and life stage
+            household = await self.memory.status.get("household", "unknown")
+            life_stage = await self.memory.status.get("life_stage", "unknown")
+            
             # Format the prompt
             formatted_prompt = FormatPrompt(self.prompt)
             await formatted_prompt.format(
@@ -292,6 +310,8 @@ Please output in JSON format, a dictionary:
                 emotion_types=str(await self.memory.status.get("emotion_types")),
                 thought=str(await self.memory.status.get("thought")),
                 friend_info=relationship_info,
+                household=household,
+                life_stage=life_stage,
                 openness=openness,
                 conscientiousness=conscientiousness,
                 extraversion=extraversion,
@@ -381,6 +401,8 @@ My personality is {personality}.
 My current emotion is: {emotion_types}.
 My current thought is: {thought}.
 My background story is: {background_story}.
+Household type: {household}
+Life stage: {life_stage}
 
 Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Openness: {openness}

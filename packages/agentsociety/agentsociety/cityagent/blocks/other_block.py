@@ -29,6 +29,9 @@ Current action: ${context.current_step["intention"]}
 
 Current emotion: ${status.emotion_types}
 
+Household type: {household}
+Life stage: {life_stage}
+
 Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Openness: {openness}
 - Conscientiousness: {conscientiousness}
@@ -93,8 +96,14 @@ class SleepBlock(Block):
         agreeableness = await self.memory.status.get("agreeableness", 2)
         neuroticism = await self.memory.status.get("neuroticism", 2)
         
+        # Get household and life stage
+        household = await self.memory.status.get("household", "unknown")
+        life_stage = await self.memory.status.get("life_stage", "unknown")
+        
         await self.guidance_prompt.format(
             context=context,
+            household=household,
+            life_stage=life_stage,
             openness=openness,
             conscientiousness=conscientiousness,
             extraversion=extraversion,
@@ -158,11 +167,16 @@ class OtherNoneBlock(Block):
         extraversion = await self.memory.status.get("extraversion", 2)
         agreeableness = await self.memory.status.get("agreeableness", 2)
         neuroticism = await self.memory.status.get("neuroticism", 2)
+        
+        household = await self.memory.status.get("household", "unknown")
+        life_stage = await self.memory.status.get("life_stage", "unknown")
 
         await self.guidance_prompt.format(
             plan=context["plan_context"]["plan"],
             intention=context["current_step"]["intention"],
             emotion_types=await self.memory.status.get("emotion_types"),
+            household=household,
+            life_stage=life_stage,
             openness=openness,
             conscientiousness=conscientiousness,
             extraversion=extraversion,

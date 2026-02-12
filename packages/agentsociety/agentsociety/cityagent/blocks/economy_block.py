@@ -30,6 +30,16 @@ Current action: ${context.current_step["intention"]}
 
 Current emotion: ${status.emotion_types}
 
+Household type: {household}
+Life stage: {life_stage}
+
+Big Five Personality Traits (1=Low, 2=Medium, 3=High):
+- Openness: {openness}
+- Conscientiousness: {conscientiousness}
+- Extraversion: {extraversion}
+- Agreeableness: {agreeableness}
+- Neuroticism: {neuroticism}
+
 Examples:
 - "Learn programming": {{"time": 120}}
 - "Watch a movie": {{"time": 150}} 
@@ -106,7 +116,27 @@ class WorkBlock(Block):
         Returns:
             Execution result with time consumption details
         """
-        await self.guidance_prompt.format(context=context)
+        # Get Big Five personality traits
+        openness = await self.memory.status.get("openness", 2)
+        conscientiousness = await self.memory.status.get("conscientiousness", 2)
+        extraversion = await self.memory.status.get("extraversion", 2)
+        agreeableness = await self.memory.status.get("agreeableness", 2)
+        neuroticism = await self.memory.status.get("neuroticism", 2)
+        
+        # Get household and life stage
+        household = await self.memory.status.get("household", "unknown")
+        life_stage = await self.memory.status.get("life_stage", "unknown")
+        
+        await self.guidance_prompt.format(
+            context=context,
+            household=household,
+            life_stage=life_stage,
+            openness=openness,
+            conscientiousness=conscientiousness,
+            extraversion=extraversion,
+            agreeableness=agreeableness,
+            neuroticism=neuroticism,
+        )
         result = await self.llm.atext_request(
             self.guidance_prompt.to_dialog(), response_format={"type": "json_object"},
             context={
@@ -495,7 +525,7 @@ class MonthEconomyPlanBlock(Block):
             price_prompt = f"""Meanwhile, in the consumption market, the average price of essential goods is now at ${price:.2f}."""
             job_prompt = prettify_document(job_prompt)
 
-            personality_prompt = f"""Your personality traits are as follows: openness {await self.memory.status.get("openness")}, conscientiousness {await self.memory.status.get("conscientiousness")}, extraversion {await self.memory.status.get("extraversion")}, agreeableness {await self.memory.status.get("agreeableness")}, and neuroticism {await self.memory.status.get("neuroticism")}."""
+            personality_prompt = f"""Your personality traits are as follows: openness {await self.memory.status.get("openness")}, conscientiousness {await self.memory.status.get("conscientiousness")}, extraversion {await self.memory.status.get("extraversion")}, agreeableness {await self.memory.status.get("agreeableness")}, and neuroticism {await self.memory.status.get("neuroticism")}. Your household type is {await self.memory.status.get("household", "unknown")} and your life stage is {await self.memory.status.get("life_stage", "unknown")}."""
 
             obs_prompt = f"""
                             {problem_prompt} {job_prompt} {consumption_prompt} {tax_prompt} {price_prompt} {personality_prompt}

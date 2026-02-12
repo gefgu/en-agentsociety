@@ -27,6 +27,8 @@ My occupation: {occupation}
 My age: {age}
 My emotion: {emotion_types}
 My thought: {thought}
+Household type: {household}
+Life stage: {life_stage}
 
 Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Openness: {openness}
@@ -75,6 +77,8 @@ My occupation: ${profile.occupation}
 My age: ${profile.age}
 My emotion: ${profile.emotion_types}
 My thought: ${context.current_thought}
+Household type: {household}
+Life stage: {life_stage}
 
 Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Openness: {openness}
@@ -209,6 +213,10 @@ class PlanBlock(Block):
         agreeableness = await self.memory.status.get("agreeableness", 2)
         neuroticism = await self.memory.status.get("neuroticism", 2)
         
+        # Get household and life stage
+        household = await self.memory.status.get("household", "unknown")
+        life_stage = await self.memory.status.get("life_stage", "unknown")
+        
         await self.guidance_prompt.format(
             current_need=current_need,
             weather=self.environment.sense("weather"),
@@ -222,6 +230,8 @@ class PlanBlock(Block):
             age=await self.memory.status.get("age"),
             emotion_types=await self.memory.status.get("emotion_types"),
             thought=await self.memory.status.get("thought"),
+            household=household,
+            life_stage=life_stage,
             openness=openness,
             conscientiousness=conscientiousness,
             extraversion=extraversion,
@@ -279,8 +289,14 @@ class PlanBlock(Block):
         agreeableness = await self.memory.status.get("agreeableness", 2)
         neuroticism = await self.memory.status.get("neuroticism", 2)
         
+        # Get household and life stage
+        household = await self.memory.status.get("household", "unknown")
+        life_stage = await self.memory.status.get("life_stage", "unknown")
+        
         await self.detail_prompt.format(
             context=self.context,
+            household=household,
+            life_stage=life_stage,
             openness=openness,
             conscientiousness=conscientiousness,
             extraversion=extraversion,

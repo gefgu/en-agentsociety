@@ -10,6 +10,16 @@ Current action: {intention}
 
 Current emotion: {emotion_types}
 
+Household type: {household}
+Life stage: {life_stage}
+
+Big Five Personality Traits (1=Low, 2=Medium, 3=High):
+- Openness: {openness}
+- Conscientiousness: {conscientiousness}
+- Extraversion: {extraversion}
+- Agreeableness: {agreeableness}
+- Neuroticism: {neuroticism}
+
 Examples:
 - "Learn programming": {{"time": 120}}
 - "Watch a movie": {{"time": 150}} 

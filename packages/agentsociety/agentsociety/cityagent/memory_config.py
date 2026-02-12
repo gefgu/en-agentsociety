@@ -85,7 +85,36 @@ DEFAULT_DISTRIBUTIONS: dict[str, Distribution] = {
     "marriage_status": ChoiceDistribution(
         choices=["Not married", "Married", "Divorced", "Widowed"]
     ),
+    "household": ChoiceDistribution(
+        choices=[
+            "Shared apartment",
+            "Couple with children",
+            "Couple without children",
+            "Another family member",
+            "Single parent",
+            "Living with parent(s)",
+            "Living alone"
+        ]
+    )
 }
+
+def get_life_stage_based_on_age(age: int) -> str:
+    if age < 18:
+        return "Adolescence"
+    elif age < 25:
+        return "Young adulthood"
+    elif age < 35:
+        return "Early career"
+    elif age < 50:
+        return "Mid-life (established)"
+    elif age < 65:
+        return "Late career / Pre-retirement"
+    elif age < 75:
+        return "Retirement"
+    else:
+        return "Late adulthood"
+
+    
 
 
 def memory_config_societyagent(
@@ -417,6 +446,8 @@ def memory_config_societyagent(
         ),
     }
 
+    default_age = sample_field_value(distributions, "age")
+
     # Add profile attributes
     profile_attributes = {
         "name": MemoryAttribute(
@@ -436,7 +467,7 @@ def memory_config_societyagent(
         "age": MemoryAttribute(
             name="age",
             type=int,
-            default_or_value=sample_field_value(distributions, "age"),
+            default_or_value=default_age,
             description="agent's age group",
             whether_embedding=True,
         ),
@@ -445,6 +476,20 @@ def memory_config_societyagent(
             type=str,
             default_or_value=sample_field_value(distributions, "education"),
             description="agent's education level",
+            whether_embedding=True,
+        ),
+        "household": MemoryAttribute(
+            name="household",
+            type=str,
+            default_or_value=sample_field_value(distributions, "household"),
+            description="agent's household type",
+            whether_embedding=True,
+        ),
+        "life_stage": MemoryAttribute(
+            name="life_stage",
+            type=str,
+            default_or_value=get_life_stage_based_on_age(default_age),
+            description="agent's life stage",
             whether_embedding=True,
         ),
         "skill": MemoryAttribute(

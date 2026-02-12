@@ -27,6 +27,8 @@ You are a citizen of the city.
 Your occupation: {occupation}
 Your age: {age}
 Your current emotion: {emotion_types}
+Household type: {household}
+Life stage: {life_stage}
 
 Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Openness: {openness}
@@ -265,6 +267,10 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         extraversion = await self.memory.status.get("extraversion", 2)
         agreeableness = await self.memory.status.get("agreeableness", 2)
         neuroticism = await self.memory.status.get("neuroticism", 2)
+        
+        # Get household and life stage
+        household = await self.memory.status.get("household", "unknown")
+        life_stage = await self.memory.status.get("life_stage", "unknown")
 
         # Current Status
         current_need = self.context.current_need
@@ -286,6 +292,8 @@ Based on the following information, provide a concise 1-2 sentence description o
 - Education: {education}
 - Personality: {personality}
 - Background: {background_story}
+- Household type: {household}
+- Life stage: {life_stage}
 - Big Five Personality Traits (1=Low, 2=Medium, 3=High):
   - Openness: {openness}
   - Conscientiousness: {conscientiousness}
@@ -419,7 +427,13 @@ Example:
             agreeableness = await self.memory.status.get("agreeableness", 2)
             neuroticism = await self.memory.status.get("neuroticism", 2)
             
+            # Get household and life stage
+            household = await self.memory.status.get("household", "unknown")
+            life_stage = await self.memory.status.get("life_stage", "unknown")
+            
             await self.environment_reflection_prompt.format(
+                household=household,
+                life_stage=life_stage,
                 openness=openness,
                 conscientiousness=conscientiousness,
                 extraversion=extraversion,

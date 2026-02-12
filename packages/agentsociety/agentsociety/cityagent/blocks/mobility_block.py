@@ -38,6 +38,8 @@ PLACE_TYPE_SELECTION_PROMPT = """
 As an intelligent decision system, please determine the type of place the user needs to visit based on their input requirement.
 User Plan: {plan}
 User requirement: {intention}
+Household type: {household}
+Life stage: {life_stage}
 Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
 openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
 Other information: 
@@ -56,6 +58,8 @@ PLACE_SECOND_TYPE_SELECTION_PROMPT = """
 As an intelligent decision system, please determine the type of place the user needs to visit based on their input requirement.
 User Plan: {plan}
 User requirement: {intention}
+Household type: {household}
+Life stage: {life_stage}
 Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
 openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
 Other information: 
@@ -75,6 +79,8 @@ PLACE_ANALYSIS_PROMPT = """
 As an intelligent analysis system, please determine the type of place the user needs to visit based on their input requirement.
 User Plan: {plan}
 User requirement: {intention}
+Household type: {household}
+Life stage: {life_stage}
 Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
 openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
 Other information: 
@@ -96,6 +102,8 @@ Current weather: ${context.weather}
 Current temperature: ${context.temperature}
 Your current emotion: ${context.current_emotion}
 Your current thought: ${context.current_thought}
+Household type: {household}
+Life stage: {life_stage}
 Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
 openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
 Other information: 
@@ -122,6 +130,8 @@ Context:
 - Weather: {weather}
 - Temperature: {temperature}
 - User Persona: {persona}
+- Household type: {household}
+- Life stage: {life_stage}
 - User Big Five Personality Traits: (1=Low, 2=Medium, 3=High)
   - Openness: {openness}
   - Conscientiousness: {conscientiousness}
@@ -282,6 +292,10 @@ class PlaceSelectionBlock(Block):
         agreeableness = await self.memory.status.get("agreeableness", 2)
         neuroticism = await self.memory.status.get("neuroticism", 2)
         
+        # Get household and life stage
+        household = await self.memory.status.get("household", "unknown")
+        life_stage = await self.memory.status.get("life_stage", "unknown")
+        
         # Stage 1: Select primary POI category
         poi_cate = self.environment.get_poi_cate()
         await self.typeSelectionPrompt.format(
@@ -289,6 +303,8 @@ class PlaceSelectionBlock(Block):
             intention=context["current_step"]["intention"],
             poi_category=list(poi_cate.keys()),
             other_info=self.environment.environment.get("other_information", "None"),
+            household=household,
+            life_stage=life_stage,
             openness=openness,
             conscientiousness=conscientiousness,
             extraversion=extraversion,
@@ -322,6 +338,8 @@ class PlaceSelectionBlock(Block):
                 other_info=self.environment.environment.get(
                     "other_information", "None"
                 ),
+                household=household,
+                life_stage=life_stage,
                 openness=openness,
                 conscientiousness=conscientiousness,
                 extraversion=extraversion,
@@ -344,7 +362,7 @@ class PlaceSelectionBlock(Block):
 
         # Get travel radius from LLM
         try:
-            await self.radiusPrompt.format(context=context)
+            await self.radiusPrompt.format(context=context, household=household, life_stage=life_stage, openness=openness, conscientiousness=conscientiousness, extraversion=extraversion, agreeableness=agreeableness, neuroticism=neuroticism)
             radius = await self.llm.atext_request(
                 self.radiusPrompt.to_dialog(),
                 response_format={"type": "json_object"},
@@ -545,6 +563,10 @@ class MoveBlock(Block):
         agreeableness = await self.memory.status.get("agreeableness", 2)
         neuroticism = await self.memory.status.get("neuroticism", 2)
         
+        # Get household and life stage
+        household = await self.memory.status.get("household", "unknown")
+        life_stage = await self.memory.status.get("life_stage", "unknown")
+        
         place_knowledge = await self.memory.status.get("location_knowledge")
         known_places = list(place_knowledge.keys())
         places = ["home", "workplace"] + known_places + ["other"]
@@ -555,6 +577,8 @@ class MoveBlock(Block):
             intention=context["current_step"]["intention"],
             place_list=places,
             other_info=self.environment.environment.get("other_information", "None"),
+            household=household,
+            life_stage=life_stage,
             openness=openness,
             conscientiousness=conscientiousness,
             extraversion=extraversion,
@@ -762,6 +786,10 @@ class TransportModeSelectionBlock(Block):
         extraversion = await self.memory.status.get("extraversion", 2)
         agreeableness = await self.memory.status.get("agreeableness", 2)
         neuroticism = await self.memory.status.get("neuroticism", 2)
+        
+        # Get household and life stage
+        household = await self.memory.status.get("household", "unknown")
+        life_stage = await self.memory.status.get("life_stage", "unknown")
 
         available_modes_list = self.transportation_modes
 
@@ -775,6 +803,8 @@ class TransportModeSelectionBlock(Block):
             persona=persona,
             emotion=emotion,
             available_modes=", ".join(available_modes_list),
+            household=household,
+            life_stage=life_stage,
             openness=openness,
             conscientiousness=conscientiousness,
             extraversion=extraversion,
