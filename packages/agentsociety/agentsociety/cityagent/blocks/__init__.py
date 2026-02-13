@@ -5,6 +5,7 @@ from .needs_block import NeedsBlock
 from .other_block import OtherBlock
 from .plan_block import PlanBlock
 from .social_block import SocialBlock
+from .daily_schedule_block import DailyScheduleBlock
 
 __all__ = [
     "MobilityBlock",
@@ -14,4 +15,5 @@ __all__ = [
     "SocialBlock",
     "EconomyBlock",
     "OtherBlock",
+    "DailyScheduleBlock",
 ]

@@ -180,6 +180,13 @@ def memory_config_societyagent(
             description="need fulfillment. Proportion of the day where needs exceed their thresholds.",
             whether_embedding=False,
         ),
+        "daily_schedule": MemoryAttribute(
+            name="daily_schedule",
+            type=dict,
+            default_or_value={},
+            description="daily schedule",
+            whether_embedding=False,
+        ),
         # Plan Behavior Model
         "current_plan": MemoryAttribute(
             name="current_plan",

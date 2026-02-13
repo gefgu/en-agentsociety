@@ -14,7 +14,7 @@ from ..agent import (
 )
 from ..logger import get_logger
 from ..memory import Memory
-from .blocks import CognitionBlock, NeedsBlock, PlanBlock
+from .blocks import CognitionBlock, NeedsBlock, PlanBlock, DailyScheduleBlock
 from .sharing_params import (
     SocietyAgentConfig,
     SocietyAgentBlockOutput,
@@ -230,10 +230,17 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         )
 
         self.cognition_block = CognitionBlock(
-            agent_id=self.id,
+            agent=self,
             toolbox=self._toolbox,
             agent_memory=self.memory,
         )
+
+        self.daily_schedule_block = DailyScheduleBlock(
+            agent=self,
+            toolbox=self._toolbox,
+            agent_memory=self.memory,
+        )
+
         self.environment_reflection_prompt = FormatPrompt(
             ENVIRONMENT_REFLECTION_PROMPT, memory=self.memory
         )

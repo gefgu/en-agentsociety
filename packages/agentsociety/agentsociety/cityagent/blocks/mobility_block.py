@@ -212,68 +212,115 @@ class PlaceSelectionBlock(Block):
         self.search_limit = search_limit  # Default config value
 
     async def gravity_model(self, pois):
-      """
-      Calculate selection probabilities for POIs using a gravity model.
+        """
+        Calculate selection probabilities for POIs using a gravity model.
 
-      The model considers both distance decay (prefer closer locations)
-      and spatial density (avoid overcrowded areas). Distances are grouped
-      into 1km bins up to 10km, with POIs beyond 10km in a 'more' category.
+        The model considers both distance decay (prefer closer locations)
+        and spatial density (avoid overcrowded areas). Distances are grouped
+        into 1km bins up to 10km, with POIs beyond 10km in a 'more' category.
 
-      Args:
-          pois: List of POI tuples containing (poi_data, distance)
+        Args:
+            pois: List of POI tuples containing (poi_data, distance)
 
-      Returns:
-          List of tuples: (name, id, normalized_weight, distance)
-          with selection probabilities based on gravity model
-      """
+        Returns:
+            List of tuples: (name, id, normalized_weight, distance)
+            with selection probabilities based on gravity model
+        """
 
-      get_logger().info(f"Gravity Model: Starting with {len(pois)} POIs", extra={"agent_id": self.agent.id})
+        get_logger().info(
+            f"Gravity Model: Starting with {len(pois)} POIs",
+            extra={"agent_id": self.agent.id},
+        )
 
-      # Handle empty input
-      if not pois:
-          return []
+        # Handle empty input
+        if not pois:
+            return []
 
-      epsilon = 1e-5  # Small constant to prevent division by zero
-      distance_decay = 2
-      pois_with_weights = []
-      for poi in pois:
-          try:
-              node = await self.memory.spatial.retrieve_location(poi[0]["id"], poi[0].get("description", poi[0].get("category", "unknown")))
+        epsilon = 1e-5  # Small constant to prevent division by zero
+        distance_decay = 2
+        pois_with_weights = []
+        for poi_tuple in pois:  # Changed variable name for clarity
+            try:
+                # Unpack the tuple correctly
+                poi_data = poi_tuple[0]  # First element is the POI dict
+                distance = poi_tuple[1]  # Second element is the distance
 
-              if node:
-                beliefs = {"price": node.price, "atmosphere": node.atmosphere, "convenience": node.convenience, "satisfaction": node.satisfaction}
-              else:
-                beliefs = {"price": 0.5, "atmosphere": 0.5, "convenience": 0.5, "satisfaction": 0.5}
-                
-              bj = (beliefs["price"] + beliefs["atmosphere"] + beliefs["convenience"] + beliefs["satisfaction"]) / 4
+                # Get POI attributes safely
+                poi_id = poi_data.get("id")
+                poi_description = poi_data.get(
+                    "description", poi_data.get("category", "unknown")
+                )
+                poi_name = poi_data.get("name", "Unknown")
 
-              distance = poi[1]
-              distance = distance ** (1 + (distance_decay) * (bj - 0.5))
+                # Retrieve location beliefs from spatial memory
+                node = await self.memory.spatial.retrieve_location(
+                    poi_id, poi_description
+                )
 
-              weight = (bj + epsilon) / (distance + epsilon)
+                if node:
+                    beliefs = {
+                        "price": node.price,
+                        "atmosphere": node.atmosphere,
+                        "convenience": node.convenience,
+                        "satisfaction": node.satisfaction,
+                    }
+                else:
+                    beliefs = {
+                        "price": 0.5,
+                        "atmosphere": 0.5,
+                        "convenience": 0.5,
+                        "satisfaction": 0.5,
+                    }
 
-              pois_with_weights.append((poi[0]["name"], poi[0]["id"], weight, distance))
+                bj = (
+                    beliefs["price"]
+                    + beliefs["atmosphere"]
+                    + beliefs["convenience"]
+                    + beliefs["satisfaction"]
+                ) / 4
 
+                # Apply distance decay with belief adjustment
+                adjusted_distance = distance ** (1 + (distance_decay) * (bj - 0.5))
 
-          except Exception as e:
-              get_logger().warning(f"Gravity Model: Failed to retrieve memory node for POI {poi[0]['id']}: {e}")
+                weight = (bj + epsilon) / (adjusted_distance + epsilon)
 
+                pois_with_weights.append((poi_name, poi_id, weight, distance))
 
-              weight = (0.5 + epsilon) / (poi[1] + epsilon)
-
-              pois_with_weights.append((poi[0]["name"], poi[0]["id"], weight, poi[1]))
+            except Exception as e:
+                get_logger().warning(
+                    f"Gravity Model: Failed to process POI: {e}",
+                    extra={"agent_id": self.agent.id},
+                )
+                # Fallback: use default values
+                try:
+                    poi_data = poi_tuple[0]
+                    distance = poi_tuple[1]
+                    poi_id = poi_data.get("id", "unknown")
+                    poi_name = poi_data.get("name", "Unknown")
+                    weight = (0.5 + epsilon) / (distance + epsilon)
+                    pois_with_weights.append((poi_name, poi_id, weight, distance))
+                except Exception as inner_e:
+                    get_logger().error(
+                        f"Gravity Model: Failed to add POI to weights list: {inner_e}",
+                        extra={"agent_id": self.agent.id},
+                    )
+                    continue
 
         # Normalize weights
-      total_weight = sum(item[2] for item in pois_with_weights)
-      if total_weight == 0:
-          # Assign equal weights if all weights are zero
-          pois_with_weights = [(item[0], item[1], 1.0 / len(pois_with_weights), item[3]) for item in pois_with_weights]
-      else:
-          pois_with_weights = [(item[0], item[1], item[2] / total_weight, item[3]) for item in pois_with_weights]
+        total_weight = sum(item[2] for item in pois_with_weights)
+        if total_weight == 0:
+            # Assign equal weights if all weights are zero
+            pois_with_weights = [
+                (item[0], item[1], 1.0 / len(pois_with_weights), item[3])
+                for item in pois_with_weights
+            ]
+        else:
+            pois_with_weights = [
+                (item[0], item[1], item[2] / total_weight, item[3])
+                for item in pois_with_weights
+            ]
 
-      
-      return pois_with_weights
-      
+        return pois_with_weights
 
     async def forward(self, context: DotDict):
         """Execute the destination selection workflow"""
@@ -836,7 +883,7 @@ class TransportModeSelectionBlock(Block):
             hobbies=hobbies_str,
             openness=big5.get("openness", 2),
             conscientiousness=big5.get("conscientiousness", 2),
-            extraversion=big5.get("extraversion", 2), 
+            extraversion=big5.get("extraversion", 2),
             agreeableness=big5.get("agreeableness", 2),
             neuroticism=big5.get("neuroticism", 2),
             risk_tolerance=risk_tolerance,

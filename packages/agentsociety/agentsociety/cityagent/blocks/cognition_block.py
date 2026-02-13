@@ -4,7 +4,7 @@ import json_repair
 from pydantic import Field
 from ...logger import get_logger
 from ...memory import Memory
-from ...agent import AgentToolbox, Block, FormatPrompt, BlockParams
+from ...agent import AgentToolbox, Block, FormatPrompt, BlockParams, Agent
 
 __all__ = ["CognitionBlock"]
 
@@ -189,7 +189,7 @@ class CognitionBlock(Block):
 
     def __init__(
         self,
-        agent_id: str,
+        agent: Agent,
         toolbox: AgentToolbox,
         agent_memory: Memory,
         block_params: Optional[CognitionBlockParams] = None,
@@ -207,7 +207,8 @@ class CognitionBlock(Block):
             block_params=block_params,
         )
         self.last_check_day = None
-        self.agent_id = agent_id
+        self.set_agent(agent)
+        self.agent_id = agent.id
         self.initialized_big5 = False
         self.initialized_hobbies = False
         self.initialized_preferences = False
@@ -454,7 +455,7 @@ class CognitionBlock(Block):
         day, _ = self.environment.get_datetime()
         if self.last_check_day is None:
             self.last_check_day = day
-            return False
+            return True
         if day > self.last_check_day:
             self.last_check_day = day
             return True
@@ -474,6 +475,7 @@ class CognitionBlock(Block):
             await self.thought_update()
             await self.attitude_update()
             await self.memory.spatial.decay_beliefs()
+            await self.agent.daily_schedule_block.forward()
 
     async def emotion_update(self, incident):
         """Update emotion intensities based on a specific incident.

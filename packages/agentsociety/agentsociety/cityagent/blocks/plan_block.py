@@ -183,11 +183,12 @@ class PlanBlock(Block):
 
         self.context["max_plan_steps"] = max_plan_steps
 
-    async def select_guidance(self, current_need: str) -> Optional[Tuple[dict, str]]:
+    async def select_guidance(self, current_need: str, scheduled_block: Optional[dict] = None) -> Optional[Tuple[dict, str]]:
         """Select optimal guidance option using Theory of Planned Behavior evaluation.
 
         Args:
             current_need: The agent's current need to fulfill
+            scheduled_block: The currently scheduled block from daily schedule (if any)
 
         Returns:
             Optional[tuple[dict, str]]: Selected option with TPB evaluation scores and reasoning. None if no guidance option is selected by bad response from LLM.
@@ -223,6 +224,18 @@ class PlanBlock(Block):
         if len(options) == 0:
             options = "Do things that can satisfy your needs or actions."
 
+        # **NEW: Add scheduled activity to options if exists**
+        schedule_context = ""
+        if scheduled_block:
+            activity = scheduled_block.get("activity", "")
+            if activity == "[EMPTY]":
+                schedule_context = f"\nScheduled: Flexible time block - '{scheduled_block.get('description', '')}' (fill with activity that best satisfies your needs)"
+            else:
+                schedule_context = f"\nScheduled: {activity} - {scheduled_block.get('description', '')} (consider following schedule)"
+                # Add scheduled activity as a high-priority option
+                if isinstance(options, list):
+                    options = [f"{activity} (scheduled)"] + options
+
         # Get Big Five personality traits
         big5 = await self.memory.status.get("big5", {})
 
@@ -245,7 +258,7 @@ class PlanBlock(Block):
             current_need=current_need,
             weather=self.environment.sense("weather"),
             temperature=self.environment.sense("temperature"),
-            other_info=self.environment.sense("other_information"),
+            other_info=self.environment.sense("other_information") + schedule_context,  # **NEW: Add schedule context**
             options=options,
             current_location=current_location,
             current_time=current_time,
@@ -377,12 +390,46 @@ class PlanBlock(Block):
                 retry -= 1
         return None
 
+    async def _get_scheduled_block_for_current_time(self) -> Optional[dict]:
+        """Get the currently scheduled block from daily schedule."""
+        day, time_seconds = self.environment.get_datetime(format_time=False)
+        daily_schedule = await self.memory.status.get("daily_schedule")
+        
+        if not daily_schedule or daily_schedule.get("day") != day:
+            return None
+        
+        # Convert current time to minutes since midnight
+        current_minutes = time_seconds // 60
+        
+        # Find matching block
+        for block in daily_schedule.get("blocks", []):
+            start_time_str = block.get("start_time", "")
+            try:
+                # Parse HH:MM format
+                hours, minutes = map(int, start_time_str.split(":"))
+                block_start_minutes = hours * 60 + minutes
+                block_duration = block.get("duration", 0)
+                block_end_minutes = block_start_minutes + block_duration
+                
+                # Check if current time falls within this block
+                if block_start_minutes <= current_minutes < block_end_minutes:
+                    return block
+            except Exception as e:
+                get_logger().warning(f"Error parsing block time {start_time_str}: {e}")
+                continue
+        
+        return None
+
     async def forward(self):
         """Main workflow: Guidance selection -> Plan generation -> Memory update"""
         cognition = None
+        
+        # **NEW: Check daily schedule for guidance**
+        current_scheduled_block = await self._get_scheduled_block_for_current_time()
+        
         # Step 1: Select guidance plan
         current_need = await self.memory.status.get("current_need")
-        select_guidance = await self.select_guidance(current_need)
+        select_guidance = await self.select_guidance(current_need, current_scheduled_block)  # Pass schedule context
         if not select_guidance:
             return None
         guidance_result, cognition = select_guidance
