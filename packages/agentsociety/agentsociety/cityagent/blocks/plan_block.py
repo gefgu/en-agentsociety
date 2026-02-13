@@ -30,6 +30,7 @@ My thought: {thought}
 Household type: {household}
 Life stage: {life_stage}
 Hobbies: {hobbies}
+Goals: {goals}
 
 Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Openness: {openness}
@@ -87,6 +88,7 @@ My thought: ${context.current_thought}
 Household type: {household}
 Life stage: {life_stage}
 Hobbies: {hobbies}
+Goals: {goals}
 
 Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Openness: {openness}
@@ -229,6 +231,8 @@ class PlanBlock(Block):
         life_stage = await self.memory.status.get("life_stage", "unknown")
         hobbies = await self.memory.status.get("hobbies", [])
         hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
+        goals = await self.memory.status.get("goals", [])
+        goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
 
         # Get preferences
         preferences = await self.memory.status.get("preferences", {})
@@ -253,6 +257,7 @@ class PlanBlock(Block):
             household=household,
             life_stage=life_stage,
             hobbies=hobbies_str,
+            goals=goals_str,
             openness=big5.get("openness", 2),
             conscientiousness=big5.get("conscientiousness", 2),
             extraversion=big5.get("extraversion", 2),
@@ -315,6 +320,8 @@ class PlanBlock(Block):
         life_stage = await self.memory.status.get("life_stage", "unknown")
         hobbies = await self.memory.status.get("hobbies", [])
         hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
+        goals = await self.memory.status.get("goals", [])
+        goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
 
         # Get preferences
         preferences = await self.memory.status.get("preferences", {})
@@ -328,6 +335,7 @@ class PlanBlock(Block):
             household=household,
             life_stage=life_stage,
             hobbies=hobbies_str,
+            goals=goals_str,
             openness=big5.get("openness", 2),
             conscientiousness=big5.get("conscientiousness", 2),
             extraversion=big5.get("extraversion", 2),

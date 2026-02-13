@@ -166,6 +166,20 @@ def memory_config_societyagent(
             description="current need",
             whether_embedding=False,
         ),
+        "mean_need_fulfillment": MemoryAttribute(
+            name="mean_need_fulfillment",
+            type=float,
+            default_or_value=0.5,
+            description="mean need fulfillment.",
+            whether_embedding=False,
+        ),
+        "need_fulfillment": MemoryAttribute(
+            name="need_fulfillment",
+            type=float,
+            default_or_value=0,
+            description="need fulfillment. Proportion of the day where needs exceed their thresholds.",
+            whether_embedding=False,
+        ),
         # Plan Behavior Model
         "current_plan": MemoryAttribute(
             name="current_plan",
@@ -539,6 +553,13 @@ def memory_config_societyagent(
                 "leisure_preference": "indoor"
             },
             description="agent's behavioral preferences",
+            whether_embedding=False,
+        ),
+        "goals": MemoryAttribute(
+            name="goals",
+            type=list,
+            default_or_value=[],
+            description="agent's goals",
             whether_embedding=False,
         ),
         "personality": MemoryAttribute(

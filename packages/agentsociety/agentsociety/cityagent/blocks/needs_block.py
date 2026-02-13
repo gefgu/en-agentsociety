@@ -8,7 +8,7 @@ from ...agent import AgentToolbox, Block, FormatPrompt, DotDict
 from ...logger import get_logger
 from ...memory import Memory
 from .utils import clean_json_response
-from ...catboost import catboost_adjust_needs  
+from ...catboost import catboost_adjust_needs
 
 
 INITIAL_NEEDS_PROMPT = """You are an intelligent agent satisfaction initialization system. Based on the profile information below, please help initialize the agent's satisfaction levels and related parameters.
@@ -23,6 +23,7 @@ Profile Information:
 - Household type: {household}
 - Life stage: {life_stage}
 - Hobbies: {hobbies}
+- Goals: {goals}
 - Big Five Personality Traits (1=Low, 2=Medium, 3=High):
   - Openness: {openness}
   - Conscientiousness: {conscientiousness}
@@ -71,6 +72,7 @@ Current satisfaction:
 Household type: {household}
 Life stage: {life_stage}
 Hobbies: {hobbies}
+Goals: {goals}
 
 Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Openness: {openness}
@@ -221,12 +223,14 @@ class NeedsBlock(Block):
         # determine if the intervention need has been checked
         self._need_to_do_checked = False
         self.id = id
+        self._last_tick_time = 0
 
     async def reset(self):
         """Reset the needs block."""
         self._need_to_do = None
         self._need_to_do_checked = False
         self.initialized = False
+        await self.memory.status.update("need_fulfillment", 0)
 
     async def initialize(self):
         """
@@ -237,8 +241,11 @@ class NeedsBlock(Block):
         - Handles JSON parsing and validation
         """
         day, t = self.environment.get_datetime()
+
         if day != self.now_day and t >= 7 * 60 * 60:
             self.now_day = day
+
+            await self.update_need_fulfillment()
             workday = self.environment.sense("workday")
             if workday:
                 self.need_work = True
@@ -248,22 +255,27 @@ class NeedsBlock(Block):
         if not self.initialized:
             # Get Big Five personality traits
             big5 = await self.memory.status.get("big5", {})
-            
+
             # Get household and life stage
             household = await self.memory.status.get("household", "unknown")
             life_stage = await self.memory.status.get("life_stage", "unknown")
             hobbies = await self.memory.status.get("hobbies", [])
-            hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
-            
+            hobbies_str = (
+                ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
+            )
+            goals = await self.memory.status.get("goals", [])
+            goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
+
             # Get preferences
             preferences = await self.memory.status.get("preferences", {})
             social_frequency = preferences.get("social_frequency", 0.5)
-            
+
             await self.initial_prompt.format(
                 context=self.context,
                 household=household,
                 life_stage=life_stage,
                 hobbies=hobbies_str,
+                goals=goals_str,
                 openness=big5.get("openness", 2),
                 conscientiousness=big5.get("conscientiousness", 2),
                 extraversion=big5.get("extraversion", 2),
@@ -326,20 +338,20 @@ class NeedsBlock(Block):
             if current_action["intention"] != ""
             else "None"
         )
-        
+
         # Get Big Five personality traits
         big5 = await self.memory.status.get("big5", {})
-        
+
         # Get household and life stage
         household = await self.memory.status.get("household", "unknown")
         life_stage = await self.memory.status.get("life_stage", "unknown")
         hobbies = await self.memory.status.get("hobbies", [])
         hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
-        
+
         # Get preferences
         preferences = await self.memory.status.get("preferences", {})
         social_frequency = preferences.get("social_frequency", 0.5)
-        
+
         await self.reflection_prompt.format(
             intervention_message=intervention,
             current_action=action_message,
@@ -573,6 +585,27 @@ class NeedsBlock(Block):
                 await self.memory.status.update("plan_history", history)
                 await self.memory.status.update("current_plan", None)
                 await self.memory.status.update("execution_context", {})
+
+        date, t = self.environment.get_datetime()
+
+        delta_t = t - self._last_tick_time
+        self._last_tick_time = t
+        is_satisfied = (
+            hunger_satisfaction > self.T_H
+            and energy_satisfaction > self.T_D
+            and safety_satisfaction > self.T_P
+            and social_satisfaction > self.T_C
+        )
+
+        if is_satisfied and delta_t > 0:
+            # Convert seconds to proportion of 24h day (86400s)
+            fulfillment_increment = delta_t / 86400.0
+
+            current_fulfillment = await self.memory.status.get("need_fulfillment", 0)
+            await self.memory.status.update(
+                "need_fulfillment", current_fulfillment + fulfillment_increment
+            )
+
         return cognition
 
     async def _save_finetuning_data(
@@ -626,16 +659,18 @@ class NeedsBlock(Block):
         current_energy = await self.memory.status.get("energy_satisfaction")
         current_safety = await self.memory.status.get("safety_satisfaction")
         current_social = await self.memory.status.get("social_satisfaction")
-        
+
         # Get Big Five personality traits
         big5 = await self.memory.status.get("big5", {})
-        
+
         # Get household and life stage
         household = await self.memory.status.get("household", "unknown")
         life_stage = await self.memory.status.get("life_stage", "unknown")
         hobbies = await self.memory.status.get("hobbies", [])
         hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
-        
+        goals = await self.memory.status.get("goals", [])
+        goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
+
         # Get preferences
         preferences = await self.memory.status.get("preferences", {})
         social_frequency = preferences.get("social_frequency", 0.5)
@@ -651,6 +686,7 @@ class NeedsBlock(Block):
             household=household,
             life_stage=life_stage,
             hobbies=hobbies_str,
+            goals=goals_str,
             openness=big5.get("openness", 2),
             conscientiousness=big5.get("conscientiousness", 2),
             extraversion=big5.get("extraversion", 2),
@@ -664,7 +700,10 @@ class NeedsBlock(Block):
                 start_time = time.perf_counter()
                 context_text = self.evaluation_prompt.to_dialog()[0]["content"]
 
-                should_use, response_list = await catboost_tool.get_tool().predict.remote(
+                (
+                    should_use,
+                    response_list,
+                ) = await catboost_tool.get_tool().predict.remote(
                     prompt=context_text,
                     current_need=current_need,
                     current_hunger=current_hunger,
@@ -708,29 +747,33 @@ class NeedsBlock(Block):
                                 await self.memory.status.update(need_type, new_value)
 
                         if db_tool:
-                            db_tool.get_tool().insert_adjust_needs_record.remote({
-                                "agent_id": self.id,
-                                "prompt": catboost_adjust_needs.format_prompt(context_text, current_need),
-                                "current_need": current_need,
-                                "current_hunger": current_hunger,
-                                "current_energy": current_energy,
-                                "current_safety": current_safety,
-                                "current_social": current_social,
-                                "new_hunger": new_satisfaction.get(
-                                    "hunger_satisfaction", current_hunger
-                                ),
-                                "new_energy": new_satisfaction.get(
-                                    "energy_satisfaction", current_energy
-                                ),
-                                "new_safety": new_satisfaction.get(
-                                    "safety_satisfaction", current_safety
-                                ),
-                                "new_social": new_satisfaction.get(
-                                    "social_satisfaction", current_social
-                                ),
-                                "timestamp": int(time.time()),
-                                "actor": "catboost",
-                            })
+                            db_tool.get_tool().insert_adjust_needs_record.remote(
+                                {
+                                    "agent_id": self.id,
+                                    "prompt": catboost_adjust_needs.format_prompt(
+                                        context_text, current_need
+                                    ),
+                                    "current_need": current_need,
+                                    "current_hunger": current_hunger,
+                                    "current_energy": current_energy,
+                                    "current_safety": current_safety,
+                                    "current_social": current_social,
+                                    "new_hunger": new_satisfaction.get(
+                                        "hunger_satisfaction", current_hunger
+                                    ),
+                                    "new_energy": new_satisfaction.get(
+                                        "energy_satisfaction", current_energy
+                                    ),
+                                    "new_safety": new_satisfaction.get(
+                                        "safety_satisfaction", current_safety
+                                    ),
+                                    "new_social": new_satisfaction.get(
+                                        "social_satisfaction", current_social
+                                    ),
+                                    "timestamp": int(time.time()),
+                                    "actor": "catboost",
+                                }
+                            )
 
                         return
                     except Exception as e:
@@ -872,6 +915,19 @@ class NeedsBlock(Block):
                 get_logger().warning(f"Error processing evaluation response: {str(e)}")
                 get_logger().warning(f"Original response: {response}")
                 retry -= 1
+
+    async def update_need_fulfillment(self):
+        """Only called in new days"""
+        day, t = self.environment.get_datetime()
+        current_fulfillment = await self.memory.status.get("need_fulfillment", 0)
+        mean_need_fulfillment = await self.memory.status.get("mean_need_fulfillment", 0)
+
+        new_mean_fulfillment = (mean_need_fulfillment * day + current_fulfillment) / (
+            day + 1
+        )
+
+        await self.memory.status.update("mean_need_fulfillment", new_mean_fulfillment)
+        await self.memory.status.update("need_fulfillment", 0)
 
     async def forward(self):
         """

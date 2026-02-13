@@ -30,6 +30,7 @@ Your current emotion: {emotion_types}
 Household type: {household}
 Life stage: {life_stage}
 Hobbies: {hobbies}
+Goals: {goals}
 
 Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Openness: {openness}
@@ -275,6 +276,8 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         life_stage = await self.memory.status.get("life_stage", "unknown")
         hobbies = await self.memory.status.get("hobbies", [])
         hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
+        goals = await self.memory.status.get("goals", [])
+        goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
 
         # Current Status
         current_need = self.context.current_need
@@ -299,6 +302,7 @@ Based on the following information, provide a concise 1-2 sentence description o
 - Household type: {household}
 - Life stage: {life_stage}
 - Hobbies: {hobbies_str}
+- Goals: {goals_str}
 - Big Five Personality Traits (1=Low, 2=Medium, 3=High):
     - Openness: {openness}
     - Conscientiousness: {conscientiousness}
@@ -434,11 +438,14 @@ Example:
             life_stage = await self.memory.status.get("life_stage", "unknown")
             hobbies = await self.memory.status.get("hobbies", [])
             hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
+            goals = await self.memory.status.get("goals", [])
+            goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
             
             await self.environment_reflection_prompt.format(
                 household=household,
                 life_stage=life_stage,
                 hobbies=hobbies_str,
+                goals=goals_str,
                 openness=big5.get("openness", 2),
                 conscientiousness=big5.get("conscientiousness", 2),
                 extraversion=big5.get("extraversion", 2),

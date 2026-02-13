@@ -13,6 +13,7 @@ Current emotion: {emotion_types}
 Household type: {household}
 Life stage: {life_stage}
 Hobbies: {hobbies}
+Goals: {goals}
 
 Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Openness: {openness}

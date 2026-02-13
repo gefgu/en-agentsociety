@@ -153,6 +153,8 @@ class SocialNoneBlock(Block):
         life_stage = await self.memory.status.get("life_stage", "unknown")
         hobbies = await self.memory.status.get("hobbies", [])
         hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
+        goals = await self.memory.status.get("goals", [])
+        goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
 
         # Get preferences
         preferences = await self.memory.status.get("preferences", {})
@@ -168,6 +170,7 @@ class SocialNoneBlock(Block):
             household=household,
             life_stage=life_stage,
             hobbies=hobbies_str,
+            goals=goals_str,
             openness=big5.get("openness", 2),
             conscientiousness=big5.get("conscientiousness", 2),
             extraversion=big5.get("extraversion", 2),
@@ -530,3 +533,37 @@ class SocialBlock(Block):
         self.find_person_block.set_agent(agent)
         self.message_block.set_agent(agent)
         self.noneblock.set_agent(agent)
+
+
+    async def get_number_of_contacts_in_last_7_days(self) -> int:
+        """Calculate the number of unique contacts the agent has interacted with in the last 7 days.
+
+        Returns:
+            The count of unique contacts in the last 7 days.
+        """
+        # Search for unique target ids in the stream memory with topic "social" and description containing "I sent a message to"
+
+        day, t = self.environment.get_datetime()
+        unique_contacts = set()
+
+        memory_nodes = await self.memory.stream.search(
+            query ="I sent a message to",
+            topic="social",
+            day_range=(max(day - 7, 0), day),
+            top_k=25
+        )
+
+        memory_nodes = memory_nodes.split("\n") if isinstance(memory_nodes, str) else memory_nodes
+
+        for node in memory_nodes:
+            description = node
+            if description and "I sent a message to" in description:
+                # Extract target id from the description
+                parts = description.split("I sent a message to")
+                if len(parts) > 1:
+                    target_part = parts[1].strip()
+                    target_id = target_part.split(":")[0].strip()
+                    get_logger().info(f"Found contact in memory: {target_id}. Move to DEBUG later.")
+                    unique_contacts.add(target_id)
+
+        return len(unique_contacts)

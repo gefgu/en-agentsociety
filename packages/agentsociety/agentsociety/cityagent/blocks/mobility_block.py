@@ -41,6 +41,7 @@ User requirement: {intention}
 Household type: {household}
 Life stage: {life_stage}
 Hobbies: {hobbies}
+Goals: {goals}
 Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
 openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
 Your behavioral preferences are:
@@ -65,6 +66,7 @@ User requirement: {intention}
 Household type: {household}
 Life stage: {life_stage}
 Hobbies: {hobbies}
+Goals: {goals}
 Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
 openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
 Your behavioral preferences are:
@@ -90,6 +92,7 @@ User requirement: {intention}
 Household type: {household}
 Life stage: {life_stage}
 Hobbies: {hobbies}
+Goals: {goals}
 Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
 openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
 Your behavioral preferences are:
@@ -230,7 +233,7 @@ class PlaceSelectionBlock(Block):
       if not pois:
           return []
 
-      epsilon = 1e-6  # Small constant to prevent division by zero
+      epsilon = 1e-5  # Small constant to prevent division by zero
       distance_decay = 2
       pois_with_weights = []
       for poi in pois:
@@ -282,6 +285,8 @@ class PlaceSelectionBlock(Block):
         life_stage = await self.memory.status.get("life_stage", "unknown")
         hobbies = await self.memory.status.get("hobbies", [])
         hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
+        goals = await self.memory.status.get("goals", [])
+        goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
 
         # Get preferences
         preferences = await self.memory.status.get("preferences", {})
@@ -298,6 +303,7 @@ class PlaceSelectionBlock(Block):
             household=household,
             life_stage=life_stage,
             hobbies=hobbies_str,
+            goals=goals_str,
             openness=big5.get("openness", 2),
             conscientiousness=big5.get("conscientiousness", 2),
             extraversion=big5.get("extraversion", 2),
@@ -336,6 +342,7 @@ class PlaceSelectionBlock(Block):
                 household=household,
                 life_stage=life_stage,
                 hobbies=hobbies_str,
+                goals=goals_str,
                 openness=big5.get("openness", 2),
                 conscientiousness=big5.get("conscientiousness", 2),
                 extraversion=big5.get("extraversion", 2),
@@ -573,6 +580,8 @@ class MoveBlock(Block):
         life_stage = await self.memory.status.get("life_stage", "unknown")
         hobbies = await self.memory.status.get("hobbies", [])
         hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
+        goals = await self.memory.status.get("goals", [])
+        goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
 
         # Get preferences
         preferences = await self.memory.status.get("preferences", {})
@@ -592,6 +601,7 @@ class MoveBlock(Block):
             household=household,
             life_stage=life_stage,
             hobbies=hobbies_str,
+            goals=goals_str,
             openness=big5.get("openness", 2),
             conscientiousness=big5.get("conscientiousness", 2),
             extraversion=big5.get("extraversion", 2),

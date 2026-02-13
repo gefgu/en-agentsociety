@@ -41,10 +41,10 @@ class EnvConfig(BaseModel):
     needs_mahalanobis_params_path: Optional[str] = Field(default=None)
     """Path to the Mahalanobis parameters, if not set, Mahalanobis features will be disabled"""
 
-    enforce_place_selection: bool = Field(default=False)
+    enforce_place_selection: bool = Field(default=True)
     """Whether to enforce place selection in the environment"""
 
-    enforce_transport_mode_selection: bool = Field(default=False)
+    enforce_transport_mode_selection: bool = Field(default=True)
     """Whether to enforce transport mode selection in the environment"""
 
     dispatcher_catboost_path: Optional[str] = Field(default=None)

@@ -1,3 +1,4 @@
+import json
 import numbers
 import random
 from typing import Any, Optional
@@ -33,6 +34,7 @@ Current emotion: ${status.emotion_types}
 Household type: {household}
 Life stage: {life_stage}
 Hobbies: {hobbies}
+Goals: {goals}
 
 Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Openness: {openness}
@@ -128,6 +130,8 @@ class WorkBlock(Block):
         life_stage = await self.memory.status.get("life_stage", "unknown")
         hobbies = await self.memory.status.get("hobbies", [])
         hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
+        goals = await self.memory.status.get("goals", [])
+        goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
 
         # Get preferences
         preferences = await self.memory.status.get("preferences", {})
@@ -138,6 +142,7 @@ class WorkBlock(Block):
             household=household,
             life_stage=life_stage,
             hobbies=hobbies_str,
+            goals=goals_str,
             work_ethic=work_ethic,
             openness=big5.get("openness", 2),
             conscientiousness=big5.get("conscientiousness", 2),
@@ -690,5 +695,65 @@ class MonthEconomyPlanBlock(Block):
                     },
                 )
                 await self.memory.status.update("ubi_opinion", [content], mode="merge")
+
+            # Goal Creation
+            financial_stress = income < (0.9 * consumption)
+            need_fulfillment = await self.memory.status.get(
+                "mean_need_fulfillment", 0.5
+            )
+
+            social_isolation = (
+                await self.agent.blocks[1].get_number_of_contacts_in_last_7_days()
+            ) < 3 # Block 1 is the social block
+            interest = await self.memory.spatial.get_interest()
+            major_events_memories = await self.memory.stream.search(
+                query="major_event", top_k=5
+            )
+
+            GOALS_PROMPT = f"""
+                Given the following economic and social context, please create 3 to 5 goals that I can achieve in the next month. These goals should be specific, measurable, achievable, relevant, and time-bound (SMART). 
+
+                Economic Context:
+                - Income: ${income:.2f} per month
+                - Consumption: ${consumption:.2f} per month
+                - Wealth: ${wealth:.2f}
+                - Financial Stress: {"Yes" if financial_stress else "No"}
+                - Need Fulfillment: {need_fulfillment:.2f} (0 to 1 scale)
+                - Social Isolation: {"Yes" if social_isolation else "No"}
+                - Interest in New Experiences: {interest:.2f} (0 to 1 scale)
+
+                Recent Major Events:
+                {major_events_memories}
+
+                Please generate goals that can help improve my economic situation, mental well-being, and social connections based on the above context.
+                Return a JSON array of goal, with just the goal description, without any other text. For example:
+                [
+                    "Find a part-time job in retail to increase my monthly income.",
+                    "Reduce my monthly consumption by 20% by cooking at home more often.",
+                    "Save at least $100 from my income by cutting unnecessary expenses.",
+                    "Engage in a new hobby or activity to increase my interest in new experiences.",
+                    "Reconnect with an old friend to reduce social isolation."
+                ]
+            """
+            GOALS_PROMPT = prettify_document(GOALS_PROMPT)
+            content = await self.llm.atext_request(
+                [{"role": "user", "content": GOALS_PROMPT}],
+                timeout=300,
+                context={
+                    "block_name": self.name,
+                    "func_name": "forward_goal_creation",
+                    "agent_id": agent_id,
+                },
+            )
+
+            try:
+                goals = json_repair.loads(content)
+            except Exception as e:
+                get_logger().warning(
+                    f"Error in parsing goals: {str(e)}, raw: {content}"
+                )
+                goals = []
+
+            await self.memory.status.update("goals", goals)
 
             self.forward_times += 1

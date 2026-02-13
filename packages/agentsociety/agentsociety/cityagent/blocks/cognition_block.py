@@ -473,6 +473,7 @@ class CognitionBlock(Block):
         if await self.cross_day():
             await self.thought_update()
             await self.attitude_update()
+            await self.memory.spatial.decay_beliefs()
 
     async def emotion_update(self, incident):
         """Update emotion intensities based on a specific incident.
@@ -730,8 +731,6 @@ class CognitionBlock(Block):
             get_logger().warning(f"CognitionBlock.initalize_hobbies: Failed to parse JSON response after 3 attempts. Final response: {response}")
         else:
             self.initialized_hobbies = True
-
-        
 
     async def initialize_preferences(self):
         """Initialize the agent's behavioral preferences based on profile and psychographic information.

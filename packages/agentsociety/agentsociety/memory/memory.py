@@ -631,24 +631,24 @@ class SpatialMemory:
 
             if not top_most_similar:
                 beliefs = {"price": 0.5, "atmosphere": 0.5, "satisfaction": 0.5, "convenience": 0.5}
+            else:
+              # Accumulate scores from neighbors
+              beliefs = {"price": 0.0, "atmosphere": 0.0, "satisfaction": 0.0, "convenience": 0.0}
+              counts = 0
 
-            # Accumulate scores from neighbors
-            beliefs = {"price": 0.0, "atmosphere": 0.0, "satisfaction": 0.0, "convenience": 0.0}
-            counts = 0
+              for node in top_most_similar:
+                  if node.price is not None:
+                      beliefs["price"] += node.price
+                  if node.atmosphere is not None:
+                      beliefs["atmosphere"] += node.atmosphere
+                  if node.satisfaction is not None:
+                      beliefs["satisfaction"] += node.satisfaction
+                  if node.convenience is not None:
+                      beliefs["convenience"] += node.convenience
+                  counts += 1
 
-            for node in top_most_similar:
-                if node.price is not None:
-                    beliefs["price"] += node.price
-                if node.atmosphere is not None:
-                    beliefs["atmosphere"] += node.atmosphere
-                if node.satisfaction is not None:
-                    beliefs["satisfaction"] += node.satisfaction
-                if node.convenience is not None:
-                    beliefs["convenience"] += node.convenience
-                counts += 1
-
-            # Calculate Average
-            beliefs = {k: v / counts for k, v in beliefs.items()}
+              # Calculate Average
+              beliefs = {k: v / counts for k, v in beliefs.items()}
             node = SpatialMemoryNode(
                 location_id=location_id,
                 description=location_description or "",
@@ -766,6 +766,14 @@ class SpatialMemory:
         return self._locations.get(location_id, await self.add_or_update_location(location_id, location_description))
 
 
+    async def get_interest(self):
+        """Get ratio of POIs where satisfaction > 0.5"""
+        total_pois = len(self._locations)
+        if total_pois == 0:
+            return 0.0
+        interested_pois = sum(1 for node in self._locations.values() if node.satisfaction > 0.5)
+        return interested_pois / total_pois
+
     async def search_for_new_poi(
         self,
         location_id: str,
@@ -786,10 +794,10 @@ class SpatialMemory:
         query = f"Location {location_id} description: {location_description}."
 
         # Perform the search in the vector store
-        search_results = await self._vectorstore.search(
+        search_results = await self._vectorstore.similarity_search(
             query=query,
-            top_k=top_k,
-            filter_tags={"type": "spatial"},
+            k=top_k,
+            filter={"type": "spatial"},
         )
 
         # Retrieve the corresponding SpatialMemoryNode objects
