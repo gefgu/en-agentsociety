@@ -424,6 +424,7 @@ class PlaceSelectionBlock(Block):
                 "success": True,
                 "evaluation": f"Selected destination: {next_place}",
                 "poi_type": poi_type,
+                "poi_id": pois[selected][1],
                 "consumed_time": 5,
                 "node_id": node_id,
             }

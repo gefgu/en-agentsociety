@@ -1,6 +1,8 @@
 import copy
 from typing import Union, cast
 
+from ..configs.social_network import initialize_social_network_by_similarity
+
 from ..agent.distribution import Distribution, DistributionConfig
 from ..cityagent.blocks.economy_block import EconomyBlock, EconomyBlockParams
 from ..cityagent.blocks.mobility_block import MobilityBlock, MobilityBlockParams
@@ -234,5 +236,6 @@ def default(config: Config) -> Config:
     if len(config.agents.init_funcs) == 0:
         config.agents.init_funcs = [
             bind_agent_info,
+            initialize_social_network_by_similarity,
         ]
     return config

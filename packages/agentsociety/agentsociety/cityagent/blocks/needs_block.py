@@ -154,6 +154,68 @@ If you think the agent has to stop the current action and do something to satisf
 """
 
 
+
+POI_OBSERVATION_PROMPT = """You are a Spatial Memory Observation Encoder. Your task is to quantify the agent's experience at a Point of Interest (POI) into a numerical observation vector.
+
+This vector will be fed into a Kalman filter to update the agent's long-term memory.
+
+**Profile Information:**
+- Gender: {gender}
+- Age: {age}
+- Income: {income}
+- User Big Five Personality Traits: (1=Low, 2=Medium, 3=High)
+  - Openness: {openness}
+  - Conscientiousness: {conscientiousness}
+  - Extraversion: {extraversion}
+  - Agreeableness: {agreeableness}
+  - Neuroticism: {neuroticism}
+- Hobbies: {hobbies}
+
+**Context:**
+- POI Name: {poi_name}
+- POI Category: {poi_category}
+
+**Interaction/Observation Log:**
+--------------------------------
+{observation}
+--------------------------------
+
+**Task:**
+Analyze the interaction log and the agent's profile to generate a quantitative score (0.0 to 1.0) for the following four dimensions based *only* on this specific visit.
+
+**Scoring Guidelines (1.0 is always POSITIVE/GOOD, 0.0 is NEGATIVE/BAD):**
+
+1. **price**: Evaluate the affordability/value.
+   - 1.0 = Very Cheap / Excellent Value (Positive)
+   - 0.0 = Very Expensive / Overpriced (Negative)
+   
+2. **atmosphere**: Evaluate the environment/vibe.
+   - 1.0 = Excellent, Pleasant, Welcoming
+   - 0.0 = Hostile, Dirty, Unpleasant
+
+3. **satisfaction**: Evaluate the agent's overall fulfillment.
+   - 1.0 = Highly Satisfied, Needs met perfectly
+   - 0.0 = Unsatisfied, Regretful
+
+4. **convenience**: Evaluate ease of access or service.
+   - 1.0 = Very Convenient, Fast, Accessible
+   - 0.0 = Inconvenient, Slow, Hard to find
+
+**Response Format:**
+Return ONLY valid JSON.
+
+Example:
+{{
+    "price": 0.8,
+    "atmosphere": 0.9,
+    "satisfaction": 0.7,
+    "convenience": 0.5
+}}
+
+DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
+"""
+
+
 class NeedsBlock(Block):
     """
     Manages agent's dynamic needs system including:
@@ -176,6 +238,7 @@ class NeedsBlock(Block):
         evaluation_prompt: str = EVALUATION_PROMPT,
         reflection_prompt: str = REFLECTION_PROMPT,
         initial_prompt: str = INITIAL_NEEDS_PROMPT,
+        poi_belief_update_prompt: str = POI_OBSERVATION_PROMPT
     ):
         """
         Initialize needs management system.
@@ -200,6 +263,7 @@ class NeedsBlock(Block):
         self.evaluation_prompt = FormatPrompt(template=evaluation_prompt)
         self.initial_prompt = FormatPrompt(template=initial_prompt, memory=agent_memory)
         self.reflection_prompt = FormatPrompt(template=reflection_prompt)
+        self.poi_belief_update_prompt = FormatPrompt(template=poi_belief_update_prompt)
         self.need_work = True
         self.now_day = -1
         self.last_evaluation_time = None
@@ -441,6 +505,8 @@ class NeedsBlock(Block):
         if current_plan and (
             current_plan.get("completed") or current_plan.get("failed")
         ):
+            await self.update_poi_beliefs_from_plan(current_plan)
+
             # Evaluate the execution process of the plan and adjust needs
             pre_need = await self.memory.status.get("current_need")
             # evaluate plan execution and adjust needs
@@ -454,6 +520,117 @@ class NeedsBlock(Block):
             if pre_need == self._need_to_do:
                 self._need_to_do = None
                 self._need_to_do_checked = False
+
+
+    async def update_poi_beliefs_from_plan(self, plan):
+        """
+          Update POI beliefs based on actually executed steps.
+          Only processes steps that have non-pending evaluation status.
+        """
+        is_poi = False
+        for step in plan.get("steps", []):
+            if "poi_id" in step:
+                is_poi = True
+                break
+
+        if not is_poi:
+            return
+
+
+        for step in plan.get("steps", []):
+            evaluation = step.get("evaluation", {})
+            if evaluation.get("status") == "pending" or evaluation.get("success", False) == False:
+                get_logger().info(f"Skipping step with pending or failed evaluation. Step: {step}, Evaluation: {evaluation}")
+                continue  # Skip pending steps
+
+            intention = step.get("intention", "")
+            step_type = step.get("type", "")
+            details = evaluation.get("details", "")
+
+            location_id = None
+
+
+            if "poi_id" in step: # priority
+                location_id = step["poi_id"]
+            elif "position" in step:
+                location_id = step["position"]
+            elif "next_place" in step and isinstance(step["next_place"], list):
+              if len(step["next_place"]) > 1:
+                  location_id = str(step["next_place"][1])
+            elif "to_place" in step:
+              location_id = str(step["to_place"])
+
+            if not location_id:
+              continue
+
+            location_description = step.get("next_place_type", "unknown")
+
+            get_logger().info(f"Updating beliefs based on step evaluation. Intention: {intention}, Type: {step_type}, Details: {details}, Location ID: {location_id}. Original Plan: {plan}")
+
+            await self.update_location_belief(location_id, location_description, intention, step_type, details)
+
+
+    async def update_location_belief(self, location_id, location_category, intention, step_type, details):
+        """
+        Update beliefs about a location based on step evaluation.
+        - Retrieves existing belief for the location
+        - Updates belief attributes based on intention, type, and evaluation details
+        - Handles different types of intentions (e.g., mobility, economy) and their impact on beliefs
+        """
+
+        gender = await self.memory.status.get("gender", "unknown")
+        age = await self.memory.status.get("age", "unknown")
+        income = await self.memory.status.get("income", "unknown")
+        big5 = await self.memory.status.get("big5", {})
+        openness = big5.get("openness", 2)
+        conscientiousness = big5.get("conscientiousness", 2)
+        extraversion = big5.get("extraversion", 2)
+        agreeableness = big5.get("agreeableness", 2)
+        neuroticism = big5.get("neuroticism", 2)
+        hobbies = await self.memory.status.get("hobbies", [])
+        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
+        observation = f"Based on my recent experience of {intention} at {location_category} (ID: {location_id}), I have the following details: {details}."
+
+        await self.poi_belief_update_prompt.format(
+            gender=gender,
+            age=age,
+            income=income,
+            openness=openness,
+            conscientiousness=conscientiousness,
+            extraversion=extraversion,
+            agreeableness=agreeableness,
+            neuroticism=neuroticism,
+            hobbies=hobbies_str,
+            observation=observation,
+            poi_name = location_id,
+            poi_category = location_category
+        )
+
+        retry = 3
+        while retry > 0:
+            try:
+                response = await self.llm.atext_request(
+                    self.poi_belief_update_prompt.to_dialog(),
+                    response_format={"type": "json_object"},
+                    context={
+                        "block_name": "NeedsBlock",
+                        "func_name": "update_location_belief",
+                        "agent_id": self.id,
+                    },
+                )
+                belief_update: Any = json_repair.loads(clean_json_response(response))
+                new_price = belief_update.get("price", 0.5)
+                new_atmosphere = belief_update.get("atmosphere", 0.5)
+                new_satisfaction = belief_update.get("satisfaction", 0.5)
+                new_convenience = belief_update.get("convenience", 0.5)
+                await self.memory.spatial.update_belief_location(location_id, new_price, new_atmosphere, new_satisfaction, new_convenience)
+                get_logger().info(f"Belief updated for location {location_id} with data: {belief_update}")
+                break
+            except Exception as e:
+                get_logger().warning(f"Error updating beliefs from plan evaluation: {str(e)}")
+                get_logger().warning(f"Original response: {response}")
+                retry -= 1
+        
 
     async def determine_current_need(self):
         """
