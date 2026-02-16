@@ -60,7 +60,7 @@ class MessagePromptManager:
             relationship is not None
         ), f"MessagePromptManager: No relation found for target {target}"
         relationship_type = relationship.kind
-        relationship_strength = relationship.strength
+        relationship_strength = f"Relationship Strength (0-1 Scale): Affinity {relationship.affinity}, Familiarity {relationship.familiarity}, Trust {relationship.trust}"
         chat_histories = await memory.status.get("chat_histories") or {}
 
         # Build discussion topic constraints
@@ -267,8 +267,15 @@ class FindPersonBlock(Block):
             else:
                 person_weights = [(target_id, kind, weight / total_weight) for target_id, kind, weight in person_weights]
 
-            target_person = np.random.choice(person_weights, p=[weight for _, _, weight in person_weights])
-            target_id, relationship_type, _ = target_person
+            # Create separate arrays for selection
+            probabilities = np.array([weight for _, _, weight in person_weights])
+            indices = np.arange(len(person_weights))
+
+            # Select an index based on probabilities
+            selected_idx = np.random.choice(indices, p=probabilities)
+
+            # Get the selected person data
+            target_id, relationship_type, _ = person_weights[selected_idx]
             mode = "online"
 
             node_id = await self.memory.stream.add(

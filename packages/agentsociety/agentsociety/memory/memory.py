@@ -763,7 +763,10 @@ class SpatialMemory:
             - `SpatialMemoryNode`: The spatial memory node associated with the given location ID.
         """
 
-        return self._locations.get(location_id, await self.add_or_update_location(location_id, location_description))
+        try:
+            return self._locations.get(location_id, await self.add_or_update_location(location_id, location_description))
+        except Exception as e:
+            get_logger().error(f"Error retrieving location {location_id}: {e}")
 
 
     async def get_interest(self):

@@ -137,6 +137,39 @@ Please response in json format (Do not return any other text), example:
 }}
 """
 
+AOI_AREA_SELECTION_PROMPT = """
+As an intelligent decision system, please select 3-5 areas (AOIs) where the agent should look for places to visit.
+
+**Agent State:**
+- Current Plan: {plan}
+- Current Intention: {intention}
+- Current Emotion: {emotion}
+- Current Thought: {thought}
+- Household: {household}
+- Life Stage: {life_stage}
+Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
+openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
+
+**Recent Visit History (last 7 days):**
+{visit_history}
+
+**Candidate Areas (ranked by distance and popularity):**
+{ranked_areas}
+
+Please select 3-5 area IDs that best match the agent's intention, emotional state, and preferences.
+Consider:
+1. Distance (closer is generally better)
+2. Popularity (more POIs = more options)
+3. Past visit patterns
+4. Current emotional state and intention
+
+Please response in json format (Do not return any other text), example:
+{{
+    "selected_area_ids": [123, 456, 789],
+    "reasoning": "Selected areas close to home with high popularity for shopping"
+}}
+"""
+
 TRANSPORT_MODE_SELECTION_PROMPT = """
 As an intelligent transport decision system, please select the most appropriate transport mode for the user based on the current context and their persona.
 You are approximating a utility function where you maximize the user's comfort, efficiency, and preference.
@@ -179,13 +212,17 @@ class PlaceSelectionBlock(Block):
     """
     Block for selecting destinations based on user intention.
 
-    Implements a two-stage selection process:
+    Implements a three-stage selection process:
+    0. Select candidate AOI areas (macro-level filtering)
     1. Select primary POI category (e.g., 'shopping')
     2. Select sub-category (e.g., 'bookstore')
+    3. Apply gravity model to filtered POIs
     Uses LLM for decision making with fallback to random selection.
 
     Configurable Fields:
         search_limit: Max number of POIs to retrieve from map service
+        max_areas_to_consider: Number of areas to rank for selection
+        max_area_distance: Maximum distance for area consideration (meters)
     """
 
     name = "PlaceSelectionBlock"
@@ -196,6 +233,8 @@ class PlaceSelectionBlock(Block):
         toolbox: AgentToolbox,
         agent_memory: Memory,
         search_limit: int = 50,
+        max_areas_to_consider: int = 20,
+        max_area_distance: int = 50000,
     ):
         super().__init__(
             toolbox=toolbox,
@@ -209,15 +248,169 @@ class PlaceSelectionBlock(Block):
             RADIUS_PROMPT,
             memory=agent_memory,
         )
-        self.search_limit = search_limit  # Default config value
+        self.areaSelectionPrompt = FormatPrompt(AOI_AREA_SELECTION_PROMPT)
+        self.search_limit = search_limit
+        self.max_areas_to_consider = max_areas_to_consider
+        self.max_area_distance = max_area_distance
+
+    async def get_recent_visit_history(self, days: int = 7):
+        """Retrieve agent's recent mobility history from stream memory."""
+        try:
+            # Get mobility events from the last N days
+            day, _= self.environment.get_datetime()
+            time_window = days * 24 * 60 * 60  # Convert days to seconds
+            
+            mobility_events = await self.memory.stream.search(
+                "location",
+                topic="mobility",
+                day_range=(max(day - 7, 0), day)
+            )
+
+            
+            if not mobility_events:
+                return "No recent visit history available."
+
+            return mobility_events
+        except Exception as e:
+            get_logger().warning(
+                f"PlaceSelectionBlock: Failed to retrieve visit history: {e}",
+                extra={"agent_id": self.agent.id},
+            )
+            return "Unable to retrieve visit history."
+
+    def _calculate_aoi_popularity(self, aoi_data):
+        """Calculate area popularity based on number of POIs (more POIs = more popular)."""
+        poi_count = len(aoi_data.get("poi_ids", []))
+        # Use logarithmic scale to prevent extreme values
+        # Normalize to 0-1 range
+        if poi_count == 0:
+            return 0
+        popularity = min(1, math.log(poi_count + 1, 10) * 0.2)
+        return popularity
+
+    async def select_candidate_areas(self, context: DotDict, center, radius):
+        """
+        Stage 0: Select candidate AOI areas before POI selection.
+        
+        Returns:
+            List of selected AOI IDs to filter POIs, or None if selection fails
+        """
+        aoi_candidates = []  # Initialize at the start
+        try:
+            # Get all AOIs within radius
+            all_aois = self.environment.map.get_all_aois()
+            
+            # Filter by distance and calculate scores
+            for aoi in all_aois:
+                aoi_pos = aoi.get("position", {})
+                aoi_center = (aoi_pos.get("x", 0), aoi_pos.get("y", 0))
+                
+                # Calculate distance
+                distance = math.sqrt(
+                    (center[0] - aoi_center[0]) ** 2 + (center[1] - aoi_center[1]) ** 2
+                )
+                
+                if distance > self.max_area_distance:
+                    continue
+                
+                # Calculate popularity
+                popularity = self._calculate_aoi_popularity(aoi)
+                
+                # Combined score: 40% distance (inverted), 60% popularity
+                # Normalize distance to 0-100 (closer = higher score)
+                distance_score = max(0, 100 - (distance / self.max_area_distance * 100))
+                combined_score = (0.4 * distance_score) + (0.6 * popularity * 100)
+                
+                aoi_candidates.append({
+                    "id": aoi.get("id"),
+                    "distance": distance,
+                    "popularity": popularity,
+                    "score": combined_score,
+                    "poi_count": len(aoi.get("poi_ids", [])),
+                })
+            
+            if not aoi_candidates:
+                get_logger().warning(
+                    f"PlaceSelectionBlock: No AOIs found within {self.max_area_distance}m",
+                    extra={"agent_id": self.agent.id},
+                )
+                return None
+            
+            # Sort by combined score and take top N
+            aoi_candidates.sort(key=lambda x: x["score"], reverse=True)
+            top_candidates = aoi_candidates[:self.max_areas_to_consider]
+            
+            # Format for LLM
+            ranked_areas_str = "\n".join([
+                f"- AOI {aoi['id']}: {aoi['distance']:.0f}m away, {aoi['poi_count']} POIs, popularity={aoi['popularity']:.1f}, score={aoi['score']:.1f}"
+                for aoi in top_candidates
+            ])
+            
+            # Get visit history
+            visit_history = await self.get_recent_visit_history()
+            
+            # Get agent state
+            emotion = await self.memory.status.get("emotion", "neutral")
+            thought = await self.memory.status.get("thought", "")
+            household = await self.memory.status.get("household", "unknown")
+            life_stage = await self.memory.status.get("life_stage", "unknown")
+            big5 = await self.memory.status.get("big5", {})
+            
+            # Format prompt
+            await self.areaSelectionPrompt.format(
+                plan=context.get("plan_context", {}).get("plan", "No plan"),
+                intention=context.get("current_step", {}).get("intention", "Unknown"),
+                emotion=emotion,
+                thought=thought,
+                household=household,
+                life_stage=life_stage,
+                openness=big5.get("openness", 2),
+                conscientiousness=big5.get("conscientiousness", 2),
+                extraversion=big5.get("extraversion", 2),
+                agreeableness=big5.get("agreeableness", 2),
+                neuroticism=big5.get("neuroticism", 2),
+                visit_history=visit_history,
+                ranked_areas=ranked_areas_str,
+            )
+            
+            # LLM selection
+            response = await self.llm.atext_request(
+                self.areaSelectionPrompt.to_dialog(),
+                response_format={"type": "json_object"},
+                context={
+                    "block_name": self.name,
+                    "func_name": "AOI Area Selection",
+                    "agent_id": self.agent.id,
+                },
+            )
+            
+            result = json_repair.loads(clean_json_response(response))
+            selected_ids = result.get("selected_area_ids", [])
+            reasoning = result.get("reasoning", "No reasoning provided")
+            
+            get_logger().info(
+                f"PlaceSelectionBlock: Selected {len(selected_ids)} areas: {selected_ids}. Reasoning: {reasoning}",
+                extra={"agent_id": self.agent.id},
+            )
+            
+            return selected_ids
+            
+        except Exception as e:
+            get_logger().warning(
+                f"PlaceSelectionBlock: Area selection failed: {e}, using top scored areas",
+                extra={"agent_id": self.agent.id},
+            )
+            # Fallback: return top 5 areas by score
+            if aoi_candidates:
+                return [aoi["id"] for aoi in aoi_candidates[:5]]
+            return None
 
     async def gravity_model(self, pois):
         """
         Calculate selection probabilities for POIs using a gravity model.
 
         The model considers both distance decay (prefer closer locations)
-        and spatial density (avoid overcrowded areas). Distances are grouped
-        into 1km bins up to 10km, with POIs beyond 10km in a 'more' category.
+        and spatial density (avoid overcrowded areas).
 
         Args:
             pois: List of POI tuples containing (poi_data, distance)
@@ -228,7 +421,7 @@ class PlaceSelectionBlock(Block):
         """
 
         get_logger().info(
-            f"Gravity Model: Starting with {len(pois)} POIs",
+            f"Gravity Model: Starting with {len(pois)} POIs.",
             extra={"agent_id": self.agent.id},
         )
 
@@ -239,11 +432,13 @@ class PlaceSelectionBlock(Block):
         epsilon = 1e-5  # Small constant to prevent division by zero
         distance_decay = 2
         pois_with_weights = []
-        for poi_tuple in pois:  # Changed variable name for clarity
+        for poi_tuple in pois:
             try:
                 # Unpack the tuple correctly
                 poi_data = poi_tuple[0]  # First element is the POI dict
                 distance = poi_tuple[1]  # Second element is the distance
+
+                print(f"Processing type {type(poi_data)} POI: {poi_data} at distance {distance:.2f}m")
 
                 # Get POI attributes safely
                 poi_id = poi_data.get("id")
@@ -281,7 +476,6 @@ class PlaceSelectionBlock(Block):
 
                 # Apply distance decay with belief adjustment
                 adjusted_distance = distance ** (1 + (distance_decay) * (bj - 0.5))
-
                 weight = (bj + epsilon) / (adjusted_distance + epsilon)
 
                 pois_with_weights.append((poi_name, poi_id, weight, distance))
@@ -441,15 +635,34 @@ class PlaceSelectionBlock(Block):
             get_logger().warning(f"MobilityBlock: Radius selection failed: {e}")
             radius = 10000  # Default 10km
 
-        # Query and select POI
+        # Stage 0: Select candidate AOI areas
         xy = (await self.memory.status.get("position"))["xy_position"]
         center = (xy["x"], xy["y"])
+        
+        selected_area_ids = await self.select_candidate_areas(context, center, radius)
+
+        # Query POIs with category filter
         pois = self.environment.map.query_pois(
             center=center,
             category_prefix=levelTwoType,
             radius=radius,
             limit=self.search_limit,
         )
+
+        # Filter POIs by selected areas (if area selection succeeded)
+        if selected_area_ids:
+            filtered_pois = []
+            for poi_tuple in pois:
+                poi_data = poi_tuple[0]
+                poi_aoi_id = poi_data.get("aoi_id")
+                if poi_aoi_id in selected_area_ids:
+                    filtered_pois.append(poi_tuple)
+            
+            get_logger().info(
+                f"PlaceSelectionBlock: Filtered {len(pois)} POIs to {len(filtered_pois)} POIs in selected areas",
+                extra={"agent_id": self.agent.id},
+            )
+            pois = filtered_pois
 
         poi_type = "unknown"
         if pois and len(pois) > 0:
@@ -980,6 +1193,14 @@ class MobilityBlockParams(BlockParams):
         default=False,
         description="Whether to enforce transport mode selection for movements",
     )
+    max_areas_to_consider: int = Field(
+        default=20,
+        description="Number of AOI areas to rank for macro-level selection",
+    )
+    max_area_distance: int = Field(
+        default=50000,
+        description="Maximum distance (meters) for AOI area consideration",
+    )
 
 
 class MobilityBlockContext(BlockContext):
@@ -1021,7 +1242,11 @@ class MobilityBlock(Block):
         )
         # initialize all blocks
         self.place_selection_block = PlaceSelectionBlock(
-            toolbox, agent_memory, self.params.search_limit
+            toolbox,
+            agent_memory,
+            search_limit=self.params.search_limit,
+            max_areas_to_consider=self.params.max_areas_to_consider,
+            max_area_distance=self.params.max_area_distance,
         )
         enforce_transport_mode_selection = self.params.enforce_transport_mode_selection
         self.transport_mode_block = TransportModeSelectionBlock(toolbox, agent_memory)

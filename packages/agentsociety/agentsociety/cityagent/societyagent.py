@@ -651,7 +651,7 @@ Example:
                         break
 
                 recent_chat_history = chat_histories.get(sender_id, "No chat history")
-                get_logger().info(f"Recent chat history: {recent_chat_history}")
+                get_logger().debug(f"Recent chat history: {recent_chat_history}")
                 try:
                     recent_chat_history = recent_chat_history[-200:]
                 except Exception as e:
@@ -674,6 +674,44 @@ Example:
                     current_intention = current_step.get(
                         "intention", "I am doing nothing"
                     )
+
+                # Update Beliefs Regarding the Sender
+                belief_update_prompt = f"""
+                You have received a message: {content}
+                Based on this message, update your beliefs about the sender (ID: {sender_id}) in your social network.
+                Consider their personality, intentions, and any relevant context from your past interactions, and the current beliefs.
+                Current belief about the sender: {relationship_type} with {relationship_strength}.
+                Provide a brief update to your beliefs about this sender.
+
+                Return new affinity, trust, and familiarity values (0-1 scale) in JSON format:
+                {{"affinity": float, "trust": float, "familiarity": float}}
+                """
+
+                belief_update_response = await self.llm.atext_request(
+                    dialog=[
+                        {
+                            "role": "system",
+                            "content": "You are helping update beliefs about a social contact based on a received message.",
+                        },
+                        {"role": "user", "content": belief_update_prompt},
+                    ],
+                    response_format={"type": "json_object"},
+                    context={
+                        "block_name": "SocietyAgent",
+                        "func_name": "do_chat",
+                        "agent_id": str(self.id),
+                    },
+                )
+                belief_update = json_repair.loads(belief_update_response)  # type: ignore
+                relation.affinity = belief_update.get("affinity", relation.affinity)
+                relation.trust = belief_update.get("trust", relation.trust)
+                relation.familiarity = belief_update.get("familiarity", relation.familiarity)
+
+                get_logger().debug(
+                    f"Agent {self.id}: Updated relationship with {sender_id}: {relationship_type}, Affinity: {relation.affinity}, Trust: {relation.trust}, Familiarity: {relation.familiarity}"
+                )
+
+
 
                 # Decision prompt
                 should_respond_prompt = f"""

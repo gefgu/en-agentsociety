@@ -26,14 +26,14 @@ class MapConfig(BaseModel):
 
 class MapData:
     """
-    地图API
     Map API
     """
 
     def __init__(self, config: MapConfig, s3config: S3Config):
         """
         Args:
-        - config (MapConfig): Map config, Defaults to None. Map config.
+        - config (MapConfig): Map config, Defaults to None.
+        - s3config (S3Config): S3 configuration.
         """
         get_logger().info("MapData init")
         s3client = None
@@ -117,43 +117,40 @@ class MapData:
 
         self.header: dict = map_data["header"]
         """
-        地图元数据，包含如下属性:
         Map metadata, including the following attributes:
-        - name (string): 城市道路名称，供标识数据集合的语义。Map name, to identify the semantics of data collections.
-        - date (string): 城市道路数据的创建时间。Map data creation time.
-        - north (float): 道路数据的北边界坐标。The coordinate of the northern boundary of the Map data.
-        - south (float): 道路数据的南边界坐标。The coordinate of the southern boundary of the Map data.
-        - east (float): 道路数据的东边界坐标。The coordinate of the eastern boundary of the Map data.
-        - west (float): 道路数据的西边界坐标。The coordinate of the western boundary of the Map data.
-        - projection (string): PROJ.4 投影字符串，用以支持xy坐标到其他坐标系的转换。PROJ.4 projection string to support the conversion of xy coordinates to other coordinate systems.
+        - name (string): Map name, used to identify the semantics of data collections.
+        - date (string): Map data creation time.
+        - north (float): The coordinate of the northern boundary of the Map data.
+        - south (float): The coordinate of the southern boundary of the Map data.
+        - east (float): The coordinate of the eastern boundary of the Map data.
+        - west (float): The coordinate of the western boundary of the Map data.
+        - projection (string): PROJ.4 projection string to support the conversion of xy coordinates to other coordinate systems.
         """
 
         self.aois: Dict[int, dict] = map_data["aois"]
         """
-        地图中的AOI集合（aoi），字典的值包含如下属性:
-        AOI collection (aoi) in the map, the value of the dictionary contains the following attributes:
-        - id (int): AOI编号。AOI ID.
-        - positions (list[XYPosition]): 多边形空间范围。Shape of polygon.
-        - area (float): 面积(单位: m2)。Area.
-        - driving_positions (list[LanePosition]): 和道路网中行车道的连接点。Connection points to driving lanes.
-        - walking_positions (list[LanePosition]): 和道路网中人行道的连接点。Connection points to pedestrian lanes.
-        - driving_gates (list[XYPosition]): 和道路网中行车道的连接点对应的AOI边界上的位置。Position on the AOI boundary corresponding to the connection point to driving lanes.
-        - walking_gates (list[XYPosition]): 和道路网中人行道的连接点对应的AOI边界上的位置。Position on the AOI boundary corresponding to the connection point to pedestrian lanes.
-        - urban_land_use (Optional[str]): 城市建设用地分类，参照执行标准GB 50137-2011（https://www.planning.org.cn/law/uploads/2013/1383993139.pdf） Urban Land use type, refer to the national standard GB 50137-2011.
-        - poi_ids (list[int]): 包含的POI列表。Contained POI IDs.
-        - shapely_xy (shapely.geometry.Polygon): AOI的形状（xy坐标系）。Shape of polygon (in xy coordinates).
-        - shapely_lnglat (shapely.geometry.Polygon): AOI的形状（经纬度坐标系）。Shape of polygon (in latitude and longitude).
+        AOI collection (aoi) in the map. The dictionary values contain the following attributes:
+        - id (int): AOI ID.
+        - positions (list[XYPosition]): Shape of polygon.
+        - area (float): Area (unit: m2).
+        - driving_positions (list[LanePosition]): Connection points to driving lanes in the road network.
+        - walking_positions (list[LanePosition]): Connection points to pedestrian lanes in the road network.
+        - driving_gates (list[XYPosition]): Position on the AOI boundary corresponding to the connection point to driving lanes.
+        - walking_gates (list[XYPosition]): Position on the AOI boundary corresponding to the connection point to pedestrian lanes.
+        - urban_land_use (Optional[str]): Urban Land use type, refer to the national standard GB 50137-2011 (https://www.planning.org.cn/law/uploads/2013/1383993139.pdf).
+        - poi_ids (list[int]): Contained POI IDs.
+        - shapely_xy (shapely.geometry.Polygon): Shape of polygon (in xy coordinates).
+        - shapely_lnglat (shapely.geometry.Polygon): Shape of polygon (in latitude and longitude).
         """
 
         self.pois: Dict[int, dict] = map_data["pois"]
         """
-        地图中的POI集合（poi），字典的值包含如下属性:
-        POI collection (poi) in the map, the value of the dictionary contains the following attributes:
-        - id (int): POI编号。POI ID.
-        - name (string): POI名称。POI name.
-        - category (string): POI类别编码。POI category code.
-        - position (XYPosition): POI位置。POI position.
-        - aoi_id (int): POI所属的AOI编号。AOI ID to which the POI belongs.
+        POI collection (poi) in the map. The dictionary values contain the following attributes:
+        - id (int): POI ID.
+        - name (string): POI name.
+        - category (string): POI category code.
+        - position (XYPosition): POI position.
+        - aoi_id (int): AOI ID to which the POI belongs.
         """
 
         (
@@ -198,11 +195,11 @@ class MapData:
         assert header is not None, "header is None"
         get_logger().info("Finish parse map data - classify")
         projector = pyproj.Proj(header["projection"])  #
-        # 处理Aoi的Geos
+        # Process AOI geometries
         get_logger().info("Start process aoi geos")
         for aoi in aois.values():
             if "area" not in aoi:
-                # 不是多边形aoi
+                # Not a polygon AOI
                 aoi["shapely_xy"] = Point(
                     aoi["positions"][0]["x"], aoi["positions"][0]["y"]
                 )
@@ -218,7 +215,7 @@ class MapData:
             else:
                 aoi["shapely_lnglat"] = Polygon(lnglat_positions)
         get_logger().info("Finish process aoi geos in MapData")
-        # 处理Poi的Geos
+        # Process POI geometries
         get_logger().info("Start process poi geos in MapData")
         get_logger().info(f"Total pois to process: {len(pois)}")
         for poi in pois.values():
@@ -238,7 +235,7 @@ class MapData:
         # poi:
         # {
         #     "id": 700000000,
-        #     "name": "天翼(互联网手机卖场)",
+        #     "name": "China Telecom (Internet Mobile Phone Store)",
         #     "category": "131300",
         #     "position": {
         #       "x": 448802.148620172,
@@ -288,17 +285,17 @@ class MapData:
         return_distance: bool = True,
     ) -> Union[List[Tuple[Any, float]], List[Any]]:
         """
-        查询center点指定半径内类别满足前缀的poi（按距离排序）。Query the POIs whose categories satisfy the prefix within the specified radius of the center point (sorted by distance).
+        Query the POIs whose categories satisfy the prefix within the specified radius of the center point (sorted by distance).
 
         Args:
-        - center (x, y): 中心点（xy坐标系）。Center point (xy coordinate system).
-        - radius (float, optional): 半径（单位：m）。如果不提供则返回所有的poi。Radius (unit: m).If not provided, all pois within the map will be returned.
-        - category_prefix (str, optional): 类别前缀，如实际类别为100000，那么匹配的前缀可以为10、1000等。Category prefix, if the actual category is 100000, then the matching prefix can be 10, 1000, etc.
-        - limit (int, optional): 最多返回的poi数量，按距离排序，近的优先（默认None）. The maximum number of POIs returned, sorted by distance, closest ones first (default to None).
-        - return_distance (bool): 是否返回距离。Return the distance or not.
+        - center (x, y): Center point (xy coordinate system).
+        - radius (float, optional): Radius (unit: m). If not provided, all pois within the map will be returned.
+        - category_prefix (str, optional): Category prefix, if the actual category is 100000, then the matching prefix can be 10, 1000, etc.
+        - limit (int, optional): The maximum number of POIs returned, sorted by distance, closest ones first (default to None).
+        - return_distance (bool): Return the distance or not.
 
         Returns:
-        - Union[List[Tuple[Any, float]],List[Any]]: poi列表，每个元素为（poi, 距离）或者poi。poi list, each element is (poi, distance) or poi.
+        - Union[List[Tuple[Any, float]],List[Any]]: poi list, each element is (poi, distance) or poi.
         """
         if not isinstance(center, Point):
             center = Point(center)
@@ -310,9 +307,9 @@ class MapData:
                 pois = [p for p in self._poi_list]
                 get_logger().debug(f"No Radius, all pois. Category prefix: {category_prefix}. pois[:10]: {pois[:10]}")
         else:
-            # 获取半径内的poi
+            # Get POIs within radius
             indices = self._poi_tree.query(center.buffer(radius))
-            # 过滤掉不满足类别前缀的poi
+            # Filter out POIs that do not match the category prefix
             pois = []
             possible_pois = []
             for index in indices:
@@ -326,7 +323,7 @@ class MapData:
                         pois.append(poi)
             get_logger().debug(f"Radius, filtered pois. Category prefix: {category_prefix}. pois[:10]: {pois[:10]}. Possible pois[:10]: {possible_pois[:10]}")
         if return_distance:
-            # 按照距离排序
+            # Sort by distance
             pois = sorted(pois, key=lambda x: x[1])
         if limit is not None:
             pois = pois[:limit]
@@ -349,23 +346,23 @@ class MapData:
         limit: Optional[int] = None,
     ) -> List[Tuple[Any, float]]:
         """
-        查询center点指定半径内城市用地满足条件的aoi（按距离排序）。Query the AOIs whose urban land use within the specified radius of the center point meets the conditions (sorted by distance).
+        Query the AOIs whose urban land use within the specified radius of the center point meets the conditions (sorted by distance).
 
         Args:
-        - center (x, y): 中心点（xy坐标系）。Center point (xy coordinate system).
-        - radius (float): 半径（单位：m）。Radius (unit: m).
-        - urban_land_uses (List[str], optional): 城市用地分类列表，参照执行标准GB 50137-2011（https://www.planning.org.cn/law/uploads/2013/1383993139.pdf）. Urban land use classification list, refer to the national standard GB 50137-2011.
-        - limit (int, optional): 最多返回的aoi数量，按距离排序，近的优先（默认None）. The maximum number of AOIs returned, sorted by distance, closest ones first (default to None).
+        - center (x, y): Center point (xy coordinate system).
+        - radius (float): Radius (unit: m).
+        - urban_land_uses (List[str], optional): Urban land use classification list, refer to the national standard GB 50137-2011.
+        - limit (int, optional): The maximum number of AOIs returned, sorted by distance, closest ones first (default to None).
 
         Returns:
-        - List[Tuple[Any, float]]: aoi列表，每个元素为（aoi, 距离）。aoi list, each element is (aoi, distance).
+        - List[Tuple[Any, float]]: aoi list, each element is (aoi, distance).
         """
 
         if not isinstance(center, Point):
             center = Point(center)
-        # 获取半径内的aoi
+        # Get AOIs within radius
         indices = self._aoi_tree.query(center.buffer(radius))
-        # 过滤掉不满足城市用地条件的aoi
+        # Filter out AOIs that do not meet urban land use conditions
         aois = []
         for index in indices:
             aoi = self._aoi_list[index]
@@ -376,7 +373,7 @@ class MapData:
                 continue
             distance = center.distance(aoi["shapely_xy"])
             aois.append((aoi, distance))
-        # 按照距离排序
+        # Sort by distance
         aois = sorted(aois, key=lambda x: x[1])
         if limit is not None:
             aois = aois[:limit]
