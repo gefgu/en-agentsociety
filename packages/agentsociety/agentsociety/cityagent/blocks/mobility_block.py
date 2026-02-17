@@ -717,10 +717,8 @@ class MoveBlock(Block):
         self,
         toolbox: AgentToolbox,
         agent_memory: Memory,
-        enforce_place_selection=False,
-        enforce_transport_mode_selection=False,
-        place_selection_block: "PlaceSelectionBlock" = None,
-        transport_mode_block: "TransportModeSelectionBlock" = None,
+        place_selection_block: "PlaceSelectionBlock",
+        transport_mode_block: "TransportModeSelectionBlock",
     ):
         super().__init__(
             toolbox=toolbox,
@@ -729,108 +727,74 @@ class MoveBlock(Block):
         self.placeAnalysisPrompt = FormatPrompt(PLACE_ANALYSIS_PROMPT)
         self.place_selection_block = place_selection_block
         self.transport_mode_block = transport_mode_block
-        self.enforce_place_selection = enforce_place_selection
-        self.enforce_transport_mode_selection = enforce_transport_mode_selection
 
     async def _execute_movement(
-        self, context: DotDict, target_place_id: any, description: str
+        self, context: DotDict, target_place_id: any, description: str # type: ignore
     ):
         db_tool = self.toolbox.get_tool("db_actor")
-        if self.enforce_transport_mode_selection:
-            context["to_place"] = target_place_id
+        
+        context["to_place"] = target_place_id
 
-            transport_result = await self.transport_mode_block.forward(context)
-            selected_mode = transport_result.get("transport_mode", "car")
+        transport_result = await self.transport_mode_block.forward(context)
+        selected_mode = transport_result.get("transport_mode", "car")
 
-            node_id = await self.memory.stream.add(
-                topic="mobility",
-                description=description,
+        node_id = await self.memory.stream.add(
+            topic="mobility",
+            description=description,
+        )
+        trip_mode = TripMode.TRIP_MODE_DRIVE_ONLY
+        if selected_mode == "walk":
+            trip_mode = TripMode.TRIP_MODE_WALK_ONLY
+        elif selected_mode == "bike":
+            trip_mode = TripMode.TRIP_MODE_BIKE_WALK
+
+        try:
+            await self.environment.set_aoi_schedules(
+                person_id=self.agent.id,
+                target_positions=target_place_id,
+                modes=[trip_mode],
             )
-            trip_mode = TripMode.TRIP_MODE_DRIVE_ONLY
-            if selected_mode == "walk":
-                trip_mode = TripMode.TRIP_MODE_WALK_ONLY
-            elif selected_mode == "bike":
-                trip_mode = TripMode.TRIP_MODE_BIKE_WALK
-
+        except Exception as e:
             try:
+                get_logger().warning(
+                    f"MoveBlock: Failed to set aoi schedules with transport mode {selected_mode}: {e}. Trying with car",
+                    extra={"agent_id": self.agent.id},
+                )
                 await self.environment.set_aoi_schedules(
                     person_id=self.agent.id,
                     target_positions=target_place_id,
-                    modes=[trip_mode],
+                    modes=[TripMode.TRIP_MODE_DRIVE_ONLY],
                 )
-            except Exception as e:
-                try:
-                    get_logger().warning(
-                        f"MoveBlock: Failed to set aoi schedules with transport mode {selected_mode}: {e}. Trying with car",
-                        extra={"agent_id": self.agent.id},
-                    )
-                    await self.environment.set_aoi_schedules(
-                        person_id=self.agent.id,
-                        target_positions=target_place_id,
-                        modes=[TripMode.TRIP_MODE_DRIVE_ONLY],
-                    )
-                    selected_mode = "car"
-                except Exception as e:
-                    get_logger().error(
-                        f"MoveBlock: Failed to set aoi schedules with car mode as fallback: {e}",
-                        extra={"agent_id": self.agent.id},
-                    )
-                    return {
-                        "success": False,
-                        "evaluation": f"Failed to move to {target_place_id} using any transport mode",
-                        "to_place": target_place_id,
-                        "transport_mode": None,
-                        "consumed_time": 0,
-                        "node_id": node_id,
-                    }
-
-            if db_tool:
-                db_tool.get_tool().insert_user_transport_type_record.remote(
-                    timestamp=time.time(),
-                    agent_id=self.agent.id,
-                    transport_type=selected_mode,
-                )
-
-            return {
-                "success": True,
-                "evaluation": f"Successfully moved to {target_place_id} using {selected_mode}",
-                "to_place": target_place_id,
-                "transport_mode": selected_mode,
-                "consumed_time": 45,
-                "node_id": node_id,
-            }
-        else:
-            try:
-                await self.environment.set_aoi_schedules(
-                    person_id=self.agent.id,
-                    target_positions=target_place_id,
-                    # modes=[get_random_transport_mode()],
-                )
+                selected_mode = "car"
             except Exception as e:
                 get_logger().error(
-                    f"MoveBlock: Failed to set aoi schedules: {e}",
+                    f"MoveBlock: Failed to set aoi schedules with car mode as fallback: {e}",
                     extra={"agent_id": self.agent.id},
                 )
                 return {
                     "success": False,
-                    "evaluation": f"Failed to move to {target_place_id}",
+                    "evaluation": f"Failed to move to {target_place_id} using any transport mode",
                     "to_place": target_place_id,
                     "transport_mode": None,
                     "consumed_time": 0,
-                    "node_id": None,
+                    "node_id": node_id,
                 }
-            node_id = await self.memory.stream.add(
-                topic="mobility",
-                description=description,
+
+        if db_tool:
+            db_tool.get_tool().insert_user_transport_type_record.remote(
+                timestamp=time.time(),
+                agent_id=self.agent.id,
+                transport_type=selected_mode,
             )
-            return {
-                "success": True,
-                "evaluation": f"Successfully moved to {target_place_id}",
-                "to_place": target_place_id,
-                "transport_mode": None,
-                "consumed_time": 45,
-                "node_id": node_id,
-            }
+
+        return {
+            "success": True,
+            "evaluation": f"Successfully moved to {target_place_id} using {selected_mode}",
+            "to_place": target_place_id,
+            "transport_mode": selected_mode,
+            "consumed_time": 45,
+            "node_id": node_id,
+        }
 
     async def forward(self, context: DotDict):
         # Get Big Five personality traits
@@ -920,7 +884,7 @@ class MoveBlock(Block):
             # Handle "other" places
             next_place = context.get("next_place", None)
             # 2a. If not provided, try Place Selection Block
-            if next_place is None and self.enforce_place_selection:
+            if next_place is None:
                 get_logger().info(
                     f"MobilityBlock (Agent {self.agent.id}): No next_place provided, calling PlaceSelectionBlock",
                     extra={"agent_id": self.agent.id},
@@ -1185,14 +1149,6 @@ class MobilityBlockParams(BlockParams):
     search_limit: int = Field(
         default=50, description="Number of POIs to retrieve from map service"
     )
-    enforce_place_selection: bool = Field(
-        default=False,
-        description="Whether to enforce place selection when next_place is not provided",
-    )
-    enforce_transport_mode_selection: bool = Field(
-        default=False,
-        description="Whether to enforce transport mode selection for movements",
-    )
     max_areas_to_consider: int = Field(
         default=20,
         description="Number of AOI areas to rank for macro-level selection",
@@ -1248,7 +1204,6 @@ class MobilityBlock(Block):
             max_areas_to_consider=self.params.max_areas_to_consider,
             max_area_distance=self.params.max_area_distance,
         )
-        enforce_transport_mode_selection = self.params.enforce_transport_mode_selection
         self.transport_mode_block = TransportModeSelectionBlock(toolbox, agent_memory)
 
         self.move_block = MoveBlock(
@@ -1256,8 +1211,6 @@ class MobilityBlock(Block):
             agent_memory,
             place_selection_block=self.place_selection_block,
             transport_mode_block=self.transport_mode_block,
-            enforce_place_selection=self.params.enforce_place_selection,
-            enforce_transport_mode_selection=enforce_transport_mode_selection,
         )
         self.mobility_none_block = MobilityNoneBlock(toolbox, agent_memory)
         self.trigger_time = 0  # Block invocation counter
@@ -1272,9 +1225,7 @@ class MobilityBlock(Block):
             self.move_block,
             self.mobility_none_block,
         ]
-
-        if enforce_transport_mode_selection:
-            blocks.append(self.transport_mode_block)
+        # blocks.append(self.transport_mode_block) - Don't need to dispatch to transport mode block directly, it's called internally by move block
 
         self.dispatcher.register_blocks(blocks)
 
