@@ -1627,9 +1627,15 @@ class SimulationEngine:
                 current_plan = await agent.status.get("current_plan", {})
                 if current_plan is not None and current_plan:
                     step_index = current_plan.get("index", 0)
-                    action = current_plan.get("steps", [])[step_index].get(
-                        "intention", "Planning"
-                    )
+                    try:
+                        action = current_plan.get("steps", [])[step_index].get(
+                            "intention", "Planning"
+                        )
+                    except Exception as e:
+                        get_logger().error(
+                            f"Error getting current action for agent {agent.id}: {e}"
+                        )
+                        action = "Planning"
                 else:
                     action = "Planning"
                 status_summary = await agent.status.get("status_summary", "Nothing")

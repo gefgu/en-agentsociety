@@ -182,7 +182,7 @@ class BlockDispatcher:
                 response.choices[0].message.tool_calls[0].function.arguments
             )
 
-            get_logger().info(f"LLM response for block dispatching: {response}")
+            get_logger().debug(f"LLM response for block dispatching: {response}")
             
             # Handle various response formats from different LLM providers
             if isinstance(function_args, list):
