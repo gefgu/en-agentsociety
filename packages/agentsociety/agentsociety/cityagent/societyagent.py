@@ -828,6 +828,9 @@ Answer only YES or NO, in JSON format, e.g. {{"should_respond": "YES", "response
                 selected_block = await self.dispatcher.dispatch(self.context)
                 if selected_block:
                     result = await selected_block.forward(self.context)
+                    get_logger().debug(
+                        f"Agent {self.id}: Executed block {selected_block.__class__.__name__} for intention '{self.context.current_intention}' with result: {result}"
+                    )
                     result = result.model_dump()
                 else:
                     get_logger().warning(
@@ -859,6 +862,19 @@ Answer only YES or NO, in JSON format, e.g. {{"should_respond": "YES", "response
                 }
             if result is not None:
                 current_step["evaluation"] = result
+                get_logger().debug(
+                    f"Agent {self.id}: Step execution result: {result}"
+                )
+                
+                # Extract key fields from result and add them to step for easy access by other blocks
+                # This allows the needs block to access poi_id and other mobility data
+                mobility_fields = ["poi_id", "next_place", "next_place_type", "to_place", "poi_type", "is_poi" ]
+                for field in mobility_fields:
+                    if field in result:
+                        current_step[field] = result[field]
+                        get_logger().debug(
+                            f"Agent {self.id}: Extracted mobility field from step execution: {field} = {result[field]}"
+                        )
 
             # Update current_step, plan, and execution_context information
             current_plan["steps"][step_index] = current_step

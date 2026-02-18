@@ -524,50 +524,50 @@ class NeedsBlock(Block):
 
     async def update_poi_beliefs_from_plan(self, plan):
         """
-          Update POI beliefs based on actually executed steps.
-          Only processes steps that have non-pending evaluation status.
+        Update POI beliefs based on actually executed steps.
+        Only processes steps that have non-pending evaluation status.
+        Only processes steps with poi_id (excludes home and workplace).
         """
-        is_poi = False
-        for step in plan.get("steps", []):
-            if "poi_id" in step:
-                is_poi = True
-                break
 
-        if not is_poi:
-            return
-
+        # Debug Plan
+        get_logger().debug(f"Updating POI beliefs from plan: {plan}", extra={"agent_id": self.id})
 
         for step in plan.get("steps", []):
             evaluation = step.get("evaluation", {})
-            if evaluation.get("status") == "pending" or evaluation.get("success", False) == False:
-                get_logger().info(f"Skipping step with pending or failed evaluation. Step: {step}, Evaluation: {evaluation}")
+            if (
+                evaluation.get("status") == "pending"
+                or not evaluation.get("success", False)
+            ):
+                get_logger().debug(
+                    f"Agent {self.id}: Skipping step with pending or failed evaluation. Step: {step}, Evaluation: {evaluation}",
+                    extra={"agent_id": self.id},
+                )
                 continue  # Skip pending steps
 
+            # Only process steps with valid poi_id (POI visits)
+            if "poi_id" not in step or step["poi_id"] is None:
+                get_logger().debug(
+                    f"Agent {self.id}: Skipping step without valid poi_id (not a POI visit or selection failed): {step.get('intention', 'unknown')}",
+                    extra={"agent_id": self.id},
+                )
+                continue
+
+            poi_id = step["poi_id"]
             intention = step.get("intention", "")
             step_type = step.get("type", "")
             details = evaluation.get("details", "")
 
-            location_id = None
+            poi_category = step.get("next_place_type", "unknown")
 
+            get_logger().info(
+                f"Agent {self.id}: Updating beliefs for POI {poi_id}. Intention: {intention}, Type: {step_type}, Category: {poi_category}, Details: {details}",
+                extra={"agent_id": self.id},
+            )
 
-            if "poi_id" in step: # priority
-                location_id = step["poi_id"]
-            elif "position" in step:
-                location_id = step["position"]
-            elif "next_place" in step and isinstance(step["next_place"], list):
-              if len(step["next_place"]) > 1:
-                  location_id = str(step["next_place"][1])
-            elif "to_place" in step:
-              location_id = str(step["to_place"])
+            await self.update_location_belief(
+                poi_id, poi_category, intention, step_type, details
+            )
 
-            if not location_id:
-              continue
-
-            location_description = step.get("next_place_type", "unknown")
-
-            get_logger().info(f"Updating beliefs based on step evaluation. Intention: {intention}, Type: {step_type}, Details: {details}, Location ID: {location_id}. Original Plan: {plan}")
-
-            await self.update_location_belief(location_id, location_description, intention, step_type, details)
 
 
     async def update_location_belief(self, location_id, location_category, intention, step_type, details):

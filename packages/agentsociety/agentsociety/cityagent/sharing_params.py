@@ -41,6 +41,9 @@ class SocietyAgentBlockOutput(BlockOutput):
     evaluation: str  # evaluation of the action
     consumed_time: int  # time consumed by the action
     node_id: Optional[int]  # stream memory node id
+    
+    # Mobility-specific fields
+    poi_id: Optional[int] = None  # Point of Interest ID (for POI visits)
 
 
 class SocietyAgentContext(AgentContext):

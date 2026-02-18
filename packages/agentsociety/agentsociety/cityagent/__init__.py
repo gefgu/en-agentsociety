@@ -80,10 +80,7 @@ def _fill_in_agent_class_and_memory_config(
             self.memory_distributions = copy.deepcopy(distributions)
             if self.blocks is None:
                 self.blocks = {
-                    MobilityBlock: MobilityBlockParams(
-                        enforce_place_selection=env_config.enforce_place_selection,
-                        enforce_transport_mode_selection=env_config.enforce_transport_mode_selection,
-                    ),
+                    MobilityBlock: MobilityBlockParams(),
                     EconomyBlock: EconomyBlockParams(),
                     SocialBlock: SocialBlockParams(),
                     OtherBlock: OtherBlockParams(),
@@ -97,8 +94,6 @@ def _fill_in_agent_class_and_memory_config(
                         if block_cls == MobilityBlock:
                             blocks[block_cls] = block_cls.ParamsType(
                                 **value,
-                                enforce_place_selection=env_config.enforce_place_selection,
-                                enforce_transport_mode_selection=env_config.enforce_transport_mode_selection,
                             )
                         else:
                             blocks[block_cls] = block_cls.ParamsType(**value)
@@ -114,14 +109,6 @@ def _fill_in_agent_class_and_memory_config(
                             data = value.dict()
                         else:
                             data = value.__dict__
-
-                        # Apply overrides from environment config
-                        data["enforce_place_selection"] = (
-                            env_config.enforce_place_selection
-                        )
-                        data["enforce_transport_mode_selection"] = (
-                            env_config.enforce_transport_mode_selection
-                        )
 
                         # Re-instantiate the params
                         blocks[key] = MobilityBlock.ParamsType(**data)

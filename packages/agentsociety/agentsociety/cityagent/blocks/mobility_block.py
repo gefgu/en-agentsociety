@@ -5,10 +5,10 @@ from enum import Enum
 from typing import Optional
 
 # from ...environment.environment import TransportModeEnum
-import json_repair
-import numpy as np
-from pycityproto.city.trip.v2.trip_pb2 import TripMode
-from pydantic import Field
+import json_repair # type: ignore
+import numpy as np # type: ignore
+from pycityproto.city.trip.v2.trip_pb2 import TripMode # type: ignore
+from pydantic import Field # type: ignore
 
 from ...agent import (
     AgentToolbox,
@@ -438,7 +438,7 @@ class PlaceSelectionBlock(Block):
                 poi_data = poi_tuple[0]  # First element is the POI dict
                 distance = poi_tuple[1]  # Second element is the distance
 
-                print(f"Processing type {type(poi_data)} POI: {poi_data} at distance {distance:.2f}m")
+                get_logger().debug(f"Processing type {type(poi_data)} POI: {poi_data} at distance {distance:.2f}m")
 
                 # Get POI attributes safely
                 poi_id = poi_data.get("id")
@@ -691,7 +691,9 @@ class PlaceSelectionBlock(Block):
         else:
             # No POIs found - return failure instead of random selection
             get_logger().error(
-                f"PlaceSelectionBlock: No POIs found for type {levelTwoType} within {radius}m. Cannot select destination.",
+                f"PlaceSelectionBlock: No POIs found for type {levelTwoType} within {radius}m. Cannot select destination. "
+                f"Intention: {context['current_step']['intention']}, Radius: {radius}, "
+                f"Level1: {levelOneType}, Level2: {levelTwoType}, Selected Areas: {selected_area_ids}",
                 extra={"agent_id": self.agent.id},
             )
             node_id = await self.memory.stream.add(
@@ -702,6 +704,7 @@ class PlaceSelectionBlock(Block):
                 "success": False,
                 "evaluation": f"No POIs found for type {levelTwoType} within {radius}m",
                 "poi_type": None,
+                "poi_id": None,  # Explicitly include poi_id as None for failed selections
                 "consumed_time": 5,
                 "node_id": node_id,
             }
@@ -729,12 +732,13 @@ class MoveBlock(Block):
         self.transport_mode_block = transport_mode_block
 
     async def _execute_movement(
-        self, context: DotDict, target_place_id: any, description: str # type: ignore
+        self, context: DotDict, target_place_id: any, description: str, destination_type: str = None, is_poi: bool = False # type: ignore
     ):
         db_tool = self.toolbox.get_tool("db_actor")
         
         context["to_place"] = target_place_id
-
+        context["destination_type"] = destination_type
+        context["is_poi"] = is_poi
         transport_result = await self.transport_mode_block.forward(context)
         selected_mode = transport_result.get("transport_mode", "car")
 
@@ -775,9 +779,12 @@ class MoveBlock(Block):
                     "success": False,
                     "evaluation": f"Failed to move to {target_place_id} using any transport mode",
                     "to_place": target_place_id,
+                    "description": description,
+                    "destination_type": destination_type,
                     "transport_mode": None,
                     "consumed_time": 0,
                     "node_id": node_id,
+                    "is_poi": is_poi,
                 }
 
         if db_tool:
@@ -787,18 +794,38 @@ class MoveBlock(Block):
                 transport_type=selected_mode,
             )
 
-        return {
+        # Build result with core movement data
+        result = {
             "success": True,
             "evaluation": f"Successfully moved to {target_place_id} using {selected_mode}",
             "to_place": target_place_id,
+            "description": description,
+            "destination_type": destination_type,
             "transport_mode": selected_mode,
             "consumed_time": 45,
             "node_id": node_id,
+            "is_poi": is_poi,
         }
+        
+        # Preserve mobility context fields (from PlaceSelectionBlock) for needs block
+        mobility_fields = ["poi_id", "next_place", "next_place_type", "poi_type", "is_poi"]
+        for field in mobility_fields:
+            if field in context:
+                result[field] = context[field]
+
+
+        get_logger().debug(
+            f"MoveBlock: Movement execution result: {result}",
+            extra={"agent_id": self.agent.id},
+        )
+        
+        return result
 
     async def forward(self, context: DotDict):
         # Get Big Five personality traits
         big5 = await self.memory.status.get("big5", {})
+        poi_id = None
+        place_selection_result = None  # Store PlaceSelectionBlock result for later merging
 
         # Get household and life stage
         household = await self.memory.status.get("household", "unknown")
@@ -894,6 +921,8 @@ class MoveBlock(Block):
                 )
                 if place_selection_result["success"]:
                     next_place = context.get("next_place", None)
+                    # Store poi_id from place selection result
+                    poi_id = place_selection_result.get("poi_id")
 
             # 2b. If still None, pick Random
             if next_place is None:
@@ -907,8 +936,9 @@ class MoveBlock(Block):
                 poi_cat = poi.get("category", "unknown")
                 # Structure: (Name, AOI_ID, Type)
                 next_place = (poi["name"], poi["aoi_id"], poi_cat)
+                poi_id = r_poi
                 get_logger().warning(
-                    f"MobilityBlock (Agent {self.agent.id}): Move to other place: no next_place provided, randomly selected {next_place}",
+                    f"MobilityBlock (Agent {self.agent.id}): Move to other place: no next_place provided, randomly selected {next_place}. POI ID: {poi_id}, AOI ID: {r_aoi['id']}",
                     extra={"agent_id": self.agent.id},
                 )
 
@@ -938,20 +968,69 @@ class MoveBlock(Block):
             "aoi_position" in now_place
             and now_place["aoi_position"]["aoi_id"] == target_aoi_id
         ):
-            return {
+            result = {
                 "success": True,
                 "evaluation": f"Successfully reached destination (already at {target_aoi_id})",
                 "to_place": target_aoi_id,
                 "consumed_time": 0,
                 "node_id": node_id,
+                "poi_id": poi_id,
             }
+            # Preserve mobility context fields
+            mobility_fields = ["poi_id", "next_place", "next_place_type", "poi_type"]
+            for field in mobility_fields:
+                if field in context:
+                    result[field] = context[field]
+                    get_logger().debug(
+                        f"MoveBlock: Preserved context field {field} with value {context[field]} in movement result",
+                        extra={"agent_id": self.agent.id},
+                    )
+            
+            # Merge place_selection_result if it exists
+            if place_selection_result and place_selection_result.get("success"):
+                for key in ["poi_id", "poi_type", "next_place_type"]:
+                    if key in place_selection_result and place_selection_result[key] is not None:
+                        result[key] = place_selection_result[key]
+                        get_logger().debug(
+                            f"MoveBlock: Merged PlaceSelectionBlock field {key} with value {place_selection_result[key]}",
+                            extra={"agent_id": self.agent.id},
+                        )
+
+            get_logger().debug(
+                f"MoveBlock: Final result after merging PlaceSelectionBlock result: {result}",
+                extra={"agent_id": self.agent.id},
+            )
+            return result
 
         # 4. Execute Movement
         number_poi_visited = await self.memory.status.get("number_poi_visited")
         number_poi_visited += 1
         await self.memory.status.update("number_poi_visited", number_poi_visited)
 
-        return await self._execute_movement(context, target_aoi_id, description_str)
+        # Execute movement and merge place_selection_result if it exists
+        is_poi = poi_id is not None
+        movement_result = await self._execute_movement(context, target_aoi_id, description_str, destination_type, is_poi)
+        if is_poi:
+            movement_result["poi_id"] = poi_id
+            movement_result["is_poi"] = True
+        
+        # Merge place_selection_result into movement_result
+        if place_selection_result and place_selection_result.get("success"):
+            for key in ["poi_id", "poi_type", "next_place_type", "is_poi"]:
+                if key in place_selection_result and place_selection_result[key] is not None:
+                    movement_result[key] = place_selection_result[key]
+                    get_logger().debug(
+                        f"MoveBlock: Merged {key} from PlaceSelectionBlock into movement result: {movement_result[key]}",
+                        extra={"agent_id": self.agent.id},
+                    )
+
+
+        get_logger().debug(
+            f"MoveBlock: Final movement result after merging PlaceSelectionBlock result: {movement_result}",
+            extra={"agent_id": self.agent.id},
+        )
+        
+        return movement_result
 
 
 class TransportModeSelectionBlock(Block):

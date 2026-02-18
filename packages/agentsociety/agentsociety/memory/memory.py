@@ -670,26 +670,34 @@ class SpatialMemory:
         """
 
         if location_id not in self._locations:
-            await self.add_location(location_id, location_description)
+            try:
+              await self.add_location(location_id, location_description)
+            except Exception as e:
+              get_logger().error(f"Error adding location {location_id}: {e}")
+              return
 
         if location_id in self._loc_to_doc_id:
             # Delete old embedding if it exists
             await self._vectorstore.delete_documents(
                 to_delete_ids=[self._loc_to_doc_id[location_id]],
             )
-        node = self._locations[location_id]
 
-        semantic_text = f"Location {node.location_id} description: {node.description}. Price: {node.price}, Atmosphere: {node.atmosphere}, Satisfaction: {node.satisfaction}, Convenience: {node.convenience}, Uncertainty: {node.uncertainty}."
+        try:
+          node = self._locations[location_id]
 
-        doc_ids = await self._vectorstore.add_documents(
-            documents=[semantic_text],
-            extra_tags={
-                "location_id": location_id,
-                "type": "spatial",
-            },
-        )
+          semantic_text = f"Location {node.location_id} description: {node.description}. Price: {node.price}, Atmosphere: {node.atmosphere}, Satisfaction: {node.satisfaction}, Convenience: {node.convenience}, Uncertainty: {node.uncertainty}."
 
-        self._loc_to_doc_id[location_id] = doc_ids[0]
+          doc_ids = await self._vectorstore.add_documents(
+              documents=[semantic_text],
+              extra_tags={
+                  "location_id": location_id,
+                  "type": "spatial",
+              },
+          )
+
+          self._loc_to_doc_id[location_id] = doc_ids[0]
+        except Exception as e:
+          get_logger().error(f"Error adding/updating location {location_id}: {e}")
 
 
     async def update_belief_location(self, new_price: float, new_atmosphere: float, new_satisfaction: float, new_convenience: float, location_id: str) -> None:
@@ -764,10 +772,12 @@ class SpatialMemory:
         """
 
         try:
-            return self._locations.get(location_id, await self.add_or_update_location(location_id, location_description))
+            return self._locations.get(
+                location_id,
+                await self.add_or_update_location(location_id, location_description),
+            )
         except Exception as e:
             get_logger().error(f"Error retrieving location {location_id}: {e}")
-
 
     async def get_interest(self):
         """Get ratio of POIs where satisfaction > 0.5"""
@@ -802,6 +812,12 @@ class SpatialMemory:
             k=top_k,
             filter={"type": "spatial"},
         )
+
+        search_results = [
+            result[2]
+            for result in search_results
+            if result[2].get("location_id") != location_id
+        ]
 
         # Retrieve the corresponding SpatialMemoryNode objects
         nodes = [
