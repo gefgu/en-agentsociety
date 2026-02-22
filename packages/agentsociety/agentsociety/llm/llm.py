@@ -30,7 +30,8 @@ __all__ = [
     "LLMProviderType",
 ]
 
-MAX_TIMEOUT = 60
+MAX_TIMEOUT = 300
+
 
 class LLMContext(TypedDict, total=False):
     block_name: str
@@ -80,7 +81,7 @@ class LLMConfig(BaseModel):
     concurrency: int = Field(200, ge=1)
     """Concurrency value for LLM operations to avoid rate limit"""
 
-    timeout: float = Field(30, ge=1, le=MAX_TIMEOUT)
+    timeout: float = Field(120, ge=1, le=MAX_TIMEOUT)
     """Timeout for LLM operations in seconds"""
 
     @field_serializer("provider")
@@ -100,57 +101,52 @@ def _convert_system_role_to_user(
     """
     Convert system role messages to user messages for providers that don't support system role.
     Merges consecutive system and user messages.
-    
+
     Args:
         dialog: Original dialog with potential system role messages
-        
+
     Returns:
         Modified dialog with system messages converted to user messages
     """
     if not dialog:
         return dialog
-    
+
     converted = []
     i = 0
-    
+
     while i < len(dialog):
         msg = dialog[i]
-        
+
         # If it's a system message
         if msg.get("role") == "system":
             system_content = msg.get("content", "")
-            
+
             # Check if next message is a user message
             if i + 1 < len(dialog) and dialog[i + 1].get("role") == "user":
                 # Merge system message into user message
                 user_content = dialog[i + 1].get("content", "")
                 merged_content = f"{system_content}\n\n{user_content}"
-                converted.append({
-                    "role": "user",
-                    "content": merged_content
-                })
+                converted.append({"role": "user", "content": merged_content})
                 i += 2  # Skip both messages
             else:
                 # Convert system message to user message
-                converted.append({
-                    "role": "user",
-                    "content": system_content
-                })
+                converted.append({"role": "user", "content": system_content})
                 i += 1
         else:
             # Keep non-system messages as is
             converted.append(msg)
             i += 1
-    
+
     return converted
 
-@ray.remote
+
+@ray.remote(concurrency_groups={"default": 500})
 class LLMActor:
     """
     Actor class for LLM operations.
     """
 
-    def __init__(self):
+    def __init__(self, provider: Optional[str] = None):
         self._http_client = httpx.AsyncClient(
             timeout=httpx.Timeout(
                 connect=min(30.0, MAX_TIMEOUT / 4),  # 连接超时时间
@@ -158,12 +154,22 @@ class LLMActor:
                 write=MAX_TIMEOUT,  # 写入超时时间
                 pool=MAX_TIMEOUT,  # 连接池超时时间
             ),
+            follow_redirects=True,
             limits=httpx.Limits(
                 max_keepalive_connections=20, max_connections=100, keepalive_expiry=30.0
             ),
         )
 
-        self.support_system_role = False
+        # VLLM and some models don't support system roles well
+        self.support_system_role = (
+            provider
+            not in [
+                LLMProviderType.VLLM.value,
+                LLMProviderType.DeepSeek.value,
+            ]
+            if provider
+            else False
+        )
 
     
 
@@ -209,6 +215,7 @@ class LLMActor:
             - A string containing the message content or a dictionary with tool call arguments if tools are used.
             - Raises exceptions if the request fails after all retry attempts.
         """
+
         start_time = time.time()
 
         log = {
@@ -230,10 +237,10 @@ class LLMActor:
             base_url=config.base_url,
             http_client=self._http_client,
         )
+
         for attempt in range(retries):
             response = None
             try:
-
                 if not self.support_system_role:
                     dialog = _convert_system_role_to_user(dialog)
 
@@ -251,20 +258,49 @@ class LLMActor:
                     tools=tools,
                     tool_choice=tool_choice,
                 )
+
                 if response.usage is not None:
                     log["input_tokens"] += response.usage.prompt_tokens
                     log["output_tokens"] += response.usage.completion_tokens
                 else:
                     get_logger().warning(f"No usage in response: {response}")
+
                 end_time = time.time()
                 log["consumption"] = end_time - start_time
+
                 if tools:
                     return response, log
                 else:
                     content = response.choices[0].message.content
                     if content is None:
                         raise ValueError("No content in response")
+
+                    # For vLLM, extract content from wrapped responses
+                    # if config.provider == LLMProviderType.VLLM:
+                    #     content = self._extract_vllm_content(content)
+
+                    # Validate non-empty response
+                    if not content or content.strip() in ["{}", "{", ""]:
+                        raise ValueError(
+                            f"Empty or invalid response from vLLM: {content}"
+                        )
+
                     return content, log
+
+            except ValueError as e:
+                error_msg = str(e)
+                if "vLLM" in error_msg or "Empty" in error_msg:
+                    get_logger().warning(
+                        f"vLLM response error: {error_msg}. Retry {attempt+1} of {retries}"
+                    )
+                    log["total_errors"] += 1
+                    log["error_types"]["other_error"] += 1
+                    if attempt < retries - 1:
+                        await asyncio.sleep(random.random() * 2**attempt)
+                    else:
+                        raise e
+                else:
+                    raise e
             except APIConnectionError as e:
                 get_logger().warning(
                     f"API connection error: `{e}` for request {dialog} {tools} {tool_choice}. original response: `{response}`. Retry {attempt+1} of {retries}"
@@ -285,6 +321,12 @@ class LLMActor:
                     dialog = _convert_system_role_to_user(dialog)
                     self.support_system_role = False
                     continue  # Retry immediately with modified dialog
+
+                # Check for JSON-related errors
+                if "json" in error_message.lower() or "format" in error_message.lower():
+                    get_logger().error(
+                        f"JSON parsing error from LLM: {error_message}. Response content: {response.choices[0].message.content if response and response.choices else 'N/A'}. Retry {attempt+1} of {retries}"
+                    )
 
                 get_logger().warning(
                     f"OpenAIError: {error_message} for request {dialog} {tools} {tool_choice}. original response: `{response}`. Retry {attempt+1} of {retries}"
@@ -330,7 +372,7 @@ class LLM:
     def __init__(
         self,
         configs: List[LLMConfig],
-        num_actors: int = min(cpu_count(), 8),
+        num_actors: int = max(cpu_count() * 2, 32),
         metrics_actor: Optional[PrometheusActor] = None,
         db_actor: Optional[ClickHouseActor] = None,
     ):
@@ -339,7 +381,9 @@ class LLM:
 
         - **Parameters**:
             - `configs`: An instance of `LLMConfig` containing configuration settings for the LLM.
-            - `num_actors` (`int`): Number of actor instances to create for parallel processing. Defaults to min(cpu_count(), 8).
+            - `num_actors` (`int`): Number of actor instances to create for parallel processing.
+              Defaults to max(cpu_count() * 2, 32) to support high-concurrency workloads.
+              For 1000+ agents, consider increasing to 64+ actors.
         """
 
         if len(configs) == 0:
@@ -348,6 +392,15 @@ class LLM:
             )
 
         self.configs = configs
+
+        # LOAD BALANCING LOGIC
+        self._active_requests = [0] * len(
+            configs
+        )  # Track active requests per config for load balancing
+        self._routing_condition = (
+            asyncio.Condition()
+        )  # Condition variable to manage routing and load balancing
+
         self._semaphores = [
             asyncio.Semaphore(config.concurrency) for config in self.configs
         ]
@@ -382,7 +435,10 @@ class LLM:
                 raise ValueError(f"Unsupported `provider` {config.provider}!")
             config.base_url = base_url
 
-        self._actors = [LLMActor.remote() for _ in range(num_actors)]
+        # Pass provider info to actors so they can configure system role support
+        # Use first config's provider for all actors (assumes homogeneous setup)
+        provider = self.configs[0].provider.value if self.configs else None
+        self._actors = [LLMActor.remote(provider=provider) for _ in range(num_actors)]
         self._lock = asyncio.Lock()
 
     def get_log_list(self):
@@ -474,11 +530,30 @@ class LLM:
             - A string containing the message content or a dictionary with tool call arguments if tools are used.
             - Raises exceptions if the request fails after all retry attempts.
         """
-        index = self._get_index()
-        client_i = index % len(self.configs)
-        actor_i = index % len(self._actors)
+
+        # Load Balancing
+        async with self._routing_condition:
+            # Block if ALL endpoints are maximum concurrency
+            while all(
+                self._active_requests[i] >= self.configs[i].concurrency
+                for i in range(len(self.configs))
+            ):
+                await self._routing_condition.wait()
+
+            # Find the client with the lowest utilization ratio (active requests / concurrency)
+            client_i = min(
+                range(len(self.configs)),
+                key=lambda i: self._active_requests[i] / self.configs[i].concurrency,
+            )
+
+            self._active_requests[
+                client_i
+            ] += 1  # Increment active request count for chosen client
+
+        actor_i = self._get_index() % len(self._actors)  # Round-robin actor selection
         start_time = time.perf_counter()
-        async with self._semaphores[client_i]:
+
+        try:
             content, log = await self._actors[actor_i].call.remote(  # type: ignore
                 self.configs[client_i],
                 dialog,
@@ -497,26 +572,33 @@ class LLM:
             self.prompt_tokens_used += log["input_tokens"]
             self.completion_tokens_used += log["output_tokens"]
 
-        end_time = time.perf_counter()
-        if self._metrics_actor is not None:
-            if not context:
-                context = {}
-            self._metrics_actor.record_block_performance.remote(
-                duration=end_time - start_time,
-                actor="llm",
-                token_input=log["input_tokens"],
-                token_output=log["output_tokens"],
-                block_name=context.get("block_name", "unknown"),
-                func_name=context.get("func_name", "unknown"),
-                agent_id=context.get("agent_id", "unknown"),
-            )
+            end_time = time.perf_counter()
+            if self._metrics_actor is not None:
+                if not context:
+                    context = {}
+                self._metrics_actor.record_block_performance.remote(
+                    duration=end_time - start_time,
+                    actor="llm",
+                    token_input=log["input_tokens"],
+                    token_output=log["output_tokens"],
+                    block_name=context.get("block_name", "unknown"),
+                    func_name=context.get("func_name", "unknown"),
+                    agent_id=context.get("agent_id", "unknown"),
+                )
 
-            self._db_actor.insert_prompt_response_record.remote(
-                timestamp=time.time(),
-                agent_id=context.get("agent_id", "unknown"),
-                prompt=dialog[-1]["content"] if dialog else "",
-                response=content,
-                block_name=context.get("block_name", "unknown"),
-                func_name=context.get("func_name", "unknown"),
-            )
-        return content
+                self._db_actor.insert_prompt_response_record.remote(
+                    timestamp=time.time(),
+                    agent_id=context.get("agent_id", "unknown"),
+                    prompt=dialog[-1]["content"] if dialog else "",
+                    response=content,
+                    block_name=context.get("block_name", "unknown"),
+                    func_name=context.get("func_name", "unknown"),
+                )
+            return content
+        finally:
+            # --- NEW LOAD BALANCING LOGIC ---
+            # Always release the slot back to the pool, even if the request fails/errors
+            async with self._routing_condition:
+                self._active_requests[client_i] -= 1
+                self._routing_condition.notify(1)  # Wake up one pending request
+            #
