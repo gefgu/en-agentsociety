@@ -72,7 +72,7 @@ class MapData:
                     "class": "header",
                     "data": MessageToDict(
                         pb.header,
-                        including_default_value_fields=True,
+                        always_print_fields_with_no_presence=True,
                         preserving_proto_field_name=True,
                         use_integers_for_enums=True,
                     ),
@@ -85,7 +85,7 @@ class MapData:
                         "class": "aoi",
                         "data": MessageToDict(
                             aoi,
-                            including_default_value_fields=True,
+                            always_print_fields_with_no_presence=True,
                             preserving_proto_field_name=True,
                             use_integers_for_enums=True,
                         ),
@@ -98,7 +98,7 @@ class MapData:
                         "class": "poi",
                         "data": MessageToDict(
                             poi,
-                            including_default_value_fields=True,
+                            always_print_fields_with_no_presence=True,
                             preserving_proto_field_name=True,
                             use_integers_for_enums=True,
                         ),
