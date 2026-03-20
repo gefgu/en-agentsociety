@@ -292,7 +292,6 @@ class ConsumptionBlock(Block):
         }
         return evaluation
 
-
 class EconomyNoneBlock(Block):
     """
     Fallback block for non-economic/non-specified activities.
@@ -315,7 +314,6 @@ class EconomyNoneBlock(Block):
             "consumed_time": 0,
             "node_id": node_id,
         }
-
 
 class EconomyBlockParams(BlockParams):
     worktime_estimation_prompt: str = Field(
@@ -440,7 +438,6 @@ class EconomyBlock(Block):
                 consumed_time=0,
                 node_id=None,
             )
-
 
 class MonthEconomyPlanBlock(Block):
     """Manages monthly economic planning and mental health assessment.
