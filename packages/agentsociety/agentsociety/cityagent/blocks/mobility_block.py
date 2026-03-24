@@ -170,6 +170,34 @@ Please response in json format (Do not return any other text), example:
 }}
 """
 
+NEIGHBORHOOD_SELECTION_PROMPT = """
+As an intelligent decision system, please select 3-5 neighborhoods where the agent should look for places to visit.
+
+**Agent State:**
+- Current Plan: {plan}
+- Current Intention: {intention}
+- Current Emotion: {emotion}
+- Current Thought: {thought}
+- Household: {household}
+- Life Stage: {life_stage}
+Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
+openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
+
+**Recent Visit History (last 7 days):**
+{visit_history}
+
+**Candidate Neighborhoods (ranked by matching POI count):**
+{candidate_neighborhoods}
+
+Please select 3-5 neighborhood IDs that best match the agent's intention, emotional state, and preferences.
+
+Please response in json format (Do not return any other text), example:
+{{
+    "selected_neighborhood_ids": [123, 456, 789],
+    "reasoning": "Selected neighborhoods with enough matching options"
+}}
+"""
+
 TRANSPORT_MODE_SELECTION_PROMPT = """
 As an intelligent transport decision system, please select the most appropriate transport mode for the user based on the current context and their persona.
 You are approximating a utility function where you maximize the user's comfort, efficiency, and preference.
@@ -213,7 +241,7 @@ class PlaceSelectionBlock(Block):
     Block for selecting destinations based on user intention.
 
     Implements a three-stage selection process:
-    0. Select candidate AOI areas (macro-level filtering)
+    0. Select candidate neighborhoods (fallback to AOI areas)
     1. Select primary POI category (e.g., 'shopping')
     2. Select sub-category (e.g., 'bookstore')
     3. Apply gravity model to filtered POIs
@@ -248,6 +276,7 @@ class PlaceSelectionBlock(Block):
             RADIUS_PROMPT,
             memory=agent_memory,
         )
+        self.neighborhoodSelectionPrompt = FormatPrompt(NEIGHBORHOOD_SELECTION_PROMPT)
         self.areaSelectionPrompt = FormatPrompt(AOI_AREA_SELECTION_PROMPT)
         self.search_limit = search_limit
         self.max_areas_to_consider = max_areas_to_consider
@@ -403,6 +432,111 @@ class PlaceSelectionBlock(Block):
             # Fallback: return top 5 areas by score
             if aoi_candidates:
                 return [aoi["id"] for aoi in aoi_candidates[:5]]
+            return None
+
+    async def select_candidate_neighborhoods(self, context: DotDict, pois):
+        """
+        Stage 0: Select candidate neighborhoods before AOI fallback.
+
+        Returns:
+            Tuple[List[int], Dict[int, int]] where values are selected neighborhood IDs
+            and POI->Neighborhood mapping; or None if selection fails.
+        """
+        try:
+            all_neighborhoods = self.environment.map.get_all_neighborhoods()
+            if not all_neighborhoods:
+                return None
+
+            neighborhood_candidates = {}
+            poi_to_neighborhood = {}
+            for poi_tuple in pois:
+                poi_data = poi_tuple[0]
+                poi_id = poi_data.get("id")
+                poi_pos = poi_data.get("position", {})
+                point = (poi_pos.get("x", 0), poi_pos.get("y", 0))
+                neighborhood = self.environment.map.query_neighborhood_by_point(point)
+                if neighborhood is None:
+                    continue
+                hood_id = neighborhood.get("id")
+                if hood_id is None:
+                    continue
+
+                poi_to_neighborhood[poi_id] = hood_id
+                if hood_id not in neighborhood_candidates:
+                    neighborhood_candidates[hood_id] = {
+                        "id": hood_id,
+                        "name": neighborhood.get("name", f"Neighborhood {hood_id}"),
+                        "description": neighborhood.get(
+                            "description", "No description available"
+                        ),
+                        "poi_count": 0,
+                    }
+                neighborhood_candidates[hood_id]["poi_count"] += 1
+
+            if not neighborhood_candidates:
+                return None
+
+            candidates = sorted(
+                neighborhood_candidates.values(),
+                key=lambda x: x["poi_count"],
+                reverse=True,
+            )[: self.max_areas_to_consider]
+
+            candidate_neighborhoods = "\n".join(
+                [
+                    f"- Neighborhood {hood['id']} '{hood['name']}': {hood['description']} ({hood['poi_count']} matching POIs)"
+                    for hood in candidates
+                ]
+            )
+
+            visit_history = await self.get_recent_visit_history()
+            emotion = await self.memory.status.get("emotion", "neutral")
+            thought = await self.memory.status.get("thought", "")
+            household = await self.memory.status.get("household", "unknown")
+            life_stage = await self.memory.status.get("life_stage", "unknown")
+            big5 = await self.memory.status.get("big5", {})
+
+            await self.neighborhoodSelectionPrompt.format(
+                plan=context.get("plan_context", {}).get("plan", "No plan"),
+                intention=context.get("current_step", {}).get("intention", "Unknown"),
+                emotion=emotion,
+                thought=thought,
+                household=household,
+                life_stage=life_stage,
+                openness=big5.get("openness", 2),
+                conscientiousness=big5.get("conscientiousness", 2),
+                extraversion=big5.get("extraversion", 2),
+                agreeableness=big5.get("agreeableness", 2),
+                neuroticism=big5.get("neuroticism", 2),
+                visit_history=visit_history,
+                candidate_neighborhoods=candidate_neighborhoods,
+            )
+
+            response = await self.llm.atext_request(
+                self.neighborhoodSelectionPrompt.to_dialog(),
+                response_format={"type": "json_object"},
+                context={
+                    "block_name": self.name,
+                    "func_name": "Neighborhood Selection",
+                    "agent_id": self.agent.id,
+                },
+            )
+
+            result = json_repair.loads(clean_json_response(response))
+            selected_ids = result.get("selected_neighborhood_ids", [])
+            reasoning = result.get("reasoning", "No reasoning provided")
+
+            get_logger().info(
+                f"PlaceSelectionBlock: Selected {len(selected_ids)} neighborhoods: {selected_ids}. Reasoning: {reasoning}",
+                extra={"agent_id": self.agent.id},
+            )
+            return selected_ids, poi_to_neighborhood
+
+        except Exception as e:
+            get_logger().warning(
+                f"PlaceSelectionBlock: Neighborhood selection failed: {e}",
+                extra={"agent_id": self.agent.id},
+            )
             return None
 
     async def gravity_model(self, pois):
@@ -635,11 +769,8 @@ class PlaceSelectionBlock(Block):
             get_logger().warning(f"MobilityBlock: Radius selection failed: {e}")
             radius = 10000  # Default 10km
 
-        # Stage 0: Select candidate AOI areas
         xy = (await self.memory.status.get("position"))["xy_position"]
         center = (xy["x"], xy["y"])
-        
-        selected_area_ids = await self.select_candidate_areas(context, center, radius)
 
         # Query POIs with category filter
         pois = self.environment.map.query_pois(
@@ -649,20 +780,57 @@ class PlaceSelectionBlock(Block):
             limit=self.search_limit,
         )
 
-        # Filter POIs by selected areas (if area selection succeeded)
-        if selected_area_ids:
+        selected_area_ids = None
+        used_neighborhood_filter = False
+
+        neighborhood_selection_result = await self.select_candidate_neighborhoods(
+            context, pois
+        )
+        if neighborhood_selection_result:
+            selected_neighborhood_ids, poi_to_neighborhood = (
+                neighborhood_selection_result
+            )
             filtered_pois = []
             for poi_tuple in pois:
                 poi_data = poi_tuple[0]
-                poi_aoi_id = poi_data.get("aoi_id")
-                if poi_aoi_id in selected_area_ids:
+                poi_id = poi_data.get("id")
+                if (
+                    poi_id in poi_to_neighborhood
+                    and poi_to_neighborhood[poi_id] in selected_neighborhood_ids
+                ):
                     filtered_pois.append(poi_tuple)
-            
-            get_logger().info(
-                f"PlaceSelectionBlock: Filtered {len(pois)} POIs to {len(filtered_pois)} POIs in selected areas",
-                extra={"agent_id": self.agent.id},
-            )
-            pois = filtered_pois
+
+            if filtered_pois:
+                get_logger().info(
+                    f"PlaceSelectionBlock: Filtered {len(pois)} POIs to {len(filtered_pois)} POIs in selected neighborhoods",
+                    extra={"agent_id": self.agent.id},
+                )
+                pois = filtered_pois
+                used_neighborhood_filter = True
+            else:
+                get_logger().warning(
+                    "PlaceSelectionBlock: Neighborhood filter returned no POIs, falling back to AOI filtering",
+                    extra={"agent_id": self.agent.id},
+                )
+
+        # Fallback to AOI filtering if neighborhood selection is unavailable/empty
+        if not used_neighborhood_filter:
+            selected_area_ids = await self.select_candidate_areas(context, center, radius)
+
+            # Filter POIs by selected areas (if area selection succeeded)
+            if selected_area_ids:
+                filtered_pois = []
+                for poi_tuple in pois:
+                    poi_data = poi_tuple[0]
+                    poi_aoi_id = poi_data.get("aoi_id")
+                    if poi_aoi_id in selected_area_ids:
+                        filtered_pois.append(poi_tuple)
+
+                get_logger().info(
+                    f"PlaceSelectionBlock: Filtered {len(pois)} POIs to {len(filtered_pois)} POIs in selected areas",
+                    extra={"agent_id": self.agent.id},
+                )
+                pois = filtered_pois
 
         poi_type = "unknown"
         if pois and len(pois) > 0:
