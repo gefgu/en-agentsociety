@@ -236,7 +236,7 @@ class NeedsBlock(Block):
                     )
                     break
                 except Exception as e:
-                    get_logger().warning(f"Initial response error: {e}")
+                    get_logger().warning(f"Initial response error (attempt {4-retry}/3): {e}. Raw response: {response[:500]}")
                     retry -= 1
 
             current_plan = await self.memory.status.get("current_plan", False)

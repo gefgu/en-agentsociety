@@ -568,61 +568,62 @@ class MonthEconomyPlanBlock(Block):
             await self.environment.economy_client.update(agent_id, "income", income)
             await self.environment.economy_client.update(agent_id, "currency", wealth)
 
-            if self.forward_times % 3 == 0:
-                obs_prompt = f"""
-                                {problem_prompt} {job_prompt} {consumption_prompt} {tax_prompt} {price_prompt}
-                                Your current savings account balance is ${wealth:.2f}. Interest rates, as set by your bank, stand at {interest_rate*100:.2f}%. 
-                                Please fill in the following questionnaire:
-                                Indicate how often you have felt this way during the last week by choosing one of the following options:
-                                "Rarely" means Rarely or none of the time (less than 1 day),
-                                "Some" means Some or a little of the time (1-2 days),
-                                "Occasionally" means Occasionally or a moderate amount of the time (3-4 days),
-                                "Most" means Most or all of the time (5-7 days).
-                                Statement 1: I was bothered by things that usually don't bother me.  
-                                Statement 2: I did not feel like eating; my appetite was poor.
-                                Statement 3: I felt that I could not shake off the blues even with help from my family or friends.
-                                Statement 4: I felt that I was just as good as other people.
-                                Statement 5: I had trouble keeping my mind on what I was doing.
-                                Statement 6: I felt depressed.
-                                Statement 7: I felt that everything I did was an effort.
-                                Statement 8: I felt hopeful about the future.
-                                Statement 9: I thought my life had been a failure.
-                                Statement 10: I felt fearful.
-                                Statement 11: My sleep was restless.
-                                Statement 12: I was happy.
-                                Statement 13: I talked less than usual.
-                                Statement 14: I felt lonely.
-                                Statement 15: People were unfriendly.
-                                Statement 16: I enjoyed life.
-                                Statement 17: I had crying spells.
-                                Statement 18: I felt sad.
-                                Statement 19: I felt that people disliked me.
-                                Statement 20: I could not get "going".
-                                Please response with json format with keys being numbers 1-20 and values being one of "Rarely", "Some", "Occasionally", "Most".
-                                Any other output words are NOT allowed.
-                            """
-                obs_prompt = prettify_document(obs_prompt)
-                content = await self.llm.atext_request(
-                    [{"role": "user", "content": obs_prompt}], timeout=300,
-                    context={
-                        "block_name": self.name,
-                        "func_name": "forward",
-                        "agent_id": agent_id,
-                    }
-                )
-                inverse_score_items = [3, 8, 12, 16]
-                category2score = {"rarely": 0, "some": 1, "occasionally": 2, "most": 3}
-                try:
-                    content = extract_dict_from_string(content)[0]
-                    for k in content:
-                        if k in inverse_score_items:
-                            content[k] = 3 - category2score[content[k].lower()]
-                        else:
-                            content[k] = category2score[content[k].lower()]
-                    depression = sum(list(content.values()))
-                    await self.memory.status.update("depression", depression)
-                except Exception:
-                    self.llm_error += 1
+            # NOT NEEDED FOR 1 WEEK
+            # if self.forward_times % 3 == 0:
+            #     obs_prompt = f"""
+            #                     {problem_prompt} {job_prompt} {consumption_prompt} {tax_prompt} {price_prompt}
+            #                     Your current savings account balance is ${wealth:.2f}. Interest rates, as set by your bank, stand at {interest_rate*100:.2f}%. 
+            #                     Please fill in the following questionnaire:
+            #                     Indicate how often you have felt this way during the last week by choosing one of the following options:
+            #                     "Rarely" means Rarely or none of the time (less than 1 day),
+            #                     "Some" means Some or a little of the time (1-2 days),
+            #                     "Occasionally" means Occasionally or a moderate amount of the time (3-4 days),
+            #                     "Most" means Most or all of the time (5-7 days).
+            #                     Statement 1: I was bothered by things that usually don't bother me.  
+            #                     Statement 2: I did not feel like eating; my appetite was poor.
+            #                     Statement 3: I felt that I could not shake off the blues even with help from my family or friends.
+            #                     Statement 4: I felt that I was just as good as other people.
+            #                     Statement 5: I had trouble keeping my mind on what I was doing.
+            #                     Statement 6: I felt depressed.
+            #                     Statement 7: I felt that everything I did was an effort.
+            #                     Statement 8: I felt hopeful about the future.
+            #                     Statement 9: I thought my life had been a failure.
+            #                     Statement 10: I felt fearful.
+            #                     Statement 11: My sleep was restless.
+            #                     Statement 12: I was happy.
+            #                     Statement 13: I talked less than usual.
+            #                     Statement 14: I felt lonely.
+            #                     Statement 15: People were unfriendly.
+            #                     Statement 16: I enjoyed life.
+            #                     Statement 17: I had crying spells.
+            #                     Statement 18: I felt sad.
+            #                     Statement 19: I felt that people disliked me.
+            #                     Statement 20: I could not get "going".
+            #                     Please response with json format with keys being numbers 1-20 and values being one of "Rarely", "Some", "Occasionally", "Most".
+            #                     Any other output words are NOT allowed.
+            #                 """
+            #     obs_prompt = prettify_document(obs_prompt)
+            #     content = await self.llm.atext_request(
+            #         [{"role": "user", "content": obs_prompt}], timeout=300,
+            #         context={
+            #             "block_name": self.name,
+            #             "func_name": "forward",
+            #             "agent_id": agent_id,
+            #         }
+            #     )
+            #     inverse_score_items = [3, 8, 12, 16]
+            #     category2score = {"rarely": 0, "some": 1, "occasionally": 2, "most": 3}
+            #     try:
+            #         content = extract_dict_from_string(content)[0]
+            #         for k in content:
+            #             if k in inverse_score_items:
+            #                 content[k] = 3 - category2score[content[k].lower()]
+            #             else:
+            #                 content[k] = category2score[content[k].lower()]
+            #         depression = sum(list(content.values()))
+            #         await self.memory.status.update("depression", depression)
+            #     except Exception:
+            #         self.llm_error += 1
 
             if self.ubi and self.forward_times >= 96 and self.forward_times % 12 == 0:
                 obs_prompt = f"""

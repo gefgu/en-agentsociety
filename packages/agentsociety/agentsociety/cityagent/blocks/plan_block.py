@@ -231,7 +231,7 @@ class PlanBlock(Block):
                 return result, cognition
             except Exception as e:
                 get_logger().warning(
-                    f"Error parsing guidance selection response: {str(e)}"
+                    f"Error parsing guidance selection response (attempt {4-retry}/3): {str(e)}. Raw response: {response[:500]}"
                 )
                 retry -= 1
         return None
