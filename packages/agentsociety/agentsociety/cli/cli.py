@@ -3,6 +3,7 @@ import importlib.metadata
 import json
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import time
@@ -72,6 +73,22 @@ def common_options(f):
         "--config-base64", help="Base64 encoded config with JSON or YAML format"
     )(f)
     return f
+
+
+def _find_available_local_port(start_port: int, max_tries: int = 20) -> int:
+    """Find an available localhost TCP port starting from start_port."""
+    for port in range(start_port, start_port + max_tries):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                sock.bind(("127.0.0.1", port))
+                return port
+            except OSError:
+                continue
+    raise click.ClickException(
+        f"No available frontend port found in range {start_port}-{start_port + max_tries - 1}. "
+        "Please free a port or pass --frontend-port with a different base port."
+    )
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
@@ -176,8 +193,16 @@ def ui(
             if npm_bin is None:
                 raise click.ClickException("npm is not installed or not in PATH")
 
+            selected_frontend_port = _find_available_local_port(frontend_port)
+            if selected_frontend_port != frontend_port:
+                get_logger().warning(
+                    "Frontend port %s is busy; using %s instead",
+                    frontend_port,
+                    selected_frontend_port,
+                )
+
             backend_proxy_target = f"http://127.0.0.1:{port}"
-            frontend_dev_url = f"http://127.0.0.1:{frontend_port}"
+            frontend_dev_url = f"http://127.0.0.1:{selected_frontend_port}"
 
             vite_env = os.environ.copy()
             vite_env["VITE_API_PROXY_TARGET"] = backend_proxy_target
@@ -208,7 +233,8 @@ def ui(
                     "--host",
                     "127.0.0.1",
                     "--port",
-                    str(frontend_port),
+                    str(selected_frontend_port),
+                    "--strictPort",
                 ],
                 cwd=str(frontend_dir),
                 env=vite_env,

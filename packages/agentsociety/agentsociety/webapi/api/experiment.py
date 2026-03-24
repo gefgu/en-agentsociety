@@ -60,6 +60,25 @@ async def list_experiments(
     tenant_id = await request.app.state.get_tenant_id(request)
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
+        logger = logging.getLogger(__name__)
+        logger.info(
+            "list_experiments tenant_id=%s accepted_tenants=%s",
+            tenant_id,
+            [tenant_id, "", "default"],
+        )
+
+        # Extra visibility to debug empty console issues.
+        count_stmt = text(
+            """
+            SELECT COALESCE(tenant_id, '<NULL>') AS tenant_id, COUNT(*)
+            FROM as_experiment
+            GROUP BY COALESCE(tenant_id, '<NULL>')
+            ORDER BY COUNT(*) DESC
+            """
+        )
+        tenant_counts = (await db.execute(count_stmt)).all()
+        logger.info("list_experiments tenant_counts=%s", tenant_counts)
+
         stmt = (
             select(Experiment)
             .where(Experiment.tenant_id.in_([tenant_id, "", "default"]))
@@ -67,6 +86,7 @@ async def list_experiments(
         )
         results = await db.execute(stmt)
         db_experiments = [row[0] for row in results.all() if len(row) > 0]
+        logger.info("list_experiments returned_count=%s", len(db_experiments))
 
         # 处理时区
         for experiment in db_experiments:

@@ -232,7 +232,9 @@ const Page = () => {
             request={async (params) => {
               try {
                 const res = await fetchCustom('/api/experiments')
+                console.log('[console] /api/experiments status=', res.status, 'ok=', res.ok)
                 let data = await res.json()
+                console.log('[console] /api/experiments payload=', data)
                 data = data.data;
                 if (params.name !== undefined && params.name !== '') {
                   console.log('params.name:', params.name)
