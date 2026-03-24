@@ -915,10 +915,11 @@ class MoveBlock(Block):
             description=description,
         )
         trip_mode = TripMode.TRIP_MODE_DRIVE_ONLY
-        if selected_mode == "walk":
-            trip_mode = TripMode.TRIP_MODE_WALK_ONLY
-        elif selected_mode == "bike":
-            trip_mode = TripMode.TRIP_MODE_BIKE_WALK
+        # UNCOMMENT TO ALLOW OTHER MODES WHEN THEY ARE FIXED.
+        # if selected_mode == "walk": 
+        #     trip_mode = TripMode.TRIP_MODE_WALK_ONLY
+        # elif selected_mode == "bike":
+        #     trip_mode = TripMode.TRIP_MODE_BIKE_WALK
 
         try:
             await self.environment.set_aoi_schedules(

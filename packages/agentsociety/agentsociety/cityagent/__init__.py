@@ -223,6 +223,6 @@ def default(config: Config) -> Config:
     if len(config.agents.init_funcs) == 0:
         config.agents.init_funcs = [
             bind_agent_info,
-            initialize_social_network_by_similarity,
+            # initialize_social_network_by_similarity, # UNCOMMENT TO ALLOW INITIAL SOCIAL NETWORK
         ]
     return config
