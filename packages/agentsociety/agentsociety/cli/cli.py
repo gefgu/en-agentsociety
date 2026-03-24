@@ -2,6 +2,10 @@ import base64
 import importlib.metadata
 import json
 import os
+import shutil
+import subprocess
+import sys
+import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 from urllib.parse import urlsplit
@@ -79,7 +83,28 @@ def cli():
 
 @cli.command()
 @common_options
-def ui(config: Optional[str], config_base64: Optional[str]):
+@click.option("--dev", is_flag=True, help="Enable frontend dev mode with Vite HMR")
+@click.option(
+    "--project-dir",
+    default=".",
+    show_default=True,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+    help="Project root directory that contains the frontend folder",
+)
+@click.option(
+    "--frontend-port",
+    default=5173,
+    show_default=True,
+    type=int,
+    help="Port for Vite dev server in dev mode",
+)
+def ui(
+    config: Optional[str],
+    config_base64: Optional[str],
+    dev: bool,
+    project_dir: Path,
+    frontend_port: int,
+):
     """Launch AgentSociety GUI"""
     if config is None and config_base64 is None:
         config_data = {}
@@ -112,6 +137,86 @@ def ui(config: Optional[str], config_base64: Optional[str]):
         get_logger().info("Launching AgentSociety WebUI")
         get_logger().debug(f"WebUI config: {c}")
 
+        # Parse backend address first
+        url = urlsplit("//" + c.addr)
+        host, port = url.hostname, url.port
+        if host is None or host == "" or host == "localhost":
+            host = "127.0.0.1"
+        if port is None:
+            port = 8080
+        log_level = "debug" if c.debug else "info"
+
+        frontend_dev_url = ""
+        vite_proc: Optional[subprocess.Popen[Any]] = None
+
+        if dev:
+            resolved_project_dir = project_dir.resolve()
+            frontend_dir = resolved_project_dir / "frontend"
+            if not frontend_dir.exists() or not frontend_dir.is_dir():
+                raise click.ClickException(
+                    f"Frontend directory not found: {frontend_dir}. Please run from your project root or pass --project-dir"
+                )
+            if not (frontend_dir / "package.json").exists():
+                raise click.ClickException(
+                    f"package.json not found in frontend directory: {frontend_dir}"
+                )
+
+            npm_bin = shutil.which("npm")
+            if npm_bin is None:
+                raise click.ClickException("npm is not installed or not in PATH")
+
+            backend_proxy_target = f"http://127.0.0.1:{port}"
+            frontend_dev_url = f"http://127.0.0.1:{frontend_port}"
+
+            vite_env = os.environ.copy()
+            vite_env["VITE_API_PROXY_TARGET"] = backend_proxy_target
+
+            # Linux inotify watcher limits are often too low for large frontend trees.
+            # Use polling by default in dev mode unless explicitly disabled.
+            if sys.platform.startswith("linux") and os.environ.get(
+                "AGENTSOCIETY_DISABLE_DEV_POLLING", ""
+            ).lower() not in {"1", "true", "yes"}:
+                vite_env.setdefault("CHOKIDAR_USEPOLLING", "1")
+                vite_env.setdefault("CHOKIDAR_INTERVAL", "300")
+                get_logger().info(
+                    "Enabled Vite polling file watcher to avoid Linux ENOSPC inotify limits"
+                )
+
+            get_logger().info("Starting frontend dev server at %s", frontend_dev_url)
+            get_logger().info(
+                "Frontend project directory: %s",
+                str(frontend_dir),
+            )
+
+            vite_proc = subprocess.Popen(
+                [
+                    npm_bin,
+                    "run",
+                    "dev",
+                    "--",
+                    "--host",
+                    "127.0.0.1",
+                    "--port",
+                    str(frontend_port),
+                ],
+                cwd=str(frontend_dir),
+                env=vite_env,
+            )
+
+            if vite_proc.poll() is not None:
+                raise click.ClickException(
+                    "Failed to start Vite dev server. Please check frontend dependencies and run `npm ci` in frontend directory."
+                )
+
+            # Wait briefly so startup-time watcher failures (e.g. ENOSPC) are caught
+            # before backend starts serving redirects to the frontend dev server.
+            for _ in range(30):
+                if vite_proc.poll() is not None:
+                    raise click.ClickException(
+                        "Vite dev server exited during startup. If you see ENOSPC watcher errors, increase Linux inotify limits or keep polling mode enabled."
+                    )
+                time.sleep(0.1)
+
         db_dsn = c.env.db.get_dsn(Path(c.env.home_dir) / "sqlite.db")
 
         # default executor
@@ -128,20 +233,23 @@ def ui(config: Optional[str], config_base64: Optional[str]):
             env=c.env,
             more_state=more_state,
             commercial=c.commercial,
+            frontend_dev_url=frontend_dev_url,
         )
 
-        # Start server
-        url = urlsplit("//" + c.addr)
-        host, port = url.hostname, url.port
-        if host is None or host == "" or host == "localhost":
-            host = "127.0.0.1"
-        if port is None:
-            port = 8080
-        log_level = "debug" if c.debug else "info"
-        get_logger().info("Starting server at %s:%s", host, port)
-        config = uvicorn.Config(app, host=host, port=port, log_level=log_level)
-        server = uvicorn.Server(config)
-        await server.serve()
+        try:
+            get_logger().info("Starting server at %s:%s", host, port)
+            config = uvicorn.Config(app, host=host, port=port, log_level=log_level)
+            server = uvicorn.Server(config)
+            await server.serve()
+        finally:
+            if vite_proc is not None and vite_proc.poll() is None:
+                get_logger().info("Stopping frontend dev server")
+                vite_proc.terminate()
+                try:
+                    vite_proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    vite_proc.kill()
+                    vite_proc.wait(timeout=5)
 
     import asyncio
 

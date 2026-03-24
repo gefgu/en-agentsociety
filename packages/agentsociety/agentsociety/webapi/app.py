@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -86,6 +86,7 @@ def create_app(
     env: EnvConfig,
     more_state: Dict[str, Any] = {},
     commercial: Dict[str, Any] = {},
+    frontend_dev_url: str = "",
 ):
 
     # https://fastapi.tiangolo.com/advanced/events/#use-case
@@ -165,14 +166,36 @@ def create_app(
 
     app.include_router(api_router)
 
-    # serve frontend files
     frontend_path = Path(_parent_dir) / "_dist"
-    app.mount("/", StaticFiles(directory=frontend_path, html=True))
+
+    if frontend_dev_url:
+        frontend_dev_url = frontend_dev_url.rstrip("/")
+
+        @app.get("/{full_path:path}")
+        async def frontend_dev_redirect(request: Request, full_path: str):
+            if full_path.startswith("api"):
+                raise HTTPException(status_code=404, detail="Not Found")
+            path = request.url.path
+            query = request.url.query
+            target = f"{frontend_dev_url}{path}"
+            if query:
+                target = f"{target}?{query}"
+            return RedirectResponse(url=target, status_code=307)
+    else:
+        # serve frontend files
+        app.mount("/", StaticFiles(directory=frontend_path, html=True))
 
     # 404 handler, redirect all 404 to index.html except /api
     @app.exception_handler(404)
     async def not_found_handler(request: Request, exc: HTTPException):
         if not request.url.path.startswith("/api"):
+            if frontend_dev_url:
+                path = request.url.path
+                query = request.url.query
+                target = f"{frontend_dev_url}{path}"
+                if query:
+                    target = f"{target}?{query}"
+                return RedirectResponse(url=target, status_code=307)
             return FileResponse(frontend_path / "index.html")
         # change the exception to JSONResponse
         return JSONResponse(
