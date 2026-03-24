@@ -1,4 +1,4 @@
-import { GithubOutlined, ExperimentOutlined, ApiOutlined, TeamOutlined, GlobalOutlined, NodeIndexOutlined, LineChartOutlined, BarChartOutlined, FileSearchOutlined, DashboardOutlined, ProfileOutlined, UserOutlined } from "@ant-design/icons";
+import { GithubOutlined, ExperimentOutlined, ApiOutlined, TeamOutlined, GlobalOutlined, NodeIndexOutlined, LineChartOutlined, BarChartOutlined, FileSearchOutlined, DashboardOutlined, ProfileOutlined, UserOutlined, MessageOutlined } from "@ant-design/icons";
 import { Menu, MenuProps, Space, Button } from "antd";
 import { Link } from "react-router-dom";
 import Account from "./components/Account";
@@ -90,6 +90,11 @@ export const AppSidebarMenu = ({ selectedKey, style }: {
 
   const sidebarItems: MenuProps['items'] = [
     {
+      key: '/console',
+      label: <Link to="/console">{t('menu.experiments')}</Link>,
+      icon: <ExperimentOutlined />,
+    },
+    {
       key: '/llms',
       label: <Link to="/llms">{t('menu.llmConfigs')}</Link>,
       icon: <ApiOutlined />,
@@ -120,9 +125,9 @@ export const AppSidebarMenu = ({ selectedKey, style }: {
       icon: <NodeIndexOutlined />,
     },
     {
-      key: '/console',
-      label: <Link to="/console">{t('menu.experiments')}</Link>,
-      icon: <ExperimentOutlined />,
+      key: '/survey',
+      label: <Link to="/survey">{t('menu.survey')}</Link>,
+      icon: <MessageOutlined />,
     },
     {
       key: '/grafana',
@@ -138,10 +143,6 @@ export const AppSidebarMenu = ({ selectedKey, style }: {
       key: '/loki',
       label: <Link to="/loki">{t('menu.loki')}</Link>,
       icon: <FileSearchOutlined />,
-    },
-    {
-      key: '/survey',
-      label: <Link to="/survey">{t('menu.survey')}</Link>,
     },
   ];
 
