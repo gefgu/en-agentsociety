@@ -20,7 +20,8 @@ export default {
         profiles: 'Profiles',
         grafana: 'Grafana',
         charts: "Charts",
-        loki: "Loki"
+        loki: "Loki",
+        dashboard: 'Dashboard',
     },
     common: {
         name: "Name",

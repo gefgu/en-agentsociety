@@ -1,6 +1,6 @@
 import { Divider, Flex, Layout } from "antd";
 import { Content, Header } from "antd/es/layout/layout";
-import RootMenu from "./Menu";
+import RootMenu, { AppSidebarMenu, SidebarBottomActions } from "./Menu";
 import { Link } from "react-router-dom";
 import React, { useEffect, useRef } from "react";
 
@@ -29,6 +29,13 @@ export default function RootLayout({
 
     // get the height of the header to set the content height
     useEffect(() => {
+        if (!homePage) {
+            if (contentRef.current) {
+                contentRef.current.style.minHeight = '100vh';
+            }
+            return;
+        }
+
         if (contentRef.current === null) {
             return
         }
@@ -40,7 +47,7 @@ export default function RootLayout({
             }
         }
         contentRef.current.style.minHeight = `90vh`;
-    }, [headerRef, contentRef]);
+    }, [headerRef, contentRef, homePage]);
 
     const contentStyle: React.CSSProperties = homePage ? {
         width: "100vw",
@@ -54,20 +61,48 @@ export default function RootLayout({
 
     return (
         <Layout>
-            <Header ref={headerRef} style={headerStyle}>
-                <Flex gap='small' align='center' style={{ width: '100%' }}>
-                    <Link to="/" style={{ display: 'flex', alignItems: 'center' }}>
-                        <img src="/logo.png" alt="FastSociety" style={{ height: '42px', display: 'block' }} />
-                    </Link>
-                    <Divider type="vertical" />
-                    <div style={{ flex: 1 }}>
-                        <RootMenu selectedKey={homePage ? "" : selectedKey} style={menuStyle} />
-                    </div>
-                </Flex>
-            </Header>
-            <Content ref={contentRef} style={contentStyle}>
-                {children}
-            </Content>
+            {homePage ? (
+                <>
+                    <Header ref={headerRef} style={headerStyle}>
+                        <Flex gap='small' align='center' style={{ width: '100%' }}>
+                            <Link to="/" style={{ display: 'flex', alignItems: 'center' }}>
+                                <img src="/logo.png" alt="FastSociety" style={{ height: '42px', display: 'block' }} />
+                            </Link>
+                            <Divider type="vertical" />
+                            <div style={{ flex: 1 }}>
+                                <RootMenu selectedKey="" style={menuStyle} />
+                            </div>
+                        </Flex>
+                    </Header>
+                    <Content ref={contentRef} style={contentStyle}>
+                        {children}
+                    </Content>
+                </>
+            ) : (
+                <Layout ref={contentRef} style={{ minHeight: '100vh' }}>
+                    <Layout.Sider
+                        width={220}
+                        breakpoint="lg"
+                        collapsedWidth={0}
+                        theme="dark"
+                    >
+                        <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ height: 68, padding: '0 16px', display: 'flex', alignItems: 'center' }}>
+                                <Link to="/" style={{ display: 'flex', alignItems: 'center' }}>
+                                    <img src="/logo.png" alt="FastSociety" style={{ height: '42px', display: 'block' }} />
+                                </Link>
+                            </div>
+                            <div style={{ flex: 1, minHeight: 0, overflow: 'auto', color: 'white', overflowX: "hidden" }}>
+                                <AppSidebarMenu selectedKey={selectedKey} />
+                            </div>
+                            <SidebarBottomActions />
+                        </div>
+                    </Layout.Sider>
+                    <Content style={{ padding: '16px 20px' }}>
+                        {children}
+                    </Content>
+                </Layout>
+            )}
         </Layout>
     )
 }

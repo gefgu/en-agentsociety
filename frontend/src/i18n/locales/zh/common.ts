@@ -18,6 +18,10 @@ export default {
         demoUser: '示例用户',
         bill: '账单',
         profiles: '智能体画像',
+        grafana: 'Grafana',
+        charts: '图表',
+        loki: 'Loki',
+        dashboard: '仪表盘',
     },
     common: {
         name: "名称",

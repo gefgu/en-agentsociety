@@ -98,18 +98,28 @@ def cli():
     type=int,
     help="Port for Vite dev server in dev mode",
 )
+@click.option(
+    "--print-resolved-paths",
+    is_flag=True,
+    help="Print resolved env paths and database location before startup",
+)
 def ui(
     config: Optional[str],
     config_base64: Optional[str],
     dev: bool,
     project_dir: Path,
     frontend_port: int,
+    print_resolved_paths: bool,
 ):
     """Launch AgentSociety GUI"""
     if config is None and config_base64 is None:
         config_data = {}
     else:
         config_data = load_config(config, config_base64)
+
+    config_base_dir: Optional[Path] = None
+    if config is not None:
+        config_base_dir = Path(config).resolve().parent
 
     import uvicorn
 
@@ -137,6 +147,8 @@ def ui(
         get_logger().info("Launching AgentSociety WebUI")
         get_logger().debug(f"WebUI config: {c}")
 
+        resolved_project_dir = project_dir.resolve()
+
         # Parse backend address first
         url = urlsplit("//" + c.addr)
         host, port = url.hostname, url.port
@@ -150,7 +162,6 @@ def ui(
         vite_proc: Optional[subprocess.Popen[Any]] = None
 
         if dev:
-            resolved_project_dir = project_dir.resolve()
             frontend_dir = resolved_project_dir / "frontend"
             if not frontend_dir.exists() or not frontend_dir.is_dir():
                 raise click.ClickException(
@@ -217,7 +228,33 @@ def ui(
                     )
                 time.sleep(0.1)
 
-        db_dsn = c.env.db.get_dsn(Path(c.env.home_dir) / "sqlite.db")
+        # Resolve relative env paths. If `-c/--config` is used, paths are resolved
+        # relative to the config file directory so YAML values behave as written.
+        path_base_dir = config_base_dir or Path.cwd()
+        if not os.path.isabs(c.env.home_dir):
+            c.env.home_dir = str((path_base_dir / c.env.home_dir).resolve())
+        if not os.path.isabs(c.env.data_dir):
+            c.env.data_dir = str((path_base_dir / c.env.data_dir).resolve())
+        if c.env.finetune_data_dir is not None and not os.path.isabs(c.env.finetune_data_dir):
+            c.env.finetune_data_dir = str(
+                (path_base_dir / c.env.finetune_data_dir).resolve()
+            )
+        get_logger().info("Resolved env.home_dir to %s", c.env.home_dir)
+
+        sqlite_path = Path(c.env.home_dir) / "sqlite.db"
+        db_dsn = c.env.db.get_dsn(sqlite_path)
+
+        if print_resolved_paths:
+            click.echo(f"resolved.config_base_dir: {path_base_dir}")
+            click.echo(f"resolved.env.home_dir: {c.env.home_dir}")
+            click.echo(f"resolved.env.data_dir: {c.env.data_dir}")
+            click.echo(
+                "resolved.env.finetune_data_dir: "
+                f"{c.env.finetune_data_dir if c.env.finetune_data_dir is not None else '<none>'}"
+            )
+            click.echo(f"resolved.env.db.db_type: {c.env.db.db_type}")
+            if c.env.db.db_type == "sqlite":
+                click.echo(f"resolved.env.db.sqlite_path: {sqlite_path}")
 
         # default executor
         executor = ProcessExecutor(c.env.home_dir)
