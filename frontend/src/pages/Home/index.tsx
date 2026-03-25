@@ -1,19 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Typography, Button, Space, Row, Col } from 'antd';
+import { Typography, Button } from 'antd';
 import { GithubOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
+import './style.css';
 
-const { Title, Text, Link } = Typography;
-
-// 透明导航条样式
-const newsBarStyle = {
-    background: 'rgba(255, 255, 255, 0.2)',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    padding: '8px 12px',
-    borderRadius: '32px',
-    backdropFilter: 'blur(4px)',
-    maxWidth: '500px',
-};
+const { Link } = Typography;
 
 const HomePage = () => {
     const [stars, setStars] = useState(0);
@@ -27,81 +18,113 @@ const HomePage = () => {
     }, []);
 
     return (
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-            <Link href="https://agentsociety.readthedocs.io/en/latest/">
-                {/* <div style={newsBarStyle}>
-                    <Space>
-                        <Col
-                            style={{
-                                backgroundColor: '#F28F0D',
-                                color: 'white',
-                                borderRadius: '16px',
-                                padding: '4px 12px',
-                                marginRight: '8px',
-                            }}
-                        >{t('home.whatsNew')}</Col>
-                        <Col style={{
-                            color: 'white'
-                        }}>
-                            {t('home.releaseNotes')}
-                        </Col>
-                    </Space>
-                </div> */}
-            </Link>
-            <img src="/logo.png" alt="FastSociety" style={{ height: '156px', display: 'block' }} />
+        <section className="home-page">
+            <div className="hero-glow hero-glow-left" />
+            <div className="hero-glow hero-glow-right" />
 
-            <div
-                style={{
-                    color: 'white',
-                    fontSize: '2rem',
-                    lineHeight: 1.8,
-                    display: 'block',
-                    marginBottom: '64px',
-                }}
-                dangerouslySetInnerHTML={{ __html: t('home.mainDescription') }}
-            />
+            <div className="home-container">
+                <div className="hero-grid">
+                    <div className="hero-copy">
+                        <Link
+                            href="https://agentsociety.readthedocs.io/en/latest/"
+                            className="hero-announcement anim-up"
+                            // style={{color: "white"}}
+                        >
+                            {t('home.whatsNew')}: {t('home.releaseNotes')}
+                        </Link>
 
-            {/* 按钮组 */}
-            <Space size="large">
-                <Link href="/console">
-                    <Button
-                        type="default"
-                        size="large"
-                        style={{
-                            height: '56px',
-                            padding: '0 40px',
-                            fontSize: '18px',
-                            fontWeight: 'bold',
-                            borderRadius: '32px',
-                            color: 'white',
-                            borderColor: 'white',
-                            border: '2px solid white',
-                            backgroundColor: 'rgba(255, 255, 255, 0.1)'
-                        }}
-                    >
-                        {t('home.getStarted')}
-                    </Button>
-                </Link>
+                        <img src="/logo.png" alt="UrbGen" className="hero-logo anim-up anim-delay-1" />
 
-                <Link href="https://github.com/tsinghua-fib-lab/agentsociety" target="_blank">
-                    <Button
-                        icon={<GithubOutlined />}
-                        size="large"
-                        style={{
-                            height: '56px',
-                            padding: '0 32px',
-                            fontSize: '16px',
-                            borderRadius: '32px',
-                            background: 'rgba(255, 255, 255, 0.1)',
-                            borderColor: 'transparent',
-                            color: 'white'
-                        }}
-                    >
-                        {stars > 0 ? `${stars.toLocaleString()} ${t('home.stars')}` : 'GitHub'}
-                    </Button>
-                </Link>
-            </Space>
-        </div >
+                        <h1 className="hero-title anim-up anim-delay-2">
+                            {t('home.heroTitle')}
+                        </h1>
+
+                        <p className="hero-subtitle anim-up anim-delay-3">
+                            {t('home.heroSubtitle')}
+                        </p>
+
+                        <div className="hero-ctas anim-up anim-delay-4">
+                            <Link href="/console">
+                                <Button className="hero-btn hero-btn-primary" size="large">
+                                    {t('home.getStarted')}
+                                </Button>
+                            </Link>
+                            <Link href="https://github.com/tsinghua-fib-lab/agentsociety" target="_blank">
+                                <Button icon={<GithubOutlined />} className="hero-btn hero-btn-secondary" size="large">
+                                    {stars > 0 ? `${stars.toLocaleString()} ${t('home.stars')}` : 'GitHub'}
+                                </Button>
+                            </Link>
+                        </div>
+
+                        <div className="hero-kpis anim-up anim-delay-5" role="list" aria-label={t('home.kpiAriaLabel')}>
+                            <div className="kpi-card" role="listitem">
+                                <strong>10k+</strong>
+                                <span>{t('home.kpiAgents')}</span>
+                            </div>
+                            <div className="kpi-card" role="listitem">
+                                <strong>3</strong>
+                                <span>{t('home.kpiCities')}</span>
+                            </div>
+                            <div className="kpi-card" role="listitem">
+                                <strong>Open</strong>
+                                <span>{t('home.kpiOpen')}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="hero-panel anim-panel" aria-label={t('home.previewAriaLabel')}>
+                        <div className="panel-header">
+                            <span className="dot" />
+                            <span className="dot" />
+                            <span className="dot" />
+                            <p>{t('home.previewTitle')}</p>
+                        </div>
+                        <div className="panel-body">
+                            <div className="panel-stat-row">
+                                <div>
+                                    <p className="stat-label">{t('home.previewStat1Label')}</p>
+                                    <p className="stat-value">0.91</p>
+                                </div>
+                                <div>
+                                    <p className="stat-label">{t('home.previewStat2Label')}</p>
+                                    <p className="stat-value">-12.4%</p>
+                                </div>
+                            </div>
+                            <div className="panel-timeline">
+                                <span>06:00</span>
+                                <span>09:00</span>
+                                <span>12:00</span>
+                                <span>18:00</span>
+                                <span>22:00</span>
+                            </div>
+                            <div className="panel-bar-track">
+                                <div className="panel-bar-fill" />
+                            </div>
+                            <ul className="panel-list">
+                                <li>{t('home.previewList1')}</li>
+                                <li>{t('home.previewList2')}</li>
+                                <li>{t('home.previewList3')}</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="feature-strip">
+                    <article className="feature-item anim-up anim-delay-6">
+                        <h3>{t('home.feature1Title')}</h3>
+                        <p>{t('home.feature1Body')}</p>
+                    </article>
+                    <article className="feature-item anim-up anim-delay-7">
+                        <h3>{t('home.feature2Title')}</h3>
+                        <p>{t('home.feature2Body')}</p>
+                    </article>
+                    <article className="feature-item anim-up anim-delay-8">
+                        <h3>{t('home.feature3Title')}</h3>
+                        <p>{t('home.feature3Body')}</p>
+                    </article>
+                </div>
+            </div>
+        </section>
     );
 };
 

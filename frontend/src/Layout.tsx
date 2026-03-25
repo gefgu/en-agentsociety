@@ -68,7 +68,7 @@ export default function RootLayout({
                     <Header ref={headerRef} style={headerStyle}>
                         <Flex gap='small' align='center' style={{ width: '100%' }}>
                             <Link to="/" style={{ display: 'flex', alignItems: 'center' }}>
-                                <img src="/logo.png" alt="FastSociety" style={{ height: '42px', display: 'block' }} />
+                                <img src="/logo.png" alt="UrbGen" style={{ height: '48px', display: 'block' }} />
                             </Link>
                             <Divider type="vertical" />
                             <div style={{ flex: 1 }}>
@@ -87,11 +87,18 @@ export default function RootLayout({
                         breakpoint="lg"
                         collapsedWidth={0}
                         theme="dark"
+                        style={{
+                            height: '100vh',
+                            position: 'sticky',
+                            top: 0,
+                            left: 0,
+                            overflow: 'hidden',
+                        }}
                     >
                         <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                             <div style={{ height: 68, padding: '0 16px', display: 'flex', alignItems: 'center' }}>
                                 <Link to="/" style={{ display: 'flex', alignItems: 'center' }}>
-                                    <img src="/logo.png" alt="FastSociety" style={{ height: '42px', display: 'block' }} />
+                                    <img src="/logo.png" alt="UrbGen" style={{ height: '48px', display: 'block' }} />
                                 </Link>
                             </div>
                             <div style={{ flex: 1, minHeight: 0, overflow: 'auto', color: 'white', overflowX: "hidden" }}>
