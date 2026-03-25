@@ -10,7 +10,7 @@ This package provides production-grade observability for simulation runs, integr
 |---|---|
 | `monitoring.py` | `start_monitoring()` / `stop_monitoring()` — starts the Docker Compose stack |
 | `prometheusActor.py` | Ray actor that exposes custom metrics to Prometheus |
-| `ClickHouseActor.py` | Ray actor that writes simulation events to ClickHouse |
+| `DatabaseActor.py` | Ray actor that writes simulation events to ClickHouse |
 | `MetricsTracker.py` | High-level API for recording agent metrics |
 | `BlockPerformance.py` | Records per-block execution time and LLM token counts |
 | `RoutingTracker.py` | Tracks `BlockDispatcher` routing decisions |
@@ -27,7 +27,7 @@ This package provides production-grade observability for simulation runs, integr
 
 ```
 Agents (Ray) ──► PrometheusActor ──► Prometheus ──► Grafana
-             └─► ClickHouseActor ──► ClickHouse ──► Grafana
+             └─► DatabaseActor ──► ClickHouse ──► Grafana
 Logger ──────────────────────────────────────────► Loki ──► Grafana
 ```
 

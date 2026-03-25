@@ -147,7 +147,7 @@ Entirely new module providing production-grade monitoring:
 | Component | Role |
 |---|---|
 | `PrometheusActor` | Ray actor that exposes custom metrics to Prometheus |
-| `ClickHouseActor` | Ray actor that writes event data to ClickHouse |
+| `DatabaseActor` | Ray actor that writes event data to ClickHouse |
 | `MetricsTracker` | High-level wrapper to record agent metrics |
 | `BlockPerformance` | Records per-block execution time and token usage |
 | `RoutingTracker` | Tracks block dispatcher routing decisions |

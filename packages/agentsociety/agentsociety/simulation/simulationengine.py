@@ -14,7 +14,7 @@ from multiprocessing import cpu_count
 from typing import Any, Callable, Literal, Optional, Union, cast
 import time
 import yaml
-from ..performance.ClickHouseActor import ClickHouseActor
+from ..database.database_actor import DatabaseActor
 from ..performance.prometheusActor import PrometheusActor
 from ..performance.monitoring import start_monitoring, stop_monitoring
 from ..agent import CustomTool
@@ -214,7 +214,7 @@ class SimulationEngine:
         self._database_writer: Optional[DatabaseWriter] = None
         self._embedding: Optional[SparseTextEmbedding] = None
         self._metrics_actor: Optional[PrometheusActor] = None
-        self._db_actor: Optional[ClickHouseActor] = None
+        self._db_actor: Optional[DatabaseActor] = None
         self._db_tool: Optional[CustomTool] = None
         self._id2agent: dict[int, Agent] = {}
         yaml_config = yaml.dump(
@@ -342,7 +342,7 @@ class SimulationEngine:
         # Initialize ClickHouse db
         # ==========================
         try:
-            self._db_actor = ClickHouseActor.remote(
+            self._db_actor = DatabaseActor.remote(
                 exp_id=self.exp_id,
                 home_dir=self._config.env.data_dir,
                 metrics_actor=self._metrics_actor,
@@ -811,7 +811,6 @@ class SimulationEngine:
                             messager=self.messager,
                             embedding=self._embedding,
                             database_writer=self._database_writer,
-                            finetune_data_dir=self._config.env.finetune_data_dir,
                         ),
                         memory=memory_init,
                         agent_params=agent_params,
@@ -933,7 +932,6 @@ class SimulationEngine:
                 messager=self.messager,
                 embedding=self._embedding,
                 database_writer=self._database_writer,
-                finetune_data_dir=self._config.env.finetune_data_dir,
             )
             get_logger().info("Initializing the agents...")
             to_return = {}

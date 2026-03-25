@@ -8,7 +8,7 @@ from multiprocessing import cpu_count
 from typing import Any, List, Optional, Union, overload, TypedDict
 
 import httpx
-from ..performance.ClickHouseActor import ClickHouseActor
+from ..database.database_actor import DatabaseActor
 from ..performance.prometheusActor import PrometheusActor
 import ray
 from openai import NOT_GIVEN, APIConnectionError, AsyncOpenAI, NotGiven, OpenAIError
@@ -265,7 +265,7 @@ class LLM:
         configs: List[LLMConfig],
         num_actors: int = min(cpu_count(), 8),
         metrics_actor: Optional[PrometheusActor] = None,
-        db_actor: Optional[ClickHouseActor] = None,
+        db_actor: Optional[DatabaseActor] = None,
     ):
         """
         Initializes the LLM instance.

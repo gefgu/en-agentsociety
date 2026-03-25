@@ -153,7 +153,6 @@ If you think the agent has to stop the current action and do something to satisf
 """
 
 
-
 POI_OBSERVATION_PROMPT = """You are a Spatial Memory Observation Encoder. Your task is to quantify the agent's experience at a Point of Interest (POI) into a numerical observation vector.
 
 This vector will be fed into a Kalman filter to update the agent's long-term memory.
@@ -237,7 +236,7 @@ class NeedsBlock(Block):
         evaluation_prompt: str = EVALUATION_PROMPT,
         reflection_prompt: str = REFLECTION_PROMPT,
         initial_prompt: str = INITIAL_NEEDS_PROMPT,
-        poi_belief_update_prompt: str = POI_OBSERVATION_PROMPT
+        poi_belief_update_prompt: str = POI_OBSERVATION_PROMPT,
     ):
         """
         Initialize needs management system.
@@ -520,7 +519,6 @@ class NeedsBlock(Block):
                 self._need_to_do = None
                 self._need_to_do_checked = False
 
-
     async def update_poi_beliefs_from_plan(self, plan):
         """
         Update POI beliefs based on actually executed steps.
@@ -529,13 +527,14 @@ class NeedsBlock(Block):
         """
 
         # Debug Plan
-        get_logger().debug(f"Updating POI beliefs from plan: {plan}", extra={"agent_id": self.id})
+        get_logger().debug(
+            f"Updating POI beliefs from plan: {plan}", extra={"agent_id": self.id}
+        )
 
         for step in plan.get("steps", []):
             evaluation = step.get("evaluation", {})
-            if (
-                evaluation.get("status") == "pending"
-                or not evaluation.get("success", False)
+            if evaluation.get("status") == "pending" or not evaluation.get(
+                "success", False
             ):
                 get_logger().debug(
                     f"Agent {self.id}: Skipping step with pending or failed evaluation. Step: {step}, Evaluation: {evaluation}",
@@ -567,9 +566,9 @@ class NeedsBlock(Block):
                 poi_id, poi_category, intention, step_type, details
             )
 
-
-
-    async def update_location_belief(self, location_id, location_category, intention, step_type, details):
+    async def update_location_belief(
+        self, location_id, location_category, intention, step_type, details
+    ):
         """
         Update beliefs about a location based on step evaluation.
         - Retrieves existing belief for the location
@@ -601,8 +600,8 @@ class NeedsBlock(Block):
             neuroticism=neuroticism,
             hobbies=hobbies_str,
             observation=observation,
-            poi_name = location_id,
-            poi_category = location_category
+            poi_name=location_id,
+            poi_category=location_category,
         )
 
         retry = 3
@@ -622,14 +621,23 @@ class NeedsBlock(Block):
                 new_atmosphere = belief_update.get("atmosphere", 0.5)
                 new_satisfaction = belief_update.get("satisfaction", 0.5)
                 new_convenience = belief_update.get("convenience", 0.5)
-                await self.memory.spatial.update_belief_location(location_id, new_price, new_atmosphere, new_satisfaction, new_convenience)
-                get_logger().info(f"Belief updated for location {location_id} with data: {belief_update}")
+                await self.memory.spatial.update_belief_location(
+                    location_id,
+                    new_price,
+                    new_atmosphere,
+                    new_satisfaction,
+                    new_convenience,
+                )
+                get_logger().info(
+                    f"Belief updated for location {location_id} with data: {belief_update}"
+                )
                 break
             except Exception as e:
-                get_logger().warning(f"Error updating beliefs from plan evaluation: {str(e)}")
+                get_logger().warning(
+                    f"Error updating beliefs from plan evaluation: {str(e)}"
+                )
                 get_logger().warning(f"Original response: {response}")
                 retry -= 1
-        
 
     async def determine_current_need(self):
         """
@@ -784,28 +792,6 @@ class NeedsBlock(Block):
 
         return cognition
 
-    async def _save_finetuning_data(
-        self, prompt_dialog: str, response: str, metadata: dict
-    ):
-        """Save finetuning data to the specified directory."""
-        finetune_data_dir = self.toolbox.finetune_data_dir
-        if not finetune_data_dir:
-            return
-
-        os.makedirs(f"{finetune_data_dir}/adjust_needs/", exist_ok=True)
-        timestamp = int(time.time() * 1000)
-        filename = f"{self.id}_{timestamp}.json"
-        filepath = os.path.join(f"{finetune_data_dir}/adjust_needs/", filename)
-
-        finetune_entry = {
-            "prompt": prompt_dialog,
-            "response": response,
-            **metadata,
-        }
-
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(json.dumps(finetune_entry, ensure_ascii=False) + "\n")
-
     async def evaluate_and_adjust_needs(self, completed_plan):
         """
         Evaluate plan execution results and adjust satisfaction values.
@@ -881,22 +867,6 @@ class NeedsBlock(Block):
                     "agent_id": self.id,
                 },
             )
-
-            if self.toolbox.finetune_data_dir:
-                try:
-                    await self._save_finetuning_data(
-                        prompt_dialog=self.evaluation_prompt.to_dialog()[0]["content"],
-                        response=response,
-                        metadata={
-                            "agent_id": self.id,
-                            "current_need": current_need,
-                            "timestamp": time.time(),
-                        },
-                    )
-                except Exception as e:
-                    get_logger().warning(
-                        f"Failed to save finetuning data in needs_block: {str(e)}"
-                    )
 
             try:
                 # print(self.evaluation_prompt.to_dialog())
