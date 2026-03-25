@@ -1,17 +1,13 @@
 import React, { useContext, useEffect } from "react";
-import {
-    Row,
-} from "antd";
 
 import InfoPanel from "./LeftPanel";
 import { RightPanel } from "./ChatBox";
-import LngLatJump from "./components/LngLatJump";
-import { LngLat } from "./components/type";
 import Deck from "./Deck";
 import { useParams } from "react-router-dom";
 import { store, StoreContext } from "./store";
 import { observer } from 'mobx-react-lite'
 import TimelinePlayer from "./TimelinePlayer";
+import "./replay.css";
 
 // const IconFont = createFromIconfontCN({
 //     scriptUrl: "//at.alicdn.com/t/font_3397267_y3yy0ckhrj.js",
@@ -28,7 +24,7 @@ const Replay: React.FC = observer(() => {
     }, [expID]);
 
     return (
-        <>
+        <div className="replay-shell">
             <div className="deck">
                 <Deck style={{}} />
             </div>
@@ -45,16 +41,10 @@ const Replay: React.FC = observer(() => {
             <div className='control-progress'>
                 <TimelinePlayer initialInterval={1000} />
             </div>
-            <Row justify="center" align="middle" style={{
-                backgroundColor: "#FFFFFF",
-                borderRadius: "0px 0px 16px 16px",
-                boxShadow: "0px 4px 10px 0px rgba(80, 80, 80, 0.1)",
-            }}>
-            </Row>
             <div className="agentsociety-right">
                 <RightPanel />
             </div>
-        </>
+        </div>
     );
 });
 

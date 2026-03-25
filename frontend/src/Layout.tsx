@@ -1,7 +1,7 @@
 import { Divider, Flex, Layout } from "antd";
 import { Content, Header } from "antd/es/layout/layout";
 import RootMenu, { AppSidebarMenu, SidebarBottomActions } from "./Menu";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import React, { useEffect, useRef } from "react";
 
 export default function RootLayout({
@@ -15,6 +15,8 @@ export default function RootLayout({
 }) {
     const headerRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
+    const location = useLocation();
+    const isReplayPage = location.pathname.startsWith('/exp/');
 
     const headerStyle = {
         background: '#14213d',
@@ -79,7 +81,7 @@ export default function RootLayout({
                     </Content>
                 </>
             ) : (
-                <Layout ref={contentRef} style={{ minHeight: '100vh' }}>
+                <Layout ref={contentRef} style={{ minHeight: '100vh', padding: 0 }}>
                     <Layout.Sider
                         width={220}
                         breakpoint="lg"
@@ -98,7 +100,7 @@ export default function RootLayout({
                             <SidebarBottomActions />
                         </div>
                     </Layout.Sider>
-                    <Content style={{ padding: '16px 20px' }}>
+                    <Content style={{ padding: isReplayPage ? 0 : '16px 20px' }}>
                         {children}
                     </Content>
                 </Layout>
