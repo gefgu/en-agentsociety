@@ -16,6 +16,7 @@ from .schema import (
     AgentTransportTypeRecord,
     BlockDispatcherRecord,
     PromptResponseRecord,
+    StaticAgentAttributesRecord,
     StepAgentStatusRecord,
 )
 
@@ -26,6 +27,7 @@ TableRecord = Union[
     AgentTransportTypeRecord,
     StepAgentStatusRecord,
     BlockDispatcherRecord,
+    StaticAgentAttributesRecord,
 ]
 
 
@@ -74,6 +76,7 @@ class ClickHouseDatabase:
             "agent_transport_type": AgentTransportTypeRecord,
             "step_agent_status": StepAgentStatusRecord,
             "block_dispatcher": BlockDispatcherRecord,
+            "static_agent_attributes": StaticAgentAttributesRecord,
         }
 
         self.table_columns: dict[str, List[str]] = {
@@ -452,6 +455,34 @@ class ClickHouseDatabase:
         except Exception as e:
             get_logger().error(
                 f"Failed to insert block dispatcher record: {e}. Record: {record}"
+            )
+
+    def insert_static_agent_attributes_record(
+        self, record: StaticAgentAttributesRecord
+    ) -> None:
+        if self.client is None:
+            get_logger().error(
+                "ClickHouse client is not connected. Cannot insert static agent attributes record."
+            )
+            return
+
+        try:
+            timestamp, agent_id = self._clean_incoming_record(
+                record["timestamp"], record["agent_id"]
+            )
+
+            normalized_record: StaticAgentAttributesRecord = {
+                **record,
+                "exp_id": self.exp_id,
+                "simulation_step": self.simulation_step,
+                "timestamp": timestamp,
+                "agent_id": agent_id,
+            }
+            self._queue_record("static_agent_attributes", normalized_record)
+
+        except Exception as e:
+            get_logger().error(
+                f"Failed to insert static agent attributes record: {e}"
             )
 
     def flush_all_batches(self):
