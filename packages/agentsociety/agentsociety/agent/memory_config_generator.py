@@ -1,6 +1,6 @@
 import copy
 import json
-from typing import Any, Callable, List, Optional, Union, cast
+from typing import Any, Callable, List, Literal, Optional, Union, cast
 
 from pydantic import BaseModel
 
@@ -18,6 +18,7 @@ __all__ = [
 ]
 
 
+
 class MemoryAttribute(BaseModel):
     name: str  # the name of the attribute
     type: Any  # the type of the attribute
@@ -27,6 +28,7 @@ class MemoryAttribute(BaseModel):
     description: str  # the description of the attribute
     whether_embedding: bool = False  # whether the attribute is vectorized
     embedding_template: Optional[str] = None  # the template to generate the value
+    storage_class: Literal["static", "dynamic", "event"] = "static"
 
 
 class MemoryConfig(BaseModel):

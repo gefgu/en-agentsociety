@@ -122,355 +122,40 @@ def memory_config_societyagent(
     class_config: Optional[list[MemoryAttribute]] = None,
 ) -> MemoryConfig:
     """Generate memory configuration for society agents."""
-    attributes = {
+
+    default_age = sample_field_value(distributions, "age")
+
+    static_attributes = {
         "type": MemoryAttribute(
             name="type",
             type=str,
             default_or_value="citizen",
             description="agent type",
             whether_embedding=False,
+            storage_class="static",
         ),
-        # Needs Model
-        "hunger_satisfaction": MemoryAttribute(
-            name="hunger_satisfaction",
-            type=float,
-            default_or_value=0.9,
-            description="hunger satisfaction",
-            whether_embedding=False,
-        ),
-        "energy_satisfaction": MemoryAttribute(
-            name="energy_satisfaction",
-            type=float,
-            default_or_value=0.9,
-            description="energy satisfaction",
-            whether_embedding=False,
-        ),
-        "safety_satisfaction": MemoryAttribute(
-            name="safety_satisfaction",
-            type=float,
-            default_or_value=0.4,
-            description="safety satisfaction",
-            whether_embedding=False,
-        ),
-        "social_satisfaction": MemoryAttribute(
-            name="social_satisfaction",
-            type=float,
-            default_or_value=0.6,
-            description="social satisfaction",
-            whether_embedding=False,
-        ),
-        "current_need": MemoryAttribute(
-            name="current_need",
-            type=str,
-            default_or_value="none",
-            description="current need",
-            whether_embedding=False,
-        ),
-        "mean_need_fulfillment": MemoryAttribute(
-            name="mean_need_fulfillment",
-            type=float,
-            default_or_value=0.5,
-            description="mean need fulfillment.",
-            whether_embedding=False,
-        ),
-        "need_fulfillment": MemoryAttribute(
-            name="need_fulfillment",
-            type=float,
-            default_or_value=0,
-            description="need fulfillment. Proportion of the day where needs exceed their thresholds.",
-            whether_embedding=False,
-        ),
-        "daily_schedule": MemoryAttribute(
-            name="daily_schedule",
-            type=dict,
-            default_or_value={},
-            description="daily schedule",
-            whether_embedding=False,
-        ),
-        # Plan Behavior Model
-        "current_plan": MemoryAttribute(
-            name="current_plan",
-            type=dict,
-            default_or_value={},
-            description="current plan",
-            whether_embedding=False,
-        ),
-        "execution_context": MemoryAttribute(
-            name="execution_context",
-            type=dict,
-            default_or_value={},
-            description="execution context",
-            whether_embedding=False,
-        ),
-        "plan_history": MemoryAttribute(
-            name="plan_history",
-            type=list,
-            default_or_value=[],
-            description="plan history",
-            whether_embedding=False,
-        ),
-        # cognition
-        "emotion": MemoryAttribute(
-            name="emotion",
+        "home": MemoryAttribute(
+            name="home",
             type=dict,
             default_or_value={
-                "sadness": 5,
-                "joy": 5,
-                "fear": 5,
-                "disgust": 5,
-                "anger": 5,
-                "surprise": 5,
+                "aoi_position": {
+                    "aoi_id": sample_field_value(distributions, "home_aoi_id")
+                }
             },
-            description="emotion state",
+            description="agent's home location",
             whether_embedding=False,
         ),
-        "attitude": MemoryAttribute(
-            name="attitude",
+        "work": MemoryAttribute(
+            name="work",
             type=dict,
-            default_or_value={},
-            description="attitude",
-            whether_embedding=True,
-        ),
-        "thought": MemoryAttribute(
-            name="thought",
-            type=str,
-            default_or_value="Currently nothing good or bad is happening",
-            description="current thought",
-            whether_embedding=True,
-        ),
-        "emotion_types": MemoryAttribute(
-            name="emotion_types",
-            type=str,
-            default_or_value="Relief",
-            description="emotion types",
-            whether_embedding=True,
-        ),
-        # economy
-        "work_skill": MemoryAttribute(
-            name="work_skill",
-            type=float,
-            default_or_value=random.choice(agent_skills),
-            description="work skill",
-            whether_embedding=True,
-        ),
-        "tax_paid": MemoryAttribute(
-            name="tax_paid",
-            type=float,
-            default_or_value=0.0,
-            description="tax paid",
+            default_or_value={
+                "aoi_position": {
+                    "aoi_id": sample_field_value(distributions, "work_aoi_id")
+                }
+            },
+            description="agent's work location",
             whether_embedding=False,
         ),
-        "consumption_currency": MemoryAttribute(
-            name="consumption_currency",
-            type=float,
-            default_or_value=0.0,
-            description="consumption currency",
-            whether_embedding=False,
-        ),
-        "goods_demand": MemoryAttribute(
-            name="goods_demand",
-            type=int,
-            default_or_value=0,
-            description="goods demand",
-            whether_embedding=False,
-        ),
-        "goods_consumption": MemoryAttribute(
-            name="goods_consumption",
-            type=int,
-            default_or_value=0,
-            description="goods consumption",
-            whether_embedding=False,
-        ),
-        "work_propensity": MemoryAttribute(
-            name="work_propensity",
-            type=float,
-            default_or_value=0.0,
-            description="work propensity",
-            whether_embedding=False,
-        ),
-        "consumption_propensity": MemoryAttribute(
-            name="consumption_propensity",
-            type=float,
-            default_or_value=0.0,
-            description="consumption propensity",
-            whether_embedding=False,
-        ),
-        "to_consumption_currency": MemoryAttribute(
-            name="to_consumption_currency",
-            type=float,
-            default_or_value=0.0,
-            description="to consumption currency",
-            whether_embedding=False,
-        ),
-        "firm_id": MemoryAttribute(
-            name="firm_id",
-            type=int,
-            default_or_value=0,
-            description="firm id",
-            whether_embedding=False,
-        ),
-        "government_id": MemoryAttribute(
-            name="government_id",
-            type=int,
-            default_or_value=0,
-            description="government id",
-            whether_embedding=False,
-        ),
-        "bank_id": MemoryAttribute(
-            name="bank_id",
-            type=int,
-            default_or_value=0,
-            description="bank id",
-            whether_embedding=False,
-        ),
-        "nbs_id": MemoryAttribute(
-            name="nbs_id",
-            type=int,
-            default_or_value=0,
-            description="nbs id",
-            whether_embedding=False,
-        ),
-        "dialog_queue": MemoryAttribute(
-            name="dialog_queue",
-            type=deque,
-            default_or_value=deque(maxlen=3),
-            description="dialog queue",
-            whether_embedding=False,
-        ),
-        "firm_forward": MemoryAttribute(
-            name="firm_forward",
-            type=int,
-            default_or_value=0,
-            description="firm forward",
-            whether_embedding=False,
-        ),
-        "bank_forward": MemoryAttribute(
-            name="bank_forward",
-            type=int,
-            default_or_value=0,
-            description="bank forward",
-            whether_embedding=False,
-        ),
-        "nbs_forward": MemoryAttribute(
-            name="nbs_forward",
-            type=int,
-            default_or_value=0,
-            description="nbs forward",
-            whether_embedding=False,
-        ),
-        "government_forward": MemoryAttribute(
-            name="government_forward",
-            type=int,
-            default_or_value=0,
-            description="government forward",
-            whether_embedding=False,
-        ),
-        "forward": MemoryAttribute(
-            name="forward",
-            type=int,
-            default_or_value=0,
-            description="forward",
-            whether_embedding=False,
-        ),
-        "depression": MemoryAttribute(
-            name="depression",
-            type=float,
-            default_or_value=0.0,
-            description="depression",
-            whether_embedding=False,
-        ),
-        "ubi_opinion": MemoryAttribute(
-            name="ubi_opinion",
-            type=list,
-            default_or_value=[],
-            description="ubi opinion",
-            whether_embedding=False,
-        ),
-        "working_experience": MemoryAttribute(
-            name="working_experience",
-            type=list,
-            default_or_value=[],
-            description="working experience",
-            whether_embedding=False,
-        ),
-        "work_hour_month": MemoryAttribute(
-            name="work_hour_month",
-            type=float,
-            default_or_value=160,
-            description="work hour month",
-            whether_embedding=False,
-        ),
-        "work_hour_finish": MemoryAttribute(
-            name="work_hour_finish",
-            type=float,
-            default_or_value=0,
-            description="work hour finish",
-            whether_embedding=False,
-        ),
-        # social
-        "friends": MemoryAttribute(
-            name="friends",
-            type=list,
-            default_or_value=[],
-            description="friends list",
-            whether_embedding=False,
-        ),
-        "public_friends": MemoryAttribute(
-            name="public_friends",
-            type=list,
-            default_or_value=[],
-            description="public friends list",
-            whether_embedding=False,
-        ),
-        "relationships": MemoryAttribute(
-            name="relationships",
-            type=dict,
-            default_or_value={},
-            description="relationship strength with each friend",
-            whether_embedding=False,
-        ),
-        "relation_types": MemoryAttribute(
-            name="relation_types",
-            type=dict,
-            default_or_value={},
-            description="relation types",
-            whether_embedding=False,
-        ),
-        "chat_histories": MemoryAttribute(
-            name="chat_histories",
-            type=dict,
-            default_or_value={},
-            description="all chat histories",
-            whether_embedding=False,
-        ),
-        "interactions": MemoryAttribute(
-            name="interactions",
-            type=dict,
-            default_or_value={},
-            description="all interaction records",
-            whether_embedding=False,
-        ),
-        # mobility
-        "number_poi_visited": MemoryAttribute(
-            name="number_poi_visited",
-            type=int,
-            default_or_value=1,
-            description="number of poi visited",
-            whether_embedding=False,
-        ),
-        "location_knowledge": MemoryAttribute(
-            name="location_knowledge",
-            type=dict,
-            default_or_value={},
-            description="location knowledge",
-            whether_embedding=False,
-        ),
-    }
-
-    default_age = sample_field_value(distributions, "age")
-
-    # Add profile attributes
-    profile_attributes = {
         "name": MemoryAttribute(
             name="name",
             type=str,
@@ -527,26 +212,41 @@ def memory_config_societyagent(
             description="agent's occupation",
             whether_embedding=True,
         ),
-        "family_consumption": MemoryAttribute(
-            name="family_consumption",
-            type=str,
-            default_or_value="unknown",
-            description="agent's family consumption pattern",
+        # economy
+        "work_skill": MemoryAttribute(
+            name="work_skill",
+            type=float,
+            default_or_value=random.choice(agent_skills),
+            description="work skill",
             whether_embedding=True,
         ),
-        "consumption": MemoryAttribute(
-            name="consumption",
-            type=str,
-            default_or_value="unknown",
-            description="agent's consumption pattern",
-            whether_embedding=True,
+        "firm_id": MemoryAttribute(
+            name="firm_id",
+            type=int,
+            default_or_value=0,
+            description="firm id",
+            whether_embedding=False,
         ),
-        "hobbies": MemoryAttribute(
-            name="hobbies",
-            type=list,
-            default_or_value=[],
-            description="agent's hobbies",
-            whether_embedding=True,
+        "government_id": MemoryAttribute(
+            name="government_id",
+            type=int,
+            default_or_value=0,
+            description="government id",
+            whether_embedding=False,
+        ),
+        "bank_id": MemoryAttribute(
+            name="bank_id",
+            type=int,
+            default_or_value=0,
+            description="bank id",
+            whether_embedding=False,
+        ),
+        "nbs_id": MemoryAttribute(
+            name="nbs_id",
+            type=int,
+            default_or_value=0,
+            description="nbs id",
+            whether_embedding=False,
         ),
         "preferences": MemoryAttribute(
             name="preferences",
@@ -562,12 +262,12 @@ def memory_config_societyagent(
             description="agent's behavioral preferences",
             whether_embedding=False,
         ),
-        "goals": MemoryAttribute(
-            name="goals",
+        "hobbies": MemoryAttribute(
+            name="hobbies",
             type=list,
             default_or_value=[],
-            description="agent's goals",
-            whether_embedding=False,
+            description="agent's hobbies",
+            whether_embedding=True,
         ),
         "personality": MemoryAttribute(
             name="personality",
@@ -645,6 +345,170 @@ def memory_config_societyagent(
             description="agent's background story",
             whether_embedding=True,
         ),
+    }
+
+    dynamic_attributes = {
+        # Needs Model
+        "hunger_satisfaction": MemoryAttribute(
+            name="hunger_satisfaction",
+            type=float,
+            default_or_value=0.9,
+            description="hunger satisfaction",
+            whether_embedding=False,
+            storage_class="dynamic",
+        ),
+        "energy_satisfaction": MemoryAttribute(
+            name="energy_satisfaction",
+            type=float,
+            default_or_value=0.9,
+            description="energy satisfaction",
+            whether_embedding=False,
+            storage_class="dynamic",
+        ),
+        "safety_satisfaction": MemoryAttribute(
+            name="safety_satisfaction",
+            type=float,
+            default_or_value=0.4,
+            description="safety satisfaction",
+            whether_embedding=False,
+            storage_class="dynamic",
+        ),
+        "social_satisfaction": MemoryAttribute(
+            name="social_satisfaction",
+            type=float,
+            default_or_value=0.6,
+            description="social satisfaction",
+            whether_embedding=False,
+            storage_class="dynamic",
+        ),
+        "current_need": MemoryAttribute(
+            name="current_need",
+            type=str,
+            default_or_value="none",
+            description="current need",
+            whether_embedding=False,
+        ),
+        "mean_need_fulfillment": MemoryAttribute(
+            name="mean_need_fulfillment",
+            type=float,
+            default_or_value=0.5,
+            description="mean need fulfillment.",
+            whether_embedding=False,
+        ),
+        "need_fulfillment": MemoryAttribute(
+            name="need_fulfillment",
+            type=float,
+            default_or_value=0,
+            description="need fulfillment. Proportion of the day where needs exceed their thresholds.",
+            whether_embedding=False,
+        ),
+        # cognition
+        "emotion": MemoryAttribute(
+            name="emotion",
+            type=dict,
+            default_or_value={
+                "sadness": 5,
+                "joy": 5,
+                "fear": 5,
+                "disgust": 5,
+                "anger": 5,
+                "surprise": 5,
+            },
+            description="emotion state",
+            whether_embedding=False,
+        ),
+        "emotion_types": MemoryAttribute(
+            name="emotion_types",
+            type=str,
+            default_or_value="Relief",
+            description="emotion types",
+            whether_embedding=True,
+        ),
+        "tax_paid": MemoryAttribute(
+            name="tax_paid",
+            type=float,
+            default_or_value=0.0,
+            description="tax paid",
+            whether_embedding=False,
+        ),
+        "consumption_currency": MemoryAttribute(
+            name="consumption_currency",
+            type=float,
+            default_or_value=0.0,
+            description="consumption currency",
+            whether_embedding=False,
+        ),
+        "goods_demand": MemoryAttribute(
+            name="goods_demand",
+            type=int,
+            default_or_value=0,
+            description="goods demand",
+            whether_embedding=False,
+        ),
+        "goods_consumption": MemoryAttribute(
+            name="goods_consumption",
+            type=int,
+            default_or_value=0,
+            description="goods consumption",
+            whether_embedding=False,
+        ),
+        "work_propensity": MemoryAttribute(
+            name="work_propensity",
+            type=float,
+            default_or_value=0.0,
+            description="work propensity",
+            whether_embedding=False,
+        ),
+        "consumption_propensity": MemoryAttribute(
+            name="consumption_propensity",
+            type=float,
+            default_or_value=0.0,
+            description="consumption propensity",
+            whether_embedding=False,
+        ),
+        "to_consumption_currency": MemoryAttribute(
+            name="to_consumption_currency",
+            type=float,
+            default_or_value=0.0,
+            description="to consumption currency",
+            whether_embedding=False,
+        ),
+        "forward": MemoryAttribute(
+            name="forward",
+            type=int,
+            default_or_value=0,
+            description="forward",
+            whether_embedding=False,
+        ),
+        "depression": MemoryAttribute(
+            name="depression",
+            type=float,
+            default_or_value=0.0,
+            description="depression",
+            whether_embedding=False,
+        ),
+        # mobility
+        "number_poi_visited": MemoryAttribute(
+            name="number_poi_visited",
+            type=int,
+            default_or_value=1,
+            description="number of poi visited",
+            whether_embedding=False,
+        ),
+        "family_consumption": MemoryAttribute(
+            name="family_consumption",
+            type=str,
+            default_or_value="unknown",
+            description="agent's family consumption pattern",
+            whether_embedding=True,
+        ),
+        "consumption": MemoryAttribute(
+            name="consumption",
+            type=str,
+            default_or_value="unknown",
+            description="agent's consumption pattern",
+            whether_embedding=True,
+        ),
         "pending_destination_type": MemoryAttribute(
             name="pending_destination_type",
             type=str,
@@ -652,36 +516,141 @@ def memory_config_societyagent(
             description="agent's pending destination type",
             whether_embedding=False,
         ),
-    }
-
-    # Add base attributes
-    base_attributes = {
-        "home": MemoryAttribute(
-            name="home",
-            type=dict,
-            default_or_value={
-                "aoi_position": {
-                    "aoi_id": sample_field_value(distributions, "home_aoi_id")
-                }
-            },
-            description="agent's home location",
+        "work_hour_month": MemoryAttribute(
+            name="work_hour_month",
+            type=float,
+            default_or_value=160,
+            description="work hour month",
             whether_embedding=False,
         ),
-        "work": MemoryAttribute(
-            name="work",
+        "work_hour_finish": MemoryAttribute(
+            name="work_hour_finish",
+            type=float,
+            default_or_value=0,
+            description="work hour finish",
+            whether_embedding=False,
+        )
+    }
+
+    event_attributes = {
+        "daily_schedule": MemoryAttribute(
+            name="daily_schedule",
             type=dict,
-            default_or_value={
-                "aoi_position": {
-                    "aoi_id": sample_field_value(distributions, "work_aoi_id")
-                }
-            },
-            description="agent's work location",
+            default_or_value={},
+            description="daily schedule",
+            whether_embedding=False,
+        ),
+        # Plan Behavior Model
+        "current_plan": MemoryAttribute(
+            name="current_plan",
+            type=dict,
+            default_or_value={},
+            description="current plan",
+            whether_embedding=False,
+        ),
+        "execution_context": MemoryAttribute(
+            name="execution_context",
+            type=dict,
+            default_or_value={},
+            description="execution context",
+            whether_embedding=False,
+        ),
+        "plan_history": MemoryAttribute(
+            name="plan_history",
+            type=list,
+            default_or_value=[],
+            description="plan history",
+            whether_embedding=False,
+        ),
+        "attitude": MemoryAttribute(
+            name="attitude",
+            type=dict,
+            default_or_value={},
+            description="attitude",
+            whether_embedding=True,
+        ),
+        "thought": MemoryAttribute(
+            name="thought",
+            type=str,
+            default_or_value="Currently nothing good or bad is happening",
+            description="current thought",
+            whether_embedding=True,
+        ),
+        "dialog_queue": MemoryAttribute(
+            name="dialog_queue",
+            type=deque,
+            default_or_value=deque(maxlen=3),
+            description="dialog queue",
+            whether_embedding=False,
+        ),
+        # social
+        "friends": MemoryAttribute(
+            name="friends",
+            type=list,
+            default_or_value=[],
+            description="friends list",
+            whether_embedding=False,
+        ),
+        "public_friends": MemoryAttribute(
+            name="public_friends",
+            type=list,
+            default_or_value=[],
+            description="public friends list",
+            whether_embedding=False,
+        ),
+        "relationships": MemoryAttribute(
+            name="relationships",
+            type=dict,
+            default_or_value={},
+            description="relationship strength with each friend",
+            whether_embedding=False,
+        ),
+        "relation_types": MemoryAttribute(
+            name="relation_types",
+            type=dict,
+            default_or_value={},
+            description="relation types",
+            whether_embedding=False,
+        ),
+        "chat_histories": MemoryAttribute(
+            name="chat_histories",
+            type=dict,
+            default_or_value={},
+            description="all chat histories",
+            whether_embedding=False,
+        ),
+        "interactions": MemoryAttribute(
+            name="interactions",
+            type=dict,
+            default_or_value={},
+            description="all interaction records",
+            whether_embedding=False,
+        ),
+        "location_knowledge": MemoryAttribute(
+            name="location_knowledge",
+            type=dict,
+            default_or_value={},
+            description="location knowledge",
+            whether_embedding=False,
+        ),
+        "goals": MemoryAttribute(
+            name="goals",
+            type=list,
+            default_or_value=[],
+            description="agent's goals",
+            whether_embedding=False,
+        ),
+        "working_experience": MemoryAttribute(
+            name="working_experience",
+            type=list,
+            default_or_value=[],
+            description="working experience",
             whether_embedding=False,
         ),
     }
 
     # Merge all attributes
-    all_attributes = {**attributes, **profile_attributes, **base_attributes}
+    all_attributes = {**static_attributes, **dynamic_attributes, **event_attributes}
 
     # Add class-specific attributes if provided
     if class_config:

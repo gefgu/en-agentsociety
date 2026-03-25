@@ -675,24 +675,6 @@ class MonthEconomyPlanBlock(Block):
                 except Exception:
                     self.llm_error += 1
 
-            if self.ubi and self.forward_times >= 96 and self.forward_times % 12 == 0:
-                obs_prompt = f"""
-                                {problem_prompt} {job_prompt} {consumption_prompt} {tax_prompt} {price_prompt}
-                                Your current savings account balance is ${wealth:.2f}. Interest rates, as set by your bank, stand at {interest_rate*100:.2f}%. 
-                                What's your opinion on the UBI policy, including the advantages and disadvantages?
-                            """
-                obs_prompt = prettify_document(obs_prompt)
-                content = await self.llm.atext_request(
-                    [{"role": "user", "content": obs_prompt}],
-                    timeout=300,
-                    context={
-                        "block_name": self.name,
-                        "func_name": "forward",
-                        "agent_id": agent_id,
-                    },
-                )
-                await self.memory.status.update("ubi_opinion", [content], mode="merge")
-
             # Goal Creation
             financial_stress = income < (0.9 * consumption)
             need_fulfillment = await self.memory.status.get(
