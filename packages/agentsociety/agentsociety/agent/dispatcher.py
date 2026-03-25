@@ -126,46 +126,7 @@ class BlockDispatcher:
             await self.dispatcher_prompt.format(context=context)
             agent_id = await self.memory.status.get("id")
             db_tool = self.toolbox.get_tool("db_actor")
-            catboost_tool = self.toolbox.get_tool("catboost_dispatcher_actor")
-            metrics_tool = self.toolbox.get_tool("metrics_actor")
-
-            success = False
             selected_block = None
-            if catboost_tool is not None:
-                start_time = time.perf_counter()
-                success, predicted_block = await catboost_tool.get_tool().predict.remote(  # type: ignore
-                    function_schema=function_schema,
-                    context=context,
-                    agent_id=agent_id,
-                )
-                if success and predicted_block != "no_suitable_block":
-                    if predicted_block in self.blocks:
-                        get_logger().debug(
-                            f"Dispatched intention to block: {predicted_block} using CatBoost."
-                        )
-                        end_time = time.perf_counter()
-                        duration = end_time - start_time
-                        if metrics_tool is not None:
-                            metrics_tool.get_tool().record_block_performance.remote(
-                                block_name="BlockDispatcher",
-                                func_name="dispatch",
-                                actor="catboost",
-                                agent_id=agent_id,
-                                duration=round(duration, 4),
-                                token_input=0,
-                                token_output=0,
-                            )
-                            metrics_tool.get_tool().record_routing.remote(  # type: ignore
-                                block_name="BlockDispatcher",
-                                func_name="dispatch",
-                                agent_id=str(agent_id),
-                                routed=False,
-                            )
-                        return self.blocks[predicted_block]
-                    else:
-                        get_logger().warning(
-                            f"Predicted block '{predicted_block}' not found in registered blocks."
-                        )
 
             # Call LLM with tools schema
             response = await self.toolbox.llm.atext_request(
@@ -197,14 +158,6 @@ class BlockDispatcher:
             selected_block = function_args.get("block_name")
 
             reason = function_args.get("reason", "No reason provided")
-
-            if (metrics_tool is not None) and catboost_tool is not None:
-                await metrics_tool.get_tool().record_routing.remote(  # type: ignore
-                    block_name="BlockDispatcher",
-                    func_name="dispatch",
-                    agent_id=str(agent_id),
-                    routed=True,
-                )
 
             if db_tool is not None:
                 await self.log_dispatch(  # type: ignore

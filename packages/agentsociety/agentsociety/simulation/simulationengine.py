@@ -14,20 +14,12 @@ from multiprocessing import cpu_count
 from typing import Any, Callable, Literal, Optional, Union, cast
 import time
 import yaml
-
-from ..catboost.dispatcher import CatBoostDispatcherActor
-
 from ..performance.ClickHouseActor import ClickHouseActor
-
 from ..performance.prometheusActor import PrometheusActor
-
-from ..catboost.catboost_adjust_needs import (
-    CatBoostAdjustNeedsActor,
-)
-
 from ..performance.monitoring import start_monitoring, stop_monitoring
 from ..agent import CustomTool
 from fastembed import SparseTextEmbedding
+
 # from ..modernbert.modernbert_regression_actor import ModernBERTRegressionActor
 import ray
 
@@ -78,8 +70,6 @@ __all__ = ["SimulationEngine"]
 
 MIN_ID = 1
 MAX_ID = 100000000
-
-
 
 
 def _set_default_agent_config(self: Config):
@@ -355,7 +345,7 @@ class SimulationEngine:
             self._db_actor = ClickHouseActor.remote(
                 exp_id=self.exp_id,
                 home_dir=self._config.env.data_dir,
-                metrics_actor=self._metrics_actor
+                metrics_actor=self._metrics_actor,
             )
             self._db_tool = CustomTool(
                 name="db_actor",
@@ -1058,79 +1048,6 @@ class SimulationEngine:
 
             get_logger().info("Initializing the agents...")
 
-            # ================================
-            # Needs ModernBert model
-            # ================================
-            # modernbert_model_path = self._config.env.modernbert_model_path
-            # if modernbert_model_path:
-            #     get_logger().info(
-            #         f"Loading ModernBert model from {modernbert_model_path}..."
-            #     )
-
-            #     modernbert_pool = ModernBERTRegressionActor.remote(
-            #         modernbert_model_path
-            #     )
-
-            #     modernbert_tool = CustomTool(
-            #         name="modernbert_regression_actor",
-            #         tool=modernbert_pool,
-            #         description="Ray actor for ModernBert regression model",
-            #     )
-            #     agent_toolbox.add_tool(modernbert_tool)
-            #     get_logger().info("ModernBert model loaded and tool added to toolbox.")
-
-            # ================================
-            # Needs CatBoost model
-            # ================================
-            if (
-                self._config.env.catboost_model_path
-                and self._config.env.needs_pca_path
-                # and self._config.env.needs_mahalanobis_params_path
-            ):
-                catboost_model_path = self._config.env.catboost_model_path
-                get_logger().info(
-                    f"Loading CatBoost model from {catboost_model_path}..."
-                )
-                get_logger().info(
-                    f"NEEDS PCA from {self._config.env.needs_pca_path}..."
-                )
-                # get_logger().info(
-                #     f"NEEDS Mahalanobis params from {self._config.env.needs_mahalanobis_params_path}...",
-                # )
-
-                # catboost_pool = CatBoostAdjustNeedsActor.remote(catboost_model_path)
-
-                catboost_model = CatBoostAdjustNeedsActor.remote(
-                    catboost_model_path,
-                    pca_path=self._config.env.needs_pca_path,
-                    # mahalanobis_params_path=self._config.env.needs_mahalanobis_params_path,
-                )
-
-                catboost_tool = CustomTool(
-                    name="catboost_adjust_needs_actor",
-                    tool=catboost_model,
-                    description="Ray actor for CatBoost model",
-                )
-                agent_toolbox.add_tool(catboost_tool)
-                get_logger().info("CatBoost model loaded and tool added to toolbox.")
-
-            if (self._config.env.dispatcher_catboost_path is not None):
-                dispatcher_model_path = self._config.env.dispatcher_catboost_path
-                get_logger().info(
-                    f"Loading CatBoost Dispatcher model from {dispatcher_model_path}..."
-                )
-
-                dispatcher_model = CatBoostDispatcherActor.remote(
-                    dispatcher_model_path,
-                )
-
-                dispatcher_tool = CustomTool(
-                    name="catboost_dispatcher_actor",
-                    tool=dispatcher_model,
-                    description="Ray actor for CatBoost Dispatcher model",
-                )
-                agent_toolbox.add_tool(dispatcher_tool)
-                get_logger().info("CatBoost Dispatcher model loaded and tool added to toolbox.")
 
             # ===================================
             # save the experiment info
@@ -1661,7 +1578,7 @@ class SimulationEngine:
                         status=status_summary,
                         timestamp=time.time(),
                     )
-                    
+
             elif isinstance(
                 agent, (FirmAgentBase, BankAgentBase, NBSAgentBase, GovernmentAgentBase)
             ):
@@ -2001,7 +1918,9 @@ class SimulationEngine:
                     ]
                 )
 
-                self._metrics_actor.record_simulation_step_duration.remote(step_duration)
+                self._metrics_actor.record_simulation_step_duration.remote(
+                    step_duration
+                )
 
             # ======================
             # Log metrics from environment

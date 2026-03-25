@@ -8,7 +8,6 @@ from ...agent import AgentToolbox, Block, FormatPrompt, DotDict
 from ...logger import get_logger
 from ...memory import Memory
 from .utils import clean_json_response
-from ...catboost import catboost_adjust_needs
 
 
 INITIAL_NEEDS_PROMPT = """You are an intelligent agent satisfaction initialization system. Based on the profile information below, please help initialize the agent's satisfaction levels and related parameters.
@@ -816,8 +815,6 @@ class NeedsBlock(Block):
         - Implements retry logic for invalid responses
         """
         metrics_tool = self.toolbox.get_tool("metrics_actor")
-        modernbert_tool = self.toolbox.get_tool("modernbert_regression_actor")
-        catboost_tool = self.toolbox.get_tool("catboost_adjust_needs_actor")
         db_tool = self.toolbox.get_tool("db_actor")
 
         # Retrieve the executed plan and evaluation results
@@ -871,152 +868,6 @@ class NeedsBlock(Block):
             neuroticism=big5.get("neuroticism", 2),
             social_frequency=social_frequency,
         )
-
-        if catboost_tool:
-            try:
-                start_time = time.perf_counter()
-                context_text = self.evaluation_prompt.to_dialog()[0]["content"]
-
-                (
-                    should_use,
-                    response_list,
-                ) = await catboost_tool.get_tool().predict.remote(
-                    prompt=context_text,
-                    current_need=current_need,
-                    current_hunger=current_hunger,
-                    current_energy=current_energy,
-                    current_safety=current_safety,
-                    current_social=current_social,
-                )
-                # --- MEASUREMENT END ---
-                end_time = time.perf_counter()
-                duration = end_time - start_time
-
-                if should_use and response_list is not None:
-                    if metrics_tool:
-                        metrics_tool.get_tool().record_block_performance.remote(
-                            block_name="NeedsBlock",
-                            func_name="evaluate_and_adjust_needs",
-                            actor="catboost",
-                            agent_id=self.id,
-                            duration=round(duration, 4),
-                            token_input=len(context_text.split()),
-                            token_output=0,
-                        )
-
-                        metrics_tool.get_tool().record_routing.remote(
-                            block_name="NeedsBlock",
-                            func_name="evaluate_and_adjust_needs",
-                            agent_id=self.id,
-                            routed=False,
-                        )
-
-                    try:
-                        new_satisfaction: Any = response_list
-                        # Update values of all needs
-                        for need_type, new_value in new_satisfaction.items():
-                            if need_type in [
-                                "hunger_satisfaction",
-                                "energy_satisfaction",
-                                "safety_satisfaction",
-                                "social_satisfaction",
-                            ]:
-                                await self.memory.status.update(need_type, new_value)
-
-                        if db_tool:
-                            db_tool.get_tool().insert_adjust_needs_record.remote(
-                                {
-                                    "agent_id": self.id,
-                                    "prompt": catboost_adjust_needs.format_prompt(
-                                        context_text, current_need
-                                    ),
-                                    "current_need": current_need,
-                                    "current_hunger": current_hunger,
-                                    "current_energy": current_energy,
-                                    "current_safety": current_safety,
-                                    "current_social": current_social,
-                                    "new_hunger": new_satisfaction.get(
-                                        "hunger_satisfaction", current_hunger
-                                    ),
-                                    "new_energy": new_satisfaction.get(
-                                        "energy_satisfaction", current_energy
-                                    ),
-                                    "new_safety": new_satisfaction.get(
-                                        "safety_satisfaction", current_safety
-                                    ),
-                                    "new_social": new_satisfaction.get(
-                                        "social_satisfaction", current_social
-                                    ),
-                                    "timestamp": int(time.time()),
-                                    "actor": "catboost",
-                                }
-                            )
-
-                        return
-                    except Exception as e:
-                        get_logger().warning(
-                            f"Error processing evaluation response: {str(e)}"
-                        )
-                        get_logger().warning(f"Original response: {response_list}")
-
-                else:
-                    metrics_tool.get_tool().record_routing.remote(
-                        block_name="NeedsBlock",
-                        func_name="evaluate_and_adjust_needs",
-                        agent_id=self.id,
-                        routed=True,
-                    )
-
-            except Exception as e:
-                get_logger().warning(f"CatBoost evaluation failed: {str(e)}")
-                # Fallback to original LLM evaluation
-
-        if modernbert_tool:
-            try:
-                start_time = time.perf_counter()
-                context_text = self.evaluation_prompt.to_dialog()[0]["content"]
-
-                modernbert_pool = modernbert_tool.get_tool()
-                response_dict = await modernbert_pool.predict.remote(context_text)
-                # --- MEASUREMENT END ---
-                end_time = time.perf_counter()
-                duration = end_time - start_time
-
-                if metrics_tool:
-                    metrics_tool.get_tool().record_performance.remote(
-                        block_name="NeedsBlock",
-                        func_name="evaluate_and_adjust_needs_modernbert",
-                        actor="modernbert",
-                        agent_id=self.id,
-                        duration=round(duration, 4),
-                        token_input=len(context_text.split()),
-                        token_output=0,
-                    )
-
-                try:
-                    # print(self.evaluation_prompt.to_dialog())
-                    # print(response)
-
-                    new_satisfaction: Any = response_dict
-                    # Update values of all needs
-                    for need_type, new_value in new_satisfaction.items():
-                        if need_type in [
-                            "hunger_satisfaction",
-                            "energy_satisfaction",
-                            "safety_satisfaction",
-                            "social_satisfaction",
-                        ]:
-                            await self.memory.status.update(need_type, new_value)
-                    return
-                except Exception as e:
-                    get_logger().warning(
-                        f"Error processing evaluation response: {str(e)}"
-                    )
-                    get_logger().warning(f"Original response: {response_dict}")
-
-            except Exception as e:
-                get_logger().warning(f"ModernBERT evaluation failed: {str(e)}")
-                # Fallback to original LLM evaluation
 
         retry = 3
         while retry > 0:
@@ -1128,12 +979,3 @@ class NeedsBlock(Block):
         cognition = await self.determine_current_need()
 
         return cognition
-
-
-# [
-#     {
-#         "role": "user",
-#         "content": 'You are an evaluation system for an intelligent agent. The agent has performed the following actions to satisfy the whatever need:\n\nGoal: other\nExecution situation:\n- Continue with work tasks (economy): work: Continue with work tasks\n- Take a short break for relaxation (other): Finished executing Take a short break for relaxation\n- Review patient records for accuracy (economy): Finished executing Review patient records for accuracy\n- Prepare for upcoming appointments or surgeries (economy): Failed to complete social interaction with default behavior: Prepare for upcoming appointments or surgeries\n- Check in with colleagues about any urgent matters (social): Plan failed or skipped, not completed\n- Enjoy a light lunch if time allows (other): Plan failed or skipped, not completed\n\nCurrent satisfaction: \n- hunger_satisfaction: 0.6\n- energy_satisfaction: 0.4933333333333337\n- safety_satisfaction: 0.45833333333333326\n- social_satisfaction: 0.31666666666666654\n\nPlease evaluate and adjust the value of whatever satisfaction based on the execution results above.\n\nNotes:\n1. Satisfaction values range from 0-1, where:\n   - 1 means the need is fully satisfied\n   - 0 means the need is completely unsatisfied \n   - Higher values indicate greater need satisfaction\n2. If the current need is not "whatever", only return the new value for the current need. Otherwise, return both safe and social need values.\n3. Ensure the return value is in valid JSON format, examples below:\n\nPlease response in json format for specific need (hungry here) adjustment (Do not return any other text), example:\n{\n    "hunger_satisfaction": new_hunger_satisfaction_value\n}\n\nPlease response in json format for whatever need adjustment (Do not return any other text), example:\n{\n    "safety_satisfaction": new_safety_satisfaction_value,\n    "social_satisfaction": new_social_satisfaction_value\n}\n',
-#     }
-# ]
-# {"safety_satisfaction": 0.45833333333333326, "social_satisfaction": 0.21666666666666654}

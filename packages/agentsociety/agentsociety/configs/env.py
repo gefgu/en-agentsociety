@@ -26,25 +26,6 @@ class EnvConfig(BaseModel):
     data_dir: str = Field(default="./agentsociety_data/data")
     """Directory for storing data files"""
 
-    finetune_data_dir: Optional[str] = Field(default=None)
-    """Directory for finetune data, if not set, use home_dir/finetune_data"""
-
-    modernbert_model_path: Optional[str] = Field(default=None)
-    """Path to the ModernBERT model, if not set, ModernBERT features will be disabled"""
-
-    catboost_model_path: Optional[str] = Field(default=None)
-    """Path to the CatBoost model, if not set, CatBoost features will be disabled"""
-
-    needs_pca_path: Optional[str] = Field(default=None)
-    """Path to the NEEDS PCA model, if not set, NEEDS PCA features will be disabled"""
-
-    needs_mahalanobis_params_path: Optional[str] = Field(default=None)
-    """Path to the Mahalanobis parameters, if not set, Mahalanobis features will be disabled"""
-
-    dispatcher_catboost_path: Optional[str] = Field(default=None)
-    """Path to the CatBoost dispatcher model, if not set, speed up dispatcher features will be disabled"""
-
-
 
     @property
     def fs_client(self) -> Union[S3Client, FileSystemClient]:
