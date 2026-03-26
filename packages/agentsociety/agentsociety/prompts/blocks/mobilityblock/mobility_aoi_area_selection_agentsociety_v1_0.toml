@@ -1,0 +1,55 @@
+[metadata]
+name = "mobility_aoi_area_selection"
+version = "1.0.0"
+origin = "agentsociety"
+description = "Select candidate AOI areas for place search"
+
+[inputs]
+required = [
+    "plan",
+    "intention",
+    "emotion",
+    "thought",
+    "household",
+    "life_stage",
+    "openness",
+    "conscientiousness",
+    "extraversion",
+    "agreeableness",
+    "neuroticism",
+    "visit_history",
+    "ranked_areas"
+]
+
+[prompt]
+input = """As an intelligent decision system, please select 3-5 areas (AOIs) where the agent should look for places to visit.
+
+Agent State:
+- Current Plan: {plan}
+- Current Intention: {intention}
+- Current Emotion: {emotion}
+- Current Thought: {thought}
+- Household: {household}
+- Life Stage: {life_stage}
+Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
+openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
+
+Recent Visit History (last 7 days):
+{visit_history}
+
+Candidate Areas (ranked by distance and popularity):
+{ranked_areas}
+
+Please select 3-5 area IDs that best match the agent's intention, emotional state, and preferences.
+Consider:
+1. Distance (closer is generally better)
+2. Popularity (more POIs = more options)
+3. Past visit patterns
+4. Current emotional state and intention
+
+Please response in json format (Do not return any other text), example:
+{{
+    "selected_area_ids": [123, 456, 789],
+    "reasoning": "Selected areas close to home with high popularity for shopping"
+}}
+"""

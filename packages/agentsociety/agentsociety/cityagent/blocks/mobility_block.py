@@ -16,7 +16,6 @@ from ...agent import (
     BlockContext,
     BlockParams,
     DotDict,
-    FormatPrompt,
 )
 from ...agent.dispatcher import BlockDispatcher
 from ...logger import get_logger
@@ -31,209 +30,6 @@ class TransportModeEnum(Enum):
     CAR = "car"
     BUS = "bus"
     SUBWAY = "subway"
-
-
-# Prompt templates for LLM interactions
-PLACE_TYPE_SELECTION_PROMPT = """
-As an intelligent decision system, please determine the type of place the user needs to visit based on their input requirement.
-User Plan: {plan}
-User requirement: {intention}
-Household type: {household}
-Life stage: {life_stage}
-Hobbies: {hobbies}
-Goals: {goals}
-Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
-openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
-Your behavioral preferences are:
-- Leisure Preference: {leisure_preference} (outdoor/indoor/social/solitary preference for free time)
-- Risk Tolerance: {risk_tolerance} (0.0=Risk-averse, 1.0=Risk-seeking for new/unfamiliar places)
-Other information: 
--------------------------
-{other_info}
--------------------------
-Your output must be a single selection from {poi_category} without any additional text or explanation.
-
-Please response in json format (Do not return any other text), example:
-{{
-    "place_type": "shopping"
-}}
-"""
-
-PLACE_SECOND_TYPE_SELECTION_PROMPT = """
-As an intelligent decision system, please determine the type of place the user needs to visit based on their input requirement.
-User Plan: {plan}
-User requirement: {intention}
-Household type: {household}
-Life stage: {life_stage}
-Hobbies: {hobbies}
-Goals: {goals}
-Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
-openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
-Your behavioral preferences are:
-- Leisure Preference: {leisure_preference} (outdoor/indoor/social/solitary preference for free time)
-- Risk Tolerance: {risk_tolerance} (0.0=Risk-averse, 1.0=Risk-seeking for new/unfamiliar places)
-Other information: 
--------------------------
-{other_info}
--------------------------
-
-Your output must be a single selection from {poi_category} without any additional text or explanation.
-
-Please response in json format (Do not return any other text), example:
-{{
-    "place_type": "shopping"
-}}
-"""
-
-PLACE_ANALYSIS_PROMPT = """
-As an intelligent analysis system, please determine the type of place the user needs to visit based on their input requirement.
-User Plan: {plan}
-User requirement: {intention}
-Household type: {household}
-Life stage: {life_stage}
-Hobbies: {hobbies}
-Goals: {goals}
-Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
-openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
-Your behavioral preferences are:
-- Leisure Preference: {leisure_preference} (outdoor/indoor/social/solitary preference for free time)
-- Risk Tolerance: {risk_tolerance} (0.0=Risk-averse, 1.0=Risk-seeking for new/unfamiliar places)
-Other information: 
--------------------------
-{other_info}
--------------------------
-
-Your output must be a single selection from {place_list} without any additional text or explanation.
-
-Please response in json format (Do not return any other text), example:
-{{
-    "place_type": "home"
-}}
-"""
-
-RADIUS_PROMPT = """As an intelligent decision system, please determine the maximum travel radius (in meters) based on the current emotional state.
-
-Current weather: ${context.weather}
-Current temperature: ${context.temperature}
-Your current emotion: ${context.current_emotion}
-Your current thought: ${context.current_thought}
-Household type: {household}
-Life stage: {life_stage}
-Hobbies: {hobbies}
-Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
-openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
-Your behavioral preferences:
-- Risk Tolerance: {risk_tolerance} (0.0=Risk-averse/prefers nearby, 1.0=Risk-seeking/willing to travel far)
-Other information: 
--------------------------
-${context.other_information}
--------------------------
-
-Please analyze how these emotions and preferences would affect travel willingness and return only a single integer number between 3000-200000 representing the maximum travel radius in meters. A more positive emotional state and higher risk tolerance generally lead to greater willingness to travel further.
-
-Please response in json format (Do not return any other text), example:
-{{
-    "radius": 10000
-}}
-"""
-
-AOI_AREA_SELECTION_PROMPT = """
-As an intelligent decision system, please select 3-5 areas (AOIs) where the agent should look for places to visit.
-
-**Agent State:**
-- Current Plan: {plan}
-- Current Intention: {intention}
-- Current Emotion: {emotion}
-- Current Thought: {thought}
-- Household: {household}
-- Life Stage: {life_stage}
-Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
-openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
-
-**Recent Visit History (last 7 days):**
-{visit_history}
-
-**Candidate Areas (ranked by distance and popularity):**
-{ranked_areas}
-
-Please select 3-5 area IDs that best match the agent's intention, emotional state, and preferences.
-Consider:
-1. Distance (closer is generally better)
-2. Popularity (more POIs = more options)
-3. Past visit patterns
-4. Current emotional state and intention
-
-Please response in json format (Do not return any other text), example:
-{{
-    "selected_area_ids": [123, 456, 789],
-    "reasoning": "Selected areas close to home with high popularity for shopping"
-}}
-"""
-
-NEIGHBORHOOD_SELECTION_PROMPT = """
-As an intelligent decision system, please select 3-5 neighborhoods where the agent should look for places to visit.
-
-**Agent State:**
-- Current Plan: {plan}
-- Current Intention: {intention}
-- Current Emotion: {emotion}
-- Current Thought: {thought}
-- Household: {household}
-- Life Stage: {life_stage}
-Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
-openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
-
-**Recent Visit History (last 7 days):**
-{visit_history}
-
-**Candidate Neighborhoods (ranked by matching POI count):**
-{candidate_neighborhoods}
-
-Please select 3-5 neighborhood IDs that best match the agent's intention, emotional state, and preferences.
-
-Please response in json format (Do not return any other text), example:
-{{
-    "selected_neighborhood_ids": [123, 456, 789],
-    "reasoning": "Selected neighborhoods with enough matching options"
-}}
-"""
-
-TRANSPORT_MODE_SELECTION_PROMPT = """
-As an intelligent transport decision system, please select the most appropriate transport mode for the user based on the current context and their persona.
-You are approximating a utility function where you maximize the user's comfort, efficiency, and preference.
-
-Context:
-- Trip Distance: {distance} meters
-- Current Time: {time}
-- Month: {month}
-- Weather: {weather}
-- Temperature: {temperature}
-- User Persona: {persona}
-- Household type: {household}
-- Life stage: {life_stage}
-- Hobbies: {hobbies}
-- User Big Five Personality Traits: (1=Low, 2=Medium, 3=High)
-  - Openness: {openness}
-  - Conscientiousness: {conscientiousness}
-  - Extraversion: {extraversion}
-  - Agreeableness: {agreeableness}
-  - Neuroticism: {neuroticism}
-- User Behavioral Preferences:
-  - Risk Tolerance: {risk_tolerance} (0.0=Prefers safe/familiar modes, 1.0=Open to new/adventurous modes)
-- User Current Emotion/Thought: {emotion}
-
-Available Transport Modes:
-{available_modes}
-
-Please analyze the utility of each mode given the weather (e.g., avoid walking in heavy rain), distance (e.g., avoid walking for >2km), persona, and risk tolerance.
-Select one mode and provide a brief reason.
-
-Please response in json format (Do not return any other text), example:
-{{
-    "mode": "TRIP_MODE_DRIVE_ONLY",
-    "reason": "Given the heavy rain and the 5km distance, driving is the most comfortable option despite the traffic."
-}}
-"""
 
 
 class PlaceSelectionBlock(Block):
@@ -268,16 +64,11 @@ class PlaceSelectionBlock(Block):
             toolbox=toolbox,
             agent_memory=agent_memory,
         )
-        self.typeSelectionPrompt = FormatPrompt(PLACE_TYPE_SELECTION_PROMPT)
-        self.secondTypeSelectionPrompt = FormatPrompt(
-            PLACE_SECOND_TYPE_SELECTION_PROMPT
-        )
-        self.radiusPrompt = FormatPrompt(
-            RADIUS_PROMPT,
-            memory=agent_memory,
-        )
-        self.neighborhoodSelectionPrompt = FormatPrompt(NEIGHBORHOOD_SELECTION_PROMPT)
-        self.areaSelectionPrompt = FormatPrompt(AOI_AREA_SELECTION_PROMPT)
+        self.type_selection_prompt_name = "mobility_place_type_selection"
+        self.second_type_selection_prompt_name = "mobility_place_second_type_selection"
+        self.radius_prompt_name = "mobility_radius_selection"
+        self.neighborhood_selection_prompt_name = "mobility_neighborhood_selection"
+        self.area_selection_prompt_name = "mobility_aoi_area_selection"
         self.search_limit = search_limit
         self.max_areas_to_consider = max_areas_to_consider
         self.max_area_distance = max_area_distance
@@ -326,6 +117,9 @@ class PlaceSelectionBlock(Block):
         """
         aoi_candidates = []  # Initialize at the start
         try:
+            if self.prompt_manager is None:
+                raise RuntimeError("PromptManager is not initialized")
+
             # Get all AOIs within radius
             all_aois = self.environment.map.get_all_aois()
             
@@ -384,27 +178,32 @@ class PlaceSelectionBlock(Block):
             household = await self.memory.status.get("household", "unknown")
             life_stage = await self.memory.status.get("life_stage", "unknown")
             big5 = await self.memory.status.get("big5", {})
-            
-            # Format prompt
-            await self.areaSelectionPrompt.format(
-                plan=context.get("plan_context", {}).get("plan", "No plan"),
-                intention=context.get("current_step", {}).get("intention", "Unknown"),
-                emotion=emotion,
-                thought=thought,
-                household=household,
-                life_stage=life_stage,
-                openness=big5.get("openness", 2),
-                conscientiousness=big5.get("conscientiousness", 2),
-                extraversion=big5.get("extraversion", 2),
-                agreeableness=big5.get("agreeableness", 2),
-                neuroticism=big5.get("neuroticism", 2),
-                visit_history=visit_history,
-                ranked_areas=ranked_areas_str,
+
+            required_fields = self.prompt_manager.get_required_fields(
+                self.area_selection_prompt_name
             )
-            
+            state_dict = await self.prompt_manager.build_agent_state(
+                required_fields=required_fields,
+                context={
+                    "plan": context.get("plan_context", {}).get("plan", "No plan"),
+                    "intention": context.get("current_step", {}).get("intention", "Unknown"),
+                    "emotion": emotion,
+                    "thought": thought,
+                    "household": household,
+                    "life_stage": life_stage,
+                    "big5": big5,
+                    "visit_history": visit_history,
+                    "ranked_areas": ranked_areas_str,
+                },
+                memory=self.memory,
+            )
+            dialog = self.prompt_manager.format_prompt_to_dialog(
+                self.area_selection_prompt_name, state_dict
+            )
+
             # LLM selection
             response = await self.llm.atext_request(
-                self.areaSelectionPrompt.to_dialog(),
+                dialog,
                 response_format={"type": "json_object"},
                 context={
                     "block_name": self.name,
@@ -443,6 +242,9 @@ class PlaceSelectionBlock(Block):
             and POI->Neighborhood mapping; or None if selection fails.
         """
         try:
+            if self.prompt_manager is None:
+                raise RuntimeError("PromptManager is not initialized")
+
             all_neighborhoods = self.environment.map.get_all_neighborhoods()
             if not all_neighborhoods:
                 return None
@@ -496,24 +298,30 @@ class PlaceSelectionBlock(Block):
             life_stage = await self.memory.status.get("life_stage", "unknown")
             big5 = await self.memory.status.get("big5", {})
 
-            await self.neighborhoodSelectionPrompt.format(
-                plan=context.get("plan_context", {}).get("plan", "No plan"),
-                intention=context.get("current_step", {}).get("intention", "Unknown"),
-                emotion=emotion,
-                thought=thought,
-                household=household,
-                life_stage=life_stage,
-                openness=big5.get("openness", 2),
-                conscientiousness=big5.get("conscientiousness", 2),
-                extraversion=big5.get("extraversion", 2),
-                agreeableness=big5.get("agreeableness", 2),
-                neuroticism=big5.get("neuroticism", 2),
-                visit_history=visit_history,
-                candidate_neighborhoods=candidate_neighborhoods,
+            required_fields = self.prompt_manager.get_required_fields(
+                self.neighborhood_selection_prompt_name
+            )
+            state_dict = await self.prompt_manager.build_agent_state(
+                required_fields=required_fields,
+                context={
+                    "plan": context.get("plan_context", {}).get("plan", "No plan"),
+                    "intention": context.get("current_step", {}).get("intention", "Unknown"),
+                    "emotion": emotion,
+                    "thought": thought,
+                    "household": household,
+                    "life_stage": life_stage,
+                    "big5": big5,
+                    "visit_history": visit_history,
+                    "candidate_neighborhoods": candidate_neighborhoods,
+                },
+                memory=self.memory,
+            )
+            dialog = self.prompt_manager.format_prompt_to_dialog(
+                self.neighborhood_selection_prompt_name, state_dict
             )
 
             response = await self.llm.atext_request(
-                self.neighborhoodSelectionPrompt.to_dialog(),
+                dialog,
                 response_format={"type": "json_object"},
                 context={
                     "block_name": self.name,
@@ -652,6 +460,9 @@ class PlaceSelectionBlock(Block):
 
     async def forward(self, context: DotDict):
         """Execute the destination selection workflow"""
+        if self.prompt_manager is None:
+            raise RuntimeError("PromptManager is not initialized")
+
         # Get Big Five personality traits
         big5 = await self.memory.status.get("big5", {})
 
@@ -670,27 +481,33 @@ class PlaceSelectionBlock(Block):
 
         # Stage 1: Select primary POI category
         poi_cate = self.environment.get_poi_cate()
-        await self.typeSelectionPrompt.format(
-            plan=context["plan_context"]["plan"],
-            intention=context["current_step"]["intention"],
-            poi_category=list(poi_cate.keys()),
-            other_info=self.environment.environment.get("other_information", "None"),
-            household=household,
-            life_stage=life_stage,
-            hobbies=hobbies_str,
-            goals=goals_str,
-            openness=big5.get("openness", 2),
-            conscientiousness=big5.get("conscientiousness", 2),
-            extraversion=big5.get("extraversion", 2),
-            agreeableness=big5.get("agreeableness", 2),
-            neuroticism=big5.get("neuroticism", 2),
-            leisure_preference=leisure_preference,
-            risk_tolerance=risk_tolerance,
+        type_required_fields = self.prompt_manager.get_required_fields(
+            self.type_selection_prompt_name
+        )
+        type_state = await self.prompt_manager.build_agent_state(
+            required_fields=type_required_fields,
+            context={
+                "plan": context["plan_context"]["plan"],
+                "intention": context["current_step"]["intention"],
+                "poi_category": list(poi_cate.keys()),
+                "other_info": self.environment.environment.get("other_information", "None"),
+                "household": household,
+                "life_stage": life_stage,
+                "hobbies": hobbies_str,
+                "goals": goals_str,
+                "big5": big5,
+                "leisure_preference": leisure_preference,
+                "risk_tolerance": risk_tolerance,
+            },
+            memory=self.memory,
+        )
+        type_dialog = self.prompt_manager.format_prompt_to_dialog(
+            self.type_selection_prompt_name, type_state
         )
         try:
             # LLM-based category selection
             levelOneType = await self.llm.atext_request(
-                self.typeSelectionPrompt.to_dialog(),
+                type_dialog,
                 response_format={"type": "json_object"},
                 context={
                     "block_name": self.name,
@@ -707,27 +524,31 @@ class PlaceSelectionBlock(Block):
 
         # Stage 2: Select sub-category
         try:
-            await self.secondTypeSelectionPrompt.format(
-                plan=context["plan_context"]["plan"],
-                intention=context["current_step"]["intention"],
-                poi_category=sub_category,
-                other_info=self.environment.environment.get(
-                    "other_information", "None"
-                ),
-                household=household,
-                life_stage=life_stage,
-                hobbies=hobbies_str,
-                goals=goals_str,
-                openness=big5.get("openness", 2),
-                conscientiousness=big5.get("conscientiousness", 2),
-                extraversion=big5.get("extraversion", 2),
-                agreeableness=big5.get("agreeableness", 2),
-                neuroticism=big5.get("neuroticism", 2),
-                leisure_preference=leisure_preference,
-                risk_tolerance=risk_tolerance,
+            second_type_required_fields = self.prompt_manager.get_required_fields(
+                self.second_type_selection_prompt_name
+            )
+            second_type_state = await self.prompt_manager.build_agent_state(
+                required_fields=second_type_required_fields,
+                context={
+                    "plan": context["plan_context"]["plan"],
+                    "intention": context["current_step"]["intention"],
+                    "poi_category": sub_category,
+                    "other_info": self.environment.environment.get("other_information", "None"),
+                    "household": household,
+                    "life_stage": life_stage,
+                    "hobbies": hobbies_str,
+                    "goals": goals_str,
+                    "big5": big5,
+                    "leisure_preference": leisure_preference,
+                    "risk_tolerance": risk_tolerance,
+                },
+                memory=self.memory,
+            )
+            second_type_dialog = self.prompt_manager.format_prompt_to_dialog(
+                self.second_type_selection_prompt_name, second_type_state
             )
             levelTwoType = await self.llm.atext_request(
-                self.secondTypeSelectionPrompt.to_dialog(),
+                second_type_dialog,
                 response_format={"type": "json_object"},
                 context={
                     "block_name": self.name,
@@ -742,20 +563,30 @@ class PlaceSelectionBlock(Block):
 
         # Get travel radius from LLM
         try:
-            await self.radiusPrompt.format(
-                context=context,
-                household=household,
-                life_stage=life_stage,
-                hobbies=hobbies_str,
-                openness=big5.get("openness", 2),
-                conscientiousness=big5.get("conscientiousness", 2),
-                extraversion=big5.get("extraversion", 2),
-                agreeableness=big5.get("agreeableness", 2),
-                neuroticism=big5.get("neuroticism", 2),
-                risk_tolerance=risk_tolerance,
+            radius_required_fields = self.prompt_manager.get_required_fields(
+                self.radius_prompt_name
+            )
+            radius_state = await self.prompt_manager.build_agent_state(
+                required_fields=radius_required_fields,
+                context={
+                    "weather": self.environment.environment.get("weather", "unknown"),
+                    "temperature": self.environment.environment.get("temperature", "unknown"),
+                    "current_emotion": context.get("current_emotion", "unknown"),
+                    "current_thought": context.get("current_thought", ""),
+                    "other_information": self.environment.environment.get("other_information", "None"),
+                    "household": household,
+                    "life_stage": life_stage,
+                    "hobbies": hobbies_str,
+                    "big5": big5,
+                    "risk_tolerance": risk_tolerance,
+                },
+                memory=self.memory,
+            )
+            radius_dialog = self.prompt_manager.format_prompt_to_dialog(
+                self.radius_prompt_name, radius_state
             )
             radius = await self.llm.atext_request(
-                self.radiusPrompt.to_dialog(),
+                radius_dialog,
                 response_format={"type": "json_object"},
                 context={
                     "block_name": self.name,
@@ -763,7 +594,7 @@ class PlaceSelectionBlock(Block):
                     "agent_id": self.agent.id,
                 },
             )
-            radius = int(json_repair.loads(radius)["radius"])  # type: ignore
+            radius = int(json_repair.loads(clean_json_response(radius))["radius"])  # type: ignore
 
         except Exception as e:
             get_logger().warning(f"MobilityBlock: Radius selection failed: {e}")
@@ -895,7 +726,7 @@ class MoveBlock(Block):
             toolbox=toolbox,
             agent_memory=agent_memory,
         )
-        self.placeAnalysisPrompt = FormatPrompt(PLACE_ANALYSIS_PROMPT)
+        self.place_analysis_prompt_name = "mobility_place_analysis"
         self.place_selection_block = place_selection_block
         self.transport_mode_block = transport_mode_block
 
@@ -991,6 +822,9 @@ class MoveBlock(Block):
         return result
 
     async def forward(self, context: DotDict):
+        if self.prompt_manager is None:
+            raise RuntimeError("PromptManager is not initialized")
+
         # Get Big Five personality traits
         big5 = await self.memory.status.get("big5", {})
         poi_id = None
@@ -1014,26 +848,32 @@ class MoveBlock(Block):
         places = ["home", "workplace"] + known_places + ["other"]
 
         # 1. LLM Decision
-        await self.placeAnalysisPrompt.format(
-            plan=context["plan_context"]["plan"],
-            intention=context["current_step"]["intention"],
-            place_list=places,
-            other_info=self.environment.environment.get("other_information", "None"),
-            household=household,
-            life_stage=life_stage,
-            hobbies=hobbies_str,
-            goals=goals_str,
-            openness=big5.get("openness", 2),
-            conscientiousness=big5.get("conscientiousness", 2),
-            extraversion=big5.get("extraversion", 2),
-            agreeableness=big5.get("agreeableness", 2),
-            neuroticism=big5.get("neuroticism", 2),
-            leisure_preference=leisure_preference,
-            risk_tolerance=risk_tolerance,
+        required_fields = self.prompt_manager.get_required_fields(
+            self.place_analysis_prompt_name
+        )
+        state_dict = await self.prompt_manager.build_agent_state(
+            required_fields=required_fields,
+            context={
+                "plan": context["plan_context"]["plan"],
+                "intention": context["current_step"]["intention"],
+                "place_list": places,
+                "other_info": self.environment.environment.get("other_information", "None"),
+                "household": household,
+                "life_stage": life_stage,
+                "hobbies": hobbies_str,
+                "goals": goals_str,
+                "big5": big5,
+                "leisure_preference": leisure_preference,
+                "risk_tolerance": risk_tolerance,
+            },
+            memory=self.memory,
+        )
+        dialog = self.prompt_manager.format_prompt_to_dialog(
+            self.place_analysis_prompt_name, state_dict
         )
 
         response = await self.llm.atext_request(
-            self.placeAnalysisPrompt.to_dialog(),
+            dialog,
             response_format={"type": "json_object"},
             context={
                 "block_name": self.name,
@@ -1226,7 +1066,7 @@ class TransportModeSelectionBlock(Block):
             toolbox=toolbox,
             agent_memory=agent_memory,
         )
-        self.modeSelectionPrompt = FormatPrompt(TRANSPORT_MODE_SELECTION_PROMPT)
+        self.mode_selection_prompt_name = "mobility_transport_mode_selection"
         self.transportation_modes = [m.value for m in TransportModeEnum]
 
     def _calculate_distance(self, start_xy, end_xy):
@@ -1237,6 +1077,9 @@ class TransportModeSelectionBlock(Block):
 
     async def forward(self, context: DotDict):
         """Select transport mode based on context"""
+        if self.prompt_manager is None:
+            raise RuntimeError("PromptManager is not initialized")
+
         current_pos = await self.memory.status.get("position")
         start_xy = current_pos["xy_position"]
         target_id = (
@@ -1293,30 +1136,35 @@ class TransportModeSelectionBlock(Block):
 
         available_modes_list = self.transportation_modes
 
-        # 2. Format Prompt
-        await self.modeSelectionPrompt.format(
-            distance=distance,
-            time=sim_time,
-            month=month,
-            weather=weather,
-            temperature=temperature,
-            persona=persona,
-            emotion=emotion,
-            available_modes=", ".join(available_modes_list),
-            household=household,
-            life_stage=life_stage,
-            hobbies=hobbies_str,
-            openness=big5.get("openness", 2),
-            conscientiousness=big5.get("conscientiousness", 2),
-            extraversion=big5.get("extraversion", 2),
-            agreeableness=big5.get("agreeableness", 2),
-            neuroticism=big5.get("neuroticism", 2),
-            risk_tolerance=risk_tolerance,
+        required_fields = self.prompt_manager.get_required_fields(
+            self.mode_selection_prompt_name
+        )
+        state_dict = await self.prompt_manager.build_agent_state(
+            required_fields=required_fields,
+            context={
+                "distance": distance,
+                "time": sim_time,
+                "month": month,
+                "weather": weather,
+                "temperature": temperature,
+                "persona": persona,
+                "emotion": emotion,
+                "available_modes": ", ".join(available_modes_list),
+                "household": household,
+                "life_stage": life_stage,
+                "hobbies": hobbies_str,
+                "big5": big5,
+                "risk_tolerance": risk_tolerance,
+            },
+            memory=self.memory,
+        )
+        dialog = self.prompt_manager.format_prompt_to_dialog(
+            self.mode_selection_prompt_name, state_dict
         )
 
         try:
             response = await self.llm.atext_request(
-                self.modeSelectionPrompt.to_dialog(),
+                dialog,
                 response_format={"type": "json_object"},
                 context={
                     "block_name": self.name,
@@ -1392,7 +1240,8 @@ class MobilityNoneBlock(Block):
 class MobilityBlockParams(BlockParams):
     # PlaceSelection
     radius_prompt: str = Field(
-        default=RADIUS_PROMPT, description="Used to determine the maximum travel radius"
+        default="mobility_radius_selection",
+        description="Legacy config field kept for compatibility; PromptManager now controls radius prompt resolution",
     )
     search_limit: int = Field(
         default=50, description="Number of POIs to retrieve from map service"
