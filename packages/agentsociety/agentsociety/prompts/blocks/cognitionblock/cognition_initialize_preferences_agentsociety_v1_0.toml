@@ -45,16 +45,16 @@ Return the values in JSON format with the following structure:
 - leisure_preference: "outdoor", "indoor", "social", or "solitary" (dominant preference for free time).
 
 Example Response:
-{
-    "preferences": {
-        "chronotype": "night_owl",
-        "risk_tolerance": 0.7,
-        "spending_tendency": 0.8,
-        "social_frequency": 0.9,
-        "work_ethic": 0.3,
-        "leisure_preference": "social"
-    }
-}
+{{
+  "preferences": {{
+    "chronotype": "night_owl",
+    "risk_tolerance": 0.7,
+    "spending_tendency": 0.8,
+    "social_frequency": 0.9,
+    "work_ethic": 0.3,
+    "leisure_preference": "social"
+  }}
+}}
 
 DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
 DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.

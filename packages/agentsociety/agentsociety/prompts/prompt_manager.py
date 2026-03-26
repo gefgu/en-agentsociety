@@ -1,4 +1,5 @@
 import os
+import re
 import string
 import importlib
 from typing import Any, Optional
@@ -217,13 +218,53 @@ class PromptManager:
 
         return state
 
+    @staticmethod
+    def _escape_literal_braces_keep_fields(template: str) -> str:
+        """Escape literal braces while preserving simple {field} placeholders.
+
+        This protects prompt templates that contain JSON examples with single braces.
+        """
+        # Protect already escaped braces first.
+        sanitized = template.replace("{{", "__LBRACE_ESC__").replace(
+            "}}", "__RBRACE_ESC__"
+        )
+
+        # Protect valid simple placeholders so we can escape all other braces.
+        placeholder_map: dict[str, str] = {}
+
+        def _protect(match: re.Match[str]) -> str:
+            token = f"__FIELD_{len(placeholder_map)}__"
+            placeholder_map[token] = match.group(0)
+            return token
+
+        sanitized = re.sub(r"\{[a-zA-Z_][a-zA-Z0-9_]*\}", _protect, sanitized)
+
+        # Escape remaining braces (literal JSON/object examples, etc.).
+        sanitized = sanitized.replace("{", "{{").replace("}", "}}")
+
+        # Restore placeholders and pre-escaped braces.
+        for token, field in placeholder_map.items():
+            sanitized = sanitized.replace(token, field)
+        sanitized = sanitized.replace("__LBRACE_ESC__", "{{").replace(
+            "__RBRACE_ESC__", "}}"
+        )
+        return sanitized
+
     def format_prompt(self, prompt_name: str, state_dict: dict) -> str:
         if prompt_name not in self._loaded_prompts:
             raise ValueError(f"Prompt '{prompt_name}' not found in loaded configs")
 
         template = self._loaded_prompts[prompt_name].get("prompt", {}).get("input", "")
         formatter = string.Formatter()
-        return formatter.vformat(template, (), SafeDict(state_dict))
+        try:
+            return formatter.vformat(template, (), SafeDict(state_dict))
+        except ValueError as e:
+            # Fallback inspired by legacy FormatPrompt behavior: tolerate literal braces.
+            get_logger().warning(
+                f"Prompt formatting fallback for '{prompt_name}' due to ValueError: {e}"
+            )
+            safe_template = self._escape_literal_braces_keep_fields(template)
+            return formatter.vformat(safe_template, (), SafeDict(state_dict))
 
     def format_prompt_to_dialog(self, prompt_name: str, state_dict: dict) -> list[dict[str, str]]:
         return [{"role": "user", "content": self.format_prompt(prompt_name, state_dict)}]

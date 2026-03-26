@@ -46,22 +46,22 @@ Please generate a list of 2-5 hobbies.
 
 Return the values in JSON format with the following structure:
 
-{
+{{
     "hobbies": [
         "Hobby Name 1",
         "Hobby Name 2",
         "Hobby Name 3"
     ]
-}
+}}
 
 Example Response:
-{
+{{
     "hobbies": [
         "Photography",
         "Hiking",
         "Reading Sci-Fi"
     ]
-}
+}}
 
 DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
 """

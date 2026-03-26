@@ -39,15 +39,15 @@ Psychographic Traits (Integer values 1-3, where 1=Low, 2=Medium, 3=High):
 - neuroticism: Neuroticism (emotional instability, anxiety, moodiness)
 
 Please response in json format, example:
-{
-    "psychographic_traits": {
-        "openness": 2,
-        "conscientiousness": 3,
-        "extraversion": 2,
-        "agreeableness": 2,
-        "neuroticism": 1
-    }
-}
+{{
+  "psychographic_traits": {{
+    "openness": 2,
+    "conscientiousness": 3,
+    "extraversion": 2,
+    "agreeableness": 2,
+    "neuroticism": 1
+  }}
+}}
 DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
 DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
 DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
