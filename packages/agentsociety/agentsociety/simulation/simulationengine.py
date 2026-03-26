@@ -48,6 +48,7 @@ from ..configs import (
     Config,
     WorkflowType,
 )
+from .agentmanager import AgentManager
 from ..environment import EnvironmentStarter
 from ..llm import LLM
 from ..logger import attach_otlp_handler, get_logger, set_exp_id, set_logger_level
@@ -219,7 +220,7 @@ class SimulationEngine:
         self._metrics_actor: Optional[PrometheusActor] = None
         self._db_actor: Optional[DatabaseActor] = None
         self._db_tool: Optional[CustomTool] = None
-        self._id2agent: dict[int, Agent] = {}
+        self._agent_manager: Optional[AgentManager] = None
         yaml_config = yaml.dump(
             self._config.model_dump(
                 exclude_defaults=True,
@@ -256,9 +257,6 @@ class SimulationEngine:
 
         # simulation context - for information dump
         self.context = {}
-
-        # filter base
-        self._filter_base = {}
 
         self._step_times: list[float] = []
         self._step_start_time: Optional[float] = None
@@ -905,282 +903,10 @@ class SimulationEngine:
 
         return agents
 
-    async def _initialize_agents(self, agents: list[tuple[Any, ...]]):
-        """Instantiate agents, run init hooks, and build profile/embedding data."""
-        agent_toolbox = AgentToolbox(
-            llm=self.llm,
-            environment=self.environment,
-            messager=self.messager,
-            embedding=self._embedding,
-            database_writer=self._database_writer,
-        )
-        get_logger().info("Initializing the agents...")
-        to_return: dict[int, tuple[type[Agent], dict[str, Any]]] = {}
-        resume_static_by_agent_id: dict[int, dict[str, Any]] = {}
-        if self._resume_state is not None:
-            for record in self._resume_state.get("static_records", []):
-                agent_id = int(record.get("agent_id", -1))
-                if agent_id >= 0:
-                    resume_static_by_agent_id[agent_id] = record
-
-        for agent_init in agents:
-            (
-                agent_id,
-                agent_class,
-                memory_config_generator,
-                index_for_generator,
-                agent_params,
-                blocks,
-            ) = agent_init
-            memory_config = memory_config_generator.generate(index_for_generator)
-            to_return[agent_id] = (agent_class, deepcopy(memory_config))
-
-            memory_init = Memory(
-                environment=self.environment,
-                embedding=self._embedding,
-                memory_config=memory_config,
-            )
-
-            if self._resume_state is not None and issubclass(agent_class, CitizenAgentBase):
-                static_record = resume_static_by_agent_id.get(agent_id)
-                if static_record is None:
-                    raise ValueError(
-                        f"Missing static resume data for citizen agent id {agent_id}"
-                    )
-                static_updates = self._static_record_to_memory_updates(static_record)
-                for key, value in static_updates.items():
-                    if value is not None:
-                        await memory_init.status.update(key, value, mode="replace")
-
-            if blocks is not None:
-                blocks = [
-                    block_type(
-                        toolbox=agent_toolbox,
-                        agent_memory=memory_init,
-                        block_params=block_type.ParamsType.model_validate(block_params),
-                    )
-                    for block_type, block_params in blocks.items()
-                ]
-            else:
-                blocks = None
-
-            agent = agent_class(
-                id=agent_id,
-                name=f"{agent_class.__name__}_{agent_id}",
-                toolbox=agent_toolbox,
-                memory=memory_init,
-                agent_params=agent_params,
-                blocks=blocks,
-            )
-            self._id2agent[agent_id] = agent
-
-        get_logger().info("-----Initializing by running agent.init() ...")
-        tasks = []
-        channels = []
-        for agent in self._id2agent.values():
-            tasks.append(agent.init())
-            channels.append(f"exps:{self.exp_id}:agents:{agent.id}:*")
-        await asyncio.gather(*tasks)
-
-        get_logger().info("-----Initializing by exporting profiles ...")
-        profiles = []
-        for agent in self._id2agent.values():
-            profile = await agent.status.export(
-                [
-                    "name",
-                    "gender",
-                    "age",
-                    "education",
-                    "occupation",
-                    "marriage_status",
-                    "persona",
-                    "openness",
-                    "conscientiousness",
-                    "extraversion",
-                    "agreeableness",
-                    "neuroticism",
-                    "background_story",
-                ]
-            )
-            profile["id"] = agent.id
-            profiles.append(
-                StorageProfile(
-                    id=agent.id,
-                    name=profile.get("name", ""),
-                    profile=json.dumps(
-                        {
-                            k: v
-                            for k, v in profile.items()
-                            if k not in {"id", "name", "social_network"}
-                        },
-                        ensure_ascii=False,
-                    ),
-                )
-            )
-        if self._database_writer is not None:
-            await self._database_writer.write_profiles(profiles)  # type:ignore
-
-        get_logger().info("-----Initializing embeddings ...")
-        embedding_tasks = []
-        for agent in self._id2agent.values():
-            embedding_tasks.append(agent.memory.initialize_embeddings())
-        await asyncio.gather(*embedding_tasks)
-        get_logger().info("Agents initialized")
-
-        for agent_id, (agent_class, memory_config) in to_return.items():
-            self._filter_base[agent_id] = (agent_class, memory_config)
-
-        return agent_toolbox
-
     async def _save_agent_static_info(self):
-        if self._db_actor is None:
-            get_logger().info("ClickHouse actor is not initialized; skip static info save")
-            return
-
-        if not self._id2agent:
-            get_logger().info("No agents found; skip static info save")
-            return
-
-        try:
-            await self._db_actor.set_simulation_step.remote(step=self._total_steps)
-        except Exception as e:
-            get_logger().warning(
-                f"Failed to set ClickHouse simulation step for static info save: {e}"
-            )
-
-        def _as_int(value: Any, default: int = 0) -> int:
-            try:
-                return int(value)
-            except (TypeError, ValueError):
-                return default
-
-        def _as_float(value: Any, default: float = 0.0) -> float:
-            try:
-                return float(value)
-            except (TypeError, ValueError):
-                return default
-
-        def _as_str(value: Any, default: str = "unknown") -> str:
-            if value is None:
-                return default
-            return str(value)
-
-        def _extract_aoi_id(value: Any) -> int:
-            if isinstance(value, dict):
-                aoi_position = value.get("aoi_position")
-                if isinstance(aoi_position, dict):
-                    return _as_int(aoi_position.get("aoi_id"), 0)
-                return _as_int(value.get("aoi_id"), 0)
-            return _as_int(value, 0)
-
-        saved_count = 0
-        for agent in self._id2agent.values():
-            if not isinstance(agent, CitizenAgentBase):
-                continue
-
-            filter_base_entry = self._filter_base.get(agent.id)
-            if filter_base_entry is None:
-                get_logger().warning(
-                    f"Missing filter base for agent {agent.id}; skip static info save"
-                )
-                continue
-
-            _, memory_config = filter_base_entry
-            static_keys = [
-                key
-                for key, attr in memory_config.attributes.items()
-                if attr.storage_class == "static"
-            ]
-
-            try:
-                values = await agent.status.export(static_keys)
-
-                preferences = values.get("preferences", {})
-                if not isinstance(preferences, dict):
-                    preferences = {}
-
-                big5 = values.get("big5", {})
-                if not isinstance(big5, dict):
-                    big5 = {}
-
-                hobbies = values.get("hobbies", [])
-                if not isinstance(hobbies, list):
-                    hobbies = [hobbies] if hobbies is not None else []
-
-                record: StaticAgentAttributesRecord = {
-                    "exp_id": self.exp_id,
-                    "simulation_step": self._total_steps,
-                    "timestamp": datetime.now(),
-                    "agent_id": agent.id,
-                    "type": _as_str(values.get("type"), "citizen"),
-                    "home_aoi_id": _extract_aoi_id(values.get("home", {})),
-                    "work_aoi_id": _extract_aoi_id(values.get("work", {})),
-                    "name": _as_str(values.get("name"), "unknown"),
-                    "gender": _as_str(values.get("gender"), "unknown"),
-                    "age": _as_int(values.get("age"), 0),
-                    "education": _as_str(values.get("education"), "unknown"),
-                    "household": _as_str(values.get("household"), "unknown"),
-                    "life_stage": _as_str(values.get("life_stage"), "unknown"),
-                    "skill": _as_str(values.get("skill"), "unknown"),
-                    "occupation": _as_str(values.get("occupation"), "unknown"),
-                    "work_skill": _as_float(values.get("work_skill"), 0.0),
-                    "firm_id": _as_int(values.get("firm_id"), 0),
-                    "government_id": _as_int(values.get("government_id"), 0),
-                    "bank_id": _as_int(values.get("bank_id"), 0),
-                    "nbs_id": _as_int(values.get("nbs_id"), 0),
-                    "preferences_chronotype": _as_str(
-                        preferences.get("chronotype"), "standard"
-                    ),
-                    "preferences_risk_tolerance": _as_float(
-                        preferences.get("risk_tolerance"), 0.5
-                    ),
-                    "preferences_spending_tendency": _as_float(
-                        preferences.get("spending_tendency"), 0.5
-                    ),
-                    "preferences_social_frequency": _as_float(
-                        preferences.get("social_frequency"), 0.5
-                    ),
-                    "preferences_work_ethic": _as_float(
-                        preferences.get("work_ethic"), 0.5
-                    ),
-                    "preferences_leisure_preference": _as_str(
-                        preferences.get("leisure_preference"), "indoor"
-                    ),
-                    "hobbies": [str(item) for item in hobbies],
-                    "personality": _as_str(values.get("personality"), "unknown"),
-                    "big5_openness": _as_int(big5.get("openness"), 2),
-                    "big5_conscientiousness": _as_int(
-                        big5.get("conscientiousness"), 2
-                    ),
-                    "big5_extraversion": _as_int(big5.get("extraversion"), 2),
-                    "big5_agreeableness": _as_int(big5.get("agreeableness"), 2),
-                    "big5_neuroticism": _as_int(big5.get("neuroticism"), 2),
-                    "income": _as_float(values.get("income"), 0.0),
-                    "currency": _as_float(values.get("currency"), 0.0),
-                    "residence": _as_str(values.get("residence"), "unknown"),
-                    "city": _as_str(values.get("city"), "unknown"),
-                    "race": _as_str(values.get("race"), "unknown"),
-                    "religion": _as_str(values.get("religion"), "unknown"),
-                    "marriage_status": _as_str(
-                        values.get("marriage_status"), "unknown"
-                    ),
-                    "background_story": _as_str(
-                        values.get("background_story"), "No background story"
-                    ),
-                }
-
-                self._db_actor.insert_static_agent_attributes_record.remote(
-                    record=record
-                )
-                saved_count += 1
-            except Exception as e:
-                get_logger().warning(
-                    f"Failed to save static info for agent {agent.id}: {e}"
-                )
-
-        get_logger().info(
-            f"Saved static info to ClickHouse for {saved_count} citizen agents"
-        )
+        """Save agent static information using the agent manager."""
+        if self._agent_manager is not None:
+            await self._agent_manager.save_agent_static_info(self._total_steps)
 
     async def _finalize_initialization(
         self,
@@ -1230,10 +956,26 @@ class SimulationEngine:
             await self._init_core_components()
             await self._load_resume_state()
 
+            # Initialize agent manager
+            self._agent_manager = AgentManager(
+                config=self._config,
+                llm=self._llm,
+                environment=self._environment,
+                messager=self._messager,
+                embedding=self._embedding,
+                database_writer=self._database_writer,
+                db_actor=self._db_actor,
+                exp_id=self.exp_id,
+            )
+
+            # Create toolbox and initialize agents
+            await self._agent_manager.create_toolbox()
             agents = await self._prepare_agents()
-            self._validate_resume_agent_count(agents)
-            agent_toolbox = await self._initialize_agents(agents)
-            await self._finalize_initialization(agent_toolbox, metrics_tool)
+            self._agent_manager._validate_resume_agent_count(agents, self._resume_state)
+            await self._agent_manager.initialize_agents(agents, self._resume_state)
+
+            # Finalize initialization
+            await self._finalize_initialization(self._agent_manager._agent_toolbox, metrics_tool)
 
         except Exception as e:
             get_logger().error(f"Init error: {str(e)}\n{traceback.format_exc()}")
@@ -1269,11 +1011,8 @@ class SimulationEngine:
         # ===================================
 
         get_logger().info("Closing agent groups...")
-        close_tasks = []
-        for agent in self._id2agent.values():
-            close_tasks.append(agent.close())  # type:ignore
-        await asyncio.gather(*close_tasks)
-        get_logger().info("Agents closed")
+        if self._agent_manager is not None:
+            await self._agent_manager.close_all_agents()
 
         if self._environment is not None:
             get_logger().info("Closing environment...")
@@ -1349,30 +1088,10 @@ class SimulationEngine:
         - **Returns**:
             - Result of the gathering process as returned by each group's `gather` method.
         """
-        results = {}
-        if target_agent_ids is None:
-            target_agent_ids = list(self._id2agent.keys())
-        if content == "stream_memory":
-            for agent in self._id2agent.values():
-                if agent.id in target_agent_ids:
-                    results[agent.id] = await agent.stream.get_all()
-        else:
-            for agent in self._id2agent.values():
-                if agent.id in target_agent_ids:
-                    results[agent.id] = await agent.status.get(content)
-        if flatten:
-            if not keep_id:
-                data_flatten = []
-                for _, data in results.items():
-                    data_flatten.append(data)
-                return data_flatten
-            else:
-                data_flatten = {}
-                for id, data in results.items():
-                    data_flatten[id] = data
-                return data_flatten
-        else:
-            return results
+        assert self._agent_manager is not None, "Agent manager not initialized"
+        return await self._agent_manager.gather_from_agents(
+            content, target_agent_ids, flatten, keep_id
+        )
 
     async def filter(
         self,
@@ -1392,27 +1111,8 @@ class SimulationEngine:
         - **Returns**:
             - `List[int]`: A list of filtered agent UUIDs.
         """
-        if not types and not filter_str:
-            return list(self._id2agent.keys())
-        # filter by types first
-        if types:
-            filtered_ids = [
-                agent_id
-                for agent_id, (agent_class, _) in self._filter_base.items()
-                if any(issubclass(agent_class, t) for t in types)
-            ]
-        else:
-            filtered_ids = list(self._id2agent.keys())
-
-        # filter by filter_str
-        if filter_str:
-            filtered_ids = [
-                agent_id
-                for agent_id in filtered_ids
-                if evaluate_filter(filter_str, self._filter_base[agent_id][1])
-            ]
-
-        return filtered_ids
+        assert self._agent_manager is not None, "Agent manager not initialized"
+        return await self._agent_manager.filter_agents(types, filter_str)
 
     async def update_environment(self, key: str, value: str):
         """
@@ -1440,13 +1140,17 @@ class SimulationEngine:
             - `content` (Any): The new content to set for the target key.
         """
         get_logger().debug(f"-----Updating {target_key} for agent {target_agent_ids}")
-        tasks = []
-        for agent_id in target_agent_ids:
-            agent = self._id2agent[agent_id]
-            if query:
-                agent.gather_results[target_key] = content
-            tasks.append(agent.status.update(target_key, content))
-        await asyncio.gather(*tasks)
+        assert self._agent_manager is not None, "Agent manager not initialized"
+        
+        # Handle special query case
+        if query:
+            for agent_id in target_agent_ids:
+                agent = self._agent_manager.get_agent(agent_id)
+                if agent is not None:
+                    agent.gather_results[target_key] = content
+        
+        # Update memory
+        await self._agent_manager.update_agent_memory(target_agent_ids, target_key, content)
 
     async def economy_update(
         self,
@@ -1491,10 +1195,11 @@ class SimulationEngine:
         - **Returns**:
             - `dict[int, str]`: A dictionary mapping agent IDs to their survey responses.
         """
+        assert self._agent_manager is not None, "Agent manager not initialized"
         survey_tasks = []
         for agent_id in agent_ids:
-            agent = self._id2agent[agent_id]
-            if isinstance(agent, CitizenAgentBase):
+            agent = self._agent_manager.get_agent(agent_id)
+            if agent and isinstance(agent, CitizenAgentBase):
                 survey_tasks.append(
                     agent._handle_survey_with_storage(
                         survey,
@@ -1531,9 +1236,10 @@ class SimulationEngine:
         """
         day, t = self.environment.get_datetime()
         interview_tasks = []
+        assert self._agent_manager is not None, "Agent manager not initialized"
         for agent_id in agent_ids:
-            agent = self._id2agent[agent_id]
-            if isinstance(agent, CitizenAgentBase):
+            agent = self._agent_manager.get_agent(agent_id)
+            if agent and isinstance(agent, CitizenAgentBase):
                 interview_tasks.append(
                     agent._handle_interview_with_storage(
                         Message(
@@ -1569,10 +1275,11 @@ class SimulationEngine:
             - `intervention_message` (str): The content of the intervention message to send.
             - `agent_ids` (list[int]): A list of agent IDs to receive the intervention message.
         """
+        assert self._agent_manager is not None, "Agent manager not initialized"
         react_tasks = []
         for agent_id in agent_ids:
-            agent = self._id2agent[agent_id]
-            if isinstance(agent, CitizenAgentBase):
+            agent = self._agent_manager.get_agent(agent_id)
+            if agent and isinstance(agent, CitizenAgentBase):
                 react_tasks.append(agent.react_to_intervention(intervention_message))
             else:
                 get_logger().error(
@@ -1649,6 +1356,7 @@ class SimulationEngine:
         """
         Dispatches messages received via Message to the appropriate agents.
         """
+        assert self._agent_manager is not None, "Agent manager not initialized"
         # Step 1: Fetch messages
         messages = await self.messager.fetch_received_messages()
         get_logger().info(f"Received {len(messages)} messages")
@@ -1662,7 +1370,7 @@ class SimulationEngine:
             for message in messages:
                 if message.kind in [MessageKind.AGENT_CHAT, MessageKind.USER_CHAT]:
                     agent_id = message.to_id
-                    if agent_id in self._id2agent:
+                    if agent_id in self._agent_manager.agents:
                         agent_messages[agent_id].append(message)
                 elif message.kind in [
                     MessageKind.AOI_MESSAGE_REGISTER,
@@ -1672,8 +1380,8 @@ class SimulationEngine:
 
             # Process agent messages in parallel for different agents
             async def process_agent_messages(agent_id: int, messages: list[Message]):
-                agent = self._id2agent[agent_id]
-                if isinstance(agent, CitizenAgentBase):
+                agent = self._agent_manager.get_agent(agent_id)
+                if agent and isinstance(agent, CitizenAgentBase):
                     for message in messages:
                         if message.kind == MessageKind.AGENT_CHAT:
                             await agent._handle_agent_chat_with_storage(message)
@@ -1716,12 +1424,13 @@ class SimulationEngine:
         """
         if self._database_writer is None:
             return
+        assert self._agent_manager is not None, "Agent manager not initialized"
         created_at = datetime.now(timezone.utc)
         # =========================
         # build statuses data
         # =========================
         statuses = []
-        for agent in self._id2agent.values():
+        for agent in self._agent_manager.agents.values():
             if isinstance(agent, CitizenAgentBase):
                 position = await agent.status.get("position")
                 x = position["xy_position"]["x"]
@@ -1796,23 +1505,16 @@ class SimulationEngine:
         - **Args**:
             - `target_agent_ids` (list[int]): The IDs of the agents to delete.
         """
-        tasks = []
-        for agent_id in target_agent_ids:
-            agent = self._id2agent[agent_id]
-            tasks.append(agent.close())
-        await asyncio.gather(*tasks)
-        for agent_id in target_agent_ids:
-            del self._id2agent[agent_id]
+        assert self._agent_manager is not None, "Agent manager not initialized"
+        await self._agent_manager.delete_agents(target_agent_ids)
 
     async def next_round(self):
         """
         Proceed to the next round of the simulation.
         """
         get_logger().info("Start entering the next round of the simulation")
-        tasks = []
-        for agent in self._id2agent.values():
-            tasks.append(agent.reset())  # type:ignore
-        await asyncio.gather(*tasks)
+        assert self._agent_manager is not None, "Agent manager not initialized"
+        await self._agent_manager.reset_all_agents()
         await self.environment.step(1)
         get_logger().info("Finished entering the next round of the simulation")
 
@@ -1857,8 +1559,8 @@ class SimulationEngine:
 
             await self._message_dispatch()
             # main agent workflow
-            tasks = [agent.run() for agent in self._id2agent.values()]
-            agent_time_log = await asyncio.gather(*tasks)
+            assert self._agent_manager is not None, "Agent manager not initialized"
+            agent_time_log = await self._agent_manager.run_all_agents()
             simulator_log = (
                 self.environment.get_log_list()
                 + self.environment.economy_client.get_log_list()
