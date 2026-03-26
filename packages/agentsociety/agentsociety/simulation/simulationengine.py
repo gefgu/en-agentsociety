@@ -15,6 +15,7 @@ from typing import Any, Callable, Literal, Optional, Union, cast
 import time
 import yaml
 from ..database.database_actor import DatabaseActor
+from ..database.schema import StaticAgentAttributesRecord
 from ..performance.prometheusActor import PrometheusActor
 from ..performance.monitoring import start_monitoring, stop_monitoring
 from ..agent import CustomTool
@@ -202,7 +203,9 @@ class SimulationEngine:
         # ====================
         set_logger_level(self._config.logging_level.upper())
 
-        self.exp_id = str(config.exp.id)
+        # In resume mode, keep using the provided experiment id instead of creating a new one.
+        configured_resume_exp_id = self._config.env.exp_id
+        self.exp_id = str(configured_resume_exp_id or config.exp.id)
         get_logger().debug(
             f"Creating SimulationEngine with config: {self._config.model_dump()} as exp_id={self.exp_id}"
         )
@@ -259,6 +262,8 @@ class SimulationEngine:
 
         self._step_times: list[float] = []
         self._step_start_time: Optional[float] = None
+        self._resume_exp_id: Optional[str] = configured_resume_exp_id
+        self._resume_state: Optional[dict[str, Any]] = None
 
     async def _init_embedding(self):
         """Initialize embedding model with timeout."""
@@ -346,6 +351,174 @@ class SimulationEngine:
             get_logger().info("ClickHouse actor initialized")
         except Exception as e:
             get_logger().warning(f"Failed to initialize ClickHouse actor: {e}")
+
+    @staticmethod
+    def _normalize_config_value(value: Any) -> Any:
+        """Convert Python objects from YAML into deterministic, comparable values."""
+        if isinstance(value, dict):
+            normalized_items = []
+            for k, v in value.items():
+                normalized_key = SimulationEngine._normalize_config_value(k)
+                normalized_value = SimulationEngine._normalize_config_value(v)
+                normalized_items.append((normalized_key, normalized_value))
+            normalized_items.sort(key=lambda item: str(item[0]))
+            return {k: v for k, v in normalized_items}
+
+        if isinstance(value, (list, tuple, set)):
+            normalized_list = [SimulationEngine._normalize_config_value(v) for v in value]
+            if isinstance(value, set):
+                normalized_list.sort(key=str)
+            return normalized_list
+
+        if inspect.isclass(value):
+            return f"{value.__module__}.{value.__name__}"
+
+        if callable(value) and hasattr(value, "__module__") and hasattr(value, "__qualname__"):
+            return f"{value.__module__}.{value.__qualname__}"
+
+        if isinstance(value, Enum):
+            return value.value
+
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            return value
+
+        return str(value)
+
+    @staticmethod
+    def _normalize_resume_config(raw_config: Union[str, dict[str, Any]]) -> dict[str, Any]:
+        if isinstance(raw_config, str):
+            try:
+                loaded = yaml.safe_load(raw_config) or {}
+            except yaml.YAMLError:
+                # Stored config can include python tags (e.g. !!python/name:...),
+                # so fall back to unsafe loader and normalize objects to strings.
+                loaded = yaml.load(raw_config, Loader=yaml.UnsafeLoader) or {}
+        elif isinstance(raw_config, dict):
+            loaded = deepcopy(raw_config)
+        else:
+            loaded = {}
+
+        if not isinstance(loaded, dict):
+            loaded = {}
+
+        exp_config = loaded.get("exp")
+        if isinstance(exp_config, dict):
+            exp_config.pop("id", None)
+
+        env_config = loaded.get("env")
+        if isinstance(env_config, dict):
+            env_config.pop("exp_id", None)
+
+        normalized = SimulationEngine._normalize_config_value(loaded)
+        if isinstance(normalized, dict):
+            return normalized
+        return {}
+
+    async def _load_resume_state(self):
+        """Load resume metadata from ClickHouse when env.exp_id is provided."""
+        if not self._resume_exp_id:
+            return
+
+        if self._db_actor is None:
+            raise RuntimeError("ClickHouse actor is required when env.exp_id is set")
+
+        resume_data = await self._db_actor.fetch_resume_data.remote(self._resume_exp_id)
+        if resume_data is None:
+            raise ValueError(
+                f"No ClickHouse resume data found for experiment id '{self._resume_exp_id}'"
+            )
+
+        source_config = self._normalize_resume_config(resume_data.get("config", ""))
+        current_config = self._normalize_resume_config(self._exp_info.config)
+        if source_config != current_config:
+            raise ValueError(
+                "Configuration mismatch with resume experiment. "
+                "Current configuration fields must match the source experiment config."
+            )
+
+        self._resume_state = resume_data
+        self._total_steps = int(resume_data.get("latest_step", 0))
+        get_logger().info(
+            f"Loaded resume state from exp_id={self._resume_exp_id} at step={self._total_steps}"
+        )
+
+    @staticmethod
+    def _static_record_to_memory_updates(static_record: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "type": static_record.get("type"),
+            "home": {"aoi_position": {"aoi_id": int(static_record.get("home_aoi_id", 0))}},
+            "work": {"aoi_position": {"aoi_id": int(static_record.get("work_aoi_id", 0))}},
+            "name": static_record.get("name"),
+            "gender": static_record.get("gender"),
+            "age": int(static_record.get("age", 0)),
+            "education": static_record.get("education"),
+            "household": static_record.get("household"),
+            "life_stage": static_record.get("life_stage"),
+            "skill": static_record.get("skill"),
+            "occupation": static_record.get("occupation"),
+            "work_skill": float(static_record.get("work_skill", 0.0)),
+            "firm_id": int(static_record.get("firm_id", 0)),
+            "government_id": int(static_record.get("government_id", 0)),
+            "bank_id": int(static_record.get("bank_id", 0)),
+            "nbs_id": int(static_record.get("nbs_id", 0)),
+            "preferences": {
+                "chronotype": static_record.get("preferences_chronotype"),
+                "risk_tolerance": float(
+                    static_record.get("preferences_risk_tolerance", 0.5)
+                ),
+                "spending_tendency": float(
+                    static_record.get("preferences_spending_tendency", 0.5)
+                ),
+                "social_frequency": float(
+                    static_record.get("preferences_social_frequency", 0.5)
+                ),
+                "work_ethic": float(static_record.get("preferences_work_ethic", 0.5)),
+                "leisure_preference": static_record.get("preferences_leisure_preference"),
+            },
+            "hobbies": static_record.get("hobbies", []),
+            "personality": static_record.get("personality"),
+            "big5": {
+                "openness": int(static_record.get("big5_openness", 2)),
+                "conscientiousness": int(
+                    static_record.get("big5_conscientiousness", 2)
+                ),
+                "extraversion": int(static_record.get("big5_extraversion", 2)),
+                "agreeableness": int(static_record.get("big5_agreeableness", 2)),
+                "neuroticism": int(static_record.get("big5_neuroticism", 2)),
+            },
+            "income": float(static_record.get("income", 0.0)),
+            "currency": float(static_record.get("currency", 0.0)),
+            "residence": static_record.get("residence"),
+            "city": static_record.get("city"),
+            "race": static_record.get("race"),
+            "religion": static_record.get("religion"),
+            "marriage_status": static_record.get("marriage_status"),
+            "background_story": static_record.get("background_story"),
+        }
+
+    @staticmethod
+    def _count_citizen_agents(agents: list[tuple[Any, ...]]) -> int:
+        count = 0
+        for agent_init in agents:
+            _, agent_class, *_ = agent_init
+            if issubclass(agent_class, CitizenAgentBase):
+                count += 1
+        return count
+
+    def _validate_resume_agent_count(self, agents: list[tuple[Any, ...]]):
+        """Ensure citizen count matches static rows from resume source."""
+        if self._resume_state is None:
+            return
+
+        static_records = self._resume_state.get("static_records", [])
+        expected_citizens = self._count_citizen_agents(agents)
+        available_citizens = len(static_records)
+        if expected_citizens != available_citizens:
+            raise ValueError(
+                "Agent number mismatch for resume source experiment "
+                f"'{self._resume_exp_id}': configured citizens={expected_citizens}, "
+                f"static citizen records={available_citizens}"
+            )
 
     async def _init_core_components(self):
         """Initialize LLM, environment, messager, and embedding components."""
@@ -743,6 +916,13 @@ class SimulationEngine:
         )
         get_logger().info("Initializing the agents...")
         to_return: dict[int, tuple[type[Agent], dict[str, Any]]] = {}
+        resume_static_by_agent_id: dict[int, dict[str, Any]] = {}
+        if self._resume_state is not None:
+            for record in self._resume_state.get("static_records", []):
+                agent_id = int(record.get("agent_id", -1))
+                if agent_id >= 0:
+                    resume_static_by_agent_id[agent_id] = record
+
         for agent_init in agents:
             (
                 agent_id,
@@ -760,6 +940,18 @@ class SimulationEngine:
                 embedding=self._embedding,
                 memory_config=memory_config,
             )
+
+            if self._resume_state is not None and issubclass(agent_class, CitizenAgentBase):
+                static_record = resume_static_by_agent_id.get(agent_id)
+                if static_record is None:
+                    raise ValueError(
+                        f"Missing static resume data for citizen agent id {agent_id}"
+                    )
+                static_updates = self._static_record_to_memory_updates(static_record)
+                for key, value in static_updates.items():
+                    if value is not None:
+                        await memory_init.status.update(key, value, mode="replace")
+
             if blocks is not None:
                 blocks = [
                     block_type(
@@ -840,6 +1032,156 @@ class SimulationEngine:
 
         return agent_toolbox
 
+    async def _save_agent_static_info(self):
+        if self._db_actor is None:
+            get_logger().info("ClickHouse actor is not initialized; skip static info save")
+            return
+
+        if not self._id2agent:
+            get_logger().info("No agents found; skip static info save")
+            return
+
+        try:
+            await self._db_actor.set_simulation_step.remote(step=self._total_steps)
+        except Exception as e:
+            get_logger().warning(
+                f"Failed to set ClickHouse simulation step for static info save: {e}"
+            )
+
+        def _as_int(value: Any, default: int = 0) -> int:
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return default
+
+        def _as_float(value: Any, default: float = 0.0) -> float:
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return default
+
+        def _as_str(value: Any, default: str = "unknown") -> str:
+            if value is None:
+                return default
+            return str(value)
+
+        def _extract_aoi_id(value: Any) -> int:
+            if isinstance(value, dict):
+                aoi_position = value.get("aoi_position")
+                if isinstance(aoi_position, dict):
+                    return _as_int(aoi_position.get("aoi_id"), 0)
+                return _as_int(value.get("aoi_id"), 0)
+            return _as_int(value, 0)
+
+        saved_count = 0
+        for agent in self._id2agent.values():
+            if not isinstance(agent, CitizenAgentBase):
+                continue
+
+            filter_base_entry = self._filter_base.get(agent.id)
+            if filter_base_entry is None:
+                get_logger().warning(
+                    f"Missing filter base for agent {agent.id}; skip static info save"
+                )
+                continue
+
+            _, memory_config = filter_base_entry
+            static_keys = [
+                key
+                for key, attr in memory_config.attributes.items()
+                if attr.storage_class == "static"
+            ]
+
+            try:
+                values = await agent.status.export(static_keys)
+
+                preferences = values.get("preferences", {})
+                if not isinstance(preferences, dict):
+                    preferences = {}
+
+                big5 = values.get("big5", {})
+                if not isinstance(big5, dict):
+                    big5 = {}
+
+                hobbies = values.get("hobbies", [])
+                if not isinstance(hobbies, list):
+                    hobbies = [hobbies] if hobbies is not None else []
+
+                record: StaticAgentAttributesRecord = {
+                    "exp_id": self.exp_id,
+                    "simulation_step": self._total_steps,
+                    "timestamp": datetime.now(),
+                    "agent_id": agent.id,
+                    "type": _as_str(values.get("type"), "citizen"),
+                    "home_aoi_id": _extract_aoi_id(values.get("home", {})),
+                    "work_aoi_id": _extract_aoi_id(values.get("work", {})),
+                    "name": _as_str(values.get("name"), "unknown"),
+                    "gender": _as_str(values.get("gender"), "unknown"),
+                    "age": _as_int(values.get("age"), 0),
+                    "education": _as_str(values.get("education"), "unknown"),
+                    "household": _as_str(values.get("household"), "unknown"),
+                    "life_stage": _as_str(values.get("life_stage"), "unknown"),
+                    "skill": _as_str(values.get("skill"), "unknown"),
+                    "occupation": _as_str(values.get("occupation"), "unknown"),
+                    "work_skill": _as_float(values.get("work_skill"), 0.0),
+                    "firm_id": _as_int(values.get("firm_id"), 0),
+                    "government_id": _as_int(values.get("government_id"), 0),
+                    "bank_id": _as_int(values.get("bank_id"), 0),
+                    "nbs_id": _as_int(values.get("nbs_id"), 0),
+                    "preferences_chronotype": _as_str(
+                        preferences.get("chronotype"), "standard"
+                    ),
+                    "preferences_risk_tolerance": _as_float(
+                        preferences.get("risk_tolerance"), 0.5
+                    ),
+                    "preferences_spending_tendency": _as_float(
+                        preferences.get("spending_tendency"), 0.5
+                    ),
+                    "preferences_social_frequency": _as_float(
+                        preferences.get("social_frequency"), 0.5
+                    ),
+                    "preferences_work_ethic": _as_float(
+                        preferences.get("work_ethic"), 0.5
+                    ),
+                    "preferences_leisure_preference": _as_str(
+                        preferences.get("leisure_preference"), "indoor"
+                    ),
+                    "hobbies": [str(item) for item in hobbies],
+                    "personality": _as_str(values.get("personality"), "unknown"),
+                    "big5_openness": _as_int(big5.get("openness"), 2),
+                    "big5_conscientiousness": _as_int(
+                        big5.get("conscientiousness"), 2
+                    ),
+                    "big5_extraversion": _as_int(big5.get("extraversion"), 2),
+                    "big5_agreeableness": _as_int(big5.get("agreeableness"), 2),
+                    "big5_neuroticism": _as_int(big5.get("neuroticism"), 2),
+                    "income": _as_float(values.get("income"), 0.0),
+                    "currency": _as_float(values.get("currency"), 0.0),
+                    "residence": _as_str(values.get("residence"), "unknown"),
+                    "city": _as_str(values.get("city"), "unknown"),
+                    "race": _as_str(values.get("race"), "unknown"),
+                    "religion": _as_str(values.get("religion"), "unknown"),
+                    "marriage_status": _as_str(
+                        values.get("marriage_status"), "unknown"
+                    ),
+                    "background_story": _as_str(
+                        values.get("background_story"), "No background story"
+                    ),
+                }
+
+                self._db_actor.insert_static_agent_attributes_record.remote(
+                    record=record
+                )
+                saved_count += 1
+            except Exception as e:
+                get_logger().warning(
+                    f"Failed to save static info for agent {agent.id}: {e}"
+                )
+
+        get_logger().info(
+            f"Saved static info to ClickHouse for {saved_count} citizen agents"
+        )
+
     async def _finalize_initialization(
         self,
         agent_toolbox: AgentToolbox,
@@ -864,6 +1206,13 @@ class SimulationEngine:
         self._save_context()
         get_logger().info("Experiment info saved")
 
+
+        if self._resume_exp_id is None:
+            await self._save_agent_static_info()
+            get_logger().info("Agent static info saved")
+        else:
+            get_logger().info("Resume source experiment detected; skip saving static agent info to avoid duplication")
+
         init_funcs = self._config.agents.init_funcs
         for init_func in init_funcs:
             if inspect.iscoroutinefunction(init_func):
@@ -879,8 +1228,10 @@ class SimulationEngine:
             metrics_tool = self._init_metrics_actor()
             self._init_clickhouse_actor()
             await self._init_core_components()
+            await self._load_resume_state()
 
             agents = await self._prepare_agents()
+            self._validate_resume_agent_count(agents)
             agent_toolbox = await self._initialize_agents(agents)
             await self._finalize_initialization(agent_toolbox, metrics_tool)
 
@@ -1235,6 +1586,24 @@ class SimulationEngine:
         if self.enable_database:
             assert self._database_writer is not None
             await self._database_writer.update_exp_info(self._exp_info)  # type: ignore
+        if self._db_actor is not None:
+            self._db_actor.insert_experiment_info_record.remote(
+                {
+                    "tenant_id": self._exp_info.tenant_id,
+                    "id": self._exp_info.id,
+                    "name": self._exp_info.name,
+                    "num_day": self._exp_info.num_day,
+                    "status": self._exp_info.status,
+                    "cur_day": self._exp_info.cur_day,
+                    "cur_t": self._exp_info.cur_t,
+                    "config": self._exp_info.config,
+                    "error": self._exp_info.error,
+                    "input_tokens": self._exp_info.input_tokens,
+                    "output_tokens": self._exp_info.output_tokens,
+                    "created_at": self._exp_info.created_at,
+                    "updated_at": self._exp_info.updated_at,
+                }
+            )
 
     async def _save_global_prompt(self, prompt: str, day: int, t: float):
         """Save global prompt"""

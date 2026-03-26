@@ -5,7 +5,7 @@ import ray
 
 from ..performance.prometheusActor import PrometheusActor
 from .clickhouse import ClickHouseDatabase
-from .schema import AdjustNeedsRecord
+from .schema import AdjustNeedsRecord, StaticAgentAttributesRecord
 
 
 @ray.remote
@@ -145,6 +145,18 @@ class DatabaseActor:
             ctx_other_info=ctx_other_info,
             ctx_plan_target=ctx_plan_target,
         )
+
+    def insert_static_agent_attributes_record(
+        self,
+        record: StaticAgentAttributesRecord,
+    ) -> None:
+        self._db.insert_static_agent_attributes_record(record)
+
+    def insert_experiment_info_record(self, record):
+        self._db.insert_experiment_info_record(record)
+
+    def fetch_resume_data(self, source_exp_id: str):
+        return self._db.fetch_resume_data(source_exp_id)
 
     def flush_all_batches(self):
         self._db.flush_all_batches()

@@ -1,5 +1,6 @@
 from collections import deque
 from datetime import datetime
+import uuid
 import time
 from pathlib import Path
 from typing import Any, List, Optional, TypedDict, Union, cast
@@ -15,6 +16,7 @@ from .schema import (
     AgentLocationTypeRecord,
     AgentTransportTypeRecord,
     BlockDispatcherRecord,
+    ExperimentInfoRecord,
     PromptResponseRecord,
     StaticAgentAttributesRecord,
     StepAgentStatusRecord,
@@ -28,6 +30,7 @@ TableRecord = Union[
     StepAgentStatusRecord,
     BlockDispatcherRecord,
     StaticAgentAttributesRecord,
+    ExperimentInfoRecord,
 ]
 
 
@@ -77,6 +80,7 @@ class ClickHouseDatabase:
             "step_agent_status": StepAgentStatusRecord,
             "block_dispatcher": BlockDispatcherRecord,
             "static_agent_attributes": StaticAgentAttributesRecord,
+            "experiment_info": ExperimentInfoRecord,
         }
 
         self.table_columns: dict[str, List[str]] = {
@@ -484,6 +488,132 @@ class ClickHouseDatabase:
             get_logger().error(
                 f"Failed to insert static agent attributes record: {e}"
             )
+
+    def insert_experiment_info_record(self, record: ExperimentInfoRecord) -> None:
+        if self.client is None:
+            get_logger().error(
+                "ClickHouse client is not connected. Cannot insert experiment info record."
+            )
+            return
+
+        try:
+            created_at = record["created_at"]
+            updated_at = record["updated_at"]
+            if isinstance(created_at, (int, float)):
+                created_at = datetime.fromtimestamp(created_at)
+            if isinstance(updated_at, (int, float)):
+                updated_at = datetime.fromtimestamp(updated_at)
+            if not isinstance(created_at, datetime):
+                created_at = datetime.now()
+            if not isinstance(updated_at, datetime):
+                updated_at = datetime.now()
+
+            normalized_record: ExperimentInfoRecord = {
+                **record,
+                "id": str(uuid.UUID(record["id"])),
+                "created_at": created_at,
+                "updated_at": updated_at,
+            }
+            self._queue_record("experiment_info", normalized_record)
+
+        except Exception as e:
+            get_logger().error(f"Failed to insert experiment info record: {e}")
+
+    @staticmethod
+    def _escape_sql_string(value: str) -> str:
+        return value.replace("'", "''")
+
+    def _query_rows(self, query: str) -> list[dict[str, Any]]:
+        if self.client is None:
+            get_logger().error("ClickHouse client is not connected. Cannot query.")
+            return []
+
+        try:
+            result = self.client.query(query)
+            rows = getattr(result, "result_rows", [])
+            column_names = getattr(result, "column_names", [])
+            return [dict(zip(column_names, row)) for row in rows]
+        except Exception as e:
+            get_logger().error(f"Failed to query ClickHouse: {e}")
+            return []
+
+    def fetch_resume_data(self, source_exp_id: str) -> Optional[dict[str, Any]]:
+        """Fetch config, latest step, and latest static attributes for a source experiment."""
+        if self.client is None:
+            get_logger().error(
+                "ClickHouse client is not connected. Cannot fetch resume data."
+            )
+            return None
+
+        try:
+            source_uuid = str(uuid.UUID(source_exp_id))
+        except (ValueError, TypeError):
+            get_logger().error(f"Invalid source experiment id: {source_exp_id}")
+            return None
+
+        escaped_exp_id = self._escape_sql_string(source_exp_id)
+        escaped_source_uuid = self._escape_sql_string(source_uuid)
+
+        exp_info_rows = self._query_rows(
+            (
+                "SELECT config "
+                "FROM experiment_info "
+                f"WHERE id = toUUID('{escaped_source_uuid}') "
+                "ORDER BY updated_at DESC "
+                "LIMIT 1"
+            )
+        )
+        if not exp_info_rows:
+            return None
+
+        step_rows = self._query_rows(
+            (
+                "SELECT max(simulation_step) AS max_step "
+                "FROM step_agent_status "
+                f"WHERE exp_id = '{escaped_exp_id}'"
+            )
+        )
+        latest_step_raw = step_rows[0].get("max_step") if step_rows else None
+        latest_step = int(latest_step_raw) if latest_step_raw is not None else 0
+
+        static_step_rows = self._query_rows(
+            (
+                "SELECT max(simulation_step) AS max_static_step "
+                "FROM static_agent_attributes "
+                f"WHERE exp_id = '{escaped_exp_id}'"
+            )
+        )
+        static_step_raw = (
+            static_step_rows[0].get("max_static_step") if static_step_rows else None
+        )
+        static_step = int(static_step_raw) if static_step_raw is not None else 0
+
+        static_rows = self._query_rows(
+            (
+                "SELECT "
+                "agent_id, type, home_aoi_id, work_aoi_id, name, gender, age, "
+                "education, household, life_stage, skill, occupation, work_skill, "
+                "firm_id, government_id, bank_id, nbs_id, "
+                "preferences_chronotype, preferences_risk_tolerance, "
+                "preferences_spending_tendency, preferences_social_frequency, "
+                "preferences_work_ethic, preferences_leisure_preference, hobbies, "
+                "personality, big5_openness, big5_conscientiousness, "
+                "big5_extraversion, big5_agreeableness, big5_neuroticism, "
+                "income, currency, residence, city, race, religion, "
+                "marriage_status, background_story "
+                "FROM static_agent_attributes "
+                f"WHERE exp_id = '{escaped_exp_id}' AND simulation_step = {static_step} "
+                "ORDER BY agent_id"
+            )
+        )
+
+        return {
+            "source_exp_id": source_exp_id,
+            "config": str(exp_info_rows[0].get("config") or ""),
+            "latest_step": latest_step,
+            "static_step": static_step,
+            "static_records": static_rows,
+        }
 
     def flush_all_batches(self):
         for table_name in self.table_batches:

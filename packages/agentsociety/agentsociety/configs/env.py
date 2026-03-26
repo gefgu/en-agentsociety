@@ -26,6 +26,8 @@ class EnvConfig(BaseModel):
     data_dir: str = Field(default="./agentsociety_data/data")
     """Directory for storing data files"""
 
+    exp_id: Optional[str] = Field(default=None)
+
 
     @property
     def fs_client(self) -> Union[S3Client, FileSystemClient]:

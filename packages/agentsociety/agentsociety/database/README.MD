@@ -30,6 +30,7 @@ Record contracts are defined in `schema.py`:
 - `AgentTransportTypeRecord`
 - `StepAgentStatusRecord`
 - `BlockDispatcherRecord`
+- `ExperimentInfoRecord`
 
 `ClickHouseDatabase` maps each table name to one schema and derives column names from the TypedDict annotations to reduce duplication.
 
@@ -63,6 +64,8 @@ The active step is stored in `simulation_step` and set via:
 - `set_simulation_step(step: int)`
 
 Most insert methods include this value directly in the record payload. For adjust-needs records, the value is inferred at flush time.
+
+Experiment metadata snapshots are stored in `experiment_info` and updated when simulation metadata is persisted by `DatabaseWriter.update_exp_info`.
 
 ## Direct Usage Example
 

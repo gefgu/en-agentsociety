@@ -121,3 +121,19 @@ class StaticAgentAttributesRecord(TypedDict):
     religion: str
     marriage_status: str
     background_story: str
+
+
+class ExperimentInfoRecord(TypedDict):
+    tenant_id: str
+    id: str
+    name: str
+    num_day: int
+    status: int
+    cur_day: int
+    cur_t: float
+    config: str
+    error: str
+    input_tokens: int
+    output_tokens: int
+    created_at: datetime
+    updated_at: datetime
