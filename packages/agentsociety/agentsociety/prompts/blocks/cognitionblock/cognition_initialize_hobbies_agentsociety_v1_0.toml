@@ -1,0 +1,67 @@
+[metadata]
+name = "cognition_initialize_hobbies"
+version = "1.0.0"
+origin = "agentsociety"
+description = "Initialize hobbies from profile and psychographic traits"
+
+[inputs]
+required = [
+  "gender",
+  "age",
+  "occupation",
+  "income",
+  "education",
+  "household",
+  "life_stage",
+  "openness",
+  "conscientiousness",
+  "extraversion",
+  "agreeableness",
+  "neuroticism"
+]
+
+[prompt]
+input = """You are an intelligent agent profile generator. Based on the demographic and psychographic information below, please generate a list of suitable hobbies for this agent.
+
+Profile Information:
+- Gender: {gender}
+- Age: {age}
+- Occupation: {occupation}
+- Income: {income}
+- Education: {education}
+- Household type: {household}
+- Life stage: {life_stage}
+
+Psychographic Traits (1-3 scale):
+- Openness: {openness}
+- Conscientiousness: {conscientiousness}
+- Extraversion: {extraversion}
+- Agreeableness: {agreeableness}
+- Neuroticism: {neuroticism}
+
+Please generate a list of 2-5 hobbies.
+- Ensure the hobbies fit the agent's income level and age (e.g., "Golf" for higher income, "Video Games" for younger cohorts).
+- Ensure the hobbies reflect their Big 5 personality (e.g., High Extraversion -> Team Sports; High Openness -> Painting/Travel; High Conscientiousness -> Gardening/Chess).
+- These hobbies will be used to determine the agent's daily locations and routines.
+
+Return the values in JSON format with the following structure:
+
+{
+    "hobbies": [
+        "Hobby Name 1",
+        "Hobby Name 2",
+        "Hobby Name 3"
+    ]
+}
+
+Example Response:
+{
+    "hobbies": [
+        "Photography",
+        "Hiking",
+        "Reading Sci-Fi"
+    ]
+}
+
+DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
+"""

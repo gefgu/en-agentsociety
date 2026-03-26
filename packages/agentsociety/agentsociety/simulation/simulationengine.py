@@ -5,19 +5,14 @@ A clear version of the simulation.
 import asyncio
 import inspect
 import json
-import os
 import traceback
+import yaml
 from collections import defaultdict
-from copy import deepcopy
 from datetime import datetime, timezone
-from multiprocessing import cpu_count
 from typing import Any, Callable, Literal, Optional, Union, cast
 import time
-import yaml
 from ..database.database_actor import DatabaseActor
-from ..database.schema import StaticAgentAttributesRecord
 from ..performance.prometheusActor import PrometheusActor
-from ..performance.monitoring import start_monitoring, stop_monitoring
 from ..agent import CustomTool
 from fastembed import SparseTextEmbedding
 
@@ -33,7 +28,6 @@ from ..agent import (
     GovernmentAgentBase,
     MemoryAttribute,
     NBSAgentBase,
-    SupervisorBase,
 )
 from ..agent.distribution import Distribution, DistributionConfig, DistributionType
 from ..agent.memory_config_generator import (
@@ -49,9 +43,10 @@ from ..configs import (
     WorkflowType,
 )
 from .agentmanager import AgentManager
+from .infrastructuremanager import InfrastructureManager
 from ..environment import EnvironmentStarter
 from ..llm import LLM
-from ..logger import attach_otlp_handler, get_logger, set_exp_id, set_logger_level
+from ..logger import get_logger, set_logger_level
 from ..memory import Memory
 from ..message import Message, MessageInterceptor, MessageKind, Messager
 from ..s3 import S3Config
@@ -60,12 +55,10 @@ from ..storage.type import (
     StorageExpInfo,
     StorageGlobalPrompt,
     StoragePendingSurvey,
-    StorageProfile,
     StorageStatus,
 )
 from ..survey.models import Survey
 from .type import ExperimentStatus, Logs
-import ray
 from enum import Enum
 
 __all__ = ["SimulationEngine"]
@@ -262,183 +255,32 @@ class SimulationEngine:
         self._step_start_time: Optional[float] = None
         self._resume_exp_id: Optional[str] = configured_resume_exp_id
         self._resume_state: Optional[dict[str, Any]] = None
-
-    async def _init_embedding(self):
-        """Initialize embedding model with timeout."""
-        try:
-            # Create a task for embedding initialization
-            init_task = asyncio.create_task(self._init_embedding_task())
-
-            # Wait for the task with timeout
-            try:
-                await asyncio.wait_for(init_task, timeout=120)  # 2 minutes timeout
-            except asyncio.TimeoutError:
-                get_logger().error(
-                    "Embedding model initialization timed out after 2 minutes. "
-                    "Please check your HuggingFace connection and try again."
-                )
-                raise
-
-        except Exception as e:
-            get_logger().error(f"Failed to initialize embedding model: {str(e)}")
-            raise
-
-    async def _init_embedding_task(self):
-        """Actual embedding initialization task."""
-        self._embedding = SparseTextEmbedding(
-            "Qdrant/bm25",
-            cache_dir=os.path.join(self._config.env.home_dir, "huggingface_cache"),
-            threads=cpu_count(),
+        self._infrastructure_manager = InfrastructureManager(
+            config=self._config,
+            tenant_id=self.tenant_id,
+            exp_id=self.exp_id,
+            exp_info=self._exp_info,
         )
-        get_logger().info("Embedding models initialized successfully")
+        # Pass resume exp_id to infrastructure manager so it can load resume state
+        if configured_resume_exp_id:
+            self._infrastructure_manager.set_resume_exp_id(configured_resume_exp_id)
 
-    async def _init_database_writer_if_enabled(self):
-        """Initialize the pgsql writer when database is enabled."""
-        if self._config.env.db.enabled:
-            get_logger().info("Initializing database writer...")
-            self._database_writer = DatabaseWriter(
-                self.tenant_id,
-                self.exp_id,
-                self._config.env.db,
-                self._config.env.home_dir,
-            )
-            await self._database_writer.init()  # type: ignore
-            get_logger().info("Database writer initialized")
-            await self._database_writer.update_exp_info(self._exp_info)
+    def _sync_infrastructure_state(self):
+        """Sync engine fields from the infrastructure manager outputs."""
+        self._llm = self._infrastructure_manager.llm
+        self._environment = self._infrastructure_manager.environment
+        self._message_interceptor = self._infrastructure_manager.message_interceptor
+        self._database_writer = self._infrastructure_manager.database_writer
+        self._embedding = self._infrastructure_manager.embedding
+        self._metrics_actor = self._infrastructure_manager.metrics_actor
+        self._db_actor = self._infrastructure_manager.db_actor
+        self._messager = self._infrastructure_manager.messager
+        self._db_tool = self._infrastructure_manager.db_tool
+        self._resume_state = self._infrastructure_manager.resume_state
+        self._resume_state = self._infrastructure_manager.resume_state
+        self._resume_state = self._infrastructure_manager.resume_state
 
-    def _start_monitoring_services(self):
-        """Initialize Prometheus and Grafana monitoring services."""
-        try:
-            start_monitoring(self._config.env.data_dir)
-            set_exp_id(self.exp_id)
-            attach_otlp_handler()
-        except Exception as e:
-            get_logger().warning(f"Failed to start monitoring services: {e}")
 
-    def _init_metrics_actor(self) -> Optional[CustomTool]:
-        """Initialize the Prometheus actor and return it as a toolbox tool."""
-        try:
-            get_logger().info(
-                f"Initializing Prometheus actor with exp_id={self.exp_id}...",
-            )
-            metrics_actor = PrometheusActor.remote(self.exp_id)
-            self._metrics_actor = metrics_actor
-            get_logger().info("Performance actor initialized")
-            return CustomTool(
-                name="metrics_actor",
-                tool=metrics_actor,
-                description="Ray actor for tracking block performance metrics",
-            )
-        except Exception as e:
-            get_logger().warning(f"Failed to initialize performance actor: {e}")
-            return None
-
-    def _init_clickhouse_actor(self):
-        """Initialize the ClickHouse actor and corresponding toolbox tool."""
-        try:
-            self._db_actor = DatabaseActor.remote(
-                exp_id=self.exp_id,
-                home_dir=self._config.env.data_dir,
-                metrics_actor=self._metrics_actor,
-            )
-            self._db_tool = CustomTool(
-                name="db_actor",
-                tool=self._db_actor,
-                description="Ray actor for storing simulation data in ClickHouse database",
-            )
-            get_logger().info("ClickHouse actor initialized")
-        except Exception as e:
-            get_logger().warning(f"Failed to initialize ClickHouse actor: {e}")
-
-    @staticmethod
-    def _normalize_config_value(value: Any) -> Any:
-        """Convert Python objects from YAML into deterministic, comparable values."""
-        if isinstance(value, dict):
-            normalized_items = []
-            for k, v in value.items():
-                normalized_key = SimulationEngine._normalize_config_value(k)
-                normalized_value = SimulationEngine._normalize_config_value(v)
-                normalized_items.append((normalized_key, normalized_value))
-            normalized_items.sort(key=lambda item: str(item[0]))
-            return {k: v for k, v in normalized_items}
-
-        if isinstance(value, (list, tuple, set)):
-            normalized_list = [SimulationEngine._normalize_config_value(v) for v in value]
-            if isinstance(value, set):
-                normalized_list.sort(key=str)
-            return normalized_list
-
-        if inspect.isclass(value):
-            return f"{value.__module__}.{value.__name__}"
-
-        if callable(value) and hasattr(value, "__module__") and hasattr(value, "__qualname__"):
-            return f"{value.__module__}.{value.__qualname__}"
-
-        if isinstance(value, Enum):
-            return value.value
-
-        if isinstance(value, (str, int, float, bool)) or value is None:
-            return value
-
-        return str(value)
-
-    @staticmethod
-    def _normalize_resume_config(raw_config: Union[str, dict[str, Any]]) -> dict[str, Any]:
-        if isinstance(raw_config, str):
-            try:
-                loaded = yaml.safe_load(raw_config) or {}
-            except yaml.YAMLError:
-                # Stored config can include python tags (e.g. !!python/name:...),
-                # so fall back to unsafe loader and normalize objects to strings.
-                loaded = yaml.load(raw_config, Loader=yaml.UnsafeLoader) or {}
-        elif isinstance(raw_config, dict):
-            loaded = deepcopy(raw_config)
-        else:
-            loaded = {}
-
-        if not isinstance(loaded, dict):
-            loaded = {}
-
-        exp_config = loaded.get("exp")
-        if isinstance(exp_config, dict):
-            exp_config.pop("id", None)
-
-        env_config = loaded.get("env")
-        if isinstance(env_config, dict):
-            env_config.pop("exp_id", None)
-
-        normalized = SimulationEngine._normalize_config_value(loaded)
-        if isinstance(normalized, dict):
-            return normalized
-        return {}
-
-    async def _load_resume_state(self):
-        """Load resume metadata from ClickHouse when env.exp_id is provided."""
-        if not self._resume_exp_id:
-            return
-
-        if self._db_actor is None:
-            raise RuntimeError("ClickHouse actor is required when env.exp_id is set")
-
-        resume_data = await self._db_actor.fetch_resume_data.remote(self._resume_exp_id)
-        if resume_data is None:
-            raise ValueError(
-                f"No ClickHouse resume data found for experiment id '{self._resume_exp_id}'"
-            )
-
-        source_config = self._normalize_resume_config(resume_data.get("config", ""))
-        current_config = self._normalize_resume_config(self._exp_info.config)
-        if source_config != current_config:
-            raise ValueError(
-                "Configuration mismatch with resume experiment. "
-                "Current configuration fields must match the source experiment config."
-            )
-
-        self._resume_state = resume_data
-        self._total_steps = int(resume_data.get("latest_step", 0))
-        get_logger().info(
-            f"Loaded resume state from exp_id={self._resume_exp_id} at step={self._total_steps}"
-        )
 
     @staticmethod
     def _static_record_to_memory_updates(static_record: dict[str, Any]) -> dict[str, Any]:
@@ -494,69 +336,7 @@ class SimulationEngine:
             "background_story": static_record.get("background_story"),
         }
 
-    @staticmethod
-    def _count_citizen_agents(agents: list[tuple[Any, ...]]) -> int:
-        count = 0
-        for agent_init in agents:
-            _, agent_class, *_ = agent_init
-            if issubclass(agent_class, CitizenAgentBase):
-                count += 1
-        return count
 
-    def _validate_resume_agent_count(self, agents: list[tuple[Any, ...]]):
-        """Ensure citizen count matches static rows from resume source."""
-        if self._resume_state is None:
-            return
-
-        static_records = self._resume_state.get("static_records", [])
-        expected_citizens = self._count_citizen_agents(agents)
-        available_citizens = len(static_records)
-        if expected_citizens != available_citizens:
-            raise ValueError(
-                "Agent number mismatch for resume source experiment "
-                f"'{self._resume_exp_id}': configured citizens={expected_citizens}, "
-                f"static citizen records={available_citizens}"
-            )
-
-    async def _init_core_components(self):
-        """Initialize LLM, environment, messager, and embedding components."""
-        get_logger().info("Initializing LLM...")
-        self._llm = LLM(
-            self._config.llm,
-            metrics_actor=self._metrics_actor,
-            db_actor=self._db_actor,
-        )
-        get_logger().info("LLM initialized")
-
-        get_logger().info("Initializing environment...")
-        self._environment = EnvironmentStarter(
-            self._config.map,
-            self._config.exp.environment,
-            self._config.env.s3,
-            os.path.join(
-                self._config.env.home_dir,
-                "exps",
-                self.tenant_id,
-                self.exp_id,
-                "simulator_log",
-            ),
-            self._config.env.home_dir,
-        )
-        await self._environment.init()
-        get_logger().info("Environment initialized")
-
-        get_logger().info("Initializing messager...")
-        if self._config.agents.supervisor is not None:
-            self._message_interceptor = MessageInterceptor(
-                self._config.llm,
-            )
-        self._messager = Messager(exp_id=self.exp_id)
-        get_logger().info("Messager initialized")
-
-        get_logger().info("Initializing embedding...")
-        await self._init_embedding()
-        assert self._embedding is not None, "Embedding is not initialized"
-        get_logger().info("Embedding initialized")
 
     def _split_agent_configs_by_memory_source(self):
         """Split agent configs into normal and memory_from_file buckets."""
@@ -949,12 +729,20 @@ class SimulationEngine:
     async def init(self):
         """Initialize all the components"""
         try:
-            await self._init_database_writer_if_enabled()
-            self._start_monitoring_services()
-            metrics_tool = self._init_metrics_actor()
-            self._init_clickhouse_actor()
-            await self._init_core_components()
-            await self._load_resume_state()
+            await self._infrastructure_manager.initialize_all()
+            self._sync_infrastructure_state()
+            metrics_tool = self._infrastructure_manager.metrics_tool
+
+            assert self._llm is not None, "LLM is not initialized"
+            assert self._environment is not None, "Environment is not initialized"
+            assert self._messager is not None, "Messager is not initialized"
+            assert self._embedding is not None, "Embedding is not initialized"
+            await self._infrastructure_manager.load_resume_state()
+            self._sync_infrastructure_state()
+
+            # Update total_steps from resume state if resuming
+            if self._resume_state is not None:
+                self._total_steps = int(self._resume_state.get("latest_step", 0))
 
             # Initialize agent manager
             self._agent_manager = AgentManager(
@@ -971,7 +759,7 @@ class SimulationEngine:
             # Create toolbox and initialize agents
             await self._agent_manager.create_toolbox()
             agents = await self._prepare_agents()
-            self._agent_manager._validate_resume_agent_count(agents, self._resume_state)
+            self._infrastructure_manager._validate_resume_agent_count(agents)
             await self._agent_manager.initialize_agents(agents, self._resume_state)
 
             # Finalize initialization
@@ -989,36 +777,12 @@ class SimulationEngine:
 
     async def close(self):
         """Close all the components"""
-
-        # ==============================
-        # close clickhouse
-        # ===============================
-        get_logger().info("Closing ClickHouse tool...")
-        if self._db_actor is not None:
-            try:
-                await self._db_actor.close.remote()
-            except Exception as e:
-                get_logger().warning(f"Error closing ClickHouse actor: {e}")
-
-        # ================================
-        # stop monitoring
-        # ================================
-        get_logger().info("Stopping monitoring services...")
-        stop_monitoring()
-
-        # ===================================
-        # close groups
-        # ===================================
-
         get_logger().info("Closing agent groups...")
         if self._agent_manager is not None:
             await self._agent_manager.close_all_agents()
 
-        if self._environment is not None:
-            get_logger().info("Closing environment...")
-            await self._environment.close()
-            self._environment = None
-            get_logger().info("Environment closed")
+        await self._infrastructure_manager.close()
+        self._sync_infrastructure_state()
 
     @property
     def name(self):
@@ -1576,7 +1340,7 @@ class SimulationEngine:
 
             # gather query
             gather_queries = {}
-            for agent in self._id2agent.values():
+            for agent in self._agent_manager.agents.values():
                 if agent.gather_query:
                     gather_queries[agent.id] = agent.gather_query
 

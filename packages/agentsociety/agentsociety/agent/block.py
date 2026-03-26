@@ -1,13 +1,15 @@
 from typing import Any, Optional
 
+from ..prompts.prompt_manager import PromptManager
 from pydantic import BaseModel
-
+from ..logger import get_logger
 from ..environment import Environment
 from ..llm import LLM
 from ..memory import KVMemory, Memory
 from .context import BlockContext, DotDict, auto_deepcopy_dotdict, context_to_dot_dict
 from .memory_config_generator import MemoryConfig
 from .toolbox import AgentToolbox
+from pathlib import Path
 
 TRIGGER_INTERVAL = 1
 
@@ -41,6 +43,8 @@ class Block:
     name: str = ""
     description: str = ""
     actions: dict[str, str] = {}
+    _shared_prompt_manager: Optional[PromptManager] = None
+    prompt_manager: Optional[PromptManager] = None
 
     def __init__(
         self,
@@ -61,6 +65,7 @@ class Block:
         self._toolbox = toolbox
         self._agent_memory = agent_memory
         self._agent = None
+        self.prompt_manager = self._get_or_create_prompt_manager(None)
 
         # parse block_params
         if block_params is None:
@@ -147,6 +152,29 @@ class Block:
     @property
     def environment(self) -> Environment:
         return self._toolbox.environment
+    
+    @classmethod
+    def _get_or_create_prompt_manager(cls, simulation_prompt_config: Optional[dict]) -> Optional[PromptManager]:
+        # Keep one shared PromptManager for all Block subclasses.
+        if Block._shared_prompt_manager is not None:
+            cls._shared_prompt_manager = Block._shared_prompt_manager
+            return cls._shared_prompt_manager
+
+        try:
+            prompts_dir = str(Path(__file__).resolve().parents[1] / "prompts")
+            manager = PromptManager(
+                prompts_dir=prompts_dir,
+                active_config=simulation_prompt_config or {},
+            )
+            Block._shared_prompt_manager = manager
+            cls._shared_prompt_manager = manager
+        except Exception as e:
+            get_logger().warning(
+                f"Failed to initialize PromptManager: {e}"
+            )
+            Block._shared_prompt_manager = None
+            cls._shared_prompt_manager = None
+        return cls._shared_prompt_manager
 
     async def before_forward(self):
         """

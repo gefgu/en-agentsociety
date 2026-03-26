@@ -4,136 +4,9 @@ import json_repair
 from pydantic import Field
 from ...logger import get_logger
 from ...memory import Memory
-from ...agent import AgentToolbox, Block, FormatPrompt, BlockParams, Agent
+from ...agent import AgentToolbox, Block, BlockParams, Agent
 
 __all__ = ["CognitionBlock"]
-
-
-INITIAL_BIG5_PROMPT = """You are an intelligent agent psychographic initialization system. Based on the profile information below, please help initialize the agent's Big Five personality traits.
-
-Profile Information:
-- Gender: ${profile.gender}
-- Education Level: ${profile.education} 
-- Consumption Level: ${profile.consumption}
-- Occupation: ${profile.occupation}
-- Age: ${profile.age}
-- Monthly Income: ${profile.income}
-- Background Story: ${profile.background_story}
-
-Please initialize the agent's Big Five personality traits based on the profile above. Consider generally accepted associations between the provided demographic/socioeconomic factors and personality (e.g., occupation requirements, age maturity principles).
-
-Return the values in JSON format with the following structure:
-
-Psychographic Traits (Integer values 1-3, where 1=Low, 2=Medium, 3=High):
-- openness: Openness to experience (creativity, curiosity, preference for novelty)
-- conscientiousness: Conscientiousness (discipline, organization, dependability)
-- extraversion: Extraversion (sociability, energy, assertiveness)
-- agreeableness: Agreeableness (compassion, cooperativeness, trust)
-- neuroticism: Neuroticism (emotional instability, anxiety, moodiness)
-
-Please response in json format, example:
-{{
-    "psychographic_traits": {{
-        "openness": 2,
-        "conscientiousness": 3,
-        "extraversion": 2,
-        "agreeableness": 2,
-        "neuroticism": 1
-    }}
-}}
-DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
-DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
-DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
-"""
-
-INITIAL_HOBBIES_PROMPT = """You are an intelligent agent profile generator. Based on the demographic and psychographic information below, please generate a list of suitable hobbies for this agent.
-
-Profile Information:
-- Gender: ${profile.gender}
-- Age: ${profile.age}
-- Occupation: ${profile.occupation}
-- Income: ${profile.income}
-- Education: ${profile.education}
-- Household type: {household}
-- Life stage: {life_stage}
-
-Psychographic Traits (1-3 scale):
-- Openness: {openness}
-- Conscientiousness: {conscientiousness}
-- Extraversion: {extraversion}
-- Agreeableness: {agreeableness}
-- Neuroticism: {neuroticism}
-
-Please generate a list of 2-5 hobbies. 
-- Ensure the hobbies fit the agent's income level and age (e.g., "Golf" for higher income, "Video Games" for younger cohorts).
-- Ensure the hobbies reflect their Big 5 personality (e.g., High Extraversion -> Team Sports; High Openness -> Painting/Travel; High Conscientiousness -> Gardening/Chess).
-- These hobbies will be used to determine the agent's daily locations and routines.
-
-Return the values in JSON format with the following structure:
-
-{{
-    "hobbies": [
-        "Hobby Name 1",
-        "Hobby Name 2",
-        "Hobby Name 3"
-    ]
-}}
-
-Example Response:
-{{
-    "hobbies": [
-        "Photography",
-        "Hiking",
-        "Reading Sci-Fi"
-    ]
-}}
-
-DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
-"""
-
-INITIAL_PREFERENCES_PROMPT = """You are an intelligent agent behavioral analyst. Based on the demographic and psychographic profile below, please initialize the agent's daily habits and behavioral preferences.
-
-Profile Information:
-- Age: ${profile.age}
-- Occupation: ${profile.occupation}
-- Income: ${profile.income}
-- Household Composition: ${profile.household}
-
-Psychographic Traits (1-3 scale):
-- Openness: {openness}
-- Conscientiousness: {conscientiousness}
-- Extraversion: {extraversion}
-- Agreeableness: {agreeableness}
-- Neuroticism: {neuroticism}
-
-Please generate specific behavioral parameters. Use the personality traits to guide these values (e.g., High Conscientiousness = Early Riser, Low Consumption; High Extraversion = High Social Frequency).
-
-Return the values in JSON format with the following structure:
-
-- chronotype: "early_bird" (wakes ~6am), "night_owl" (wakes ~10am), or "standard" (wakes ~7-8am).
-- risk_tolerance: Float 0.0-1.0 (propensity to take financial or physical risks).
-- spending_tendency: Float 0.0-1.0 (0=Frugal/Saver, 1=Impulsive/Spender).
-- social_frequency: Float 0.0-1.0 (desired probability of initiating social interactions per day).
-- work_ethic: Float 0.0-1.0 (tendency to work overtime or prioritize work tasks).
-- leisure_preference: "outdoor", "indoor", "social", or "solitary" (dominant preference for free time).
-
-Example Response:
-{{
-    "preferences": {{
-        "chronotype": "night_owl",
-        "risk_tolerance": 0.7,
-        "spending_tendency": 0.8,
-        "social_frequency": 0.9,
-        "work_ethic": 0.3,
-        "leisure_preference": "social"
-    }}
-}}
-
-DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
-DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
-DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
-"""
-
 
 
 def extract_json(output_str):
@@ -212,6 +85,12 @@ class CognitionBlock(Block):
         self.initialized_big5 = False
         self.initialized_hobbies = False
         self.initialized_preferences = False
+        self.big5_prompt_name = "cognition_initialize_big5"
+        self.hobbies_prompt_name = "cognition_initialize_hobbies"
+        self.preferences_prompt_name = "cognition_initialize_preferences"
+        self.attitude_prompt_name = "cognition_attitude_update"
+        self.thought_prompt_name = "cognition_thought_update"
+        self.emotion_prompt_name = "cognition_emotion_update"
 
     async def set_status(self, status):
         """Update multiple status fields in memory.
@@ -237,83 +116,46 @@ class CognitionBlock(Block):
         Raises:
             Exception: If all LLM retries fail.
         """
+        if self.prompt_manager is None:
+            raise RuntimeError("PromptManager is not initialized")
+
         attitude = await self.memory.status.get("attitude")
-        big5 = await self.memory.status.get("big5", {})
-        prompt_data = {
-            "gender": await self.memory.status.get("gender"),
-            "age": await self.memory.status.get("age"),
-            "race": await self.memory.status.get("race"),
-            "religion": await self.memory.status.get("religion"),
-            "marriage_status": await self.memory.status.get("marriage_status"),
-            "residence": await self.memory.status.get("residence"),
-            "occupation": await self.memory.status.get("occupation"),
-            "education": await self.memory.status.get("education"),
-            "personality": await self.memory.status.get("personality"),
-            "consumption": await self.memory.status.get("consumption"),
-            "family_consumption": await self.memory.status.get("family_consumption"),
-            "income": await self.memory.status.get("income"),
-            "skill": await self.memory.status.get("skill"),
-            "thought": await self.memory.status.get("thought"),
-            "emotion_types": await self.memory.status.get("emotion_types"),
-            "openness": big5.get("openness", 2),
-            "conscientiousness": big5.get("conscientiousness", 2),
-            "extraversion": big5.get("extraversion", 2),
-            "agreeableness": big5.get("agreeableness", 2),
-            "neuroticism": big5.get("neuroticism", 2),
-        }
+        required_fields = self.prompt_manager.get_required_fields(self.attitude_prompt_name)
         for topic in attitude:
-            description_prompt = """
-            You are a {gender}, aged {age}, belonging to the {race} race and identifying as {religion}. 
-            Your marital status is {marriage_status}, and you currently reside in a {residence} area. 
-            Your occupation is {occupation}, and your education level is {education}. 
-            You are {personality}, with a consumption level of {consumption} and a family consumption level of {family_consumption}. 
-            Your income is {income}, and you are skilled in {skill}.
-            My current emotion intensities are (0 meaning not at all, 10 meaning very much):
-            sadness: {sadness}, joy: {joy}, fear: {fear}, disgust: {disgust}, anger: {anger}, surprise: {surprise}.
-            Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
-            openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
-            You have the following thoughts: {thought}.
-            In the following 21 words, I have chosen {emotion_types} to represent your current status:
-            Joy, Distress, Resentment, Pity, Hope, Fear, Satisfaction, Relief, Disappointment, Pride, Admiration, Shame, Reproach, Liking, Disliking, Gratitude, Anger, Gratification, Remorse, Love, Hate.
-            """
             incident_str = await self.memory.stream.search(
                 query=topic, top_k=self.params.top_k
             )
-            if incident_str:
-                incident_prompt = "Today, these incidents happened:"
-                incident_prompt += incident_str
-            else:
-                incident_prompt = "No incidents happened today."
-            previous_attitude = str(attitude[topic])  # Convert to string
-            problem_prompt = (
-                f"You need to decide your attitude towards topic: {topic}, "
-                f"which you previously rated your attitude towards this topic as: {previous_attitude} "
-                "(0 meaning oppose, 10 meaning support). "
-                'Please return a new attitude rating (0-10, smaller meaning oppose, larger meaning support) in JSON format, and explain, e.g. {{"attitude": 5}}'
-            )
-            question_prompt = description_prompt + incident_prompt + problem_prompt
-            question_prompt = FormatPrompt(question_prompt)
             emotion = await self.memory.status.get("emotion")
-            sadness = emotion["sadness"]
-            joy = emotion["joy"]
-            fear = emotion["fear"]
-            disgust = emotion["disgust"]
-            anger = emotion["anger"]
-            surprise = emotion["surprise"]
-            prompt_data["sadness"] = sadness
-            prompt_data["joy"] = joy
-            prompt_data["fear"] = fear
-            prompt_data["disgust"] = disgust
-            prompt_data["anger"] = anger
-            prompt_data["surprise"] = surprise
+            if incident_str:
+                incident_text = "Today, these incidents happened:" + incident_str
+            else:
+                incident_text = "No incidents happened today."
 
-            await question_prompt.format(**prompt_data)
+            context = {
+                "topic": topic,
+                "previous_attitude": str(attitude[topic]),
+                "incident_text": incident_text,
+                "sadness": emotion["sadness"],
+                "joy": emotion["joy"],
+                "fear": emotion["fear"],
+                "disgust": emotion["disgust"],
+                "anger": emotion["anger"],
+                "surprise": emotion["surprise"],
+            }
+            state_dict = await self.prompt_manager.build_agent_state(
+                required_fields=required_fields,
+                context=context,
+                memory=self.memory,
+            )
+            dialog = self.prompt_manager.format_prompt_to_dialog(
+                self.attitude_prompt_name, state_dict
+            )
             evaluation = True
             response = {}
             for retry in range(10):
                 try:
                     _response = await self.llm.atext_request(
-                        question_prompt.to_dialog(),
+                        dialog,
                         timeout=300,
                         response_format={"type": "json_object"},
                         context={
@@ -351,69 +193,32 @@ class CognitionBlock(Block):
         Raises:
             Exception: If all LLM retries fail.
         """
-        description_prompt = """
-        You are a {gender}, aged {age}, belonging to the {race} race and identifying as {religion}. 
-        Your marital status is {marriage_status}, and you currently reside in a {residence} area. 
-        Your occupation is {occupation}, and your education level is {education}. 
-        You are {personality}, with a consumption level of {consumption} and a family consumption level of {family_consumption}. 
-        Your income is {income}, and you are skilled in {skill}.
-        My current emotion intensities are (0 meaning not at all, 10 meaning very much):
-        sadness: {sadness}, joy: {joy}, fear: {fear}, disgust: {disgust}, anger: {anger}, surprise: {surprise}.
-        Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
-        openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
-        You have the following thoughts: {thought}.
-        In the following 21 words, I have chosen {emotion_types} to represent your current status:
-        Joy, Distress, Resentment, Pity, Hope, Fear, Satisfaction, Relief, Disappointment, Pride, Admiration, Shame, Reproach, Liking, Disliking, Gratitude, Anger, Gratification, Remorse, Love, Hate.
-        """
+        if self.prompt_manager is None:
+            raise RuntimeError("PromptManager is not initialized")
+
+        required_fields = self.prompt_manager.get_required_fields(self.thought_prompt_name)
         incident_str = await self.memory.stream.search_today(top_k=20)
-        if incident_str:
-            incident_prompt = "Today, these incidents happened:\n" + incident_str
-        else:
-            incident_prompt = "No incidents happened today."
-        question_prompt = """
-            Please review what happened today and share your thoughts and feelings about it.
-            Consider your current emotional state and experiences, then:
-            1. Summarize your thoughts and reflections on today's events
-            2. Choose one word that best describes your current emotional state from: Joy, Distress, Resentment, Pity, Hope, Fear, Satisfaction, Relief, Disappointment, Pride, Admiration, Shame, Reproach, Liking, Disliking, Gratitude, Anger, Gratification, Remorse, Love, Hate.
-            Return in JSON format, e.g. {{"thought": "Currently nothing good or bad is happening, I think ...."}}"""
-        question_prompt = description_prompt + incident_prompt + question_prompt
-        question_prompt = FormatPrompt(question_prompt)
         emotion = await self.memory.status.get("emotion")
-        sadness = emotion["sadness"]
-        joy = emotion["joy"]
-        fear = emotion["fear"]
-        disgust = emotion["disgust"]
-        anger = emotion["anger"]
-        surprise = emotion["surprise"]
-        big5 = await self.memory.status.get("big5", {})
-        await question_prompt.format(
-            gender=await self.memory.status.get("gender"),
-            age=await self.memory.status.get("age"),
-            race=await self.memory.status.get("race"),
-            religion=await self.memory.status.get("religion"),
-            marriage_status=await self.memory.status.get("marriage_status"),
-            residence=await self.memory.status.get("residence"),
-            occupation=await self.memory.status.get("occupation"),
-            education=await self.memory.status.get("education"),
-            personality=await self.memory.status.get("personality"),
-            consumption=await self.memory.status.get("consumption"),
-            family_consumption=await self.memory.status.get("family_consumption"),
-            income=await self.memory.status.get("income"),
-            skill=await self.memory.status.get("skill"),
-            sadness=sadness,
-            joy=joy,
-            fear=fear,
-            disgust=disgust,
-            anger=anger,
-            surprise=surprise,
-            emotion=await self.memory.status.get("emotion"),
-            thought=await self.memory.status.get("thought"),
-            emotion_types=await self.memory.status.get("emotion_types"),
-            openness=big5.get("openness", 2),
-            conscientiousness=big5.get("conscientiousness", 2),
-            extraversion=big5.get("extraversion", 2),
-            agreeableness=big5.get("agreeableness", 2),
-            neuroticism=big5.get("neuroticism", 2),
+        if incident_str:
+            incident_text = "Today, these incidents happened:\n" + incident_str
+        else:
+            incident_text = "No incidents happened today."
+
+        state_dict = await self.prompt_manager.build_agent_state(
+            required_fields=required_fields,
+            context={
+                "incident_text": incident_text,
+                "sadness": emotion["sadness"],
+                "joy": emotion["joy"],
+                "fear": emotion["fear"],
+                "disgust": emotion["disgust"],
+                "anger": emotion["anger"],
+                "surprise": emotion["surprise"],
+            },
+            memory=self.memory,
+        )
+        dialog = self.prompt_manager.format_prompt_to_dialog(
+            self.thought_prompt_name, state_dict
         )
 
         evaluation = True
@@ -421,7 +226,7 @@ class CognitionBlock(Block):
         for retry in range(10):
             try:
                 _response = await self.llm.atext_request(
-                    question_prompt.to_dialog(),
+                    dialog,
                     timeout=300,
                     response_format={"type": "json_object"},
                     context={
@@ -495,64 +300,26 @@ class CognitionBlock(Block):
             3. Query LLM for updated emotion scores and summary
             4. Update memory with new emotional state
         """
-        description_prompt = """
-        You are a {gender}, aged {age}, belonging to the {race} race and identifying as {religion}. 
-        Your marital status is {marriage_status}, and you currently reside in a {residence} area. 
-        Your occupation is {occupation}, and your education level is {education}. 
-        You are {personality}, with a consumption level of {consumption} and a family consumption level of {family_consumption}. 
-        Your income is {income}, and you are skilled in {skill}.
-        My current emotion intensities are (0 meaning not at all, 10 meaning very much):
-        sadness: {sadness}, joy: {joy}, fear: {fear}, disgust: {disgust}, anger: {anger}, surprise: {surprise}.
-        Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
-        openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
-        You have the following thoughts: {thought}.
-        In the following 21 words, choose one word to represent your current status:
-        [Joy, Distress, Resentment, Pity, Hope, Fear, Satisfaction, Relief, Disappointment, Pride, Admiration, Shame, Reproach, Liking, Disliking, Gratitude, Anger, Gratification, Remorse, Love, Hate].
-        """
+        if self.prompt_manager is None:
+            raise RuntimeError("PromptManager is not initialized")
 
-        incident_prompt = f"{incident}"  # waiting for incident port
-        question_prompt = """
-            Please reconsider your emotion intensities: 
-            sadness, joy, fear, disgust, anger, surprise (0 meaning not at all, 10 meaning very much).
-            Return in JSON format, e.g. {{"sadness": 5, "joy": 5, "fear": 5, "disgust": 5, "anger": 5, "surprise": 5, "conclusion": "I feel ...", "word": "Relief"}}"""
-        question_prompt = description_prompt + incident_prompt + question_prompt
-        question_prompt = FormatPrompt(question_prompt)
+        required_fields = self.prompt_manager.get_required_fields(self.emotion_prompt_name)
         emotion = await self.memory.status.get("emotion")
-        sadness = emotion["sadness"]
-        joy = emotion["joy"]
-        fear = emotion["fear"]
-        disgust = emotion["disgust"]
-        anger = emotion["anger"]
-        surprise = emotion["surprise"]
-        big5 = await self.memory.status.get("big5", {})
-        await question_prompt.format(
-            gender=await self.memory.status.get("gender"),
-            age=await self.memory.status.get("age"),
-            race=await self.memory.status.get("race"),
-            religion=await self.memory.status.get("religion"),
-            marriage_status=await self.memory.status.get("marriage_status"),
-            residence=await self.memory.status.get("residence"),
-            occupation=await self.memory.status.get("occupation"),
-            education=await self.memory.status.get("education"),
-            personality=await self.memory.status.get("personality"),
-            consumption=await self.memory.status.get("consumption"),
-            family_consumption=await self.memory.status.get("family_consumption"),
-            income=await self.memory.status.get("income"),
-            skill=await self.memory.status.get("skill"),
-            sadness=sadness,
-            joy=joy,
-            fear=fear,
-            disgust=disgust,
-            anger=anger,
-            surprise=surprise,
-            emotion=await self.memory.status.get("emotion"),
-            thought=await self.memory.status.get("thought"),
-            emotion_types=await self.memory.status.get("emotion_types"),
-            openness=big5.get("openness", 2),
-            conscientiousness=big5.get("conscientiousness", 2),
-            extraversion=big5.get("extraversion", 2),
-            agreeableness=big5.get("agreeableness", 2),
-            neuroticism=big5.get("neuroticism", 2),
+        state_dict = await self.prompt_manager.build_agent_state(
+            required_fields=required_fields,
+            context={
+                "incident_text": incident,
+                "sadness": emotion["sadness"],
+                "joy": emotion["joy"],
+                "fear": emotion["fear"],
+                "disgust": emotion["disgust"],
+                "anger": emotion["anger"],
+                "surprise": emotion["surprise"],
+            },
+            memory=self.memory,
+        )
+        dialog = self.prompt_manager.format_prompt_to_dialog(
+            self.emotion_prompt_name, state_dict
         )
 
         evaluation = True
@@ -561,7 +328,7 @@ class CognitionBlock(Block):
         for retry in range(10):
             try:
                 _response = await self.llm.atext_request(
-                    question_prompt.to_dialog(),
+                    dialog,
                     timeout=300,
                     response_format={"type": "json_object"},
                     context={
@@ -623,21 +390,21 @@ class CognitionBlock(Block):
             self.initialized_big5 = True
             return
 
-        profile = {
-            "gender": await self.memory.status.get("gender"),
-            "education": await self.memory.status.get("education"),
-            "consumption": await self.memory.status.get("consumption"),
-            "occupation": await self.memory.status.get("occupation"),
-            "age": await self.memory.status.get("age"),
-            "income": await self.memory.status.get("income"),
-            "background_story": await self.memory.status.get("background_story"),
-        }
+        if self.prompt_manager is None:
+            raise RuntimeError("PromptManager is not initialized")
 
-        prompt = FormatPrompt(INITIAL_BIG5_PROMPT)
-        await prompt.format(profile=profile)
+        required_fields = self.prompt_manager.get_required_fields(self.big5_prompt_name)
+        state_dict = await self.prompt_manager.build_agent_state(
+            required_fields=required_fields,
+            context={},
+            memory=self.memory,
+        )
+        dialog = self.prompt_manager.format_prompt_to_dialog(
+            self.big5_prompt_name, state_dict
+        )
 
         response = await self.llm.atext_request(
-            prompt.to_dialog(),
+            dialog,
             response_format={"type": "json_object"},
             context={
                 "block_name": self.name,
@@ -646,22 +413,10 @@ class CognitionBlock(Block):
             })
         
         response = clean_json_response(response)
-        retry = 3
-        while retry > 0:
-            try:
-                response = json_repair.loads(response)
-
-                psychographic_traits = response["psychographic_traits"]
-                await self.memory.status.update("big5", psychographic_traits)
-
-                break
-            except Exception:
-                get_logger().warning(f"CognitionBlock.initalize_big5: Failed to parse JSON response, retrying... ({3 - retry + 1}/3)")
-                retry -= 1
-        if retry == 0:
-            get_logger().warning(f"CognitionBlock.initalize_big5: Failed to parse JSON response after 3 attempts. Final response: {response}")
-        else:
-            self.initialized_big5 = True
+        response = json_repair.loads(response)
+        psychographic_traits = response["psychographic_traits"]
+        await self.memory.status.update("big5", psychographic_traits)
+        self.initialized_big5 = True
 
     async def initialize_hobbies(self):
         """Initialize the agent's hobbies based on profile and psychographic information.
@@ -684,33 +439,21 @@ class CognitionBlock(Block):
         if len(current_hobbies) > 0:
             return
 
-        profile = {
-            "gender": await self.memory.status.get("gender"),
-            "age": await self.memory.status.get("age"),
-            "occupation": await self.memory.status.get("occupation"),
-            "income": await self.memory.status.get("income"),
-            "education": await self.memory.status.get("education"),
-        }
+        if self.prompt_manager is None:
+            raise RuntimeError("PromptManager is not initialized")
 
-        big5 = await self.memory.status.get("big5", {})
-
-        household = await self.memory.status.get("household")
-        life_stage = await self.memory.status.get("life_stage")
-
-        prompt = FormatPrompt(INITIAL_HOBBIES_PROMPT)
-        await prompt.format(
-            profile=profile,
-            openness=big5.get("openness", 2),
-            conscientiousness=big5.get("conscientiousness", 2),
-            extraversion=big5.get("extraversion", 2),
-            agreeableness=big5.get("agreeableness", 2),
-            neuroticism=big5.get("neuroticism", 2),
-            household=household,
-            life_stage=life_stage
+        required_fields = self.prompt_manager.get_required_fields(self.hobbies_prompt_name)
+        state_dict = await self.prompt_manager.build_agent_state(
+            required_fields=required_fields,
+            context={},
+            memory=self.memory,
+        )
+        dialog = self.prompt_manager.format_prompt_to_dialog(
+            self.hobbies_prompt_name, state_dict
         )
 
         response = await self.llm.atext_request(
-            prompt.to_dialog(),
+            dialog,
             response_format={"type": "json_object"},
             context={
                 "block_name": self.name,
@@ -719,20 +462,10 @@ class CognitionBlock(Block):
             }
         )
         response = clean_json_response(response)
-        retry = 3
-        while retry > 0:
-            try:
-                response = json_repair.loads(response)
-                hobbies = response["hobbies"]
-                await self.memory.status.update("hobbies", hobbies)
-                break
-            except Exception:
-                get_logger().warning(f"CognitionBlock.initalize_hobbies: Failed to parse JSON response, retrying... ({3 - retry + 1}/3)")
-                retry -= 1
-        if retry == 0:            
-            get_logger().warning(f"CognitionBlock.initalize_hobbies: Failed to parse JSON response after 3 attempts. Final response: {response}")
-        else:
-            self.initialized_hobbies = True
+        response = json_repair.loads(response)
+        hobbies = response["hobbies"]
+        await self.memory.status.update("hobbies", hobbies)
+        self.initialized_hobbies = True
 
     async def initialize_preferences(self):
         """Initialize the agent's behavioral preferences based on profile and psychographic information.
@@ -761,27 +494,23 @@ class CognitionBlock(Block):
         ):
             return
 
-        profile = {
-            "age": await self.memory.status.get("age"),
-            "occupation": await self.memory.status.get("occupation"),
-            "income": await self.memory.status.get("income"),
-            "household": await self.memory.status.get("household"),
-        }
+        if self.prompt_manager is None:
+            raise RuntimeError("PromptManager is not initialized")
 
-        big5 = await self.memory.status.get("big5", {})
-
-        prompt = FormatPrompt(INITIAL_PREFERENCES_PROMPT)
-        await prompt.format(
-            profile=profile,
-            openness=big5.get("openness", 2),
-            conscientiousness=big5.get("conscientiousness", 2),
-            extraversion=big5.get("extraversion", 2),
-            agreeableness=big5.get("agreeableness", 2),
-            neuroticism=big5.get("neuroticism", 2),
+        required_fields = self.prompt_manager.get_required_fields(
+            self.preferences_prompt_name
+        )
+        state_dict = await self.prompt_manager.build_agent_state(
+            required_fields=required_fields,
+            context={},
+            memory=self.memory,
+        )
+        dialog = self.prompt_manager.format_prompt_to_dialog(
+            self.preferences_prompt_name, state_dict
         )
 
         response = await self.llm.atext_request(
-            prompt.to_dialog(),
+            dialog,
             response_format={"type": "json_object"},
             context={
                 "block_name": self.name,
@@ -790,17 +519,7 @@ class CognitionBlock(Block):
             }
         )
         response = clean_json_response(response)
-        retry = 3
-        while retry > 0:
-            try:
-                response = json_repair.loads(response)
-                preferences = response["preferences"]
-                await self.memory.status.update("preferences", preferences)
-                break
-            except Exception:
-                get_logger().warning(f"CognitionBlock.initalize_preferences: Failed to parse JSON response, retrying... ({3 - retry + 1}/3)")
-                retry -= 1
-        if retry == 0:
-            get_logger().warning(f"CognitionBlock.initalize_preferences: Failed to parse JSON response after 3 attempts. Final response: {response}")
-        else:
-            self.initialized_preferences = True
+        response = json_repair.loads(response)
+        preferences = response["preferences"]
+        await self.memory.status.update("preferences", preferences)
+        self.initialized_preferences = True

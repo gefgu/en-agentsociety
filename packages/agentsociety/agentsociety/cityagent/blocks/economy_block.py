@@ -10,7 +10,6 @@ from pydantic import Field
 from ...agent import (
     AgentToolbox,
     Block,
-    FormatPrompt,
     BlockParams,
     BlockDispatcher,
     DotDict,
@@ -21,44 +20,6 @@ from ...memory import Memory
 from ..sharing_params import SocietyAgentBlockOutput
 from .utils import clean_json_response, prettify_document
 from .utils import extract_dict_from_string
-
-WORKTIME_ESTIMATE_PROMPT = """As an intelligent agent's time estimation system, please estimate the time needed to complete the current action based on the overall plan and current intention.
-
-Overall plan:
-${context.plan_context["plan"]}
-
-Current action: ${context.current_step["intention"]}
-
-Current emotion: ${status.emotion_types}
-
-Household type: {household}
-Life stage: {life_stage}
-Hobbies: {hobbies}
-Goals: {goals}
-
-Big Five Personality Traits (1=Low, 2=Medium, 3=High):
-- Openness: {openness}
-- Conscientiousness: {conscientiousness}
-- Extraversion: {extraversion}
-- Agreeableness: {agreeableness}
-- Neuroticism: {neuroticism}
-
-Behavioral Preferences:
-- Work Ethic: {work_ethic} (0.0=Low work priority/minimal hours, 1.0=High work priority/tends to work overtime)
-
-Examples:
-- "Learn programming": {{"time": 120}}
-- "Watch a movie": {{"time": 150}} 
-- "Play mobile games": {{"time": 60}}
-- "Read a book": {{"time": 90}}
-- "Exercise": {{"time": 45}}
-
-Please return the result in JSON format (Do not return any other text), the time unit is [minute], example:
-{{
-    "time": 10
-}}
-"""
-
 
 def softmax(x, gamma=1.0):
     """Compute softmax values with temperature scaling.
@@ -92,7 +53,6 @@ class WorkBlock(Block):
         self,
         toolbox: AgentToolbox,
         agent_memory: Memory,
-        worktime_estimation_prompt: str = WORKTIME_ESTIMATE_PROMPT,
     ):
         """Initialize with dependencies.
 
@@ -105,10 +65,7 @@ class WorkBlock(Block):
             toolbox=toolbox,
             agent_memory=agent_memory,
         )
-        self.guidance_prompt = FormatPrompt(
-            template=worktime_estimation_prompt,
-            memory=agent_memory,
-        )
+        self.prompt_name = "worktime_estimate"
 
     async def forward(self, context: DotDict):
         """Process work task and track time expenditure.
@@ -122,36 +79,18 @@ class WorkBlock(Block):
         Returns:
             Execution result with time consumption details
         """
-        # Get Big Five personality traits
-        big5 = await self.memory.status.get("big5", {})
+        if self.prompt_manager is None:
+            raise RuntimeError("PromptManager is not initialized")
 
-        # Get household and life stage
-        household = await self.memory.status.get("household", "unknown")
-        life_stage = await self.memory.status.get("life_stage", "unknown")
-        hobbies = await self.memory.status.get("hobbies", [])
-        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
-        goals = await self.memory.status.get("goals", [])
-        goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
-
-        # Get preferences
-        preferences = await self.memory.status.get("preferences", {})
-        work_ethic = preferences.get("work_ethic", 0.5)
-
-        await self.guidance_prompt.format(
-            context=context,
-            household=household,
-            life_stage=life_stage,
-            hobbies=hobbies_str,
-            goals=goals_str,
-            work_ethic=work_ethic,
-            openness=big5.get("openness", 2),
-            conscientiousness=big5.get("conscientiousness", 2),
-            extraversion=big5.get("extraversion", 2),
-            agreeableness=big5.get("agreeableness", 2),
-            neuroticism=big5.get("neuroticism", 2),
+        required_fields = self.prompt_manager.get_required_fields(self.prompt_name)
+        state_dict = await self.prompt_manager.build_agent_state(
+            required_fields, context, self.memory
+        )
+        final_prompt = self.prompt_manager.format_prompt_to_dialog(
+            self.prompt_name, state_dict
         )
         result = await self.llm.atext_request(
-            self.guidance_prompt.to_dialog(),
+            final_prompt,
             response_format={"type": "json_object"},
             context={
                 "block_name": self.name,
@@ -316,9 +255,6 @@ class EconomyNoneBlock(Block):
         }
 
 class EconomyBlockParams(BlockParams):
-    worktime_estimation_prompt: str = Field(
-        default=WORKTIME_ESTIMATE_PROMPT, description="Used to determine the worktime"
-    )
     UBI: float = Field(default=0, description="Universal Basic Income")
     num_labor_hours: int = Field(
         default=168, description="Number of labor hours per month"
@@ -378,7 +314,6 @@ class EconomyBlock(Block):
         self.work_block = WorkBlock(
             toolbox=toolbox,
             agent_memory=agent_memory,
-            worktime_estimation_prompt=self.params.worktime_estimation_prompt,
         )
         self.consumption_block = ConsumptionBlock(
             toolbox=toolbox,
@@ -471,6 +406,9 @@ class MonthEconomyPlanBlock(Block):
         self.num_labor_hours = num_labor_hours
         self.productivity_per_labor = productivity_per_labor
         self.time_diff = time_diff
+        self.month_plan_prompt_name = "month_plan_observation"
+        self.mental_health_prompt_name = "month_plan_mental_health_assessment"
+        self.goal_creation_prompt_name = "month_plan_goal_creation"
 
     async def month_trigger(self):
         """Check if monthly planning cycle should activate."""
@@ -482,6 +420,11 @@ class MonthEconomyPlanBlock(Block):
             self.last_time_trigger = now_tick
             return True
         return False
+
+    def _format_prompt(self, prompt_name: str, state_dict: dict[str, Any]) -> str:
+        if self.prompt_manager is None:
+            raise RuntimeError("PromptManager is not initialized")
+        return prettify_document(self.prompt_manager.format_prompt(prompt_name, state_dict))
 
     async def forward(self):
         """Execute monthly planning workflow.
@@ -499,59 +442,61 @@ class MonthEconomyPlanBlock(Block):
             firm_id = await self.memory.status.get("firm_id")
             bank_id = await self.environment.economy_client.get_bank_ids()
             bank_id = bank_id[0]
-            name = await self.memory.status.get("name")
-            age = await self.memory.status.get("age")
-            city = await self.memory.status.get("city")
-            job = await self.memory.status.get("occupation")
             skill, consumption, wealth = await self.environment.economy_client.get(
                 agent_id, ["skill", "consumption", "currency"]
             )
             get_logger().debug(f"type of skill: {type(skill)}, value: {skill}")
-            tax_paid = await self.memory.status.get("tax_paid")
-            prices = await self.environment.economy_client.get(firms_id, "price")
-            price = np.mean(prices)
-            interest_rate = await self.environment.economy_client.get(
-                bank_id, "interest_rate"
+            if self.prompt_manager is None:
+                raise RuntimeError("PromptManager is not initialized")
+
+            obs_required_fields = self.prompt_manager.get_required_fields(
+                self.month_plan_prompt_name
             )
+            obs_context: dict[str, Any] = {
+                "skill": f"{skill:.2f}",
+                "wealth": f"{wealth:.2f}",
+            }
 
-            problem_prompt = f"""
-                    You're {name}, a {age}-year-old individual living in {city}. As with all Americans, a portion of your monthly income is taxed by the federal government. This taxation system is tiered, income is taxed cumulatively within defined brackets, combined with a redistributive policy: after collection, the government evenly redistributes the tax revenue back to all citizens, irrespective of their earnings.
-                """
-            job_prompt = f"""
-                        In the previous month, you worked as a(an) {job}. If you continue working this month, your expected hourly income will be ${skill:.2f}.
-                    """
-            consumption_propensity = await self.memory.status.get(
-                "consumption_propensity"
+            if "consumption_summary" in obs_required_fields:
+                consumption_propensity = await self.memory.status.get(
+                    "consumption_propensity"
+                )
+                if (consumption <= 0) and (consumption_propensity > 0):
+                    obs_context["consumption_summary"] = (
+                        "Besides, you had no consumption due to shortage of goods."
+                    )
+                else:
+                    obs_context["consumption_summary"] = (
+                        f"Besides, your consumption was ${consumption:.2f}."
+                    )
+
+            if "tax_summary" in obs_required_fields:
+                tax_paid = await self.memory.status.get("tax_paid")
+                tax_summary = (
+                    f"Your tax deduction amounted to ${tax_paid:.2f}, and the government "
+                    "uses the tax revenue to provide social services to all citizens."
+                )
+                if self.ubi and self.forward_times >= 96:
+                    tax_summary = (
+                        f"{tax_summary} Specifically, the government directly provides "
+                        f"${self.ubi} per capita in each month."
+                    )
+                obs_context["tax_summary"] = tax_summary
+
+            if "price" in obs_required_fields:
+                prices = await self.environment.economy_client.get(firms_id, "price")
+                obs_context["price"] = f"{np.mean(prices):.2f}"
+
+            if "interest_rate_pct" in obs_required_fields:
+                interest_rate = await self.environment.economy_client.get(
+                    bank_id, "interest_rate"
+                )
+                obs_context["interest_rate_pct"] = f"{interest_rate*100:.2f}"
+
+            obs_state = await self.prompt_manager.build_agent_state(
+                obs_required_fields, obs_context, self.memory
             )
-            if (consumption <= 0) and (consumption_propensity > 0):
-                consumption_prompt = """
-                            Besides, you had no consumption due to shortage of goods.
-                        """
-            else:
-                consumption_prompt = f"""
-                            Besides, your consumption was ${consumption:.2f}.
-                        """
-            tax_prompt = f"""Your tax deduction amounted to ${tax_paid:.2f}, and the government uses the tax revenue to provide social services to all citizens."""
-            if self.ubi and self.forward_times >= 96:
-                tax_prompt = f"{tax_prompt} Specifically, the government directly provides ${self.ubi} per capita in each month."
-            price_prompt = f"""Meanwhile, in the consumption market, the average price of essential goods is now at ${price:.2f}."""
-            job_prompt = prettify_document(job_prompt)
-
-            big5 = await self.memory.status.get("big5", {})
-            personality_prompt = f"""Your personality traits are as follows: openness {big5.get("openness", 2)}, conscientiousness {big5.get("conscientiousness", 2)}, extraversion {big5.get("extraversion", 2)}, agreeableness {big5.get("agreeableness", 2)}, and neuroticism {big5.get("neuroticism", 2)}. Your household type is {await self.memory.status.get("household", "unknown")} and your life stage is {await self.memory.status.get("life_stage", "unknown")}."""
-
-            obs_prompt = f"""
-                            {problem_prompt} {job_prompt} {consumption_prompt} {tax_prompt} {price_prompt} {personality_prompt}
-                            Your current savings account balance is ${wealth:.2f}. Interest rates, as set by your bank, stand at {interest_rate*100:.2f}%. 
-                            Your goal is to maximize your utility by deciding how much to work and how much to consume. Your utility is determined by your consumption, income, saving, social service recieved and leisure time. You will spend the time you do not work on leisure activities. 
-                            With all these factors in play, and considering aspects like your living costs, any future aspirations, and the broader economic trends, how is your willingness to work this month? Furthermore, how would you plan your expenditures on essential goods, keeping in mind good price?
-                            Please share your decisions in a JSON format as follows:
-                            {{'work': a value between 0 and 1, indicating the propensity to work,
-                            'consumption': a value between 0 and 1, indicating the proportion of all your savings and income you intend to spend on essential goods
-                            }}
-                            Any other output words are NOT allowed.
-                        """
-            obs_prompt = prettify_document(obs_prompt)
+            obs_prompt = self._format_prompt(self.month_plan_prompt_name, obs_state)
             try:
                 await self.memory.status.update(
                     "dialog_queue",
@@ -619,39 +564,17 @@ class MonthEconomyPlanBlock(Block):
             await self.environment.economy_client.update(agent_id, "currency", wealth)
 
             if self.forward_times % 3 == 0:
-                obs_prompt = f"""
-                                {problem_prompt} {job_prompt} {consumption_prompt} {tax_prompt} {price_prompt} {personality_prompt}
-                                Your current savings account balance is ${wealth:.2f}. Interest rates, as set by your bank, stand at {interest_rate*100:.2f}%. 
-                                Please fill in the following questionnaire:
-                                Indicate how often you have felt this way during the last week by choosing one of the following options:
-                                "Rarely" means Rarely or none of the time (less than 1 day),
-                                "Some" means Some or a little of the time (1-2 days),
-                                "Occasionally" means Occasionally or a moderate amount of the time (3-4 days),
-                                "Most" means Most or all of the time (5-7 days).
-                                Statement 1: I was bothered by things that usually don't bother me.  
-                                Statement 2: I did not feel like eating; my appetite was poor.
-                                Statement 3: I felt that I could not shake off the blues even with help from my family or friends.
-                                Statement 4: I felt that I was just as good as other people.
-                                Statement 5: I had trouble keeping my mind on what I was doing.
-                                Statement 6: I felt depressed.
-                                Statement 7: I felt that everything I did was an effort.
-                                Statement 8: I felt hopeful about the future.
-                                Statement 9: I thought my life had been a failure.
-                                Statement 10: I felt fearful.
-                                Statement 11: My sleep was restless.
-                                Statement 12: I was happy.
-                                Statement 13: I talked less than usual.
-                                Statement 14: I felt lonely.
-                                Statement 15: People were unfriendly.
-                                Statement 16: I enjoyed life.
-                                Statement 17: I had crying spells.
-                                Statement 18: I felt sad.
-                                Statement 19: I felt that people disliked me.
-                                Statement 20: I could not get "going".
-                                Please response with json format with keys being numbers 1-20 and values being one of "Rarely", "Some", "Occasionally", "Most".
-                                Any other output words are NOT allowed.
-                            """
-                obs_prompt = prettify_document(obs_prompt)
+                mental_required_fields = self.prompt_manager.get_required_fields(
+                    self.mental_health_prompt_name
+                )
+                mental_context = dict(obs_context)
+                mental_context["wealth"] = f"{wealth:.2f}"
+                mental_state = await self.prompt_manager.build_agent_state(
+                    mental_required_fields, mental_context, self.memory
+                )
+                obs_prompt = self._format_prompt(
+                    self.mental_health_prompt_name, mental_state
+                )
                 content = await self.llm.atext_request(
                     [{"role": "user", "content": obs_prompt}],
                     timeout=300,
@@ -676,45 +599,51 @@ class MonthEconomyPlanBlock(Block):
                     self.llm_error += 1
 
             # Goal Creation
-            financial_stress = income < (0.9 * consumption)
-            need_fulfillment = await self.memory.status.get(
-                "mean_need_fulfillment", 0.5
+            goals_required_fields = self.prompt_manager.get_required_fields(
+                self.goal_creation_prompt_name
             )
+            goals_context: dict[str, Any] = {
+                "income": f"{income:.2f}",
+                "consumption": f"{consumption:.2f}",
+                "wealth": f"{wealth:.2f}",
+            }
 
-            social_isolation = (
-                await self.agent.blocks[1].get_number_of_contacts_in_last_7_days()
-            ) < 3 # Block 1 is the social block
-            interest = await self.memory.spatial.get_interest()
-            major_events_memories = await self.memory.stream.search(
-                query="major_event", top_k=5
+            if "financial_stress" in goals_required_fields:
+                financial_stress = income < (0.9 * consumption)
+                goals_context["financial_stress"] = (
+                    "Yes" if financial_stress else "No"
+                )
+
+            if "need_fulfillment" in goals_required_fields:
+                need_fulfillment = await self.memory.status.get(
+                    "mean_need_fulfillment", 0.5
+                )
+                goals_context["need_fulfillment"] = f"{need_fulfillment:.2f}"
+
+            if "social_isolation" in goals_required_fields:
+                social_isolation = (
+                    await self.agent.blocks[1].get_number_of_contacts_in_last_7_days()
+                ) < 3
+                goals_context["social_isolation"] = (
+                    "Yes" if social_isolation else "No"
+                )
+
+            if "interest" in goals_required_fields:
+                interest = await self.memory.spatial.get_interest()
+                goals_context["interest"] = f"{interest:.2f}"
+
+            if "major_events_memories" in goals_required_fields:
+                major_events_memories = await self.memory.stream.search(
+                    query="major_event", top_k=5
+                )
+                goals_context["major_events_memories"] = str(major_events_memories)
+
+            goals_state = await self.prompt_manager.build_agent_state(
+                goals_required_fields, goals_context, self.memory
             )
-
-            GOALS_PROMPT = f"""
-                Given the following economic and social context, please create 3 to 5 goals that I can achieve in the next month. These goals should be specific, measurable, achievable, relevant, and time-bound (SMART). 
-
-                Economic Context:
-                - Income: ${income:.2f} per month
-                - Consumption: ${consumption:.2f} per month
-                - Wealth: ${wealth:.2f}
-                - Financial Stress: {"Yes" if financial_stress else "No"}
-                - Need Fulfillment: {need_fulfillment:.2f} (0 to 1 scale)
-                - Social Isolation: {"Yes" if social_isolation else "No"}
-                - Interest in New Experiences: {interest:.2f} (0 to 1 scale)
-
-                Recent Major Events:
-                {major_events_memories}
-
-                Please generate goals that can help improve my economic situation, mental well-being, and social connections based on the above context.
-                Return a JSON array of goal, with just the goal description, without any other text. For example:
-                [
-                    "Find a part-time job in retail to increase my monthly income.",
-                    "Reduce my monthly consumption by 20% by cooking at home more often.",
-                    "Save at least $100 from my income by cutting unnecessary expenses.",
-                    "Engage in a new hobby or activity to increase my interest in new experiences.",
-                    "Reconnect with an old friend to reduce social isolation."
-                ]
-            """
-            GOALS_PROMPT = prettify_document(GOALS_PROMPT)
+            GOALS_PROMPT = self._format_prompt(
+                self.goal_creation_prompt_name, goals_state
+            )
             content = await self.llm.atext_request(
                 [{"role": "user", "content": GOALS_PROMPT}],
                 timeout=300,

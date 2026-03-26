@@ -1,0 +1,60 @@
+[metadata]
+name = "worktime_estimate"
+version = "1.1.0"
+origin = "citysim"
+description = "A prompt for estimating the time needed to complete an action based on the overall plan"
+
+[inputs]
+required = [
+    "plan",
+    "current_intention",
+    "emotion_types",
+    "household",
+    "life_stage",
+    "hobbies",
+    "goals",
+    "openness",
+    "conscientiousness",
+    "extraversion",
+    "agreeableness",
+    "neuroticism",
+    "work_ethic"
+]
+
+[prompt]
+input = """As an intelligent agent's time estimation system, please estimate the time needed to complete the current action based on the overall plan and current intention.
+
+Overall plan:
+{plan}
+
+Current action: {current_intention}
+
+Current emotion: {emotion_types}
+
+Household type: {household}
+Life stage: {life_stage}
+Hobbies: {hobbies}
+Goals: {goals}
+
+Big Five Personality Traits (1=Low, 2=Medium, 3=High):
+- Openness: {openness}
+- Conscientiousness: {conscientiousness}
+- Extraversion: {extraversion}
+- Agreeableness: {agreeableness}
+- Neuroticism: {neuroticism}
+
+Behavioral Preferences:
+- Work Ethic: {work_ethic} (0.0=Low work priority/minimal hours, 1.0=High work priority/tends to work overtime)
+
+Examples:
+- "Learn programming": {{"time": 120}}
+- "Watch a movie": {{"time": 150}} 
+- "Play mobile games": {{"time": 60}}
+- "Read a book": {{"time": 90}}
+- "Exercise": {{"time": 45}}
+
+Please return the result in JSON format (Do not return any other text), the time unit is [minute], example:
+{{
+    "time": 10
+}}
+"""

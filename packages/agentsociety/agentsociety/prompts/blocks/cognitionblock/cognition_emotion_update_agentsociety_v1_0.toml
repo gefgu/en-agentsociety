@@ -1,0 +1,59 @@
+[metadata]
+name = "cognition_emotion_update"
+version = "1.0.0"
+origin = "agentsociety"
+description = "Update emotion intensities from incident context"
+
+[inputs]
+required = [
+  "gender",
+  "age",
+  "race",
+  "religion",
+  "marriage_status",
+  "residence",
+  "occupation",
+  "education",
+  "personality",
+  "consumption",
+  "family_consumption",
+  "income",
+  "skill",
+  "thought",
+  "openness",
+  "conscientiousness",
+  "extraversion",
+  "agreeableness",
+  "neuroticism",
+  "sadness",
+  "joy",
+  "fear",
+  "disgust",
+  "anger",
+  "surprise",
+  "incident_text"
+]
+
+[prompt]
+input = """You are a {gender}, aged {age}, belonging to the {race} race and identifying as {religion}.
+Your marital status is {marriage_status}, and you currently reside in a {residence} area.
+Your occupation is {occupation}, and your education level is {education}.
+You are {personality}, with a consumption level of {consumption} and a family consumption level of {family_consumption}.
+Your income is {income}, and you are skilled in {skill}.
+
+My current emotion intensities are (0 meaning not at all, 10 meaning very much):
+sadness: {sadness}, joy: {joy}, fear: {fear}, disgust: {disgust}, anger: {anger}, surprise: {surprise}.
+
+Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
+openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
+
+You have the following thoughts: {thought}.
+In the following 21 words, choose one word to represent your current status:
+[Joy, Distress, Resentment, Pity, Hope, Fear, Satisfaction, Relief, Disappointment, Pride, Admiration, Shame, Reproach, Liking, Disliking, Gratitude, Anger, Gratification, Remorse, Love, Hate].
+
+Incident:
+{incident_text}
+
+Please reconsider your emotion intensities: sadness, joy, fear, disgust, anger, surprise (0 meaning not at all, 10 meaning very much).
+Return in JSON format, e.g. {{"sadness": 5, "joy": 5, "fear": 5, "disgust": 5, "anger": 5, "surprise": 5, "conclusion": "I feel ...", "word": "Relief"}}.
+"""

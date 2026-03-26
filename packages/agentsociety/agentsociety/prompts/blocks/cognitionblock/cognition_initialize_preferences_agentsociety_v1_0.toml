@@ -1,0 +1,62 @@
+[metadata]
+name = "cognition_initialize_preferences"
+version = "1.0.0"
+origin = "agentsociety"
+description = "Initialize behavioral preferences from profile and psychographics"
+
+[inputs]
+required = [
+  "age",
+  "occupation",
+  "income",
+  "household",
+  "openness",
+  "conscientiousness",
+  "extraversion",
+  "agreeableness",
+  "neuroticism"
+]
+
+[prompt]
+input = """You are an intelligent agent behavioral analyst. Based on the demographic and psychographic profile below, please initialize the agent's daily habits and behavioral preferences.
+
+Profile Information:
+- Age: {age}
+- Occupation: {occupation}
+- Income: {income}
+- Household Composition: {household}
+
+Psychographic Traits (1-3 scale):
+- Openness: {openness}
+- Conscientiousness: {conscientiousness}
+- Extraversion: {extraversion}
+- Agreeableness: {agreeableness}
+- Neuroticism: {neuroticism}
+
+Please generate specific behavioral parameters. Use the personality traits to guide these values (e.g., High Conscientiousness = Early Riser, Low Consumption; High Extraversion = High Social Frequency).
+
+Return the values in JSON format with the following structure:
+
+- chronotype: "early_bird" (wakes ~6am), "night_owl" (wakes ~10am), or "standard" (wakes ~7-8am).
+- risk_tolerance: Float 0.0-1.0 (propensity to take financial or physical risks).
+- spending_tendency: Float 0.0-1.0 (0=Frugal/Saver, 1=Impulsive/Spender).
+- social_frequency: Float 0.0-1.0 (desired probability of initiating social interactions per day).
+- work_ethic: Float 0.0-1.0 (tendency to work overtime or prioritize work tasks).
+- leisure_preference: "outdoor", "indoor", "social", or "solitary" (dominant preference for free time).
+
+Example Response:
+{
+    "preferences": {
+        "chronotype": "night_owl",
+        "risk_tolerance": 0.7,
+        "spending_tendency": 0.8,
+        "social_frequency": 0.9,
+        "work_ethic": 0.3,
+        "leisure_preference": "social"
+    }
+}
+
+DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
+DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
+DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
+"""
