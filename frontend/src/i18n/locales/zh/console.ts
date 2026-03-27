@@ -29,7 +29,8 @@ export default {
         export: "全部导出",
         exportArtifacts: "导出产物",
         delete: "删除",
-        createExperiment: "创建实验"
+        createExperiment: "创建实验",
+        dailySchedule: "日程安排"
     },
     modals: {
         experimentDetail: "实验详情",

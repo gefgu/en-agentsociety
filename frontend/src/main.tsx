@@ -26,6 +26,7 @@ import AgentTemplateForm from './pages/AgentTemplate/AgentTemplateForm'
 import { WITH_AUTH } from './components/fetch'
 import GrafanaPage from './pages/Grafana'
 import ChartsPage from './pages/Charts';
+import DailySchedulePage from './pages/DailySchedule'
 import ErrorPage from './pages/ErrorPage'
 import LokiPage from './pages/Loki'
 
@@ -171,6 +172,14 @@ const router = createBrowserRouter([{
       element: (
         authProvider(
           <RootLayout selectedKey='/charts'><ChartsPage /></RootLayout>
+        )
+      ),
+    },
+    {
+      path: "/schedule/:exp_id?/:name?",
+      element: (
+        authProvider(
+          <RootLayout selectedKey='/console'><DailySchedulePage /></RootLayout>
         )
       ),
     },

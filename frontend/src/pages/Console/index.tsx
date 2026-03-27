@@ -173,6 +173,17 @@ const Page = () => {
                   </Link>
                 },
                 {
+                  key: 'dailySchedule',
+                  label: <Link
+                    to={`/schedule/${record.id}/${encodeURIComponent(record.name)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: 'block' }}
+                  >
+                    {t('console.buttons.dailySchedule')}
+                  </Link>
+                },
+                {
                   key: 'exportArtifacts',
                   label: t('console.buttons.exportArtifacts'),
                   onClick: () => {

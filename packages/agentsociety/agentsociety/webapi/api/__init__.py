@@ -8,6 +8,7 @@ from .config import router as config_router
 from .agent_profiles import router as agent_profiles_router
 from .agent_template import router as agent_template_router
 from .visits import router as visits_router
+from .schedule import router as schedule_router
 
 __all__ = ["api_router"]
 
@@ -23,3 +24,4 @@ api_router.include_router(config_router)
 api_router.include_router(agent_profiles_router)
 api_router.include_router(agent_template_router)
 api_router.include_router(visits_router)
+api_router.include_router(schedule_router)

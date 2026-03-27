@@ -31,7 +31,8 @@ export default {
         delete: "Delete",
         createExperiment: "Create Experiment",
         grafana: "Grafana",
-        charts: "Charts"
+        charts: "Charts",
+        dailySchedule: "Daily Schedule"
     },
     modals: {
         experimentDetail: "Experiment Detail",
