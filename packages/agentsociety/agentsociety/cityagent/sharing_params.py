@@ -7,8 +7,6 @@ from ..agent import (
     AgentContext,
 )
 from ..agent.dispatcher import DISPATCHER_PROMPT
-from .blocks.needs_block import INITIAL_NEEDS_PROMPT
-from .blocks.plan_block import DETAILED_PLAN_PROMPT
 
 
 class SocietyAgentConfig(AgentParams):
@@ -22,17 +20,9 @@ class SocietyAgentConfig(AgentParams):
         default=True, description="Whether to enable cognition"
     )
 
-    # Maxlow's Needs
-    need_initialization_prompt: str = Field(
-        default=INITIAL_NEEDS_PROMPT, description="Initial needs prompt"
-    )
-
     # Planned-Behavior
     max_plan_steps: int = Field(
         default=6, description="Maximum number of steps in a plan"
-    )
-    plan_generation_prompt: str = Field(
-        default=DETAILED_PLAN_PROMPT, description="Plan generation prompt"
     )
 
 

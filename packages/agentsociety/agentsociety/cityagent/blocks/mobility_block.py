@@ -172,13 +172,6 @@ class PlaceSelectionBlock(Block):
             # Get visit history
             visit_history = await self.get_recent_visit_history()
             
-            # Get agent state
-            emotion = await self.memory.status.get("emotion", "neutral")
-            thought = await self.memory.status.get("thought", "")
-            household = await self.memory.status.get("household", "unknown")
-            life_stage = await self.memory.status.get("life_stage", "unknown")
-            big5 = await self.memory.status.get("big5", {})
-
             required_fields = self.prompt_manager.get_required_fields(
                 self.area_selection_prompt_name
             )
@@ -187,11 +180,6 @@ class PlaceSelectionBlock(Block):
                 context={
                     "plan": context.get("plan_context", {}).get("plan", "No plan"),
                     "intention": context.get("current_step", {}).get("intention", "Unknown"),
-                    "emotion": emotion,
-                    "thought": thought,
-                    "household": household,
-                    "life_stage": life_stage,
-                    "big5": big5,
                     "visit_history": visit_history,
                     "ranked_areas": ranked_areas_str,
                 },
@@ -292,12 +280,6 @@ class PlaceSelectionBlock(Block):
             )
 
             visit_history = await self.get_recent_visit_history()
-            emotion = await self.memory.status.get("emotion", "neutral")
-            thought = await self.memory.status.get("thought", "")
-            household = await self.memory.status.get("household", "unknown")
-            life_stage = await self.memory.status.get("life_stage", "unknown")
-            big5 = await self.memory.status.get("big5", {})
-
             required_fields = self.prompt_manager.get_required_fields(
                 self.neighborhood_selection_prompt_name
             )
@@ -306,11 +288,6 @@ class PlaceSelectionBlock(Block):
                 context={
                     "plan": context.get("plan_context", {}).get("plan", "No plan"),
                     "intention": context.get("current_step", {}).get("intention", "Unknown"),
-                    "emotion": emotion,
-                    "thought": thought,
-                    "household": household,
-                    "life_stage": life_stage,
-                    "big5": big5,
                     "visit_history": visit_history,
                     "candidate_neighborhoods": candidate_neighborhoods,
                 },
@@ -463,22 +440,6 @@ class PlaceSelectionBlock(Block):
         if self.prompt_manager is None:
             raise RuntimeError("PromptManager is not initialized")
 
-        # Get Big Five personality traits
-        big5 = await self.memory.status.get("big5", {})
-
-        # Get household and life stage
-        household = await self.memory.status.get("household", "unknown")
-        life_stage = await self.memory.status.get("life_stage", "unknown")
-        hobbies = await self.memory.status.get("hobbies", [])
-        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
-        goals = await self.memory.status.get("goals", [])
-        goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
-
-        # Get preferences
-        preferences = await self.memory.status.get("preferences", {})
-        leisure_preference = preferences.get("leisure_preference", "indoor")
-        risk_tolerance = preferences.get("risk_tolerance", 0.5)
-
         # Stage 1: Select primary POI category
         poi_cate = self.environment.get_poi_cate()
         type_required_fields = self.prompt_manager.get_required_fields(
@@ -491,13 +452,6 @@ class PlaceSelectionBlock(Block):
                 "intention": context["current_step"]["intention"],
                 "poi_category": list(poi_cate.keys()),
                 "other_info": self.environment.environment.get("other_information", "None"),
-                "household": household,
-                "life_stage": life_stage,
-                "hobbies": hobbies_str,
-                "goals": goals_str,
-                "big5": big5,
-                "leisure_preference": leisure_preference,
-                "risk_tolerance": risk_tolerance,
             },
             memory=self.memory,
         )
@@ -534,13 +488,6 @@ class PlaceSelectionBlock(Block):
                     "intention": context["current_step"]["intention"],
                     "poi_category": sub_category,
                     "other_info": self.environment.environment.get("other_information", "None"),
-                    "household": household,
-                    "life_stage": life_stage,
-                    "hobbies": hobbies_str,
-                    "goals": goals_str,
-                    "big5": big5,
-                    "leisure_preference": leisure_preference,
-                    "risk_tolerance": risk_tolerance,
                 },
                 memory=self.memory,
             )
@@ -574,11 +521,6 @@ class PlaceSelectionBlock(Block):
                     "current_emotion": context.get("current_emotion", "unknown"),
                     "current_thought": context.get("current_thought", ""),
                     "other_information": self.environment.environment.get("other_information", "None"),
-                    "household": household,
-                    "life_stage": life_stage,
-                    "hobbies": hobbies_str,
-                    "big5": big5,
-                    "risk_tolerance": risk_tolerance,
                 },
                 memory=self.memory,
             )
@@ -825,23 +767,8 @@ class MoveBlock(Block):
         if self.prompt_manager is None:
             raise RuntimeError("PromptManager is not initialized")
 
-        # Get Big Five personality traits
-        big5 = await self.memory.status.get("big5", {})
         poi_id = None
         place_selection_result = None  # Store PlaceSelectionBlock result for later merging
-
-        # Get household and life stage
-        household = await self.memory.status.get("household", "unknown")
-        life_stage = await self.memory.status.get("life_stage", "unknown")
-        hobbies = await self.memory.status.get("hobbies", [])
-        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
-        goals = await self.memory.status.get("goals", [])
-        goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
-
-        # Get preferences
-        preferences = await self.memory.status.get("preferences", {})
-        leisure_preference = preferences.get("leisure_preference", "indoor")
-        risk_tolerance = preferences.get("risk_tolerance", 0.5)
 
         place_knowledge = await self.memory.status.get("location_knowledge")
         known_places = list(place_knowledge.keys())
@@ -858,13 +785,6 @@ class MoveBlock(Block):
                 "intention": context["current_step"]["intention"],
                 "place_list": places,
                 "other_info": self.environment.environment.get("other_information", "None"),
-                "household": household,
-                "life_stage": life_stage,
-                "hobbies": hobbies_str,
-                "goals": goals_str,
-                "big5": big5,
-                "leisure_preference": leisure_preference,
-                "risk_tolerance": risk_tolerance,
             },
             memory=self.memory,
         )
@@ -1109,31 +1029,6 @@ class TransportModeSelectionBlock(Block):
         month = "Current Month"  # TODO.
         weather = self.environment.environment.get("weather", "Don't know")
         temperature = self.environment.environment.get("temperature", "Don't know")
-
-        name = await self.memory.status.get("name")
-        age = await self.memory.status.get("age")
-        gender = await self.memory.status.get("gender")
-        occupation = await self.memory.status.get("occupation")
-        personality = await self.memory.status.get("personality")
-
-        # Construct the persona string manually
-        persona = f"Name: {name}, Age: {age}, Gender: {gender}, Occupation: {occupation}, Personality: {personality}"
-        # ------------------------
-        emotion = await self.memory.status.get("emotion")
-
-        # Get Big Five personality traits
-        big5 = await self.memory.status.get("big5", {})
-
-        # Get household and life stage
-        household = await self.memory.status.get("household", "unknown")
-        life_stage = await self.memory.status.get("life_stage", "unknown")
-        hobbies = await self.memory.status.get("hobbies", [])
-        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
-
-        # Get preferences
-        preferences = await self.memory.status.get("preferences", {})
-        risk_tolerance = preferences.get("risk_tolerance", 0.5)
-
         available_modes_list = self.transportation_modes
 
         required_fields = self.prompt_manager.get_required_fields(
@@ -1147,14 +1042,7 @@ class TransportModeSelectionBlock(Block):
                 "month": month,
                 "weather": weather,
                 "temperature": temperature,
-                "persona": persona,
-                "emotion": emotion,
                 "available_modes": ", ".join(available_modes_list),
-                "household": household,
-                "life_stage": life_stage,
-                "hobbies": hobbies_str,
-                "big5": big5,
-                "risk_tolerance": risk_tolerance,
             },
             memory=self.memory,
         )
@@ -1238,11 +1126,6 @@ class MobilityNoneBlock(Block):
 
 
 class MobilityBlockParams(BlockParams):
-    # PlaceSelection
-    radius_prompt: str = Field(
-        default="mobility_radius_selection",
-        description="Legacy config field kept for compatibility; PromptManager now controls radius prompt resolution",
-    )
     search_limit: int = Field(
         default=50, description="Number of POIs to retrieve from map service"
     )

@@ -195,7 +195,6 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
             toolbox=self._toolbox,
             agent_memory=self.memory,
             agent_context=self.context,
-            initial_prompt=self.params.need_initialization_prompt,
         )
 
         self.plan_block = PlanBlock(
@@ -204,7 +203,6 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
             agent_memory=self.memory,
             agent_context=self.context,
             max_plan_steps=self.params.max_plan_steps,
-            detailed_plan_prompt=self.params.plan_generation_prompt,
         )
 
         self.cognition_block = CognitionBlock(
@@ -238,77 +236,27 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         """
         Status summary
         """
-        # Environment Information
-        current_time = self.context.current_time
-        weather = self.context.weather
-        temperature = self.context.temperature
-        other_information = self.context.other_information
-
-        # Agent Profile
-        name = await self.memory.status.get("name")
-        occupation = await self.memory.status.get("occupation")
-        age = await self.memory.status.get("age")
-        gender = await self.memory.status.get("gender")
-        education = await self.memory.status.get("education")
-        personality = await self.memory.status.get("personality")
-        background_story = await self.memory.status.get("background_story")
-        
-        # Get Big Five personality traits
-        big5 = await self.memory.status.get("big5", {})
-        openness = big5.get("openness", 2)
-        conscientiousness = big5.get("conscientiousness", 2)
-        extraversion = big5.get("extraversion", 2)
-        agreeableness = big5.get("agreeableness", 2)
-        neuroticism = big5.get("neuroticism", 2)
-        
-        # Get household and life stage
-        household = await self.memory.status.get("household", "unknown")
-        life_stage = await self.memory.status.get("life_stage", "unknown")
-        hobbies = await self.memory.status.get("hobbies", [])
-        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
-        goals = await self.memory.status.get("goals", [])
-        goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
-
-        # Current Status
-        current_need = self.context.current_need
-        current_plan_target = self.context.plan_target
-        current_intention = self.context.current_intention
-        current_emotion = self.context.current_emotion
-        current_thought = self.context.current_thought
-        current_location = self.context.current_location
-
         required_fields = self.prompt_manager.get_required_fields(
             self.status_summary_prompt_name
+        )
+        current_location = getattr(
+            self.context,
+            "current_location",
+            getattr(self.context, "current_position", "Outside"),
         )
         state_dict = await self.prompt_manager.build_agent_state(
             required_fields=required_fields,
             context={
-                "name": name,
-                "occupation": occupation,
-                "age": age,
-                "gender": gender,
-                "education": education,
-                "personality": personality,
-                "background_story": background_story,
-                "household": household,
-                "life_stage": life_stage,
-                "hobbies": hobbies_str,
-                "goals": goals_str,
-                "openness": openness,
-                "conscientiousness": conscientiousness,
-                "extraversion": extraversion,
-                "agreeableness": agreeableness,
-                "neuroticism": neuroticism,
-                "current_time": current_time,
-                "weather": weather,
-                "temperature": temperature,
+                "current_time": self.context.current_time,
+                "weather": self.context.weather,
+                "temperature": self.context.temperature,
                 "current_location": current_location,
-                "other_information": other_information,
-                "current_need": current_need,
-                "current_plan_target": current_plan_target,
-                "current_intention": current_intention,
-                "current_emotion": current_emotion,
-                "current_thought": current_thought,
+                "other_information": self.context.other_information,
+                "current_need": self.context.current_need,
+                "current_plan_target": self.context.plan_target,
+                "current_intention": self.context.current_intention,
+                "current_emotion": self.context.current_emotion,
+                "current_thought": self.context.current_thought,
             },
             memory=self.memory,
         )
@@ -621,21 +569,6 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
                     )
                     recent_chat_history = "No chat history"
 
-                current_intention = "I am doing nothing"
-                current_plan = await self.memory.status.get("current_plan")
-                if (
-                    current_plan is None
-                    or not current_plan
-                    or len(current_plan.get("steps", [])) == 0
-                ):
-                    current_intention = "I am doing nothing"
-                else:
-                    step_index = current_plan.get("index", 0)
-                    current_step = current_plan.get("steps", [])[step_index]
-                    current_intention = current_step.get(
-                        "intention", "I am doing nothing"
-                    )
-
                 required_fields = self.prompt_manager.get_required_fields(
                     self.chat_belief_update_prompt_name
                 )
@@ -680,13 +613,6 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
                 state_dict = await self.prompt_manager.build_agent_state(
                     required_fields=required_fields,
                     context={
-                        "current_intention": current_intention,
-                        "gender": await self.memory.status.get("gender", "unknown"),
-                        "education": await self.memory.status.get("education", "unknown"),
-                        "personality": await self.memory.status.get("personality", "unknown"),
-                        "occupation": await self.memory.status.get("occupation", "unknown"),
-                        "background_story": await self.memory.status.get("background_story", "unknown"),
-                        "emotion_types": await self.memory.status.get("emotion_types", "unknown"),
                         "content": content,
                         "relationship_strength": relationship_strength,
                         "relationship_type": relationship_type,

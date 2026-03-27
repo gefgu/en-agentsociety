@@ -27,10 +27,6 @@ class NeedsBlock(Block):
         toolbox: AgentToolbox,
         agent_memory: Memory,
         agent_context: DotDict,
-        evaluation_prompt: Optional[str] = None,
-        reflection_prompt: Optional[str] = None,
-        initial_prompt: Optional[str] = None,
-        poi_belief_update_prompt: Optional[str] = None,
     ):
         """
         Initialize needs management system.
@@ -52,12 +48,6 @@ class NeedsBlock(Block):
         """
         super().__init__(toolbox=toolbox, agent_memory=agent_memory)
         self.context = agent_context
-        _ = (
-            evaluation_prompt,
-            reflection_prompt,
-            initial_prompt,
-            poi_belief_update_prompt,
-        )
         self.evaluation_prompt_name = "needs_evaluation"
         self.initial_prompt_name = "needs_initialize"
         self.reflection_prompt_name = "needs_reflection"
@@ -117,23 +107,6 @@ class NeedsBlock(Block):
         if not self.initialized:
             if self.prompt_manager is None:
                 raise RuntimeError("PromptManager is not initialized")
-
-            # Get Big Five personality traits
-            big5 = await self.memory.status.get("big5", {})
-
-            # Get household and life stage
-            household = await self.memory.status.get("household", "unknown")
-            life_stage = await self.memory.status.get("life_stage", "unknown")
-            hobbies = await self.memory.status.get("hobbies", [])
-            hobbies_str = (
-                ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
-            )
-            goals = await self.memory.status.get("goals", [])
-            goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
-
-            # Get preferences
-            preferences = await self.memory.status.get("preferences", {})
-            social_frequency = preferences.get("social_frequency", 0.5)
             _, current_time = self.environment.get_datetime(format_time=True)
 
             required_fields = self.prompt_manager.get_required_fields(
@@ -142,12 +115,6 @@ class NeedsBlock(Block):
             state_dict = await self.prompt_manager.build_agent_state(
                 required_fields=required_fields,
                 context={
-                    "household": household,
-                    "life_stage": life_stage,
-                    "hobbies": hobbies_str,
-                    "goals": goals_str,
-                    "big5": big5,
-                    "social_frequency": social_frequency,
                     "current_time": current_time,
                 },
                 memory=self.memory,
@@ -211,19 +178,6 @@ class NeedsBlock(Block):
             else "None"
         )
 
-        # Get Big Five personality traits
-        big5 = await self.memory.status.get("big5", {})
-
-        # Get household and life stage
-        household = await self.memory.status.get("household", "unknown")
-        life_stage = await self.memory.status.get("life_stage", "unknown")
-        hobbies = await self.memory.status.get("hobbies", [])
-        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
-
-        # Get preferences
-        preferences = await self.memory.status.get("preferences", {})
-        social_frequency = preferences.get("social_frequency", 0.5)
-
         if self.prompt_manager is None:
             raise RuntimeError("PromptManager is not initialized")
 
@@ -235,15 +189,6 @@ class NeedsBlock(Block):
             context={
                 "intervention_message": intervention,
                 "current_action": action_message,
-                "hunger_satisfaction": await self.memory.status.get("hunger_satisfaction"),
-                "energy_satisfaction": await self.memory.status.get("energy_satisfaction"),
-                "safety_satisfaction": await self.memory.status.get("safety_satisfaction"),
-                "social_satisfaction": await self.memory.status.get("social_satisfaction"),
-                "household": household,
-                "life_stage": life_stage,
-                "hobbies": hobbies_str,
-                "big5": big5,
-                "social_frequency": social_frequency,
             },
             memory=self.memory,
         )
@@ -395,17 +340,6 @@ class NeedsBlock(Block):
         - Handles different types of intentions (e.g., mobility, economy) and their impact on beliefs
         """
 
-        gender = await self.memory.status.get("gender", "unknown")
-        age = await self.memory.status.get("age", "unknown")
-        income = await self.memory.status.get("income", "unknown")
-        big5 = await self.memory.status.get("big5", {})
-        openness = big5.get("openness", 2)
-        conscientiousness = big5.get("conscientiousness", 2)
-        extraversion = big5.get("extraversion", 2)
-        agreeableness = big5.get("agreeableness", 2)
-        neuroticism = big5.get("neuroticism", 2)
-        hobbies = await self.memory.status.get("hobbies", [])
-        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
         observation = f"Based on my recent experience of {intention} at {location_category} (ID: {location_id}), I have the following details: {details}."
 
         if self.prompt_manager is None:
@@ -417,15 +351,6 @@ class NeedsBlock(Block):
         state_dict = await self.prompt_manager.build_agent_state(
             required_fields=required_fields,
             context={
-                "gender": gender,
-                "age": age,
-                "income": income,
-                "openness": openness,
-                "conscientiousness": conscientiousness,
-                "extraversion": extraversion,
-                "agreeableness": agreeableness,
-                "neuroticism": neuroticism,
-                "hobbies": hobbies_str,
                 "observation": observation,
                 "poi_name": location_id,
                 "poi_category": location_category,
@@ -652,21 +577,6 @@ class NeedsBlock(Block):
         current_safety = await self.memory.status.get("safety_satisfaction")
         current_social = await self.memory.status.get("social_satisfaction")
 
-        # Get Big Five personality traits
-        big5 = await self.memory.status.get("big5", {})
-
-        # Get household and life stage
-        household = await self.memory.status.get("household", "unknown")
-        life_stage = await self.memory.status.get("life_stage", "unknown")
-        hobbies = await self.memory.status.get("hobbies", [])
-        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
-        goals = await self.memory.status.get("goals", [])
-        goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
-
-        # Get preferences
-        preferences = await self.memory.status.get("preferences", {})
-        social_frequency = preferences.get("social_frequency", 0.5)
-
         if self.prompt_manager is None:
             raise RuntimeError("PromptManager is not initialized")
 
@@ -683,12 +593,6 @@ class NeedsBlock(Block):
                 "energy_satisfaction": current_energy,
                 "safety_satisfaction": current_safety,
                 "social_satisfaction": current_social,
-                "household": household,
-                "life_stage": life_stage,
-                "hobbies": hobbies_str,
-                "goals": goals_str,
-                "big5": big5,
-                "social_frequency": social_frequency,
             },
             memory=self.memory,
         )

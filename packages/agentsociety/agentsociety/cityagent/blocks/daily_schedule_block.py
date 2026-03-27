@@ -44,11 +44,6 @@ class DailyScheduleBlock(Block):
         if self.prompt_manager is None:
             raise RuntimeError("PromptManager is not initialized")
 
-        preferences = await self.memory.status.get("preferences", {})
-        chronotype = preferences.get("chronotype", "standard")
-        social_frequency = preferences.get("social_frequency", 0.5)
-        leisure_preference = preferences.get("leisure_preference", "indoor")
-
         _, current_time = self.environment.get_datetime(format_time=True)
 
         required_fields = self.prompt_manager.get_required_fields(
@@ -59,9 +54,6 @@ class DailyScheduleBlock(Block):
             context={
                 "day": day,
                 "current_time": current_time,
-                "chronotype": chronotype,
-                "social_frequency": social_frequency,
-                "leisure_preference": leisure_preference,
             },
             memory=self.memory,
         )
@@ -157,10 +149,6 @@ class DailyScheduleBlock(Block):
         ):
             current_location = id_to_name[position_now["aoi_position"]]
 
-        preferences = await self.memory.status.get("preferences", {})
-        social_frequency = preferences.get("social_frequency", 0.5)
-        leisure_preference = preferences.get("leisure_preference", "indoor")
-
         _, current_time = self.environment.get_datetime(format_time=True)
 
         required_fields = self.prompt_manager.get_required_fields(
@@ -174,8 +162,6 @@ class DailyScheduleBlock(Block):
                 "block_start_time": block.get("start_time", ""),
                 "block_duration": block.get("duration", 60),
                 "block_description": block.get("description", ""),
-                "social_frequency": social_frequency,
-                "leisure_preference": leisure_preference,
             },
             memory=self.memory,
         )

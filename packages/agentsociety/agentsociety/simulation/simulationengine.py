@@ -277,8 +277,45 @@ class SimulationEngine:
         self._messager = self._infrastructure_manager.messager
         self._db_tool = self._infrastructure_manager.db_tool
         self._resume_state = self._infrastructure_manager.resume_state
-        self._resume_state = self._infrastructure_manager.resume_state
-        self._resume_state = self._infrastructure_manager.resume_state
+
+    def _restore_resume_runtime_state(self) -> None:
+        """Restore runtime counters and simulator tick from loaded resume state."""
+        if self._resume_state is None:
+            return
+
+        latest_step = self._resume_state.get("latest_step")
+        if latest_step is not None:
+            self._total_steps = int(latest_step)
+
+        latest_exp_info = self._resume_state.get("latest_experiment_info")
+        if not isinstance(latest_exp_info, dict):
+            return
+
+        self._exp_info.num_day = int(latest_exp_info.get("num_day", self._exp_info.num_day))
+        self._exp_info.cur_day = int(latest_exp_info.get("cur_day", self._exp_info.cur_day))
+        self._exp_info.cur_t = float(latest_exp_info.get("cur_t", self._exp_info.cur_t))
+        self._exp_info.input_tokens = int(
+            latest_exp_info.get("input_tokens", self._exp_info.input_tokens)
+        )
+        self._exp_info.output_tokens = int(
+            latest_exp_info.get("output_tokens", self._exp_info.output_tokens)
+        )
+
+        if self._llm is not None:
+            self._llm.prompt_tokens_used = self._exp_info.input_tokens
+            self._llm.completion_tokens_used = self._exp_info.output_tokens
+
+        if self._environment is not None:
+            start_tick = self._config.exp.environment.start_tick
+            resume_tick = int(self._exp_info.cur_day * 24 * 60 * 60 + self._exp_info.cur_t - start_tick)
+            self._environment.set_tick(max(resume_tick, 0))
+
+        get_logger().info(
+            "Restored resume runtime state: "
+            f"step={self._total_steps}, day={self._exp_info.cur_day}, "
+            f"t={self._exp_info.cur_t}, input_tokens={self._exp_info.input_tokens}, "
+            f"output_tokens={self._exp_info.output_tokens}"
+        )
 
 
 
@@ -739,10 +776,7 @@ class SimulationEngine:
             assert self._embedding is not None, "Embedding is not initialized"
             await self._infrastructure_manager.load_resume_state()
             self._sync_infrastructure_state()
-
-            # Update total_steps from resume state if resuming
-            if self._resume_state is not None:
-                self._total_steps = int(self._resume_state.get("latest_step", 0))
+            self._restore_resume_runtime_state()
 
             # Initialize agent manager
             self._agent_manager = AgentManager(

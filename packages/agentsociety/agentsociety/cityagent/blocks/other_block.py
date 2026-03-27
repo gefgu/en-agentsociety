@@ -3,7 +3,6 @@ import time
 from typing import Any, Optional
 
 import json_repair
-from pydantic import Field
 
 from ...agent import (
     AgentToolbox,
@@ -35,13 +34,11 @@ class SleepBlock(Block):
         self,
         toolbox: AgentToolbox,
         agent_memory: Optional[Memory] = None,
-        sleep_time_estimation_prompt: Optional[str] = None,
     ):
         super().__init__(
             toolbox=toolbox,
             agent_memory=agent_memory,
         )
-        _ = sleep_time_estimation_prompt
         self.prompt_name = "other_sleep_time_estimate"
 
     async def forward(self, context: DotDict):
@@ -163,10 +160,7 @@ class OtherNoneBlock(Block):
 
 
 class OtherBlockParams(BlockParams):
-    sleep_time_estimation_prompt: str = Field(
-        default="other_sleep_time_estimate",
-        description="Legacy compatibility field; PromptManager controls sleep time prompt resolution",
-    )
+    pass
 
 
 class OtherBlockContext(BlockContext): ...

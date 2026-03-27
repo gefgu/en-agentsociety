@@ -556,7 +556,9 @@ class ClickHouseDatabase:
 
         exp_info_rows = self._query_rows(
             (
-                "SELECT config "
+                "SELECT "
+                "id, tenant_id, name, num_day, status, cur_day, cur_t, config, error, "
+                "input_tokens, output_tokens, created_at, updated_at "
                 "FROM experiment_info "
                 f"WHERE id = toUUID('{escaped_source_uuid}') "
                 "ORDER BY updated_at DESC "
@@ -607,9 +609,12 @@ class ClickHouseDatabase:
             )
         )
 
+        latest_exp_info = exp_info_rows[0]
+
         return {
             "source_exp_id": source_exp_id,
-            "config": str(exp_info_rows[0].get("config") or ""),
+            "config": str(latest_exp_info.get("config") or ""),
+            "latest_experiment_info": latest_exp_info,
             "latest_step": latest_step,
             "static_step": static_step,
             "static_records": static_rows,
