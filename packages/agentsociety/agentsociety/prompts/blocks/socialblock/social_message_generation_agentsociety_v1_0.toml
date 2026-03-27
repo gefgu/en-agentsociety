@@ -1,0 +1,70 @@
+[metadata]
+name = "social_message_generation"
+version = "1.0.0"
+origin = "agentsociety"
+description = "Generate a context-aware social message to a selected target"
+
+[inputs]
+required = [
+    "name",
+    "gender",
+    "occupation",
+    "education",
+    "personality",
+    "emotion_types",
+    "thought",
+    "background_story",
+    "household",
+    "life_stage",
+    "hobbies",
+    "openness",
+    "conscientiousness",
+    "extraversion",
+    "agreeableness",
+    "neuroticism",
+    "relationship_type",
+    "relationship_strength",
+    "chat_history",
+    "intention",
+    "environment_info",
+    "discussion_constraint"
+]
+
+[prompt]
+input = """My name is {name}, I am a {gender}
+My occupation is {occupation}.
+My education level is {education}.
+My personality is {personality}.
+My current emotion is: {emotion_types}.
+My current thought is: {thought}.
+My background story is: {background_story}.
+Household type: {household}
+Life stage: {life_stage}
+Hobbies: {hobbies}
+
+Big Five Personality Traits (1=Low, 2=Medium, 3=High):
+- Openness: {openness}
+- Conscientiousness: {conscientiousness}
+- Extraversion: {extraversion}
+- Agreeableness: {agreeableness}
+- Neuroticism: {neuroticism}
+
+Now, I want to generate a social message to a target, my relationship with him/her:
+Our relationship type is: {relationship_type}
+Our relationship strength: {relationship_strength} (0-1, higher is stronger)
+My previous chat history with him/her is:
+{chat_history}
+
+My intention is: {intention}.
+
+Environment Information:
+{environment_info}
+
+Please generate a natural and contextually appropriate message.
+Keep it under 100 characters.
+The message should reflect my personality and background.
+
+{discussion_constraint}
+
+Please output the message from a first-person perspective, without any other text
+"""

@@ -1,0 +1,24 @@
+[metadata]
+name = "societyagent_chat_belief_update"
+version = "1.0.0"
+origin = "agentsociety"
+description = "Update belief attributes for a social contact after receiving a message"
+
+[inputs]
+required = [
+    "content",
+    "sender_id",
+    "relationship_type",
+    "relationship_strength"
+]
+
+[prompt]
+input = """You have received a message: {content}
+Based on this message, update your beliefs about the sender (ID: {sender_id}) in your social network.
+Consider their personality, intentions, and any relevant context from your past interactions, and the current beliefs.
+Current belief about the sender: {relationship_type} with {relationship_strength}.
+Provide a brief update to your beliefs about this sender.
+
+Return new affinity, trust, and familiarity values (0-1 scale) in JSON format:
+{{"affinity": float, "trust": float, "familiarity": float}}
+"""

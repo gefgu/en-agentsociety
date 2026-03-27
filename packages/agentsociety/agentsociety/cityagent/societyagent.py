@@ -1,6 +1,7 @@
 import random
 import time
 
+from pathlib import Path
 from typing import Optional
 
 import json_repair
@@ -9,11 +10,11 @@ from ..agent import (
     AgentToolbox,
     Block,
     CitizenAgentBase,
-    FormatPrompt,
     MemoryAttribute,
 )
 from ..logger import get_logger
 from ..memory import Memory
+from ..prompts.prompt_manager import PromptManager
 from .blocks import CognitionBlock, NeedsBlock, PlanBlock, DailyScheduleBlock
 from .sharing_params import (
     SocietyAgentConfig,
@@ -21,29 +22,6 @@ from .sharing_params import (
     SocietyAgentContext,
 )
 from ..message import Message
-
-ENVIRONMENT_REFLECTION_PROMPT = """
-You are a citizen of the city.
-Your occupation: {occupation}
-Your age: {age}
-Your current emotion: {emotion_types}
-Household type: {household}
-Life stage: {life_stage}
-Hobbies: {hobbies}
-Goals: {goals}
-
-Big Five Personality Traits (1=Low, 2=Medium, 3=High):
-- Openness: {openness}
-- Conscientiousness: {conscientiousness}
-- Extraversion: {extraversion}
-- Agreeableness: {agreeableness}
-- Neuroticism: {neuroticism}
-
-In your current location, you can sense the following information:
-{area_information}
-
-What's your feeling about those environmental information?
-"""
 
 
 class SocietyAgent(CitizenAgentBase):
@@ -241,9 +219,14 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
             agent_memory=self.memory,
         )
 
-        self.environment_reflection_prompt = FormatPrompt(
-            ENVIRONMENT_REFLECTION_PROMPT, memory=self.memory
+        self.prompt_manager = PromptManager(
+            prompts_dir=str(Path(__file__).resolve().parents[1] / "prompts"),
+            active_config={},
         )
+        self.environment_reflection_prompt_name = "societyagent_environment_reflection"
+        self.status_summary_prompt_name = "societyagent_status_summary"
+        self.chat_belief_update_prompt_name = "societyagent_chat_belief_update"
+        self.chat_response_decision_prompt_name = "societyagent_chat_response_decision"
 
         # register blocks
         self.dispatcher.register_dispatcher_prompt(self.params.block_dispatch_prompt)
@@ -294,58 +277,46 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         current_thought = self.context.current_thought
         current_location = self.context.current_location
 
-        # Create LLM prompt for status description
-        status_description_prompt = f"""
-Based on the following information, provide a concise 1-2 sentence description of the agent's current status:
-
-**Agent Profile:**
-- Name: {name}
-- Age: {age}
-- Gender: {gender}
-- Occupation: {occupation}
-- Education: {education}
-- Personality: {personality}
-- Background: {background_story}
-- Household type: {household}
-- Life stage: {life_stage}
-- Hobbies: {hobbies_str}
-- Goals: {goals_str}
-- Big Five Personality Traits (1=Low, 2=Medium, 3=High):
-    - Openness: {openness}
-    - Conscientiousness: {conscientiousness}
-    - Extraversion: {extraversion}
-    - Agreeableness: {agreeableness}
-    - Neuroticism: {neuroticism}
-
-**Current Environment:**
-- Time: {current_time}
-- Weather: {weather}
-- Temperature: {temperature}
-- Location: {current_location}
-- Other Information: {other_information}
-
-**Current Status:**
-- Current Need: {current_need}
-- Plan Target: {current_plan_target}
-- Current Intention: {current_intention}
-- Emotion: {current_emotion}
-- Thought: {current_thought}
-
-Please provide a natural, human-like description of what the agent is currently doing and feeling, considering their personality, current situation, and environment. Focus on the most relevant aspects that define their current state.
-
-Response format: 1-2 sentences describing the agent's current status from a first-person perspective.
-
-Example:
-"I am working at the office, the work is not too busy, but I am a bit tired."
-"""
+        required_fields = self.prompt_manager.get_required_fields(
+            self.status_summary_prompt_name
+        )
+        state_dict = await self.prompt_manager.build_agent_state(
+            required_fields=required_fields,
+            context={
+                "name": name,
+                "occupation": occupation,
+                "age": age,
+                "gender": gender,
+                "education": education,
+                "personality": personality,
+                "background_story": background_story,
+                "household": household,
+                "life_stage": life_stage,
+                "hobbies": hobbies_str,
+                "goals": goals_str,
+                "openness": openness,
+                "conscientiousness": conscientiousness,
+                "extraversion": extraversion,
+                "agreeableness": agreeableness,
+                "neuroticism": neuroticism,
+                "current_time": current_time,
+                "weather": weather,
+                "temperature": temperature,
+                "current_location": current_location,
+                "other_information": other_information,
+                "current_need": current_need,
+                "current_plan_target": current_plan_target,
+                "current_intention": current_intention,
+                "current_emotion": current_emotion,
+                "current_thought": current_thought,
+            },
+            memory=self.memory,
+        )
+        dialog = self.prompt_manager.format_prompt_to_dialog(
+            self.status_summary_prompt_name, state_dict
+        )
         summary_text = await self.llm.atext_request(
-            [
-                {
-                    "role": "system",
-                    "content": "You are an AI assistant that describes the current status of a citizen agent in a city simulation.",
-                },
-                {"role": "user", "content": status_description_prompt},
-            ],
+            dialog,
             context={
                 "block_name": "SocietyAgent",
                 "func_name": "status_summary",
@@ -436,31 +407,19 @@ Example:
         """Reflect to the environment"""
         aoi_info = await self.get_aoi_info()
         if aoi_info:
-            # Get Big Five personality traits
-            big5 = await self.memory.status.get("big5", {})
-
-            
-            # Get household and life stage
-            household = await self.memory.status.get("household", "unknown")
-            life_stage = await self.memory.status.get("life_stage", "unknown")
-            hobbies = await self.memory.status.get("hobbies", [])
-            hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
-            goals = await self.memory.status.get("goals", [])
-            goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
-            
-            await self.environment_reflection_prompt.format(
-                household=household,
-                life_stage=life_stage,
-                hobbies=hobbies_str,
-                goals=goals_str,
-                openness=big5.get("openness", 2),
-                conscientiousness=big5.get("conscientiousness", 2),
-                extraversion=big5.get("extraversion", 2),
-                agreeableness=big5.get("agreeableness", 2),
-                neuroticism=big5.get("neuroticism", 2),
+            required_fields = self.prompt_manager.get_required_fields(
+                self.environment_reflection_prompt_name
+            )
+            state_dict = await self.prompt_manager.build_agent_state(
+                required_fields=required_fields,
+                context={"area_information": aoi_info},
+                memory=self.memory,
+            )
+            dialog = self.prompt_manager.format_prompt_to_dialog(
+                self.environment_reflection_prompt_name, state_dict
             )
             reflection = await self.llm.atext_request(
-                self.environment_reflection_prompt.to_dialog(),
+                dialog,
                 context={
                     "block_name": "SocietyAgent",
                     "func_name": "reflect_to_environment",
@@ -642,12 +601,14 @@ Example:
 
                 # Get relationship strength and type
                 my_social_network = await self.memory.status.get("social_network", [])
-                relationship_strength = 0.0
+                relationship_strength = "unknown"
                 relationship_type = "I don't know him/her"
+                matched_relation = None
                 for relation in my_social_network:
                     if relation.target_id == sender_id:
                         relationship_strength = f"Affinity: {relation.affinity}, Trust: {relation.trust}, Familiarity: {relation.familiarity} (0-1 Scale)"
                         relationship_type = relation.kind
+                        matched_relation = relation
                         break
 
                 recent_chat_history = chat_histories.get(sender_id, "No chat history")
@@ -675,26 +636,25 @@ Example:
                         "intention", "I am doing nothing"
                     )
 
-                # Update Beliefs Regarding the Sender
-                belief_update_prompt = f"""
-                You have received a message: {content}
-                Based on this message, update your beliefs about the sender (ID: {sender_id}) in your social network.
-                Consider their personality, intentions, and any relevant context from your past interactions, and the current beliefs.
-                Current belief about the sender: {relationship_type} with {relationship_strength}.
-                Provide a brief update to your beliefs about this sender.
-
-                Return new affinity, trust, and familiarity values (0-1 scale) in JSON format:
-                {{"affinity": float, "trust": float, "familiarity": float}}
-                """
+                required_fields = self.prompt_manager.get_required_fields(
+                    self.chat_belief_update_prompt_name
+                )
+                state_dict = await self.prompt_manager.build_agent_state(
+                    required_fields=required_fields,
+                    context={
+                        "content": content,
+                        "sender_id": sender_id,
+                        "relationship_type": relationship_type,
+                        "relationship_strength": relationship_strength,
+                    },
+                    memory=self.memory,
+                )
+                dialog = self.prompt_manager.format_prompt_to_dialog(
+                    self.chat_belief_update_prompt_name, state_dict
+                )
 
                 belief_update_response = await self.llm.atext_request(
-                    dialog=[
-                        {
-                            "role": "system",
-                            "content": "You are helping update beliefs about a social contact based on a received message.",
-                        },
-                        {"role": "user", "content": belief_update_prompt},
-                    ],
+                    dialog=dialog,
                     response_format={"type": "json_object"},
                     context={
                         "block_name": "SocietyAgent",
@@ -703,50 +663,43 @@ Example:
                     },
                 )
                 belief_update = json_repair.loads(belief_update_response)  # type: ignore
-                relation.affinity = belief_update.get("affinity", relation.affinity)
-                relation.trust = belief_update.get("trust", relation.trust)
-                relation.familiarity = belief_update.get("familiarity", relation.familiarity)
+                if matched_relation is not None:
+                    matched_relation.affinity = belief_update.get("affinity", matched_relation.affinity)
+                    matched_relation.trust = belief_update.get("trust", matched_relation.trust)
+                    matched_relation.familiarity = belief_update.get("familiarity", matched_relation.familiarity)
 
                 get_logger().debug(
-                    f"Agent {self.id}: Updated relationship with {sender_id}: {relationship_type}, Affinity: {relation.affinity}, Trust: {relation.trust}, Familiarity: {relation.familiarity}"
+                    f"Agent {self.id}: Updated relationship with {sender_id}: {relationship_type}, Affinity: {belief_update.get('affinity', 'n/a')}, Trust: {belief_update.get('trust', 'n/a')}, Familiarity: {belief_update.get('familiarity', 'n/a')}"
                 )
 
 
 
-                # Decision prompt
-                should_respond_prompt = f"""
-My current action/intention is: {current_intention}
-My profile: 
-    - gender: {await self.memory.status.get("gender", "unknown")}
-    - education: {await self.memory.status.get("education", "unknown")}
-    - personality: {await self.memory.status.get("personality", "unknown")}
-    - occupation: {await self.memory.status.get("occupation", "unknown")}
-    - background_story: {await self.memory.status.get("background_story", "unknown")}
-My current emotion: {await self.memory.status.get("emotion_types", "unknown")}
-
-I received a message:{content}
-    - My relationship strength with him/her: {relationship_strength}
-    - Our relationship type: {relationship_type}
-    - Recent chat history: {recent_chat_history}
-
-Based on the above all information, should I respond to this message? If I should respond, what should I say?
-1. Is this a message that needs/deserves a response?
-2. If you think the conversation should end, you should not respond or end quick and say goodbye.
-3. If I should respond, what should I say? (only output the response content from a first person perspective, no other text)
-4. If I am busy, I should not respond or tell him/her that I am busy.
-5. The length of the social message should be less than 20 characters.
-6. If I need to respond, I should respond in a natural way, not like a robot, talk in the point but not nonsense.
-
-Answer only YES or NO, in JSON format, e.g. {{"should_respond": "YES", "response_content": "Hello, how are you?(optional)"}}"""
+                required_fields = self.prompt_manager.get_required_fields(
+                    self.chat_response_decision_prompt_name
+                )
+                state_dict = await self.prompt_manager.build_agent_state(
+                    required_fields=required_fields,
+                    context={
+                        "current_intention": current_intention,
+                        "gender": await self.memory.status.get("gender", "unknown"),
+                        "education": await self.memory.status.get("education", "unknown"),
+                        "personality": await self.memory.status.get("personality", "unknown"),
+                        "occupation": await self.memory.status.get("occupation", "unknown"),
+                        "background_story": await self.memory.status.get("background_story", "unknown"),
+                        "emotion_types": await self.memory.status.get("emotion_types", "unknown"),
+                        "content": content,
+                        "relationship_strength": relationship_strength,
+                        "relationship_type": relationship_type,
+                        "recent_chat_history": recent_chat_history,
+                    },
+                    memory=self.memory,
+                )
+                dialog = self.prompt_manager.format_prompt_to_dialog(
+                    self.chat_response_decision_prompt_name, state_dict
+                )
 
                 respond = await self.llm.atext_request(
-                    dialog=[
-                        {
-                            "role": "system",
-                            "content": "You are helping decide whether to respond to a message, and if so, what to say.",
-                        },
-                        {"role": "user", "content": should_respond_prompt},
-                    ],
+                    dialog=dialog,
                     response_format={"type": "json_object"},
                     context={
                         "block_name": "SocietyAgent",

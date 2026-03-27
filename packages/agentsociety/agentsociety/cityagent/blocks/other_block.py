@@ -8,7 +8,6 @@ from pydantic import Field
 from ...agent import (
     AgentToolbox,
     Block,
-    FormatPrompt,
     BlockParams,
     BlockContext,
     DotDict,
@@ -16,47 +15,8 @@ from ...agent import (
 from ...logger import get_logger
 from ...memory import Memory
 from ...agent.dispatcher import BlockDispatcher
-from .utils import TIME_ESTIMATE_PROMPT, clean_json_response
+from .utils import clean_json_response
 from ..sharing_params import SocietyAgentBlockOutput
-
-
-SLEEP_TIME_ESTIMATION_PROMPT = """As an intelligent agent's time estimation system, please estimate the time needed to complete the current action based on the overall plan and current intention.
-
-Overall plan:
-${context.plan_context["plan"]}
-
-Current action: ${context.current_step["intention"]}
-
-Current emotion: ${status.emotion_types}
-
-Household type: {household}
-Life stage: {life_stage}
-Hobbies: {hobbies}
-Goals: {goals}
-
-Big Five Personality Traits (1=Low, 2=Medium, 3=High):
-- Openness: {openness}
-- Conscientiousness: {conscientiousness}
-- Extraversion: {extraversion}
-- Agreeableness: {agreeableness}
-- Neuroticism: {neuroticism}
-
-Behavioral Preferences:
-- Chronotype: {chronotype} (early_bird: wakes ~6am and goes to bed early, standard: wakes ~7-8am, night_owl: wakes ~10am and stays up late)
-- Leisure Preference: {leisure_preference} (outdoor/indoor/social/solitary - affects activity duration)
-
-Examples:
-- "Learn programming": {{"time": 120}}
-- "Watch a movie": {{"time": 150}} 
-- "Play mobile games": {{"time": 60}}
-- "Read a book": {{"time": 90}}
-- "Exercise": {{"time": 45}}
-
-Please return the result in JSON format (Do not return any other text), the time unit is [minute], example:
-{{
-    "time": 10
-}}
-"""
 
 
 class SleepBlock(Block):
@@ -64,7 +24,7 @@ class SleepBlock(Block):
 
     Attributes:
         description (str): Human-readable block purpose.
-        guidance_prompt (FormatPrompt): Template for generating time estimation prompts.
+        prompt_name (str): PromptManager key for time estimation.
     """
 
     name = "SleepBlock"
@@ -75,16 +35,14 @@ class SleepBlock(Block):
         self,
         toolbox: AgentToolbox,
         agent_memory: Optional[Memory] = None,
-        sleep_time_estimation_prompt: str = SLEEP_TIME_ESTIMATION_PROMPT,
+        sleep_time_estimation_prompt: Optional[str] = None,
     ):
         super().__init__(
             toolbox=toolbox,
             agent_memory=agent_memory,
         )
-        self.guidance_prompt = FormatPrompt(
-            template=sleep_time_estimation_prompt,
-            memory=agent_memory,
-        )
+        _ = sleep_time_estimation_prompt
+        self.prompt_name = "other_sleep_time_estimate"
 
     async def forward(self, context: DotDict):
         """Execute sleep action and estimate time consumption using LLM.
@@ -95,38 +53,20 @@ class SleepBlock(Block):
         Returns:
             Dictionary with execution status, evaluation, time consumed, and node ID.
         """
-        # Get Big Five personality traits
-        big5 = await self.memory.status.get("big5", {})
-        
-        # Get household and life stage
-        household = await self.memory.status.get("household", "unknown")
-        life_stage = await self.memory.status.get("life_stage", "unknown")
-        hobbies = await self.memory.status.get("hobbies", [])
-        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
-        goals = await self.memory.status.get("goals", [])
-        goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
-        
-        # Get preferences
-        preferences = await self.memory.status.get("preferences", {})
-        chronotype = preferences.get("chronotype", "standard")
-        leisure_preference = preferences.get("leisure_preference", "indoor")
-        
-        await self.guidance_prompt.format(
-            context=context,
-            household=household,
-            life_stage=life_stage,
-            hobbies=hobbies_str,
-            goals=goals_str,
-            openness=big5.get("openness", 2),
-            conscientiousness=big5.get("conscientiousness", 2),
-            extraversion=big5.get("extraversion", 2),
-            agreeableness=big5.get("agreeableness", 2),
-            neuroticism=big5.get("neuroticism", 2),
-            chronotype=chronotype,
-            leisure_preference=leisure_preference,
+        if self.prompt_manager is None:
+            raise RuntimeError("PromptManager is not initialized")
+
+        required_fields = self.prompt_manager.get_required_fields(self.prompt_name)
+        state_dict = await self.prompt_manager.build_agent_state(
+            required_fields=required_fields,
+            context=dict(context),
+            memory=self.memory,
+        )
+        dialog = self.prompt_manager.format_prompt_to_dialog(
+            self.prompt_name, state_dict
         )
         result = await self.llm.atext_request(
-            self.guidance_prompt.to_dialog(),
+            dialog,
             response_format={"type": "json_object"},
             context={
                 "block_name": self.name,
@@ -161,7 +101,7 @@ class OtherNoneBlock(Block):
 
     Attributes:
         description (str): Human-readable block purpose.
-        guidance_prompt (FormatPrompt): Template for generating time estimation prompts.
+        prompt_name (str): PromptManager key for time estimation.
     """
 
     name = "OtherNoneBlock"
@@ -173,44 +113,23 @@ class OtherNoneBlock(Block):
             toolbox=toolbox,
             agent_memory=agent_memory,
         )
-        self.guidance_prompt = FormatPrompt(template=TIME_ESTIMATE_PROMPT)
+        self.prompt_name = "other_time_estimate"
 
     async def forward(self, context: DotDict):
+        if self.prompt_manager is None:
+            raise RuntimeError("PromptManager is not initialized")
 
-        big5 = await self.memory.status.get("big5", {})
-        
-        household = await self.memory.status.get("household", "unknown")
-        life_stage = await self.memory.status.get("life_stage", "unknown")
-        hobbies = await self.memory.status.get("hobbies", [])
-        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
-        goals = await self.memory.status.get("goals", [])
-        goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
-        
-        # Get preferences
-        preferences = await self.memory.status.get("preferences", {})
-        chronotype = preferences.get("chronotype", "standard")
-        work_ethic = preferences.get("work_ethic", 0.5)
-        leisure_preference = preferences.get("leisure_preference", "indoor")
-
-        await self.guidance_prompt.format(
-            plan=context["plan_context"]["plan"],
-            intention=context["current_step"]["intention"],
-            emotion_types=await self.memory.status.get("emotion_types"),
-            household=household,
-            life_stage=life_stage,
-            hobbies=hobbies_str,
-            goals=goals_str,
-            openness=big5.get("openness", 2),
-            conscientiousness=big5.get("conscientiousness", 2),
-            extraversion=big5.get("extraversion", 2),
-            agreeableness=big5.get("agreeableness", 2),
-            neuroticism=big5.get("neuroticism", 2),
-            chronotype=chronotype,
-            work_ethic=work_ethic,
-            leisure_preference=leisure_preference,
+        required_fields = self.prompt_manager.get_required_fields(self.prompt_name)
+        state_dict = await self.prompt_manager.build_agent_state(
+            required_fields=required_fields,
+            context=dict(context),
+            memory=self.memory,
+        )
+        dialog = self.prompt_manager.format_prompt_to_dialog(
+            self.prompt_name, state_dict
         )
         result = await self.llm.atext_request(
-            self.guidance_prompt.to_dialog(),
+            dialog,
             response_format={"type": "json_object"},
             context={
                 "block_name": self.name,
@@ -245,8 +164,8 @@ class OtherNoneBlock(Block):
 
 class OtherBlockParams(BlockParams):
     sleep_time_estimation_prompt: str = Field(
-        default=SLEEP_TIME_ESTIMATION_PROMPT,
-        description="Used to determine the sleep time",
+        default="other_sleep_time_estimate",
+        description="Legacy compatibility field; PromptManager controls sleep time prompt resolution",
     )
 
 
@@ -287,9 +206,7 @@ class OtherBlock(Block):
             block_params=block_params,
         )
         # init all blocks
-        self.sleep_block = SleepBlock(
-            toolbox, agent_memory, self.params.sleep_time_estimation_prompt
-        )
+        self.sleep_block = SleepBlock(toolbox, agent_memory)
         self.other_none_block = OtherNoneBlock(toolbox, agent_memory)
         self.trigger_time = 0
         self.token_consumption = 0

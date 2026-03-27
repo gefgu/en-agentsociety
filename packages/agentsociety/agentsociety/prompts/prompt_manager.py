@@ -179,7 +179,15 @@ class PromptManager:
             else context.get("big5", {})
         )
 
-        needs_preferences = "work_ethic" in required_fields
+        preference_fields = {
+            "work_ethic",
+            "chronotype",
+            "social_frequency",
+            "leisure_preference",
+            "risk_tolerance",
+            "spending_tendency",
+        }
+        needs_preferences = any(field in preference_fields for field in required_fields)
         preferences = (
             await memory.status.get("preferences", {})
             if needs_preferences and "preferences" not in context
@@ -211,6 +219,20 @@ class PromptManager:
                 state[field] = big5.get(field, 2)
             elif field == "work_ethic":
                 state[field] = preferences.get("work_ethic", 0.5)
+            elif field == "chronotype":
+                state[field] = preferences.get("chronotype", "standard")
+            elif field == "social_frequency":
+                state[field] = preferences.get("social_frequency", 0.5)
+            elif field == "leisure_preference":
+                state[field] = preferences.get("leisure_preference", "indoor")
+            elif field == "risk_tolerance":
+                state[field] = preferences.get("risk_tolerance", 0.5)
+            elif field == "spending_tendency":
+                state[field] = preferences.get("spending_tendency", 0.5)
+            elif field == "current_time":
+                state[field] = context.get("current_time", "unknown")
+            elif field == "consumption_level":
+                state[field] = await memory.status.get("consumption", "unknown")
             else:
                 # Generic fallback: resolve arbitrary memory status fields only when requested.
                 value = await memory.status.get(field, "unknown")

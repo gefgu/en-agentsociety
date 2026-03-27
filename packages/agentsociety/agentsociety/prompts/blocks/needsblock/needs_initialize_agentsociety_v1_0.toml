@@ -1,0 +1,73 @@
+[metadata]
+name = "needs_initialize"
+version = "1.0.0"
+origin = "agentsociety"
+description = "Initialize satisfaction levels from profile and traits"
+
+[inputs]
+required = [
+    "gender",
+    "education",
+    "consumption",
+    "occupation",
+    "age",
+    "income",
+    "household",
+    "life_stage",
+    "hobbies",
+    "goals",
+    "openness",
+    "conscientiousness",
+    "extraversion",
+    "agreeableness",
+    "neuroticism",
+    "social_frequency",
+    "current_time"
+]
+
+[prompt]
+input = """You are an intelligent agent satisfaction initialization system. Based on the profile information below, please help initialize the agent's satisfaction levels and related parameters.
+
+Profile Information:
+- Gender: {gender}
+- Education Level: {education}
+- Consumption Level: {consumption}
+- Occupation: {occupation}
+- Age: {age}
+- Monthly Income: {income}
+- Household type: {household}
+- Life stage: {life_stage}
+- Hobbies: {hobbies}
+- Goals: {goals}
+- Big Five Personality Traits (1=Low, 2=Medium, 3=High):
+  - Openness: {openness}
+  - Conscientiousness: {conscientiousness}
+  - Extraversion: {extraversion}
+  - Agreeableness: {agreeableness}
+  - Neuroticism: {neuroticism}
+- Behavioral Preferences:
+  - Social Frequency: {social_frequency} (0.0=Rarely initiates social contact, 1.0=Frequently seeks social interaction)
+
+Current Time: {current_time}
+
+Please initialize the agent's satisfaction levels and parameters based on the profile above. Return the values in JSON format with the following structure:
+
+Current satisfaction levels (0-1 float values, lower means less satisfied):
+- hunger_satisfaction: Hunger satisfaction level (Normally, the agent will be less satisfied with hunger at eating time)
+- energy_satisfaction: Energy satisfaction level (Normally, at night, the agent will be less satisfied with energy)
+- safety_satisfaction: Safety satisfaction level (Normally, the agent will be more satisfied with safety when they have high income and currency)
+- social_satisfaction: Social satisfaction level (Consider social_frequency: higher value means more need for social interaction)
+
+Please response in json format, example:
+{{
+    "current_satisfaction": {{
+        "hunger_satisfaction": 0.8,
+        "energy_satisfaction": 0.7,
+        "safety_satisfaction": 0.9,
+        "social_satisfaction": 0.6
+    }}
+}}
+DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
+DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
+DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
+"""

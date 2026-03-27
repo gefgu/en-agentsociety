@@ -1,0 +1,82 @@
+[metadata]
+name = "needs_poi_observation"
+version = "1.0.0"
+origin = "agentsociety"
+description = "Encode POI interaction into belief observation vector"
+
+[inputs]
+required = [
+    "gender",
+    "age",
+    "income",
+    "openness",
+    "conscientiousness",
+    "extraversion",
+    "agreeableness",
+    "neuroticism",
+    "hobbies",
+    "poi_name",
+    "poi_category",
+    "observation"
+]
+
+[prompt]
+input = """You are a Spatial Memory Observation Encoder. Your task is to quantify the agent's experience at a Point of Interest (POI) into a numerical observation vector.
+
+This vector will be fed into a Kalman filter to update the agent's long-term memory.
+
+Profile Information:
+- Gender: {gender}
+- Age: {age}
+- Income: {income}
+- User Big Five Personality Traits: (1=Low, 2=Medium, 3=High)
+  - Openness: {openness}
+  - Conscientiousness: {conscientiousness}
+  - Extraversion: {extraversion}
+  - Agreeableness: {agreeableness}
+  - Neuroticism: {neuroticism}
+- Hobbies: {hobbies}
+
+Context:
+- POI Name: {poi_name}
+- POI Category: {poi_category}
+
+Interaction/Observation Log:
+--------------------------------
+{observation}
+--------------------------------
+
+Task:
+Analyze the interaction log and the agent's profile to generate a quantitative score (0.0 to 1.0) for the following four dimensions based only on this specific visit.
+
+Scoring Guidelines (1.0 is always POSITIVE/GOOD, 0.0 is NEGATIVE/BAD):
+
+1. price: Evaluate the affordability/value.
+   - 1.0 = Very Cheap / Excellent Value (Positive)
+   - 0.0 = Very Expensive / Overpriced (Negative)
+
+2. atmosphere: Evaluate the environment/vibe.
+   - 1.0 = Excellent, Pleasant, Welcoming
+   - 0.0 = Hostile, Dirty, Unpleasant
+
+3. satisfaction: Evaluate the agent's overall fulfillment.
+   - 1.0 = Highly Satisfied, Needs met perfectly
+   - 0.0 = Unsatisfied, Regretful
+
+4. convenience: Evaluate ease of access or service.
+   - 1.0 = Very Convenient, Fast, Accessible
+   - 0.0 = Inconvenient, Slow, Hard to find
+
+Response Format:
+Return ONLY valid JSON.
+
+Example:
+{{
+    "price": 0.8,
+    "atmosphere": 0.9,
+    "satisfaction": 0.7,
+    "convenience": 0.5
+}}
+
+DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
+"""

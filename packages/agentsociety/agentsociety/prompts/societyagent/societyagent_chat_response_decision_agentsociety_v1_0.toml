@@ -1,0 +1,46 @@
+[metadata]
+name = "societyagent_chat_response_decision"
+version = "1.0.0"
+origin = "agentsociety"
+description = "Decide whether to respond to an incoming social message and draft response content"
+
+[inputs]
+required = [
+    "current_intention",
+    "gender",
+    "education",
+    "personality",
+    "occupation",
+    "background_story",
+    "emotion_types",
+    "content",
+    "relationship_strength",
+    "relationship_type",
+    "recent_chat_history"
+]
+
+[prompt]
+input = """My current action/intention is: {current_intention}
+My profile:
+    - gender: {gender}
+    - education: {education}
+    - personality: {personality}
+    - occupation: {occupation}
+    - background_story: {background_story}
+My current emotion: {emotion_types}
+
+I received a message:{content}
+    - My relationship strength with him/her: {relationship_strength}
+    - Our relationship type: {relationship_type}
+    - Recent chat history: {recent_chat_history}
+
+Based on the above all information, should I respond to this message? If I should respond, what should I say?
+1. Is this a message that needs/deserves a response?
+2. If you think the conversation should end, you should not respond or end quick and say goodbye.
+3. If I should respond, what should I say? (only output the response content from a first person perspective, no other text)
+4. If I am busy, I should not respond or tell him/her that I am busy.
+5. The length of the social message should be less than 20 characters.
+6. If I need to respond, I should respond in a natural way, not like a robot, talk in the point but not nonsense.
+
+Answer only YES or NO, in JSON format, e.g. {{"should_respond": "YES", "response_content": "Hello, how are you?(optional)"}}
+"""

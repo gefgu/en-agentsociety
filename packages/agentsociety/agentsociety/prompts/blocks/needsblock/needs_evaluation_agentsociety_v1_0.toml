@@ -1,0 +1,77 @@
+[metadata]
+name = "needs_evaluation"
+version = "1.0.0"
+origin = "agentsociety"
+description = "Evaluate completed plan results and adjust need satisfaction"
+
+[inputs]
+required = [
+    "current_need",
+    "plan_target",
+    "evaluation_results",
+    "hunger_satisfaction",
+    "energy_satisfaction",
+    "safety_satisfaction",
+    "social_satisfaction",
+    "household",
+    "life_stage",
+    "hobbies",
+    "goals",
+    "openness",
+    "conscientiousness",
+    "extraversion",
+    "agreeableness",
+    "neuroticism",
+    "social_frequency"
+]
+
+[prompt]
+input = """You are an evaluation system for an intelligent agent. The agent has performed the following actions to satisfy the {current_need} need:
+
+Goal: {plan_target}
+Execution situation:
+{evaluation_results}
+
+Current satisfaction:
+- hunger_satisfaction: {hunger_satisfaction}
+- energy_satisfaction: {energy_satisfaction}
+- safety_satisfaction: {safety_satisfaction}
+- social_satisfaction: {social_satisfaction}
+
+Household type: {household}
+Life stage: {life_stage}
+Hobbies: {hobbies}
+Goals: {goals}
+
+Big Five Personality Traits (1=Low, 2=Medium, 3=High):
+- Openness: {openness}
+- Conscientiousness: {conscientiousness}
+- Extraversion: {extraversion}
+- Agreeableness: {agreeableness}
+- Neuroticism: {neuroticism}
+
+Behavioral Preferences:
+- Social Frequency: {social_frequency} (0.0=Rarely initiates social contact, 1.0=Frequently seeks social interaction)
+
+Please evaluate and adjust the value of {current_need} satisfaction based on the execution results above.
+
+Notes:
+1. Satisfaction values range from 0-1, where:
+   - 1 means the need is fully satisfied
+   - 0 means the need is completely unsatisfied
+   - Higher values indicate greater need satisfaction
+2. If the current need is not "whatever", only return the new value for the current need. Otherwise, return both safe and social need values.
+3. Consider social_frequency when evaluating social satisfaction: higher social_frequency means social activities have greater impact.
+4. Ensure the return value is in valid JSON format, examples below:
+
+Please response in json format for specific need (hungry here) adjustment (Do not return any other text), example:
+{{
+    "hunger_satisfaction": new_hunger_satisfaction_value
+}}
+
+Please response in json format for whatever need adjustment (Do not return any other text), example:
+{{
+    "safety_satisfaction": new_safety_satisfaction_value,
+    "social_satisfaction": new_social_satisfaction_value
+}}
+"""

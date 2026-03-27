@@ -4,135 +4,10 @@ from typing import Any, Optional, Tuple
 
 import json_repair
 
-from ...agent import AgentToolbox, Agent, Block, FormatPrompt, DotDict
+from ...agent import AgentToolbox, Agent, Block, DotDict
 from ...logger import get_logger
 from ...memory import Memory
 from .utils import clean_json_response
-
-GUIDANCE_SELECTION_PROMPT = """As an intelligent agent's decision system, please help me determine a suitable option to satisfy my current need.
-The Environment will influence the choice of steps.
-
-Current weather: {weather}
-Current temperature: {temperature}
-Other information: 
--------------------------
-{other_info}
--------------------------
-
-Current need: Need to satisfy {current_need}
-Current location: {current_location}
-Current time: {current_time}
-My income/consumption level: {consumption_level}
-My occupation: {occupation}
-My age: {age}
-My emotion: {emotion_types}
-My thought: {thought}
-Household type: {household}
-Life stage: {life_stage}
-Hobbies: {hobbies}
-Goals: {goals}
-
-Big Five Personality Traits (1=Low, 2=Medium, 3=High):
-- Openness: {openness}
-- Conscientiousness: {conscientiousness}
-- Extraversion: {extraversion}
-- Agreeableness: {agreeableness}
-- Neuroticism: {neuroticism}
-
-Behavioral Preferences:
-- Chronotype: {chronotype} (early_bird/standard/night_owl - affects timing preferences)
-- Work Ethic: {work_ethic} (0.0=Low work priority, 1.0=High work priority/workaholic)
-- Social Frequency: {social_frequency} (0.0=Prefers solitude, 1.0=Seeks frequent social interaction)
-- Leisure Preference: {leisure_preference} (outdoor/indoor/social/solitary)
-
-Guidance Options: 
--------------------------
-{options}
--------------------------
-
-Please evaluate and select the most appropriate option based on these three dimensions:
-1. Attitude: Personal preference and evaluation of the option
-2. Subjective Norm: Social environment and others' views on this behavior
-3. Perceived Control: Difficulty and controllability of executing this option
-
-Please response in json format (Do not return any other text), example:
-{{
-    "selected_option": "Select the most suitable option from Guidance Options and extent the option if necessary (or do things that can satisfy your needs or actions unless there is no specific options)",
-    "evaluation": {{
-        "attitude": "Attitude score for the option (0-1)",
-        "subjective_norm": "Subjective norm score (0-1)", 
-        "perceived_control": "Perceived control score (0-1)",
-        "reasoning": "Specific reasons for selecting this option"
-    }}
-}}
-"""
-
-DETAILED_PLAN_PROMPT = """As an intelligent agent's plan system, please help me generate specific execution steps based on the selected guidance plan. 
-The Environment will influence the choice of steps.
-
-Current weather: ${context.weather}
-Current temperature: ${context.temperature}
-Other information: 
--------------------------
-${context.other_information}
--------------------------
-
-Plan target: ${context.plan_target}
-Current location: ${context.current_position} 
-Current time: ${context.current_time}
-My income/consumption level: ${profile.consumption}
-My occupation: ${profile.occupation}
-My age: ${profile.age}
-My emotion: ${profile.emotion_types}
-My thought: ${context.current_thought}
-Household type: {household}
-Life stage: {life_stage}
-Hobbies: {hobbies}
-Goals: {goals}
-
-Big Five Personality Traits (1=Low, 2=Medium, 3=High):
-- Openness: {openness}
-- Conscientiousness: {conscientiousness}
-- Extraversion: {extraversion}
-- Agreeableness: {agreeableness}
-- Neuroticism: {neuroticism}
-
-Behavioral Preferences:
-- Chronotype: {chronotype} (early_bird/standard/night_owl - affects timing preferences)
-- Work Ethic: {work_ethic} (0.0=Low work priority, 1.0=High work priority/workaholic)
-- Social Frequency: {social_frequency} (0.0=Prefers solitude, 1.0=Seeks frequent social interaction)
-- Leisure Preference: {leisure_preference} (outdoor/indoor/social/solitary)
-
-Notes:
-1. type can only be one of these four: mobility, social, economy, other
-    1.1 mobility: Decisions or behaviors related to large-scale spatial movement, such as location selection, going to a place, etc.
-    1.2 social: Decisions or behaviors related to social interaction, such as finding contacts, chatting with friends, etc.
-    1.3 economy: Decisions or behaviors related to shopping, work, etc.
-    1.4 other: Other types of decisions or behaviors, such as small-scale activities, learning, resting, entertainment, etc.
-2. steps should only include steps necessary to fulfill the target (limited to ${context.max_plan_steps} steps)
-3. intention in each step should be concise and clear
-
-Please response in json format (Do not return any other text), example:
-{{
-    "plan": {{
-        "target": "Eat at home",
-        "steps": [
-            {{
-                "intention": "Return home from current location",
-                "type": "mobility"
-            }},
-            {{
-                "intention": "Cook food",
-                "type": "other"
-            }},
-            {{
-                "intention": "Have meal",
-                "type": "other"
-            }}
-        ]
-    }}
-}}
-"""
 
 
 class PlanBlock(Block):
@@ -155,7 +30,6 @@ class PlanBlock(Block):
         agent_memory: Memory,
         agent_context: DotDict,
         max_plan_steps: int = 6,
-        detailed_plan_prompt: str = DETAILED_PLAN_PROMPT,
     ):
         """Initialize PlanBlock with required components.
 
@@ -167,10 +41,8 @@ class PlanBlock(Block):
         super().__init__(toolbox=toolbox, agent_memory=agent_memory)
         self.set_agent(agent)
         self.context = agent_context
-        self.guidance_prompt = FormatPrompt(template=GUIDANCE_SELECTION_PROMPT)
-        self.detail_prompt = FormatPrompt(
-            template=detailed_plan_prompt, memory=agent_memory
-        )
+        self.guidance_prompt_name = "plan_guidance_selection"
+        self.detail_prompt_name = "plan_detailed_generation"
         self.trigger_time = 0
         self.token_consumption = 0
         self.guidance_options = {
@@ -236,54 +108,32 @@ class PlanBlock(Block):
                 if isinstance(options, list):
                     options = [f"{activity} (scheduled)"] + options
 
-        # Get Big Five personality traits
-        big5 = await self.memory.status.get("big5", {})
+        if self.prompt_manager is None:
+            raise RuntimeError("PromptManager is not initialized")
 
-        # Get household and life stage
-        household = await self.memory.status.get("household", "unknown")
-        life_stage = await self.memory.status.get("life_stage", "unknown")
-        hobbies = await self.memory.status.get("hobbies", [])
-        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
-        goals = await self.memory.status.get("goals", [])
-        goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
-
-        # Get preferences
-        preferences = await self.memory.status.get("preferences", {})
-        chronotype = preferences.get("chronotype", "standard")
-        work_ethic = preferences.get("work_ethic", 0.5)
-        social_frequency = preferences.get("social_frequency", 0.5)
-        leisure_preference = preferences.get("leisure_preference", "indoor")
-
-        await self.guidance_prompt.format(
-            current_need=current_need,
-            weather=self.environment.sense("weather"),
-            temperature=self.environment.sense("temperature"),
-            other_info=self.environment.sense("other_information") + schedule_context,  # **NEW: Add schedule context**
-            options=options,
-            current_location=current_location,
-            current_time=current_time,
-            consumption_level=await self.memory.status.get("consumption"),
-            occupation=await self.memory.status.get("occupation"),
-            age=await self.memory.status.get("age"),
-            emotion_types=await self.memory.status.get("emotion_types"),
-            thought=await self.memory.status.get("thought"),
-            household=household,
-            life_stage=life_stage,
-            hobbies=hobbies_str,
-            goals=goals_str,
-            openness=big5.get("openness", 2),
-            conscientiousness=big5.get("conscientiousness", 2),
-            extraversion=big5.get("extraversion", 2),
-            agreeableness=big5.get("agreeableness", 2),
-            neuroticism=big5.get("neuroticism", 2),
-            chronotype=chronotype,
-            work_ethic=work_ethic,
-            social_frequency=social_frequency,
-            leisure_preference=leisure_preference,
+        required_fields = self.prompt_manager.get_required_fields(
+            self.guidance_prompt_name
+        )
+        state_dict = await self.prompt_manager.build_agent_state(
+            required_fields=required_fields,
+            context={
+                "current_need": current_need,
+                "weather": self.environment.sense("weather"),
+                "temperature": self.environment.sense("temperature"),
+                "other_info": self.environment.sense("other_information") + schedule_context,
+                "options": options,
+                "current_location": current_location,
+                "current_time": current_time,
+                "consumption_level": await self.memory.status.get("consumption"),
+            },
+            memory=self.memory,
+        )
+        dialog = self.prompt_manager.format_prompt_to_dialog(
+            self.guidance_prompt_name, state_dict
         )
 
         response = await self.llm.atext_request(
-            self.guidance_prompt.to_dialog(),
+            dialog,
             response_format={"type": "json_object"},
             context={
                 "block_name": self.name,
@@ -325,43 +175,31 @@ class PlanBlock(Block):
         Returns:
             dict: Structured plan with target and typed execution steps. None if no plan is generated by bad response from LLM.
         """
-        # Get Big Five personality traits
-        big5 = await self.memory.status.get("big5", {})
+        if self.prompt_manager is None:
+            raise RuntimeError("PromptManager is not initialized")
 
-        # Get household and life stage
-        household = await self.memory.status.get("household", "unknown")
-        life_stage = await self.memory.status.get("life_stage", "unknown")
-        hobbies = await self.memory.status.get("hobbies", [])
-        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
-        goals = await self.memory.status.get("goals", [])
-        goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
-
-        # Get preferences
-        preferences = await self.memory.status.get("preferences", {})
-        chronotype = preferences.get("chronotype", "standard")
-        work_ethic = preferences.get("work_ethic", 0.5)
-        social_frequency = preferences.get("social_frequency", 0.5)
-        leisure_preference = preferences.get("leisure_preference", "indoor")
-
-        await self.detail_prompt.format(
-            context=self.context,
-            household=household,
-            life_stage=life_stage,
-            hobbies=hobbies_str,
-            goals=goals_str,
-            openness=big5.get("openness", 2),
-            conscientiousness=big5.get("conscientiousness", 2),
-            extraversion=big5.get("extraversion", 2),
-            agreeableness=big5.get("agreeableness", 2),
-            neuroticism=big5.get("neuroticism", 2),
-            chronotype=chronotype,
-            work_ethic=work_ethic,
-            social_frequency=social_frequency,
-            leisure_preference=leisure_preference,
+        required_fields = self.prompt_manager.get_required_fields(self.detail_prompt_name)
+        state_dict = await self.prompt_manager.build_agent_state(
+            required_fields=required_fields,
+            context={
+                **dict(self.context),
+                "weather": self.context.get("weather", self.environment.sense("weather")),
+                "temperature": self.context.get("temperature", self.environment.sense("temperature")),
+                "other_information": self.context.get("other_information", self.environment.sense("other_information")),
+                "current_position": self.context.get("current_position", "unknown"),
+                "current_time": self.context.get("current_time", self.environment.get_datetime(format_time=True)[1]),
+                "current_thought": self.context.get("current_thought", await self.memory.status.get("thought", "")),
+                "plan_target": self.context.get("plan_target", "unknown"),
+                "max_plan_steps": self.context.get("max_plan_steps", 6),
+            },
+            memory=self.memory,
+        )
+        dialog = self.prompt_manager.format_prompt_to_dialog(
+            self.detail_prompt_name, state_dict
         )
 
         response = await self.llm.atext_request(
-            self.detail_prompt.to_dialog(),
+            dialog,
             context={
                 "block_name": self.name,
                 "func_name": "generate_detailed_plan",

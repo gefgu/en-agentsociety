@@ -7,7 +7,6 @@ import json_repair
 from ...agent import (
     AgentToolbox,
     Block,
-    FormatPrompt,
     BlockParams,
     DotDict,
     BlockContext,
@@ -15,110 +14,10 @@ from ...agent import (
 from ...logger import get_logger
 from ...memory import Memory
 from ...agent.dispatcher import BlockDispatcher
-from .utils import TIME_ESTIMATE_PROMPT, clean_json_response
+from .utils import clean_json_response
 from ..sharing_params import SocietyAgentBlockOutput
 from pydantic import Field
 import numpy as np
-
-
-class MessagePromptManager:
-    """
-    Manages the creation of message prompts by dynamically formatting templates with agent-specific data.
-    """
-
-    def __init__(self):
-        pass
-
-    async def get_prompt(
-        self,
-        memory,
-        step: dict[str, Any],
-        environment_info: str,
-        target: int,
-        template: str,
-    ):
-        """Generates a formatted prompt for message creation.
-
-        Args:
-            memory: Agent's memory to retrieve status data.
-            step: Current workflow step containing intention and context.
-            target: ID of the target agent for communication.
-            template: Raw template string to be formatted.
-
-        Returns:
-            Formatted prompt string with placeholders replaced by agent-specific data.
-        """
-
-        # Retrieve data
-        social_network = await memory.status.get("social_network") or []
-        relationship = None
-        for relation in social_network:
-            if relation.target_id == target:
-                relationship = relation
-                break
-        assert (
-            relationship is not None
-        ), f"MessagePromptManager: No relation found for target {target}"
-        relationship_type = relationship.kind
-        relationship_strength = f"Relationship Strength (0-1 Scale): Affinity {relationship.affinity}, Familiarity {relationship.familiarity}, Trust {relationship.trust}"
-        chat_histories = await memory.status.get("chat_histories") or {}
-
-        # Build discussion topic constraints
-        discussion_constraint = ""
-        topics = await memory.status.get("attitude")
-        topics = topics.keys()
-        if topics:
-            topics = ", ".join(f'"{topic}"' for topic in topics)
-            discussion_constraint = (
-                f"Limit your discussion to the following topics: {topics}."
-            )
-
-        # Get Big Five personality traits
-        big5 = await memory.status.get("big5", {})
-
-        # Get household and life stage
-        household = await memory.status.get("household", "unknown")
-        life_stage = await memory.status.get("life_stage", "unknown")
-        hobbies = await memory.status.get("hobbies", [])
-        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
-
-        # Get preferences
-        preferences = await memory.status.get("preferences", {})
-        social_frequency = preferences.get("social_frequency", 0.5)
-
-        # Format prompt
-        format_prompt = FormatPrompt(template)
-        await format_prompt.format(
-            name=await memory.status.get("name", "unknown"),
-            gender=await memory.status.get("gender", "unknown"),
-            occupation=await memory.status.get("occupation", "unknown"),
-            education=await memory.status.get("education", "unknown"),
-            personality=await memory.status.get("personality", "unknown"),
-            emotion_types=await memory.status.get("emotion_types", "unknown"),
-            thought=await memory.status.get("thought", "unknown"),
-            background_story=await memory.status.get("background_story", "unknown"),
-            relationship_type=relationship_type,
-            relationship_strength=relationship_strength,
-            chat_history=(
-                chat_histories.get(target, "")
-                if isinstance(chat_histories, dict)
-                else ""
-            ),
-            intention=step.get("intention", ""),
-            discussion_constraint=discussion_constraint,
-            environment_info=environment_info,
-            household=household,
-            life_stage=life_stage,
-            hobbies=hobbies_str,
-            openness=big5.get("openness", 2),
-            conscientiousness=big5.get("conscientiousness", 2),
-            extraversion=big5.get("extraversion", 2),
-            agreeableness=big5.get("agreeableness", 2),
-            neuroticism=big5.get("neuroticism", 2),
-            social_frequency=social_frequency,
-        )
-
-        return format_prompt.to_dialog()
 
 
 class SocialNoneBlock(Block):
@@ -131,7 +30,7 @@ class SocialNoneBlock(Block):
 
     def __init__(self, toolbox: AgentToolbox, agent_memory: Memory):
         super().__init__(toolbox=toolbox, agent_memory=agent_memory)
-        self.guidance_prompt = FormatPrompt(template=TIME_ESTIMATE_PROMPT)
+        self.time_estimate_prompt_name = "social_time_estimate"
 
     async def forward(self, context):
         """Executes default behavior when no specific block matches the intention.
@@ -145,43 +44,27 @@ class SocialNoneBlock(Block):
         """
         intention = str(context["current_step"].get("intention", "socialize"))
 
-        # Get Big Five personality traits
-        big5 = await self.memory.status.get("big5", {})
+        if self.prompt_manager is None:
+            raise RuntimeError("PromptManager is not initialized")
 
-        # Get household and life stage
-        household = await self.memory.status.get("household", "unknown")
-        life_stage = await self.memory.status.get("life_stage", "unknown")
-        hobbies = await self.memory.status.get("hobbies", [])
-        hobbies_str = ", ".join(hobbies) if isinstance(hobbies, list) else str(hobbies)
-        goals = await self.memory.status.get("goals", [])
-        goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
-
-        # Get preferences
-        preferences = await self.memory.status.get("preferences", {})
-        chronotype = preferences.get("chronotype", "standard")
-        work_ethic = preferences.get("work_ethic", 0.5)
-        leisure_preference = preferences.get("leisure_preference", "indoor")
-        social_frequency = preferences.get("social_frequency", 0.5)
-
-        await self.guidance_prompt.format(
-            plan=context["plan_context"]["plan"],
-            intention=intention,
-            emotion_types=await self.memory.status.get("emotion_types"),
-            household=household,
-            life_stage=life_stage,
-            hobbies=hobbies_str,
-            goals=goals_str,
-            openness=big5.get("openness", 2),
-            conscientiousness=big5.get("conscientiousness", 2),
-            extraversion=big5.get("extraversion", 2),
-            agreeableness=big5.get("agreeableness", 2),
-            neuroticism=big5.get("neuroticism", 2),
-            chronotype=chronotype,
-            work_ethic=work_ethic,
-            leisure_preference=leisure_preference,
+        required_fields = self.prompt_manager.get_required_fields(
+            self.time_estimate_prompt_name
         )
+        state_dict = await self.prompt_manager.build_agent_state(
+            required_fields=required_fields,
+            context={
+                "intention": intention,
+                "plan_context": context.get("plan_context", {}),
+                "current_step": context.get("current_step", {}),
+            },
+            memory=self.memory,
+        )
+        dialog = self.prompt_manager.format_prompt_to_dialog(
+            self.time_estimate_prompt_name, state_dict
+        )
+
         result = await self.llm.atext_request(
-            self.guidance_prompt.to_dialog(),
+            dialog,
             response_format={"type": "json_object"},
             context={
                 "block_name": self.name,
@@ -317,48 +200,44 @@ class MessageBlock(Block):
             agent_memory=agent_memory,
         )
         self.find_person_block = FindPersonBlock(toolbox, agent_memory)
+        self.message_prompt_name = "social_message_generation"
 
-        # configurable fields
-        self.default_message_template = """
-My name is {name}, I am a {gender}
-My occupation is {occupation}. 
-My education level is {education}.
-My personality is {personality}.
-My current emotion is: {emotion_types}.
-My current thought is: {thought}.
-My background story is: {background_story}.
-Household type: {household}
-Life stage: {life_stage}
-Hobbies: {hobbies}
+    async def _build_message_context(self, context: DotDict, target: int, environment_info: str) -> dict[str, Any]:
+        social_network = await self.memory.status.get("social_network") or []
+        relationship = next(
+            (relation for relation in social_network if relation.target_id == target),
+            None,
+        )
+        if relationship is None:
+            raise ValueError(f"No relation found for target {target}")
 
-Big Five Personality Traits (1=Low, 2=Medium, 3=High):
-- Openness: {openness}
-- Conscientiousness: {conscientiousness}
-- Extraversion: {extraversion}
-- Agreeableness: {agreeableness}
-- Neuroticism: {neuroticism}
+        relationship_strength = (
+            "Relationship Strength (0-1 Scale): "
+            f"Affinity {relationship.affinity}, Familiarity {relationship.familiarity}, Trust {relationship.trust}"
+        )
 
-Now, I want to generate a social message to a target, my relationship with him/her:
-Our relationship type is: {relationship_type}
-Our relationship strength: {relationship_strength} (0-1, higher is stronger)
-My previous chat history with him/her is:
-{chat_history}
+        chat_histories = await self.memory.status.get("chat_histories") or {}
+        chat_history = (
+            chat_histories.get(target, "") if isinstance(chat_histories, dict) else ""
+        )
 
-My intention is: {intention}.
+        discussion_constraint = ""
+        topics = await self.memory.status.get("attitude") or {}
+        topic_names = topics.keys() if hasattr(topics, "keys") else []
+        if topic_names:
+            topics_str = ", ".join(f'"{topic}"' for topic in topic_names)
+            discussion_constraint = (
+                f"Limit your discussion to the following topics: {topics_str}."
+            )
 
-Environment Information:
-{environment_info}
-
-Please generate a natural and contextually appropriate message.
-Keep it under 100 characters.
-The message should reflect my personality and background.
-
-{discussion_constraint}
-
-Please output the message from a first-person perspective, without any other text
-"""
-
-        self.prompt_manager = MessagePromptManager()
+        return {
+            "relationship_type": relationship.kind,
+            "relationship_strength": relationship_strength,
+            "chat_history": chat_history,
+            "intention": context.get("current_step", {}).get("intention", ""),
+            "discussion_constraint": discussion_constraint,
+            "environment_info": environment_info,
+        }
 
     async def forward(self, context: DotDict):
         """Generates a message, sends it to the target, and updates chat history.
@@ -394,17 +273,36 @@ Please output the message from a first-person perspective, without any other tex
             if not environment_info:
                 environment_info = "No environment information"
 
-            # Get formatted prompt using prompt manager
-            formatted_prompt = await self.prompt_manager.get_prompt(
-                self.memory,
-                context["current_step"],
-                environment_info,
-                target,
-                self.default_message_template,
+            if self.prompt_manager is None:
+                raise RuntimeError("PromptManager is not initialized")
+
+            message_context = await self._build_message_context(
+                context=context,
+                target=target,
+                environment_info=environment_info,
+            )
+            required_fields = self.prompt_manager.get_required_fields(
+                self.message_prompt_name
+            )
+            state_dict = await self.prompt_manager.build_agent_state(
+                required_fields=required_fields,
+                context=message_context,
+                memory=self.memory,
+            )
+            dialog = self.prompt_manager.format_prompt_to_dialog(
+                self.message_prompt_name, state_dict
             )
 
             # Generate message
-            message = await self.llm.atext_request(formatted_prompt, timeout=300)
+            message = await self.llm.atext_request(
+                dialog,
+                timeout=300,
+                context={
+                    "block_name": self.name,
+                    "func_name": "forward",
+                    "agent_id": self.agent.id,
+                },
+            )
 
             # Update chat history with proper format
             chat_histories = await self.memory.status.get("chat_histories") or {}

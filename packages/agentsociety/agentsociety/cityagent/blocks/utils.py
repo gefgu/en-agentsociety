@@ -1,45 +1,6 @@
 import ast
 import re
 
-TIME_ESTIMATE_PROMPT = """As an intelligent agent's time estimation system, please estimate the time needed to complete the current action based on the overall plan and current intention.
-
-Overall plan:
-{plan}
-
-Current action: {intention}
-
-Current emotion: {emotion_types}
-
-Household type: {household}
-Life stage: {life_stage}
-Hobbies: {hobbies}
-Goals: {goals}
-
-Big Five Personality Traits (1=Low, 2=Medium, 3=High):
-- Openness: {openness}
-- Conscientiousness: {conscientiousness}
-- Extraversion: {extraversion}
-- Agreeableness: {agreeableness}
-- Neuroticism: {neuroticism}
-
-Behavioral Preferences:
-- Chronotype: {chronotype} (early_bird: wakes ~6am, standard: wakes ~7-8am, night_owl: wakes ~10am)
-- Work Ethic: {work_ethic} (0.0=Low priority on work, 1.0=High priority, tends to work overtime)
-- Leisure Preference: {leisure_preference} (outdoor/indoor/social/solitary)
-
-Examples:
-- "Learn programming": {{"time": 120}}
-- "Watch a movie": {{"time": 150}} 
-- "Play mobile games": {{"time": 60}}
-- "Read a book": {{"time": 90}}
-- "Exercise": {{"time": 45}}
-
-Please return the result in JSON format (Do not return any other text), the time unit is [minute], example:
-{{
-    "time": 10
-}}
-"""
-
 
 def prettify_document(document: str) -> str:
     # Remove sequences of whitespace characters (including newlines)
