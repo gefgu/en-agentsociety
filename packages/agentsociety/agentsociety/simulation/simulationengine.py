@@ -9,178 +9,45 @@ import traceback
 import yaml
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Any, Callable, Literal, Optional, Union, cast
+from typing import Any, Literal, Optional, Union, cast
 import time
 from ..database.database_actor import DatabaseActor
 from ..performance.prometheusActor import PrometheusActor
 from ..agent import CustomTool
 from fastembed import SparseTextEmbedding
 
-# from ..modernbert.modernbert_regression_actor import ModernBERTRegressionActor
-import ray
-
 from ..agent import (
     Agent,
     AgentToolbox,
-    BankAgentBase,
     CitizenAgentBase,
-    FirmAgentBase,
-    GovernmentAgentBase,
-    MemoryAttribute,
-    NBSAgentBase,
-)
-from ..agent.distribution import Distribution, DistributionConfig, DistributionType
-from ..agent.memory_config_generator import (
-    MemoryConfig,
-    MemoryConfigGenerator,
-    default_memory_config_citizen,
-    default_memory_config_supervisor,
 )
 from ..configs import (
-    AgentConfig,
     AgentFilterConfig,
     Config,
     WorkflowType,
 )
 from .agentmanager import AgentManager
+from .datarecorder import DataRecorder
 from .infrastructuremanager import InfrastructureManager
 from ..environment import EnvironmentStarter
 from ..llm import LLM
 from ..logger import get_logger, set_logger_level
 from ..memory import Memory
 from ..message import Message, MessageInterceptor, MessageKind, Messager
-from ..s3 import S3Config
 from ..storage import DatabaseWriter
 from ..storage.type import (
     StorageExpInfo,
     StorageGlobalPrompt,
     StoragePendingSurvey,
-    StorageStatus,
 )
 from ..survey.models import Survey
 from .type import ExperimentStatus, Logs
-from enum import Enum
+from .utils import set_default_agent_config
 
 __all__ = ["SimulationEngine"]
 
 MIN_ID = 1
 MAX_ID = 100000000
-
-
-def _set_default_agent_config(self: Config):
-    """
-    Validates configuration options to ensure the user selects the correct combination.
-    - **Description**:
-        - If citizens contains at least one CITIZEN type agent, automatically fills
-            empty institution agent lists with default configurations.
-        - Sets default memory_config_func for citizen agents if not specified.
-
-    - **Returns**:
-        - `AgentsConfig`: The validated configuration instance.
-    """
-    # Set default memory config function for citizens
-    for agent_config in self.agents.citizens:
-        if agent_config.memory_config_func is None:
-            agent_config.memory_config_func = default_memory_config_citizen
-
-    if self.agents.supervisor is not None:
-        if self.agents.supervisor.memory_config_func is None:
-            self.agents.supervisor.memory_config_func = default_memory_config_supervisor
-
-    return self
-
-
-def _init_agent_class(agent_config: AgentConfig, s3config: S3Config):
-    """
-    Initialize the agent class.
-
-    - **Args**:
-        - `agent_config` (AgentConfig): The agent configuration.
-
-    - **Returns**:
-        - `agents`: A list of tuples, each containing an agent class, a memory config generator, and an index.
-    """
-    agent_class: type[Agent] = agent_config.agent_class
-    n: int = agent_config.number
-    # memory config function
-    memory_config_func = cast(
-        Callable[
-            [dict[str, Distribution], Optional[list[MemoryAttribute]]],
-            MemoryConfig,
-        ],
-        agent_config.memory_config_func,
-    )
-    generator = MemoryConfigGenerator(
-        memory_config_func,
-        agent_class.StatusAttributes,
-        agent_config.number,
-        agent_config.memory_from_file,
-        (
-            agent_config.memory_distributions
-            if agent_config.memory_distributions is not None
-            else {}
-        ),
-        s3config,
-    )
-    # lazy generate memory values
-    # param config
-    agent_params = agent_config.agent_params
-    if agent_params is None:
-        agent_params = agent_class.ParamsType()
-    else:
-        agent_params = agent_class.ParamsType.model_validate(agent_params)
-    blocks = agent_config.blocks
-    agents = [(agent_class, generator, i, agent_params, blocks) for i in range(n)]
-    return agents, generator
-
-
-def evaluate_filter(filter_str: str, profile: dict) -> bool:
-    """
-    Evaluate a filter string against a profile dictionary.
-
-    - **Args**:
-        - `filter_str` (str): The filter string to evaluate, e.g. "${profile.age} > 0"
-        - `profile` (dict): The profile dictionary to evaluate against
-
-    - **Returns**:
-        - `bool`: True if the filter matches, False otherwise
-
-    - **Note**:
-        - Returns False if profile is empty
-        - Returns False if any key in filter_str is not in profile
-    """
-    # if profile is empty, return False
-    if not profile:
-        return False
-
-    # check if all keys in filter_str are in profile
-    import re
-
-    pattern = r"\${profile\.([^}]+)}"
-    required_keys = set(re.findall(pattern, filter_str))
-
-    # if any required key is not in profile, return False
-    for key in required_keys:
-        # Handle nested keys
-        current = profile
-        for part in key.split("."):
-            if not isinstance(current, dict) or part not in current:
-                return False
-            current = current[part]
-
-    # replace all ${profile.xxx} with actual values
-    for key in required_keys:
-        # Get the value by traversing the nested dictionary
-        current = profile
-        for part in key.split("."):
-            current = current[part]
-        filter_str = filter_str.replace(f"${{profile.{key}}}", repr(current))
-
-    # use eval to execute the expression
-    try:
-        return eval(filter_str)
-    except Exception:
-        return False
 
 
 class SimulationEngine:
@@ -189,7 +56,7 @@ class SimulationEngine:
         config: Config,
         tenant_id: str = "",
     ) -> None:
-        self._config = _set_default_agent_config(config)
+        self._config = set_default_agent_config(config)
         self.tenant_id = tenant_id
 
         # ====================
@@ -214,6 +81,7 @@ class SimulationEngine:
         self._db_actor: Optional[DatabaseActor] = None
         self._db_tool: Optional[CustomTool] = None
         self._agent_manager: Optional[AgentManager] = None
+        self._data_recorder: Optional[DataRecorder] = None
         yaml_config = yaml.dump(
             self._config.model_dump(
                 exclude_defaults=True,
@@ -278,6 +146,26 @@ class SimulationEngine:
         self._db_tool = self._infrastructure_manager.db_tool
         self._resume_state = self._infrastructure_manager.resume_state
 
+    def _start_data_recorder(self) -> None:
+        """Start async recorder after infrastructure dependencies are ready."""
+        self._data_recorder = DataRecorder(
+            database_writer=self._database_writer,
+            db_actor=self._db_actor,
+            metrics_actor=self._metrics_actor,
+        )
+        self._data_recorder.start_background_worker()
+
+    async def _flush_data_recorder(self, step: Optional[int] = None) -> None:
+        if self._data_recorder is None:
+            return
+        await self._data_recorder.flush(step=step)
+
+    async def _stop_data_recorder(self) -> None:
+        if self._data_recorder is None:
+            return
+        await self._data_recorder.stop_background_worker()
+        self._data_recorder = None
+
     def _restore_resume_runtime_state(self) -> None:
         """Restore runtime counters and simulator tick from loaded resume state."""
         if self._resume_state is None:
@@ -319,412 +207,6 @@ class SimulationEngine:
 
 
 
-    @staticmethod
-    def _static_record_to_memory_updates(static_record: dict[str, Any]) -> dict[str, Any]:
-        return {
-            "type": static_record.get("type"),
-            "home": {"aoi_position": {"aoi_id": int(static_record.get("home_aoi_id", 0))}},
-            "work": {"aoi_position": {"aoi_id": int(static_record.get("work_aoi_id", 0))}},
-            "name": static_record.get("name"),
-            "gender": static_record.get("gender"),
-            "age": int(static_record.get("age", 0)),
-            "education": static_record.get("education"),
-            "household": static_record.get("household"),
-            "life_stage": static_record.get("life_stage"),
-            "skill": static_record.get("skill"),
-            "occupation": static_record.get("occupation"),
-            "work_skill": float(static_record.get("work_skill", 0.0)),
-            "firm_id": int(static_record.get("firm_id", 0)),
-            "government_id": int(static_record.get("government_id", 0)),
-            "bank_id": int(static_record.get("bank_id", 0)),
-            "nbs_id": int(static_record.get("nbs_id", 0)),
-            "preferences": {
-                "chronotype": static_record.get("preferences_chronotype"),
-                "risk_tolerance": float(
-                    static_record.get("preferences_risk_tolerance", 0.5)
-                ),
-                "spending_tendency": float(
-                    static_record.get("preferences_spending_tendency", 0.5)
-                ),
-                "social_frequency": float(
-                    static_record.get("preferences_social_frequency", 0.5)
-                ),
-                "work_ethic": float(static_record.get("preferences_work_ethic", 0.5)),
-                "leisure_preference": static_record.get("preferences_leisure_preference"),
-            },
-            "hobbies": static_record.get("hobbies", []),
-            "personality": static_record.get("personality"),
-            "big5": {
-                "openness": int(static_record.get("big5_openness", 2)),
-                "conscientiousness": int(
-                    static_record.get("big5_conscientiousness", 2)
-                ),
-                "extraversion": int(static_record.get("big5_extraversion", 2)),
-                "agreeableness": int(static_record.get("big5_agreeableness", 2)),
-                "neuroticism": int(static_record.get("big5_neuroticism", 2)),
-            },
-            "income": float(static_record.get("income", 0.0)),
-            "currency": float(static_record.get("currency", 0.0)),
-            "residence": static_record.get("residence"),
-            "city": static_record.get("city"),
-            "race": static_record.get("race"),
-            "religion": static_record.get("religion"),
-            "marriage_status": static_record.get("marriage_status"),
-            "background_story": static_record.get("background_story"),
-        }
-
-
-
-    def _split_agent_configs_by_memory_source(self):
-        """Split agent configs into normal and memory_from_file buckets."""
-        agent_configs_normal: dict[str, list[AgentConfig]] = {
-            "firms": [],
-            "banks": [],
-            "nbs": [],
-            "governments": [],
-            "citizens": [],
-            "supervisor": [],
-        }
-        agent_configs_from_file: dict[str, list[AgentConfig]] = {
-            "firms": [],
-            "banks": [],
-            "nbs": [],
-            "governments": [],
-            "citizens": [],
-            "supervisor": [],
-        }
-
-        for agent_config in self._config.agents.firms:
-            if agent_config.memory_from_file is None:
-                agent_configs_normal["firms"].append(agent_config)
-            else:
-                agent_configs_from_file["firms"].append(agent_config)
-        for agent_config in self._config.agents.banks:
-            if agent_config.memory_from_file is None:
-                agent_configs_normal["banks"].append(agent_config)
-            else:
-                agent_configs_from_file["banks"].append(agent_config)
-        for agent_config in self._config.agents.nbs:
-            if agent_config.memory_from_file is None:
-                agent_configs_normal["nbs"].append(agent_config)
-            else:
-                agent_configs_from_file["nbs"].append(agent_config)
-        for agent_config in self._config.agents.governments:
-            if agent_config.memory_from_file is None:
-                agent_configs_normal["governments"].append(agent_config)
-            else:
-                agent_configs_from_file["governments"].append(agent_config)
-        for agent_config in self._config.agents.citizens:
-            if agent_config.memory_from_file is None:
-                agent_configs_normal["citizens"].append(agent_config)
-            else:
-                agent_configs_from_file["citizens"].append(agent_config)
-        if self._config.agents.supervisor is not None:
-            agent_config = self._config.agents.supervisor
-            if agent_config.memory_from_file is None:
-                agent_configs_normal["supervisor"] = [agent_config]
-            else:
-                agent_configs_from_file["supervisor"] = [agent_config]
-
-        return agent_configs_normal, agent_configs_from_file
-
-    def _append_agents_from_memory_files(
-        self,
-        label: str,
-        configs: list[AgentConfig],
-        defined_ids: set[int],
-        role_ids: set[int],
-        agents: list[tuple[Any, ...]],
-        citizen_generators: list[MemoryConfigGenerator],
-    ):
-        """Build agent init tuples from memory_from_file configs for one role."""
-        for agent_config in configs:
-            agent_config = cast(AgentConfig, agent_config)
-            agent_class = agent_config.agent_class
-            agent_params = agent_config.agent_params
-            if agent_params is None:
-                agent_params = agent_class.ParamsType()
-            else:
-                agent_params = agent_class.ParamsType.model_validate(agent_params)
-            blocks = agent_config.blocks
-
-            generator = MemoryConfigGenerator(
-                agent_config.memory_config_func,
-                agent_config.agent_class.StatusAttributes,
-                agent_config.number,
-                agent_config.memory_from_file,
-                (
-                    agent_config.memory_distributions
-                    if agent_config.memory_distributions is not None
-                    else {}
-                ),
-                self._config.env.s3,
-            )
-            if label.lower() == "citizens":
-                citizen_generators.append(generator)
-
-            agent_data = generator.get_agent_data_from_file()
-            for index, agent_datum in enumerate(agent_data):
-                agent_id = agent_datum.get("id")
-                assert agent_id is not None, f"id is required in memory_from_file[{label}]"
-                assert agent_id >= MIN_ID, f"id {agent_id} is less than MIN_ID {MIN_ID}"
-                assert agent_id <= MAX_ID, f"id {agent_id} is greater than MAX_ID {MAX_ID}"
-                assert agent_id not in defined_ids, f"id {agent_id} is already defined"
-
-                defined_ids.add(agent_id)
-                role_ids.add(agent_id)
-                agents.append(
-                    (
-                        agent_id,
-                        agent_class,
-                        generator,
-                        index,
-                        agent_params,
-                        blocks,
-                    )
-                )
-
-    async def _init_supervisor_from_memory_file(
-        self,
-        configs: list[AgentConfig],
-        defined_ids: set[int],
-        supervisor_ids: set[int],
-    ):
-        """Initialize supervisor directly when configured with memory_from_file."""
-        assert len(configs) <= 1, "only one or zero supervisor is allowed"
-
-        for agent_config in configs:
-            agent_config = cast(AgentConfig, agent_config)
-            generator = MemoryConfigGenerator(
-                agent_config.memory_config_func,
-                agent_config.agent_class.StatusAttributes,
-                agent_config.number,
-                agent_config.memory_from_file,
-                (
-                    agent_config.memory_distributions
-                    if agent_config.memory_distributions is not None
-                    else {}
-                ),
-                self._config.env.s3,
-            )
-            agent_data = generator.get_agent_data_from_file()
-            for agent_datum in agent_data:
-                agent_id = agent_datum.get("id")
-                assert agent_id is not None, "id is required in memory_from_file[Supervisor]"
-                assert agent_id >= MIN_ID, f"id {agent_id} is less than MIN_ID {MIN_ID}"
-                assert agent_id <= MAX_ID, f"id {agent_id} is greater than MAX_ID {MAX_ID}"
-                assert agent_id not in defined_ids, f"id {agent_id} is already defined"
-
-                defined_ids.add(agent_id)
-                supervisor_ids.add(agent_id)
-
-                memory_config = generator.generate(i=0)
-                memory_init = Memory(
-                    environment=self.environment,
-                    embedding=self._embedding,
-                    memory_config=memory_config,
-                )
-                if agent_config.blocks is not None:
-                    blocks = [
-                        block_type(
-                            llm=self._llm,
-                            environment=self.environment,
-                            agent_memory=memory_init,
-                            block_params=block_params,
-                        )
-                        for block_type, block_params in agent_config.blocks.items()
-                    ]
-                else:
-                    blocks = None
-
-                if agent_config.agent_params is None:
-                    agent_params = agent_config.agent_class.ParamsType()
-                else:
-                    agent_params = agent_config.agent_class.ParamsType.model_validate(
-                        agent_config.agent_params
-                    )
-
-                supervisor = agent_config.agent_class(
-                    id=agent_id,
-                    name=f"{agent_config.agent_class.__name__}_{agent_id}",
-                    toolbox=AgentToolbox(
-                        llm=self._llm,
-                        environment=self.environment,
-                        messager=self.messager,
-                        embedding=self._embedding,
-                        database_writer=self._database_writer,
-                    ),
-                    memory=memory_init,
-                    agent_params=agent_params,
-                    blocks=blocks,
-                )
-                assert (
-                    self._message_interceptor is not None
-                ), "message interceptor is not set"
-                await self._message_interceptor.set_supervisor(supervisor)
-                break
-
-    async def _prepare_agents(self):
-        """Prepare agent init tuples and id groups from all config sources."""
-        agents: list[tuple[Any, ...]] = []
-        next_id = 1
-        defined_ids: set[int] = set()
-
-        def _find_next_id():
-            nonlocal next_id
-            while next_id in defined_ids:
-                next_id += 1
-            if next_id > MAX_ID:
-                raise ValueError(f"Agent ID {next_id} is greater than MAX_ID {MAX_ID}")
-            defined_ids.add(next_id)
-            return next_id
-
-        citizen_ids: set[int] = set()
-        bank_ids: set[int] = set()
-        nbs_ids: set[int] = set()
-        government_ids: set[int] = set()
-        firm_ids: set[int] = set()
-        supervisor_ids: set[int] = set()
-        aoi_ids = self._environment.get_aoi_ids()
-
-        agent_configs_normal, agent_configs_from_file = (
-            self._split_agent_configs_by_memory_source()
-        )
-        citizen_generators: list[MemoryConfigGenerator] = []
-
-        self._append_agents_from_memory_files(
-            "Firms",
-            agent_configs_from_file["firms"],
-            defined_ids,
-            firm_ids,
-            agents,
-            citizen_generators,
-        )
-        self._append_agents_from_memory_files(
-            "Banks",
-            agent_configs_from_file["banks"],
-            defined_ids,
-            bank_ids,
-            agents,
-            citizen_generators,
-        )
-        self._append_agents_from_memory_files(
-            "NBS",
-            agent_configs_from_file["nbs"],
-            defined_ids,
-            nbs_ids,
-            agents,
-            citizen_generators,
-        )
-        self._append_agents_from_memory_files(
-            "Governments",
-            agent_configs_from_file["governments"],
-            defined_ids,
-            government_ids,
-            agents,
-            citizen_generators,
-        )
-        self._append_agents_from_memory_files(
-            "Citizens",
-            agent_configs_from_file["citizens"],
-            defined_ids,
-            citizen_ids,
-            agents,
-            citizen_generators,
-        )
-
-        await self._init_supervisor_from_memory_file(
-            agent_configs_from_file["supervisor"],
-            defined_ids,
-            supervisor_ids,
-        )
-
-        get_logger().info(
-            f"{len(defined_ids)} defined ids found in memory_config_files"
-        )
-
-        for agent_config in agent_configs_normal["firms"]:
-            agent_config = cast(AgentConfig, agent_config)
-            if agent_config.memory_distributions is None:
-                agent_config.memory_distributions = {}
-            assert (
-                "aoi_id" not in agent_config.memory_distributions
-            ), "aoi_id is not allowed to be set in memory_distributions because it will be generated in the initialization"
-            agent_config.memory_distributions["aoi_id"] = DistributionConfig(
-                dist_type=DistributionType.CHOICE,
-                choices=list(aoi_ids),
-            )
-            firm_classes, _ = _init_agent_class(agent_config, self._config.env.s3)
-            firms = [(_find_next_id(), *firm_class) for firm_class in firm_classes]
-            firm_ids.update([firm[0] for firm in firms])
-            agents += firms
-
-        for agent_config in agent_configs_normal["banks"]:
-            bank_classes, _ = _init_agent_class(agent_config, self._config.env.s3)
-            banks = [(_find_next_id(), *bank_class) for bank_class in bank_classes]
-            bank_ids.update([bank[0] for bank in banks])
-            agents += banks
-
-        for agent_config in agent_configs_normal["nbs"]:
-            nbs_classes, _ = _init_agent_class(agent_config, self._config.env.s3)
-            nbs = [(_find_next_id(), *nbs_class) for nbs_class in nbs_classes]
-            nbs_ids.update([nbs_agent[0] for nbs_agent in nbs])
-            agents += nbs
-
-        for agent_config in agent_configs_normal["governments"]:
-            government_classes, _ = _init_agent_class(agent_config, self._config.env.s3)
-            governments = [
-                (_find_next_id(), *government_class)
-                for government_class in government_classes
-            ]
-            government_ids.update([government[0] for government in governments])
-            agents += governments
-
-        for agent_config in agent_configs_normal["citizens"]:
-            citizen_classes, generator = _init_agent_class(agent_config, self._config.env.s3)
-            citizen_generators.append(generator)
-            citizens = [(_find_next_id(), *citizen_class) for citizen_class in citizen_classes]
-            citizen_ids.update([citizen[0] for citizen in citizens])
-            agents += citizens
-
-        for agent_config in agent_configs_normal["supervisor"]:
-            supervisor_classes, _ = _init_agent_class(agent_config, self._config.env.s3)
-            supervisors = [
-                (_find_next_id(), *supervisor_class)
-                for supervisor_class in supervisor_classes
-            ]
-            supervisor_ids.update([supervisor[0] for supervisor in supervisors])
-
-        memory_distributions = {}
-        for key, ids in [
-            ("home_aoi_id", aoi_ids),
-            ("work_aoi_id", aoi_ids),
-        ]:
-            memory_distributions[key] = DistributionConfig(
-                dist_type=DistributionType.CHOICE,
-                choices=list(ids),
-            )
-        for generator in citizen_generators:
-            generator.merge_distributions(memory_distributions)
-
-        get_logger().info(
-            f"agents: len(citizens)={len(citizen_ids)}, len(firms)={len(firm_ids)}, len(banks)={len(bank_ids)}, len(nbs)={len(nbs_ids)}, len(governments)={len(government_ids)}"
-        )
-        self._environment.economy_client.set_ids(
-            citizen_ids=citizen_ids,
-            firm_ids=firm_ids,
-            bank_ids=bank_ids,
-            nbs_ids=nbs_ids,
-            government_ids=government_ids,
-        )
-
-        return agents
-
-    async def _save_agent_static_info(self):
-        """Save agent static information using the agent manager."""
-        if self._agent_manager is not None:
-            await self._agent_manager.save_agent_static_info(self._total_steps)
-
     async def _finalize_initialization(
         self,
         agent_toolbox: AgentToolbox,
@@ -746,12 +228,14 @@ class SimulationEngine:
         get_logger().info("Initializing the agents...")
 
         await self._save_exp_info()
+        await self._flush_data_recorder(step=self._total_steps)
         self._save_context()
         get_logger().info("Experiment info saved")
 
 
         if self._resume_exp_id is None:
-            await self._save_agent_static_info()
+            if self._agent_manager is not None:
+                await self._agent_manager.save_agent_static_info(self._total_steps)
             get_logger().info("Agent static info saved")
         else:
             get_logger().info("Resume source experiment detected; skip saving static agent info to avoid duplication")
@@ -777,6 +261,7 @@ class SimulationEngine:
             await self._infrastructure_manager.load_resume_state()
             self._sync_infrastructure_state()
             self._restore_resume_runtime_state()
+            self._start_data_recorder()
 
             # Initialize agent manager
             self._agent_manager = AgentManager(
@@ -784,6 +269,7 @@ class SimulationEngine:
                 llm=self._llm,
                 environment=self._environment,
                 messager=self._messager,
+                message_interceptor=self._message_interceptor,
                 embedding=self._embedding,
                 database_writer=self._database_writer,
                 db_actor=self._db_actor,
@@ -792,7 +278,9 @@ class SimulationEngine:
 
             # Create toolbox and initialize agents
             await self._agent_manager.create_toolbox()
-            agents = await self._prepare_agents()
+            agents = await self._agent_manager.prepare_agents(
+                resume_state=self._resume_state
+            )
             self._infrastructure_manager._validate_resume_agent_count(agents)
             await self._agent_manager.initialize_agents(agents, self._resume_state)
 
@@ -804,6 +292,7 @@ class SimulationEngine:
             self._exp_info.status = ExperimentStatus.ERROR.value
             self._exp_info.error = str(e)
             await self._save_exp_info()
+            await self._flush_data_recorder(step=self._total_steps)
 
             raise e
         get_logger().info("Init functions run")
@@ -814,6 +303,8 @@ class SimulationEngine:
         get_logger().info("Closing agent groups...")
         if self._agent_manager is not None:
             await self._agent_manager.close_all_agents()
+
+        await self._stop_data_recorder()
 
         await self._infrastructure_manager.close()
         self._sync_infrastructure_state()
@@ -1087,37 +578,28 @@ class SimulationEngine:
 
     async def _save_exp_info(self) -> None:
         """Async save experiment info to YAML file and pgsql"""
-        self._exp_info.updated_at = datetime.now(timezone.utc)
-        if self.enable_database:
-            assert self._database_writer is not None
-            await self._database_writer.update_exp_info(self._exp_info)  # type: ignore
-        if self._db_actor is not None:
-            self._db_actor.insert_experiment_info_record.remote(
-                {
-                    "tenant_id": self._exp_info.tenant_id,
-                    "id": self._exp_info.id,
-                    "name": self._exp_info.name,
-                    "num_day": self._exp_info.num_day,
-                    "status": self._exp_info.status,
-                    "cur_day": self._exp_info.cur_day,
-                    "cur_t": self._exp_info.cur_t,
-                    "config": self._exp_info.config,
-                    "error": self._exp_info.error,
-                    "input_tokens": self._exp_info.input_tokens,
-                    "output_tokens": self._exp_info.output_tokens,
-                    "created_at": self._exp_info.created_at,
-                    "updated_at": self._exp_info.updated_at,
-                }
+        if self._data_recorder is None:
+            self._data_recorder = DataRecorder(
+                database_writer=self._database_writer,
+                db_actor=self._db_actor,
+                metrics_actor=self._metrics_actor,
             )
+
+        await self._data_recorder.save_exp_info(self._exp_info)
 
     async def _save_global_prompt(self, prompt: str, day: int, t: float):
         """Save global prompt"""
+        if self._data_recorder is not None:
+            await self._data_recorder.save_global_prompt(prompt, day, t)
+            return
+
         prompt_info = StorageGlobalPrompt(
             day=day,
             t=t,
             prompt=prompt,
             created_at=datetime.now(timezone.utc),
         )
+
         if self.enable_database:
             assert self._database_writer is not None
             await self._database_writer.write_global_prompt(prompt_info)  # type:ignore
@@ -1220,81 +702,21 @@ class SimulationEngine:
             - `day` (int): The day number in the simulation time.
             - `t` (int): The tick or time unit in the simulation day.
         """
-        if self._database_writer is None:
+        if self._database_writer is None and self._db_actor is None:
             return
+
         assert self._agent_manager is not None, "Agent manager not initialized"
-        created_at = datetime.now(timezone.utc)
-        # =========================
-        # build statuses data
-        # =========================
-        statuses = []
-        for agent in self._agent_manager.agents.values():
-            if isinstance(agent, CitizenAgentBase):
-                position = await agent.status.get("position")
-                x = position["xy_position"]["x"]
-                y = position["xy_position"]["y"]
-                lng, lat = self.environment.projector(x, y, inverse=True)
-                if "aoi_position" in position:
-                    parent_id = position["aoi_position"]["aoi_id"]
-                elif "lane_position" in position:
-                    parent_id = position["lane_position"]["lane_id"]
-                else:
-                    parent_id = None
-                current_plan = await agent.status.get("current_plan", {})
-                if current_plan is not None and current_plan:
-                    step_index = current_plan.get("index", 0)
-                    action = current_plan.get("steps", [])[step_index].get(
-                        "intention", "Planning"
-                    )
-                else:
-                    action = "Planning"
-                status_summary = await agent.status.get("status_summary", "Nothing")
-                status = StorageStatus(
-                    id=agent.id,
-                    day=day,
-                    t=t,
-                    lng=lng,
-                    lat=lat,
-                    parent_id=parent_id,
-                    action=action,
-                    status=status_summary,
-                    created_at=created_at,
-                )
-                statuses.append(status)
-
-                if self._db_actor:
-                    self._db_actor.insert_step_agent_status_record.remote(
-                        agent_id=agent.id,
-                        lng=lng,
-                        lat=lat,
-                        parent_id=parent_id,
-                        action=action,
-                        status=status_summary,
-                        timestamp=time.time(),
-                    )
-
-            elif isinstance(
-                agent, (FirmAgentBase, BankAgentBase, NBSAgentBase, GovernmentAgentBase)
-            ):
-                status_summary = await agent.status.get("status_summary", "Nothing")
-                status = StorageStatus(
-                    id=agent.id,
-                    day=day,
-                    t=t,
-                    lng=None,
-                    lat=None,
-                    parent_id=None,
-                    action="",
-                    status=status_summary,
-                    created_at=created_at,
-                )
-                statuses.append(status)
-            else:
-                raise ValueError(f"Unknown agent type: {type(agent)}")
-        if self._database_writer is not None:
-            await self._database_writer.write_statuses(  # type:ignore
-                statuses
+        if self._data_recorder is not None:
+            await self._data_recorder.save_statuses(
+                day=day,
+                t=t,
+                agents=self._agent_manager.agents,
+                environment=self.environment,
             )
+            return
+
+        # Fallback path when DataRecorder is not available.
+        get_logger().warning("DataRecorder unavailable; status saving skipped")
 
     async def delete_agents(self, target_agent_ids: list[int]):
         """
@@ -1389,109 +811,11 @@ class SimulationEngine:
             )
             all_logs.append(log)
 
-            # ======================
-            # Log metrics from BlockPerformance
-            # ======================
-            if self._metrics_actor is not None:
-                try:
-                    perf_stats = ray.get(
-                        self._metrics_actor.get_block_performance_stats.remote()
-                    )
-                    if perf_stats:
-                        #     for block_func, metrics in perf_stats.items():
-                        #         get_logger().info(
-                        #             f"  {block_func}: "
-                        #             f"calls={metrics['calls']}, "
-                        #             f"avg_duration={metrics['average_duration']:.3f}s, "
-                        #             f"total_tokens_in={metrics['total_token_input']}, "
-                        #             f"total_tokens_out={metrics['total_token_output']}"
-                        #         )
-
-                        # Convert nested stats to flat format for database
-                        if self._database_writer is not None:
-                            # Create list of metric tuples (key, value, step)
-                            metric_tuples = []
-                            for block_func, metrics in perf_stats.items():
-                                metric_tuples.extend(
-                                    [
-                                        (
-                                            f"bp.{block_func}.calls",
-                                            metrics["calls"],
-                                            self._total_steps,
-                                        ),
-                                        (
-                                            f"bp.{block_func}.avg_duration",
-                                            metrics["average_duration"],
-                                            self._total_steps,
-                                        ),
-                                        (
-                                            f"bp.{block_func}.total_token_input",
-                                            metrics["total_token_input"],
-                                            self._total_steps,
-                                        ),
-                                        (
-                                            f"bp.{block_func}.total_token_output",
-                                            metrics["total_token_output"],
-                                            self._total_steps,
-                                        ),
-                                    ]
-                                )
-
-                            await self._database_writer.log_metric(metric_tuples)
-                except Exception as e:
-                    get_logger().warning(
-                        f"Error retrieving performance stats: {str(e)}"
-                    )
-            else:
-                get_logger().warning(
-                    "No performance actor available to retrieve stats."
+            if self._data_recorder is not None:
+                await self._data_recorder.record_block_performance_metrics(
+                    self._total_steps
                 )
-
-            # ======================
-            # Log metrics from RoutingTracker
-            # ======================
-
-            if self._metrics_actor is not None:
-                try:
-                    perf_stats = ray.get(self._metrics_actor.get_routing_stats.remote())
-                    if perf_stats:
-                        # for block_func, metrics in perf_stats.items():
-                        #     get_logger().info(
-                        #         f"  {block_func}: "
-                        #         f"calls={metrics['calls']}, "
-                        #         f"routing_ratio={metrics['routing_ratio']:.3f}, "
-
-                        #     )
-
-                        # Convert nested stats to flat format for database
-                        if self._database_writer is not None:
-                            # Create list of metric tuples (key, value, step)
-                            metric_tuples = []
-                            for block_func, metrics in perf_stats.items():
-                                metric_tuples.extend(
-                                    [
-                                        (
-                                            f"bp.{block_func}.calls",
-                                            metrics["calls"],
-                                            self._total_steps,
-                                        ),
-                                        (
-                                            f"bp.{block_func}.routing_ratio",
-                                            metrics["routing_ratio"],
-                                            self._total_steps,
-                                        ),
-                                    ]
-                                )
-
-                            await self._database_writer.log_metric(metric_tuples)
-                except Exception as e:
-                    get_logger().warning(
-                        f"Error retrieving performance stats: {str(e)}"
-                    )
-            else:
-                get_logger().warning(
-                    "No performance actor available to retrieve stats."
-                )
+                await self._data_recorder.record_routing_metrics(self._total_steps)
 
             # ======================
             # save the experiment info
@@ -1594,27 +918,20 @@ class SimulationEngine:
             get_logger().info(
                 f"Finished simulation day {day} at {t}, step {self._total_steps} in {step_duration:.3f} seconds"
             )
-            if self.enable_database:
-                await self._database_writer.log_metric(
-                    [
-                        (
-                            "simulation.step_duration_seconds",
-                            step_duration,
-                            self._total_steps,
-                        )
-                    ]
-                )
-
-                self._metrics_actor.record_simulation_step_duration.remote(
-                    step_duration
+            if self._data_recorder is not None:
+                await self._data_recorder.record_simulation_step_duration(
+                    step_duration,
+                    self._total_steps,
                 )
 
             # ======================
             # Log metrics from environment
             # ======================
             metrics = await self.environment.get_metrics()
-            if self.enable_database:
-                await self._database_writer.log_metric(metrics)
+            if self._data_recorder is not None:
+                await self._data_recorder.record_environment_metrics(metrics)
+
+            await self._flush_data_recorder(step=self._total_steps)
             get_logger().debug(f"({day}-{t}) Finished simulator sync")
             # ======================
             # go to next step
@@ -1624,6 +941,7 @@ class SimulationEngine:
             return all_logs
         except Exception as e:
             get_logger().error(f"Simulation error: {str(e)}\n{traceback.format_exc()}")
+            await self._flush_data_recorder(step=self._total_steps)
             raise RuntimeError(str(e)) from e
 
     async def run_one_day(
@@ -1773,9 +1091,11 @@ class SimulationEngine:
             self._exp_info.error = str(e)
             self._save_context()
             await self._save_exp_info()
+            await self._flush_data_recorder(step=self._total_steps)
 
             raise RuntimeError(str(e)) from e
         self._exp_info.status = ExperimentStatus.FINISHED.value
         self._save_context()
         await self._save_exp_info()
+        await self._flush_data_recorder(step=self._total_steps)
         return logs

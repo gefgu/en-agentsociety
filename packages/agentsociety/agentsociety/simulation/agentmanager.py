@@ -11,25 +11,17 @@ This module provides the AgentManager class, which is responsible for:
 
 import asyncio
 import json
-from abc import ABC
-from collections import defaultdict
 from copy import deepcopy
-from datetime import datetime, timezone
-from typing import Any, Callable, Optional, Union, cast
+from datetime import datetime
+from typing import Any, Optional, Union, cast
 
 from ..agent import (
     Agent,
     AgentToolbox,
     CitizenAgentBase,
-    FirmAgentBase,
-    BankAgentBase,
-    NBSAgentBase,
-    GovernmentAgentBase,
-    MemoryAttribute,
 )
-from ..agent.distribution import Distribution, DistributionConfig, DistributionType
+from ..agent.distribution import DistributionConfig, DistributionType
 from ..agent.memory_config_generator import (
-    MemoryConfig,
     MemoryConfigGenerator,
 )
 from ..configs import AgentConfig, AgentFilterConfig, Config
@@ -40,60 +32,12 @@ from ..llm import LLM
 from ..memory import Memory
 from ..storage import DatabaseWriter
 from ..storage.type import StorageProfile
+from .utils import init_agent_class, evaluate_filter
 
 __all__ = ["AgentManager"]
 
 MIN_ID = 1
 MAX_ID = 100000000
-
-
-def evaluate_filter(filter_str: str, profile: dict) -> bool:
-    """
-    Evaluate a filter string against a profile dictionary.
-
-    - **Args**:
-        - `filter_str` (str): The filter string to evaluate, e.g. "${profile.age} > 0"
-        - `profile` (dict): The profile dictionary to evaluate against
-
-    - **Returns**:
-        - `bool`: True if the filter matches, False otherwise
-
-    - **Note**:
-        - Returns False if profile is empty
-        - Returns False if any key in filter_str is not in profile
-    """
-    if not profile:
-        return False
-
-    import re
-
-    pattern = r"\${profile\.([^}]+)}"
-    required_keys = set(re.findall(pattern, filter_str))
-
-    # if any required key is not in profile, return False
-    for key in required_keys:
-        # Handle nested keys
-        current = profile
-        for part in key.split("."):
-            if not isinstance(current, dict) or part not in current:
-                return False
-            current = current[part]
-
-    # replace all ${profile.xxx} with actual values
-    for key in required_keys:
-        # Get the value by traversing the nested dictionary
-        current = profile
-        for part in key.split("."):
-            current = current[part]
-        filter_str = filter_str.replace(f"${{profile.{key}}}", repr(current))
-
-    # use eval to execute the expression
-    try:
-        return eval(filter_str)
-    except Exception:
-        return False
-
-
 class AgentManager:
     """
     Manages the lifecycle and execution of all agents in the simulation.
@@ -114,6 +58,7 @@ class AgentManager:
         llm: LLM,
         environment: Any,  # EnvironmentStarter
         messager: Any,  # Messager
+        message_interceptor: Optional[Any] = None,  # MessageInterceptor
         embedding: Optional[Any] = None,  # SparseTextEmbedding
         database_writer: Optional[DatabaseWriter] = None,
         db_actor: Optional[DatabaseActor] = None,
@@ -136,6 +81,7 @@ class AgentManager:
         self._llm = llm
         self._environment = environment
         self._messager = messager
+        self._message_interceptor = message_interceptor
         self._embedding = embedding
         self._database_writer = database_writer
         self._db_actor = db_actor
@@ -275,7 +221,7 @@ class AgentManager:
 
     async def prepare_agents(
         self,
-        agent_configs: list[AgentConfig],
+        agent_configs: Optional[list[AgentConfig]] = None,
         resume_state: Optional[dict[str, Any]] = None,
     ) -> list[tuple[Any, ...]]:
         """
@@ -291,9 +237,343 @@ class AgentManager:
         Returns:
             List of agent initialization tuples
         """
-        # Implementation placeholder - will be filled based on simulationengine logic
-        get_logger().debug(f"Preparing {len(agent_configs)} agent configurations")
-        return []
+        del agent_configs, resume_state
+
+        agents: list[tuple[Any, ...]] = []
+        next_id = 1
+        defined_ids: set[int] = set()
+
+        def _find_next_id() -> int:
+            nonlocal next_id
+            while next_id in defined_ids:
+                next_id += 1
+            if next_id > MAX_ID:
+                raise ValueError(f"Agent ID {next_id} is greater than MAX_ID {MAX_ID}")
+            defined_ids.add(next_id)
+            return next_id
+
+        citizen_ids: set[int] = set()
+        bank_ids: set[int] = set()
+        nbs_ids: set[int] = set()
+        government_ids: set[int] = set()
+        firm_ids: set[int] = set()
+        supervisor_ids: set[int] = set()
+        aoi_ids = self._environment.get_aoi_ids()
+
+        agent_configs_normal, agent_configs_from_file = (
+            self._split_agent_configs_by_memory_source()
+        )
+        citizen_generators: list[MemoryConfigGenerator] = []
+
+        self._append_agents_from_memory_files(
+            "Firms",
+            agent_configs_from_file["firms"],
+            defined_ids,
+            firm_ids,
+            agents,
+            citizen_generators,
+        )
+        self._append_agents_from_memory_files(
+            "Banks",
+            agent_configs_from_file["banks"],
+            defined_ids,
+            bank_ids,
+            agents,
+            citizen_generators,
+        )
+        self._append_agents_from_memory_files(
+            "NBS",
+            agent_configs_from_file["nbs"],
+            defined_ids,
+            nbs_ids,
+            agents,
+            citizen_generators,
+        )
+        self._append_agents_from_memory_files(
+            "Governments",
+            agent_configs_from_file["governments"],
+            defined_ids,
+            government_ids,
+            agents,
+            citizen_generators,
+        )
+        self._append_agents_from_memory_files(
+            "Citizens",
+            agent_configs_from_file["citizens"],
+            defined_ids,
+            citizen_ids,
+            agents,
+            citizen_generators,
+        )
+
+        await self._init_supervisor_from_memory_file(
+            agent_configs_from_file["supervisor"],
+            defined_ids,
+            supervisor_ids,
+        )
+
+        get_logger().info(
+            f"{len(defined_ids)} defined ids found in memory_config_files"
+        )
+
+        for agent_config in agent_configs_normal["firms"]:
+            agent_config = cast(AgentConfig, agent_config)
+            if agent_config.memory_distributions is None:
+                agent_config.memory_distributions = {}
+            assert (
+                "aoi_id" not in agent_config.memory_distributions
+            ), "aoi_id is not allowed to be set in memory_distributions because it will be generated in the initialization"
+            agent_config.memory_distributions["aoi_id"] = DistributionConfig(
+                dist_type=DistributionType.CHOICE,
+                choices=list(aoi_ids),
+            )
+            firm_classes, _ = init_agent_class(agent_config, self._config.env.s3)
+            firms = [(_find_next_id(), *firm_class) for firm_class in firm_classes]
+            firm_ids.update([firm[0] for firm in firms])
+            agents += firms
+
+        for agent_config in agent_configs_normal["banks"]:
+            bank_classes, _ = init_agent_class(agent_config, self._config.env.s3)
+            banks = [(_find_next_id(), *bank_class) for bank_class in bank_classes]
+            bank_ids.update([bank[0] for bank in banks])
+            agents += banks
+
+        for agent_config in agent_configs_normal["nbs"]:
+            nbs_classes, _ = init_agent_class(agent_config, self._config.env.s3)
+            nbs = [(_find_next_id(), *nbs_class) for nbs_class in nbs_classes]
+            nbs_ids.update([nbs_agent[0] for nbs_agent in nbs])
+            agents += nbs
+
+        for agent_config in agent_configs_normal["governments"]:
+            government_classes, _ = init_agent_class(agent_config, self._config.env.s3)
+            governments = [
+                (_find_next_id(), *government_class)
+                for government_class in government_classes
+            ]
+            government_ids.update([government[0] for government in governments])
+            agents += governments
+
+        for agent_config in agent_configs_normal["citizens"]:
+            citizen_classes, generator = init_agent_class(agent_config, self._config.env.s3)
+            citizen_generators.append(generator)
+            citizens = [(_find_next_id(), *citizen_class) for citizen_class in citizen_classes]
+            citizen_ids.update([citizen[0] for citizen in citizens])
+            agents += citizens
+
+        for agent_config in agent_configs_normal["supervisor"]:
+            supervisor_classes, _ = init_agent_class(agent_config, self._config.env.s3)
+            supervisors = [
+                (_find_next_id(), *supervisor_class)
+                for supervisor_class in supervisor_classes
+            ]
+            supervisor_ids.update([supervisor[0] for supervisor in supervisors])
+
+        memory_distributions = {}
+        for key, ids in [
+            ("home_aoi_id", aoi_ids),
+            ("work_aoi_id", aoi_ids),
+        ]:
+            memory_distributions[key] = DistributionConfig(
+                dist_type=DistributionType.CHOICE,
+                choices=list(ids),
+            )
+        for generator in citizen_generators:
+            generator.merge_distributions(memory_distributions)
+
+        get_logger().info(
+            f"agents: len(citizens)={len(citizen_ids)}, len(firms)={len(firm_ids)}, len(banks)={len(bank_ids)}, len(nbs)={len(nbs_ids)}, len(governments)={len(government_ids)}"
+        )
+        self._environment.economy_client.set_ids(
+            citizen_ids=citizen_ids,
+            firm_ids=firm_ids,
+            bank_ids=bank_ids,
+            nbs_ids=nbs_ids,
+            government_ids=government_ids,
+        )
+
+        return agents
+
+    def _split_agent_configs_by_memory_source(self):
+        """Split agent configs into normal and memory_from_file buckets."""
+        agent_configs_normal: dict[str, list[AgentConfig]] = {
+            "firms": [],
+            "banks": [],
+            "nbs": [],
+            "governments": [],
+            "citizens": [],
+            "supervisor": [],
+        }
+        agent_configs_from_file: dict[str, list[AgentConfig]] = {
+            "firms": [],
+            "banks": [],
+            "nbs": [],
+            "governments": [],
+            "citizens": [],
+            "supervisor": [],
+        }
+
+        for agent_config in self._config.agents.firms:
+            if agent_config.memory_from_file is None:
+                agent_configs_normal["firms"].append(agent_config)
+            else:
+                agent_configs_from_file["firms"].append(agent_config)
+        for agent_config in self._config.agents.banks:
+            if agent_config.memory_from_file is None:
+                agent_configs_normal["banks"].append(agent_config)
+            else:
+                agent_configs_from_file["banks"].append(agent_config)
+        for agent_config in self._config.agents.nbs:
+            if agent_config.memory_from_file is None:
+                agent_configs_normal["nbs"].append(agent_config)
+            else:
+                agent_configs_from_file["nbs"].append(agent_config)
+        for agent_config in self._config.agents.governments:
+            if agent_config.memory_from_file is None:
+                agent_configs_normal["governments"].append(agent_config)
+            else:
+                agent_configs_from_file["governments"].append(agent_config)
+        for agent_config in self._config.agents.citizens:
+            if agent_config.memory_from_file is None:
+                agent_configs_normal["citizens"].append(agent_config)
+            else:
+                agent_configs_from_file["citizens"].append(agent_config)
+        if self._config.agents.supervisor is not None:
+            agent_config = self._config.agents.supervisor
+            if agent_config.memory_from_file is None:
+                agent_configs_normal["supervisor"] = [agent_config]
+            else:
+                agent_configs_from_file["supervisor"] = [agent_config]
+
+        return agent_configs_normal, agent_configs_from_file
+
+    def _append_agents_from_memory_files(
+        self,
+        label: str,
+        configs: list[AgentConfig],
+        defined_ids: set[int],
+        role_ids: set[int],
+        agents: list[tuple[Any, ...]],
+        citizen_generators: list[MemoryConfigGenerator],
+    ):
+        """Build agent init tuples from memory_from_file configs for one role."""
+        for agent_config in configs:
+            agent_config = cast(AgentConfig, agent_config)
+            agent_class = agent_config.agent_class
+            agent_params = agent_config.agent_params
+            if agent_params is None:
+                agent_params = agent_class.ParamsType()
+            else:
+                agent_params = agent_class.ParamsType.model_validate(agent_params)
+            blocks = agent_config.blocks
+
+            generator = MemoryConfigGenerator(
+                agent_config.memory_config_func,
+                agent_config.agent_class.StatusAttributes,
+                agent_config.number,
+                agent_config.memory_from_file,
+                (
+                    agent_config.memory_distributions
+                    if agent_config.memory_distributions is not None
+                    else {}
+                ),
+                self._config.env.s3,
+            )
+            if label.lower() == "citizens":
+                citizen_generators.append(generator)
+
+            agent_data = generator.get_agent_data_from_file()
+            for index, agent_datum in enumerate(agent_data):
+                agent_id = agent_datum.get("id")
+                assert agent_id is not None, f"id is required in memory_from_file[{label}]"
+                assert agent_id >= MIN_ID, f"id {agent_id} is less than MIN_ID {MIN_ID}"
+                assert agent_id <= MAX_ID, f"id {agent_id} is greater than MAX_ID {MAX_ID}"
+                assert agent_id not in defined_ids, f"id {agent_id} is already defined"
+
+                defined_ids.add(agent_id)
+                role_ids.add(agent_id)
+                agents.append(
+                    (
+                        agent_id,
+                        agent_class,
+                        generator,
+                        index,
+                        agent_params,
+                        blocks,
+                    )
+                )
+
+    async def _init_supervisor_from_memory_file(
+        self,
+        configs: list[AgentConfig],
+        defined_ids: set[int],
+        supervisor_ids: set[int],
+    ):
+        """Initialize supervisor directly when configured with memory_from_file."""
+        assert len(configs) <= 1, "only one or zero supervisor is allowed"
+
+        for agent_config in configs:
+            agent_config = cast(AgentConfig, agent_config)
+            generator = MemoryConfigGenerator(
+                agent_config.memory_config_func,
+                agent_config.agent_class.StatusAttributes,
+                agent_config.number,
+                agent_config.memory_from_file,
+                (
+                    agent_config.memory_distributions
+                    if agent_config.memory_distributions is not None
+                    else {}
+                ),
+                self._config.env.s3,
+            )
+            agent_data = generator.get_agent_data_from_file()
+            for agent_datum in agent_data:
+                agent_id = agent_datum.get("id")
+                assert agent_id is not None, "id is required in memory_from_file[Supervisor]"
+                assert agent_id >= MIN_ID, f"id {agent_id} is less than MIN_ID {MIN_ID}"
+                assert agent_id <= MAX_ID, f"id {agent_id} is greater than MAX_ID {MAX_ID}"
+                assert agent_id not in defined_ids, f"id {agent_id} is already defined"
+
+                defined_ids.add(agent_id)
+                supervisor_ids.add(agent_id)
+
+                memory_config = generator.generate(i=0)
+                memory_init = Memory(
+                    environment=self._environment,
+                    embedding=self._embedding,
+                    memory_config=memory_config,
+                )
+                if agent_config.blocks is not None:
+                    assert self._agent_toolbox is not None
+                    blocks = [
+                        block_type(
+                            toolbox=self._agent_toolbox,
+                            agent_memory=memory_init,
+                            block_params=block_type.ParamsType.model_validate(block_params),
+                        )
+                        for block_type, block_params in agent_config.blocks.items()
+                    ]
+                else:
+                    blocks = None
+
+                if agent_config.agent_params is None:
+                    agent_params = agent_config.agent_class.ParamsType()
+                else:
+                    agent_params = agent_config.agent_class.ParamsType.model_validate(
+                        agent_config.agent_params
+                    )
+
+                assert self._agent_toolbox is not None
+                supervisor = agent_config.agent_class(
+                    id=agent_id,
+                    name=f"{agent_config.agent_class.__name__}_{agent_id}",
+                    toolbox=self._agent_toolbox,
+                    memory=memory_init,
+                    agent_params=agent_params,
+                    blocks=blocks,
+                )
+                if self._message_interceptor is not None:
+                    await self._message_interceptor.set_supervisor(supervisor)
+                break
 
     async def initialize_agents(
         self,
