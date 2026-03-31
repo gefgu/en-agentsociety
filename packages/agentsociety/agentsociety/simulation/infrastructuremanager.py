@@ -22,6 +22,7 @@ from ..performance.monitoring import start_monitoring, stop_monitoring
 from ..performance.prometheusActor import PrometheusActor
 from ..storage import DatabaseWriter
 from ..storage.type import StorageExpInfo
+from .type import ExperimentStatus
 
 __all__ = ["InfrastructureManager"]
 
@@ -153,10 +154,14 @@ class InfrastructureManager:
         exp_config = loaded.get("exp")
         if isinstance(exp_config, dict):
             exp_config.pop("id", None)
+            exp_config.pop("logging", None)
 
         env_config = loaded.get("env")
         if isinstance(env_config, dict):
             env_config.pop("exp_id", None)
+            env_config.pop("db", None)
+            env_config.pop("clickhouse", None)
+            env_config.pop("s3", None)
 
         normalized = InfrastructureManager._normalize_config_value(loaded)
         if isinstance(normalized, dict):
@@ -204,6 +209,13 @@ class InfrastructureManager:
                 f"No ClickHouse resume data found for experiment id '{self._resume_exp_id}'"
             )
             return
+
+        latest_exp_info = resume_data.get("latest_experiment_info", {})
+        source_status = latest_exp_info.get("status")
+        if source_status == ExperimentStatus.FINISHED.value:
+            raise ValueError(
+                f"Cannot resume experiment '{self._resume_exp_id}': it has already FINISHED."
+            )
 
         source_config = self._normalize_resume_config(resume_data.get("config", ""))
         current_config = self._normalize_resume_config(self._exp_info.config)
