@@ -25,4 +25,8 @@ fi
 
 # 3. Run the script. Since we are already in the folder, 
 # we can refer to the python file directly.
-uv run python "run_e2e.py" "$@"
+
+# uv run python "001_run_simplest_e2e.py" "$@"
+uv run python "002_run_e2e_with_clickhouse.py" "$@"
+
+# It takes about 5-10 minutes to run fully each script 

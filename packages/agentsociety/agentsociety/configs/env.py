@@ -63,9 +63,13 @@ class EnvConfig(BaseModel):
     """ClickHouse telemetry configuration"""
 
     monitoring_enabled: bool = Field(default=True)
-    """Whether to start the Docker-based monitoring stack (Prometheus/Grafana/ClickHouse).
+    """Whether to start the Docker-based monitoring stack (Prometheus/Grafana).
     Set to false to skip starting the stack, e.g. in e2e tests or when a monitoring
     stack is already running."""
+
+    database_enabled: bool = Field(default=True)
+    """Whether to initialize the database actor. Set to false to skip database
+    initialization, e.g. in e2e tests that don't require telemetry."""
 
 
     @property

@@ -10,6 +10,7 @@ dependencies = [
   "clickhouse-connect",
   "opentelemetry-exporter-otlp-proto-grpc",
   "setuptools",
+  "testcontainers[clickhouse]", 
 ]
 
 [tool.uv.sources]

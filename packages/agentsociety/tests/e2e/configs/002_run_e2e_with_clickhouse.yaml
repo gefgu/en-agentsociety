@@ -11,10 +11,17 @@ env:
     enabled: true
     db_type: sqlite
   clickhouse:
+    # host and port are overwritten at runtime by the testcontainer
+    host: "localhost"
+    port: 8123
+    username: "test"
+    password: "test"
     database: "testing"
+    auto_create_database: true
   home_dir: "./data/home_data/"
   data_dir: "./data/data"
   monitoring_enabled: false
+  database_enabled: true
 
 map:
   file_path: "./data/home_data/studied_massy_osm_pois.pb"
@@ -26,13 +33,13 @@ agents:
       number: 1
 
 exp:
-  name: "e2e_test_single_agent"
+  name: "e2e_test_clickhouse"
   workflow:
     - type: step
       steps: 10
       ticks_per_step: 600
   environment:
-    start_tick: 25200  # 7 * 60 * 60 = 7 AM
+    start_tick: 25200
     workday: true
     weather: "The weather is sunny"
     temperature: "The temperature is 15C"

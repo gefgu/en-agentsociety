@@ -289,8 +289,8 @@ class InfrastructureManager:
 
     def _init_clickhouse_actor(self):
         """Initialize the ClickHouse actor and corresponding toolbox tool."""
-        if not self._config.env.monitoring_enabled:
-            get_logger().info("Monitoring disabled by config, skipping ClickHouse actor.")
+        if not self._config.env.database_enabled:
+            get_logger().info("Database disabled by config, skipping ClickHouse actor.")
             return
         try:
             clickhouse_cfg = self._config.env.clickhouse

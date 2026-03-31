@@ -28,8 +28,7 @@ from agentsociety.configs import Config  # type: ignore
 from agentsociety.configs.utils import load_config_from_file  # type: ignore
 from agentsociety.simulation import AgentSociety  # type: ignore
 
-DEFAULT_CONFIG = Path(__file__).parent / "config.default.yaml"
-
+DEFAULT_CONFIG = Path(__file__).parent / "001_run_simplest_e2e"
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="AgentSociety end-to-end test")
