@@ -136,34 +136,6 @@ class AgentManager:
                 count += 1
         return count
 
-    def _validate_resume_agent_count(
-        self,
-        agents: list[tuple[Any, ...]],
-        resume_state: Optional[dict[str, Any]],
-    ):
-        """
-        Ensure citizen count matches static rows from resume source.
-
-        Args:
-            agents: List of agent initialization tuples
-            resume_state: The resume state data (if resuming from a previous run)
-
-        Raises:
-            ValueError: If agent counts don't match
-        """
-        if resume_state is None:
-            return
-
-        static_records = resume_state.get("static_records", [])
-        expected_citizens = self._count_citizen_agents(agents)
-        available_citizens = len(static_records)
-        if expected_citizens != available_citizens:
-            raise ValueError(
-                "Agent number mismatch for resume source experiment "
-                f"(configured citizens={expected_citizens}, "
-                f"static citizen records={available_citizens})"
-            )
-
     @staticmethod
     def _static_record_to_memory_updates(static_record: dict[str, Any]) -> dict[str, Any]:
         """Convert a static database record to memory update format."""

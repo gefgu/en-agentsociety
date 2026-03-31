@@ -17,7 +17,8 @@ from agentsociety.configs import Config  # type: ignore
 from agentsociety.configs.utils import load_config_from_file  # type: ignore
 from agentsociety.simulation import AgentSociety  # type: ignore
 
-DEFAULT_CONFIG = Path(__file__).parent / "configs/002_run_e2e_with_clickhouse.yaml"
+# DEFAULT_CONFIG = Path(__file__).parent / "configs/002_run_e2e_with_clickhouse.yaml"
+DEFAULT_CONFIG = Path(__file__).parent / "configs/003_resume_single_agent_with_modal.yaml"
 
 CLICKHOUSE_IMAGE = "clickhouse/clickhouse-server:latest"
 CLICKHOUSE_USERNAME = "test"

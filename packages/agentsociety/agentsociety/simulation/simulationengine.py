@@ -233,7 +233,7 @@ class SimulationEngine:
         get_logger().info("Experiment info saved")
 
 
-        if self._resume_exp_id is None:
+        if self._resume_state is None:
             if self._agent_manager is not None:
                 await self._agent_manager.save_agent_static_info(self._total_steps)
             get_logger().info("Agent static info saved")

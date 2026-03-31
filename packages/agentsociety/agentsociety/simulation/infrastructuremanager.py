@@ -200,9 +200,10 @@ class InfrastructureManager:
 
         resume_data = await self._db_actor.fetch_resume_data.remote(self._resume_exp_id)
         if resume_data is None:
-            raise ValueError(
+            get_logger().warning(
                 f"No ClickHouse resume data found for experiment id '{self._resume_exp_id}'"
             )
+            return
 
         source_config = self._normalize_resume_config(resume_data.get("config", ""))
         current_config = self._normalize_resume_config(self._exp_info.config)
