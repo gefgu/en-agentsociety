@@ -207,7 +207,88 @@ class SimulationEngine:
             f"output_tokens={self._exp_info.output_tokens}"
         )
 
+    async def _restore_external_simulator_state(self) -> None:
+        """Restore economy and mobility simulator state from checkpoint on resume."""
+        if self._resume_state is None or self._environment is None:
+            return
 
+        # Economy simulator restore
+        economy_checkpoint_path = self._resume_state.get("economy_checkpoint_path", "")
+        if economy_checkpoint_path:
+            try:
+                await self._environment.economy_client.load(economy_checkpoint_path)
+                get_logger().info(f"Economy state restored from {economy_checkpoint_path}")
+            except Exception as e:
+                get_logger().warning(f"Failed to restore economy state: {e}")
+        else:
+            get_logger().info("No economy checkpoint path found; economy starts fresh")
+
+        # Mobility simulator: reset each citizen agent to their last safe AOI position
+        resume_step = self._resume_state.get("last_mobility_safe_step", -1)
+        if resume_step < 0:
+            get_logger().info("No mobility-safe step found; skipping mobility position reset")
+            return
+
+        kv_snapshots = self._resume_state.get("kv_snapshots", {})
+        reset_count = 0
+        for agent_id, kv_entries in kv_snapshots.items():
+            position_json = next(
+                (e["value_json"] for e in kv_entries if e.get("key") == "position"), None
+            )
+            if position_json is None:
+                continue
+            try:
+                position = json.loads(position_json)
+            except (json.JSONDecodeError, TypeError):
+                continue
+            aoi_pos = position.get("aoi_position")
+            if aoi_pos is None:
+                continue
+            aoi_id = aoi_pos.get("aoi_id")
+            if aoi_id is None:
+                continue
+            try:
+                await self._environment.reset_person_position(int(agent_id), aoi_id=int(aoi_id))
+                reset_count += 1
+            except Exception as e:
+                get_logger().warning(f"Failed to reset position for agent {agent_id}: {e}")
+
+        get_logger().info(
+            f"Mobility positions reset for {reset_count} agents to step {resume_step} AOI positions. "
+            "Agents mid-trip at crash time were teleported to their last safe AOI position."
+        )
+
+    async def _restore_messager_state(self) -> None:
+        """Rehydrate Messager with pending messages from the checkpoint."""
+        if self._resume_state is None or self._messager is None:
+            return
+
+        pending = self._resume_state.get("pending_messages", [])
+        if not pending:
+            return
+
+        seeded = 0
+        for row in pending:
+            try:
+                payload = json.loads(row.get("payload_json", "{}"))
+                extra_raw = row.get("extra_json")
+                extra = json.loads(extra_raw) if extra_raw else None
+                msg = Message(
+                    from_id=row.get("from_id"),
+                    to_id=row.get("to_id"),
+                    day=int(row.get("day", 0)),
+                    t=float(row.get("t", 0.0)),
+                    kind=row.get("kind", "social"),
+                    payload=payload,
+                    created_at=row.get("created_at"),
+                    extra=extra,
+                )
+                await self._messager.send_message(msg)
+                seeded += 1
+            except Exception as e:
+                get_logger().warning(f"Failed to restore pending message: {e}")
+
+        get_logger().info(f"Seeded {seeded} pending messages from checkpoint into Messager")
 
     async def _finalize_initialization(
         self,
@@ -285,6 +366,10 @@ class SimulationEngine:
             )
             self._infrastructure_manager._validate_resume_agent_count(agents)
             await self._agent_manager.initialize_agents(agents, self._resume_state)
+
+            # Restore external simulators and Messager state on resume
+            await self._restore_external_simulator_state()
+            await self._restore_messager_state()
 
             # Finalize initialization
             await self._finalize_initialization(self._agent_manager._agent_toolbox, metrics_tool)

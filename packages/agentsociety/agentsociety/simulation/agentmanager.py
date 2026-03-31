@@ -30,6 +30,7 @@ from ..database.schema import StaticAgentAttributesRecord
 from ..logger import get_logger
 from ..llm import LLM
 from ..memory import Memory
+from ..memory.memory import MemoryNode, SpatialMemoryNode
 from ..storage import DatabaseWriter
 from ..storage.type import StorageProfile
 from .utils import init_agent_class, evaluate_filter
@@ -602,9 +603,59 @@ class AgentManager:
                         f"Missing static resume data for citizen agent id {agent_id}"
                     )
                 static_updates = self._static_record_to_memory_updates(static_record)
+                static_keys = set(static_updates.keys())
                 for key, value in static_updates.items():
                     if value is not None:
                         await memory_init.status.update(key, value, mode="replace")
+
+                # Restore dynamic KV snapshot (skip static keys already applied)
+                kv_snapshots = resume_state.get("kv_snapshots", {})
+                kv_entries = kv_snapshots.get(agent_id, [])
+                for entry in kv_entries:
+                    key = entry.get("key", "")
+                    if not key or key in static_keys:
+                        continue
+                    try:
+                        value = json.loads(entry["value_json"])
+                    except (json.JSONDecodeError, KeyError):
+                        continue
+                    await memory_init.status.update(key, value, mode="replace")
+
+                # Restore stream memory
+                stream_snapshots = resume_state.get("stream_snapshots", {})
+                stream_entries = stream_snapshots.get(agent_id, [])
+                if stream_entries:
+                    for entry in stream_entries:
+                        node = MemoryNode(
+                            id=int(entry.get("memory_id") or 0),
+                            topic=str(entry.get("topic", "")),
+                            location=str(entry.get("location", "")),
+                            description=str(entry.get("description", "")),
+                            day=int(entry.get("day", 0)),
+                            t=int(entry.get("t", 0)),
+                            cognition_id=entry.get("cognition_id"),
+                        )
+                        memory_init.stream._memories.append(node)
+                        if memory_init.stream._memory_id_counter <= node.id:
+                            memory_init.stream._memory_id_counter = node.id + 1
+
+                # Restore spatial memory
+                spatial_snapshots = resume_state.get("spatial_snapshots", {})
+                spatial_entries = spatial_snapshots.get(agent_id, [])
+                for entry in spatial_entries:
+                    loc_id = str(entry.get("location_id", ""))
+                    if not loc_id:
+                        continue
+                    node = SpatialMemoryNode(
+                        location_id=loc_id,
+                        description=str(entry.get("description", "")),
+                        price=float(entry.get("price", 0.5)),
+                        atmosphere=float(entry.get("atmosphere", 0.5)),
+                        satisfaction=float(entry.get("satisfaction", 0.5)),
+                        convenience=float(entry.get("convenience", 0.5)),
+                        uncertainty=float(entry.get("uncertainty", 0.25)),
+                    )
+                    memory_init.spatial._locations[loc_id] = node
 
             # Create blocks if provided
             if blocks is not None:

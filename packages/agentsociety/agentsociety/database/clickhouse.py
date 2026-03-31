@@ -611,7 +611,8 @@ class ClickHouseDatabase:
             (
                 "SELECT "
                 "id, tenant_id, name, num_day, status, cur_day, cur_t, config, error, "
-                "input_tokens, output_tokens, created_at, updated_at "
+                "input_tokens, output_tokens, created_at, updated_at, "
+                "last_mobility_safe_step, prev_mobility_safe_step, economy_checkpoint_path "
                 "FROM experiment_info "
                 f"WHERE id = toUUID('{escaped_source_uuid}') "
                 "ORDER BY updated_at DESC "
@@ -620,6 +621,8 @@ class ClickHouseDatabase:
         )
         if not exp_info_rows:
             return None
+
+        latest_exp_info = exp_info_rows[0]
 
         step_rows = self._query_rows(
             (
@@ -630,6 +633,10 @@ class ClickHouseDatabase:
         )
         latest_step_raw = step_rows[0].get("max_step") if step_rows else None
         latest_step = int(latest_step_raw) if latest_step_raw is not None else 0
+
+        # Use last_mobility_safe_step as the canonical resume step
+        last_safe_step = int(latest_exp_info.get("last_mobility_safe_step") or -1)
+        economy_checkpoint_path = str(latest_exp_info.get("economy_checkpoint_path") or "")
 
         static_step_rows = self._query_rows(
             (
@@ -662,16 +669,102 @@ class ClickHouseDatabase:
             )
         )
 
-        latest_exp_info = exp_info_rows[0]
+        # Determine the resume step for checkpoint data (N-1 fallback if incomplete)
+        resume_step = last_safe_step
+        kv_snapshots: dict[int, list[dict]] = {}
+        stream_snapshots: dict[int, list[dict]] = {}
+        spatial_snapshots: dict[int, list[dict]] = {}
+        pending_messages: list[dict] = []
+
+        if resume_step >= 0:
+            resume_step, kv_snapshots, stream_snapshots, spatial_snapshots, pending_messages = (
+                self._fetch_checkpoint_snapshots(
+                    escaped_exp_id=escaped_exp_id,
+                    resume_step=resume_step,
+                    prev_step=int(latest_exp_info.get("prev_mobility_safe_step") or -1),
+                    expected_agent_ids={int(r["agent_id"]) for r in static_rows},
+                )
+            )
 
         return {
             "source_exp_id": source_exp_id,
             "config": str(latest_exp_info.get("config") or ""),
             "latest_experiment_info": latest_exp_info,
             "latest_step": latest_step,
+            "last_mobility_safe_step": resume_step,
+            "economy_checkpoint_path": economy_checkpoint_path,
             "static_step": static_step,
             "static_records": static_rows,
+            "kv_snapshots": kv_snapshots,
+            "stream_snapshots": stream_snapshots,
+            "spatial_snapshots": spatial_snapshots,
+            "pending_messages": pending_messages,
         }
+
+    def _fetch_checkpoint_snapshots(
+        self,
+        escaped_exp_id: str,
+        resume_step: int,
+        prev_step: int,
+        expected_agent_ids: set[int],
+    ) -> tuple[int, dict[int, list], dict[int, list], dict[int, list], list[dict]]:
+        """Fetch KV/stream/spatial/message snapshots at resume_step with N-1 fallback."""
+        for attempt_step in [resume_step, prev_step]:
+            if attempt_step < 0:
+                continue
+
+            kv_rows = self._query_rows(
+                f"SELECT agent_id, key, value_json FROM agent_kv_snapshot "
+                f"WHERE exp_id = '{escaped_exp_id}' AND simulation_step = {attempt_step}"
+            )
+
+            # Integrity check: all expected agents must have KV data
+            kv_agent_ids = {int(r["agent_id"]) for r in kv_rows}
+            if expected_agent_ids and not expected_agent_ids.issubset(kv_agent_ids):
+                missing = expected_agent_ids - kv_agent_ids
+                get_logger().warning(
+                    f"KV snapshot at step {attempt_step} is incomplete (missing {len(missing)} agents). "
+                    + (f"Falling back to step {prev_step}." if attempt_step == resume_step else "No valid checkpoint found.")
+                )
+                continue
+
+            # Group KV by agent_id
+            kv_snapshots: dict[int, list[dict]] = {}
+            for row in kv_rows:
+                aid = int(row["agent_id"])
+                kv_snapshots.setdefault(aid, []).append({"key": row["key"], "value_json": row["value_json"]})
+
+            stream_rows = self._query_rows(
+                f"SELECT agent_id, memory_id, cognition_id, topic, location, description, day, t "
+                f"FROM agent_stream_snapshot "
+                f"WHERE exp_id = '{escaped_exp_id}' AND simulation_step = {attempt_step}"
+            )
+            stream_snapshots: dict[int, list[dict]] = {}
+            for row in stream_rows:
+                aid = int(row["agent_id"])
+                stream_snapshots.setdefault(aid, []).append(row)
+
+            spatial_rows = self._query_rows(
+                f"SELECT agent_id, location_id, description, price, atmosphere, satisfaction, convenience, uncertainty "
+                f"FROM agent_spatial_snapshot "
+                f"WHERE exp_id = '{escaped_exp_id}' AND simulation_step = {attempt_step}"
+            )
+            spatial_snapshots: dict[int, list[dict]] = {}
+            for row in spatial_rows:
+                aid = int(row["agent_id"])
+                spatial_snapshots.setdefault(aid, []).append(row)
+
+            pending_messages = self._query_rows(
+                f"SELECT from_id, to_id, day, t, kind, payload_json, created_at, extra_json "
+                f"FROM pending_messages_snapshot "
+                f"WHERE exp_id = '{escaped_exp_id}' AND simulation_step = {attempt_step}"
+            )
+
+            get_logger().info(f"Loaded checkpoint snapshots at step {attempt_step}")
+            return attempt_step, kv_snapshots, stream_snapshots, spatial_snapshots, pending_messages
+
+        get_logger().warning("No valid checkpoint snapshots found; memory will start from defaults")
+        return -1, {}, {}, {}, []
 
     def insert_kv_snapshot_batch(self, records: List[AgentKVSnapshotRecord]) -> None:
         if self.client is None:
