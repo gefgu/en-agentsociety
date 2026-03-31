@@ -24,6 +24,10 @@ RecorderEventType = Literal[
     "exp_info",
     "global_prompt",
     "clickhouse_status",
+    "kv_snapshot",
+    "stream_snapshot",
+    "spatial_snapshot",
+    "message_snapshot",
     "flush",
     "stop",
 ]
@@ -85,6 +89,18 @@ class DataRecorder:
 
     async def enqueue_clickhouse_status(self, record: dict[str, Any]) -> None:
         await self._enqueue(RecorderEvent(event_type="clickhouse_status", payload=record))
+
+    async def enqueue_kv_snapshot(self, records: list[dict[str, Any]]) -> None:
+        await self._enqueue(RecorderEvent(event_type="kv_snapshot", payload=records))
+
+    async def enqueue_stream_snapshot(self, records: list[dict[str, Any]]) -> None:
+        await self._enqueue(RecorderEvent(event_type="stream_snapshot", payload=records))
+
+    async def enqueue_spatial_snapshot(self, records: list[dict[str, Any]]) -> None:
+        await self._enqueue(RecorderEvent(event_type="spatial_snapshot", payload=records))
+
+    async def enqueue_message_snapshot(self, records: list[dict[str, Any]]) -> None:
+        await self._enqueue(RecorderEvent(event_type="message_snapshot", payload=records))
 
     async def save_exp_info(self, exp_info: StorageExpInfo) -> None:
         """Persist experiment info through recorder queue."""
@@ -406,6 +422,26 @@ class DataRecorder:
                 status=record["status"],
                 timestamp=record["timestamp"],
             )
+            return
+
+        if event.event_type == "kv_snapshot":
+            if self._db_actor is not None:
+                self._db_actor.insert_kv_snapshot_batch.remote(event.payload)
+            return
+
+        if event.event_type == "stream_snapshot":
+            if self._db_actor is not None:
+                self._db_actor.insert_stream_snapshot_batch.remote(event.payload)
+            return
+
+        if event.event_type == "spatial_snapshot":
+            if self._db_actor is not None:
+                self._db_actor.insert_spatial_snapshot_batch.remote(event.payload)
+            return
+
+        if event.event_type == "message_snapshot":
+            if self._db_actor is not None:
+                self._db_actor.insert_pending_messages_snapshot.remote(event.payload)
             return
 
         if event.event_type == "flush":
