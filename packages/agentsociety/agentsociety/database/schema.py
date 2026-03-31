@@ -123,6 +123,53 @@ class StaticAgentAttributesRecord(TypedDict):
     background_story: str
 
 
+class AgentKVSnapshotRecord(TypedDict):
+    exp_id: str
+    simulation_step: int
+    agent_id: int
+    key: str
+    value_json: str
+
+
+class AgentStreamSnapshotRecord(TypedDict):
+    exp_id: str
+    simulation_step: int
+    agent_id: int
+    memory_id: int
+    cognition_id: Optional[int]
+    topic: str
+    location: str
+    description: str
+    day: int
+    t: float
+
+
+class AgentSpatialSnapshotRecord(TypedDict):
+    exp_id: str
+    simulation_step: int
+    agent_id: int
+    location_id: str
+    description: str
+    price: float
+    atmosphere: float
+    satisfaction: float
+    convenience: float
+    uncertainty: float
+
+
+class PendingMessageSnapshotRecord(TypedDict):
+    exp_id: str
+    simulation_step: int
+    from_id: Optional[int]
+    to_id: Optional[int]
+    day: int
+    t: float
+    kind: str
+    payload_json: str
+    created_at: datetime.datetime
+    extra_json: Optional[str]
+
+
 class ExperimentInfoRecord(TypedDict):
     tenant_id: str
     id: str
