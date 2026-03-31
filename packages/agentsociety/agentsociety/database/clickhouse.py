@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections import deque
 from datetime import datetime
 import uuid
@@ -157,28 +159,38 @@ class ClickHouseDatabase:
             )
             return
 
-        try:
-            migration_files = sorted(self.migrations_dir.glob("*.sql"))
-            if not migration_files:
+        migration_files = sorted(self.migrations_dir.glob("*.sql"))
+        if not migration_files:
+            get_logger().warning(
+                f"No migration files found in '{self.migrations_dir}'."
+            )
+            return
+
+        failed_migrations: list[str] = []
+        for migration_file in migration_files:
+            query = migration_file.read_text(encoding="utf-8").strip()
+            if not query:
                 get_logger().warning(
-                    f"No migration files found in '{self.migrations_dir}'."
+                    f"Skipping empty migration file '{migration_file.name}'."
                 )
-                return
+                continue
 
-            for migration_file in migration_files:
-                query = migration_file.read_text(encoding="utf-8").strip()
-                if not query:
-                    get_logger().warning(
-                        f"Skipping empty migration file '{migration_file.name}'."
-                    )
-                    continue
-
+            try:
                 self.client.command(query)
                 get_logger().debug(f"Applied migration '{migration_file.name}'.")
+            except Exception as migration_error:
+                failed_migrations.append(migration_file.name)
+                get_logger().error(
+                    f"Failed migration '{migration_file.name}': {migration_error}"
+                )
 
+        if failed_migrations:
+            get_logger().warning(
+                "Completed table initialization with failed migrations: "
+                + ", ".join(failed_migrations)
+            )
+        else:
             get_logger().info("Tables created successfully in ClickHouse database.")
-        except Exception as e:
-            get_logger().error(f"Failed to create tables in ClickHouse database: {e}")
 
     def set_simulation_step(self, step: int):
         self.simulation_step = step
@@ -202,6 +214,11 @@ class ClickHouseDatabase:
         if column_name == "simulation_step" and "simulation_step" not in raw_record:
             return self.simulation_step
         return raw_record[column_name]
+
+    @staticmethod
+    def _is_unknown_table_error(error: Exception) -> bool:
+        message = str(error)
+        return "UNKNOWN_TABLE" in message or "does not exist" in message
 
     def _flush_table_batch(self, table_name: str) -> None:
         if self.client is None:
@@ -241,6 +258,30 @@ class ClickHouseDatabase:
             table_state["last_flush_time"] = time.time()
             self._record_metric(table_name, len(records))
         except Exception as e:
+            if self._is_unknown_table_error(e):
+                get_logger().warning(
+                    f"Table '{table_name}' is missing. Re-applying migrations and retrying batch flush once."
+                )
+                try:
+                    self._create_tables()
+                    self.client.insert(
+                        table_name,
+                        column_data,
+                        column_names=column_names,
+                        column_oriented=True,
+                    )
+                    table_state["batch"].clear()
+                    table_state["last_flush_time"] = time.time()
+                    self._record_metric(table_name, len(records))
+                    get_logger().info(
+                        f"Recovered missing table '{table_name}' and flushed pending batch."
+                    )
+                    return
+                except Exception as retry_error:
+                    get_logger().error(
+                        f"Retry after recreating table '{table_name}' failed: {retry_error}"
+                    )
+
             get_logger().error(f"Failed to flush '{table_name}' batch to ClickHouse: {e}")
 
     def _queue_record(self, table_name: str, record: TableRecord) -> None:

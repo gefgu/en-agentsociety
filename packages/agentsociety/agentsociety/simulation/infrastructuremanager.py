@@ -258,10 +258,14 @@ class InfrastructureManager:
 
     def _start_monitoring_services(self):
         """Initialize Prometheus and Grafana monitoring services."""
+        if not self._config.env.monitoring_enabled:
+            get_logger().info("Monitoring disabled by config, skipping.")
+            return
         try:
             start_monitoring(self._config.env.data_dir)
             set_exp_id(self._exp_id)
             attach_otlp_handler()
+            return self._init_metrics_actor()
         except Exception as e:
             get_logger().warning(f"Failed to start monitoring services: {e}")
 
@@ -285,10 +289,22 @@ class InfrastructureManager:
 
     def _init_clickhouse_actor(self):
         """Initialize the ClickHouse actor and corresponding toolbox tool."""
+        if not self._config.env.monitoring_enabled:
+            get_logger().info("Monitoring disabled by config, skipping ClickHouse actor.")
+            return
         try:
+            clickhouse_cfg = self._config.env.clickhouse
             self._db_actor = DatabaseActor.remote(
                 exp_id=self._exp_id,
                 home_dir=self._config.env.data_dir,
+                host=clickhouse_cfg.host,
+                port=clickhouse_cfg.port,
+                username=clickhouse_cfg.username,
+                password=clickhouse_cfg.password,
+                database=clickhouse_cfg.database,
+                batch_size=clickhouse_cfg.batch_size,
+                batch_timeout=clickhouse_cfg.batch_timeout,
+                auto_create_database=clickhouse_cfg.auto_create_database,
                 metrics_actor=self._metrics_actor,
             )
             self._db_tool = CustomTool(
@@ -341,8 +357,7 @@ class InfrastructureManager:
     async def initialize_all(self):
         """Initialize all infrastructure components used by the simulation engine."""
         await self._init_database_writer_if_enabled()
-        self._start_monitoring_services()
-        self._metrics_tool = self._init_metrics_actor()
+        self._metrics_tool = self._start_monitoring_services()
         self._init_clickhouse_actor()
         await self._init_core_components()
 
@@ -361,8 +376,9 @@ class InfrastructureManager:
             except Exception as e:
                 get_logger().warning(f"Error closing database writer: {e}")
 
-        get_logger().info("Stopping monitoring services...")
-        stop_monitoring()
+        if self._config.env.monitoring_enabled:
+            get_logger().info("Stopping monitoring services...")
+            stop_monitoring()
 
         if self._environment is not None:
             get_logger().info("Closing environment...")

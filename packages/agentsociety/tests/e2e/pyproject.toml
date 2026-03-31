@@ -1,0 +1,32 @@
+[project]
+name = "agentsociety-e2e"
+version = "0.1.0"
+description = "Dedicated uv environment for AgentSociety e2e tests"
+# Narrow this down to exactly what you want to use, 
+# or ensure your environment isn't forcing 3.13
+requires-python = ">=3.11,<3.13"
+dependencies = [
+  "agentsociety",
+  "clickhouse-connect",
+  "opentelemetry-exporter-otlp-proto-grpc",
+  "setuptools",
+]
+
+[tool.uv.sources]
+agentsociety = { path = "../..", editable = true }
+
+[tool.uv]
+managed = true
+# Force protobuf to 5.26.0+ to support 'always_print_fields_with_no_presence'
+# This overrides the <5.0.0 constraint set in the main agentsociety project
+override-dependencies = [
+    "protobuf>=5.26.0"
+]
+
+[tool.uv.extra-build-dependencies]
+grpcio-tools = ["setuptools"]
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+default = true

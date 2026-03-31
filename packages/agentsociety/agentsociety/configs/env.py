@@ -8,7 +8,36 @@ from ..storage import DatabaseConfig
 
 __all__ = [
     "EnvConfig",
+    "ClickHouseConfig",
 ]
+
+
+class ClickHouseConfig(BaseModel):
+    """ClickHouse connection configuration for telemetry storage."""
+
+    host: str = Field(default="localhost")
+    """ClickHouse host"""
+
+    port: int = Field(default=8123)
+    """ClickHouse HTTP port"""
+
+    username: str = Field(default="default")
+    """ClickHouse username"""
+
+    password: str = Field(default="clickhouse")
+    """ClickHouse password"""
+
+    database: str = Field(default="fastsociety")
+    """ClickHouse database name"""
+
+    batch_size: int = Field(default=128)
+    """Batch size for batched inserts"""
+
+    batch_timeout: float = Field(default=30.0)
+    """Flush timeout in seconds for batched inserts"""
+
+    auto_create_database: bool = Field(default=True)
+    """Whether to create the database automatically if missing"""
 
 
 class EnvConfig(BaseModel):
@@ -27,6 +56,16 @@ class EnvConfig(BaseModel):
     """Directory for storing data files"""
 
     exp_id: Optional[str] = Field(default=None)
+
+    clickhouse: ClickHouseConfig = Field(
+        default_factory=lambda: ClickHouseConfig.model_validate({})
+    )
+    """ClickHouse telemetry configuration"""
+
+    monitoring_enabled: bool = Field(default=True)
+    """Whether to start the Docker-based monitoring stack (Prometheus/Grafana/ClickHouse).
+    Set to false to skip starting the stack, e.g. in e2e tests or when a monitoring
+    stack is already running."""
 
 
     @property
