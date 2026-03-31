@@ -5,8 +5,10 @@ A clear version of the simulation.
 import asyncio
 import inspect
 import json
+import os
 import traceback
 import yaml
+from pathlib import Path
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any, Literal, Optional, Union, cast
@@ -718,6 +720,127 @@ class SimulationEngine:
         # Fallback path when DataRecorder is not available.
         get_logger().warning("DataRecorder unavailable; status saving skipped")
 
+    async def _save_checkpoint(self, day: int, t: int) -> None:
+        """Snapshot agent memory and pending messages into ClickHouse for resume support."""
+        if self._db_actor is None or self._data_recorder is None:
+            return
+
+        assert self._agent_manager is not None, "Agent manager not initialized"
+        step = self._total_steps
+
+        kv_records: list[dict] = []
+        stream_records: list[dict] = []
+        spatial_records: list[dict] = []
+        all_at_aoi = True
+
+        for agent in self._agent_manager.agents.values():
+            agent_id = agent.id
+
+            # KV snapshot
+            kv_data = await agent.status.export(list(agent.status._data.keys()))
+            for key, value in kv_data.items():
+                try:
+                    value_json = json.dumps(value, ensure_ascii=False)
+                except (TypeError, ValueError):
+                    value_json = json.dumps(str(value))
+                kv_records.append({
+                    "exp_id": self.exp_id,
+                    "simulation_step": step,
+                    "agent_id": agent_id,
+                    "key": key,
+                    "value_json": value_json,
+                })
+
+            # Check mobility safety (only for citizen agents)
+            from ..agent import CitizenAgentBase
+            if isinstance(agent, CitizenAgentBase) and all_at_aoi:
+                position = kv_data.get("position", {})
+                if position and "lane_position" in position:
+                    all_at_aoi = False
+
+            # Stream snapshot
+            stream_nodes = await agent.stream.get_all()
+            for node in stream_nodes:
+                stream_records.append({
+                    "exp_id": self.exp_id,
+                    "simulation_step": step,
+                    "agent_id": agent_id,
+                    "memory_id": node["id"] or 0,
+                    "cognition_id": node.get("cognition_id"),
+                    "topic": node.get("topic", ""),
+                    "location": node.get("location", ""),
+                    "description": node.get("description", ""),
+                    "day": node.get("day", day),
+                    "t": node.get("t", t),
+                })
+
+            # Spatial snapshot
+            for loc_id, node in agent.memory.spatial._locations.items():
+                spatial_records.append({
+                    "exp_id": self.exp_id,
+                    "simulation_step": step,
+                    "agent_id": agent_id,
+                    "location_id": loc_id,
+                    "description": node.description,
+                    "price": node.price,
+                    "atmosphere": node.atmosphere,
+                    "satisfaction": node.satisfaction,
+                    "convenience": node.convenience,
+                    "uncertainty": node.uncertainty,
+                })
+
+        # Message snapshot (before the drain in step())
+        msg_records: list[dict] = []
+        for msg in self.messager._pending_messages:
+            try:
+                payload_json = json.dumps(msg.payload, ensure_ascii=False)
+                extra_json = json.dumps(msg.extra, ensure_ascii=False) if msg.extra is not None else None
+            except (TypeError, ValueError):
+                payload_json = json.dumps(str(msg.payload))
+                extra_json = None
+            msg_records.append({
+                "exp_id": self.exp_id,
+                "simulation_step": step,
+                "from_id": msg.from_id,
+                "to_id": msg.to_id,
+                "day": msg.day,
+                "t": msg.t,
+                "kind": msg.kind.value if hasattr(msg.kind, "value") else str(msg.kind),
+                "payload_json": payload_json,
+                "created_at": msg.created_at,
+                "extra_json": extra_json,
+            })
+
+        if kv_records:
+            await self._data_recorder.enqueue_kv_snapshot(kv_records)
+        if stream_records:
+            await self._data_recorder.enqueue_stream_snapshot(stream_records)
+        if spatial_records:
+            await self._data_recorder.enqueue_spatial_snapshot(spatial_records)
+        if msg_records:
+            await self._data_recorder.enqueue_message_snapshot(msg_records)
+
+        # Mobility-safe step: checkpoint economy state
+        if all_at_aoi and self._agent_manager.agents:
+            checkpoint_dir = Path(self._config.env.home_dir) / "checkpoints" / self.exp_id
+            checkpoint_dir.mkdir(parents=True, exist_ok=True)
+            econ_path = str(checkpoint_dir / f"econ_step_{step}.bin")
+            try:
+                await self.environment.economy_client.save(econ_path)
+                prev_safe = getattr(self, "_last_mobility_safe_step", -1)
+                self._last_mobility_safe_step = step
+                self._db_actor.update_experiment_info_checkpoint.remote(
+                    exp_id=self.exp_id,
+                    last_mobility_safe_step=step,
+                    prev_mobility_safe_step=prev_safe,
+                    economy_checkpoint_path=econ_path,
+                )
+                get_logger().debug(
+                    f"Mobility-safe step {step}: economy checkpoint saved to {econ_path}"
+                )
+            except Exception as e:
+                get_logger().warning(f"Economy checkpoint failed at step {step}: {e}")
+
     async def delete_agents(self, target_agent_ids: list[int]):
         """
         Delete the specified agents.
@@ -847,6 +970,10 @@ class SimulationEngine:
                 t=t,
             )
             get_logger().debug(f"({day}-{t}) Finished saving simulation results")
+            # ======================
+            # checkpoint agent memory + pending messages (before drain)
+            # ======================
+            await self._save_checkpoint(day, t)
             # ======================
             # forward message
             # ======================
