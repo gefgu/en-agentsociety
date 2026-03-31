@@ -77,7 +77,7 @@ def main() -> None:
         config: Config = load_config_from_file(str(args.config), Config)
         config = default(config)
 
-        config.env.monitoring_enabled = True
+        config.env.monitoring_enabled = False
         config.env.clickhouse.host = host
         config.env.clickhouse.port = port
         config.env.clickhouse.username = CLICKHOUSE_USERNAME

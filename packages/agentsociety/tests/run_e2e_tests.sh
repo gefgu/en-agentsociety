@@ -27,6 +27,7 @@ fi
 # we can refer to the python file directly.
 
 # uv run python "001_run_simplest_e2e.py" "$@"
-uv run python "002_run_e2e_with_clickhouse.py" "$@"
+# uv run python "002_run_e2e_with_clickhouse.py" "$@"
+uv run python "003_resume_single_agent_state.py" "$@"
 
 # It takes about 5-10 minutes to run fully each script 
