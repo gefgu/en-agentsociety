@@ -180,21 +180,28 @@ class ClickHouseDatabase:
 
         failed_migrations: list[str] = []
         for migration_file in migration_files:
-            query = migration_file.read_text(encoding="utf-8").strip()
-            if not query:
+            raw = migration_file.read_text(encoding="utf-8").strip()
+            if not raw:
                 get_logger().warning(
                     f"Skipping empty migration file '{migration_file.name}'."
                 )
                 continue
 
-            try:
-                self.client.command(query)
-                get_logger().debug(f"Applied migration '{migration_file.name}'.")
-            except Exception as migration_error:
+            # Split on semicolons so files with multiple statements work correctly.
+            statements = [s.strip() for s in raw.split(";") if s.strip()]
+            migration_failed = False
+            for statement in statements:
+                try:
+                    self.client.command(statement)
+                except Exception as migration_error:
+                    migration_failed = True
+                    get_logger().error(
+                        f"Failed migration '{migration_file.name}' statement: {migration_error}"
+                    )
+            if migration_failed:
                 failed_migrations.append(migration_file.name)
-                get_logger().error(
-                    f"Failed migration '{migration_file.name}': {migration_error}"
-                )
+            else:
+                get_logger().debug(f"Applied migration '{migration_file.name}'.")
 
         if failed_migrations:
             get_logger().warning(
