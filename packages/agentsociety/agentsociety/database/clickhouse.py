@@ -15,10 +15,14 @@ from ..logger import get_logger
 from ..performance.prometheusActor import PrometheusActor
 from .schema import (
     AdjustNeedsRecord,
+    AgentKVSnapshotRecord,
     AgentLocationTypeRecord,
+    AgentSpatialSnapshotRecord,
+    AgentStreamSnapshotRecord,
     AgentTransportTypeRecord,
     BlockDispatcherRecord,
     ExperimentInfoRecord,
+    PendingMessageSnapshotRecord,
     PromptResponseRecord,
     StaticAgentAttributesRecord,
     StepAgentStatusRecord,
@@ -33,6 +37,10 @@ TableRecord = Union[
     BlockDispatcherRecord,
     StaticAgentAttributesRecord,
     ExperimentInfoRecord,
+    AgentKVSnapshotRecord,
+    AgentStreamSnapshotRecord,
+    AgentSpatialSnapshotRecord,
+    PendingMessageSnapshotRecord,
 ]
 
 
@@ -83,6 +91,10 @@ class ClickHouseDatabase:
             "block_dispatcher": BlockDispatcherRecord,
             "static_agent_attributes": StaticAgentAttributesRecord,
             "experiment_info": ExperimentInfoRecord,
+            "agent_kv_snapshot": AgentKVSnapshotRecord,
+            "agent_stream_snapshot": AgentStreamSnapshotRecord,
+            "agent_spatial_snapshot": AgentSpatialSnapshotRecord,
+            "pending_messages_snapshot": PendingMessageSnapshotRecord,
         }
 
         self.table_columns: dict[str, List[str]] = {
@@ -660,6 +672,64 @@ class ClickHouseDatabase:
             "static_step": static_step,
             "static_records": static_rows,
         }
+
+    def insert_kv_snapshot_batch(self, records: List[AgentKVSnapshotRecord]) -> None:
+        if self.client is None:
+            return
+        try:
+            for record in records:
+                self._queue_record("agent_kv_snapshot", record)
+        except Exception as e:
+            get_logger().error(f"Failed to insert KV snapshot batch: {e}")
+
+    def insert_stream_snapshot_batch(self, records: List[AgentStreamSnapshotRecord]) -> None:
+        if self.client is None:
+            return
+        try:
+            for record in records:
+                self._queue_record("agent_stream_snapshot", record)
+        except Exception as e:
+            get_logger().error(f"Failed to insert stream snapshot batch: {e}")
+
+    def insert_spatial_snapshot_batch(self, records: List[AgentSpatialSnapshotRecord]) -> None:
+        if self.client is None:
+            return
+        try:
+            for record in records:
+                self._queue_record("agent_spatial_snapshot", record)
+        except Exception as e:
+            get_logger().error(f"Failed to insert spatial snapshot batch: {e}")
+
+    def insert_pending_messages_snapshot(self, records: List[PendingMessageSnapshotRecord]) -> None:
+        if self.client is None:
+            return
+        try:
+            for record in records:
+                self._queue_record("pending_messages_snapshot", record)
+        except Exception as e:
+            get_logger().error(f"Failed to insert pending messages snapshot: {e}")
+
+    def update_experiment_info_checkpoint(
+        self,
+        exp_id: str,
+        last_mobility_safe_step: int,
+        prev_mobility_safe_step: int,
+        economy_checkpoint_path: str,
+    ) -> None:
+        if self.client is None:
+            return
+        try:
+            escaped = self._escape_sql_string(str(uuid.UUID(exp_id)))
+            escaped_path = self._escape_sql_string(economy_checkpoint_path)
+            self.client.command(
+                f"ALTER TABLE experiment_info UPDATE "
+                f"last_mobility_safe_step = {last_mobility_safe_step}, "
+                f"prev_mobility_safe_step = {prev_mobility_safe_step}, "
+                f"economy_checkpoint_path = '{escaped_path}' "
+                f"WHERE id = toUUID('{escaped}')"
+            )
+        except Exception as e:
+            get_logger().error(f"Failed to update experiment_info checkpoint columns: {e}")
 
     def flush_all_batches(self):
         for table_name in self.table_batches:

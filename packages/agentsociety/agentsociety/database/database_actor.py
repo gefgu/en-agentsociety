@@ -7,7 +7,14 @@ import ray
 
 from ..performance.prometheusActor import PrometheusActor
 from .clickhouse import ClickHouseDatabase
-from .schema import AdjustNeedsRecord, StaticAgentAttributesRecord
+from .schema import (
+    AdjustNeedsRecord,
+    AgentKVSnapshotRecord,
+    AgentSpatialSnapshotRecord,
+    AgentStreamSnapshotRecord,
+    PendingMessageSnapshotRecord,
+    StaticAgentAttributesRecord,
+)
 
 
 @ray.remote
@@ -156,6 +163,32 @@ class DatabaseActor:
 
     def insert_experiment_info_record(self, record):
         self._db.insert_experiment_info_record(record)
+
+    def insert_kv_snapshot_batch(self, records: List[AgentKVSnapshotRecord]) -> None:
+        self._db.insert_kv_snapshot_batch(records)
+
+    def insert_stream_snapshot_batch(self, records: List[AgentStreamSnapshotRecord]) -> None:
+        self._db.insert_stream_snapshot_batch(records)
+
+    def insert_spatial_snapshot_batch(self, records: List[AgentSpatialSnapshotRecord]) -> None:
+        self._db.insert_spatial_snapshot_batch(records)
+
+    def insert_pending_messages_snapshot(self, records: List[PendingMessageSnapshotRecord]) -> None:
+        self._db.insert_pending_messages_snapshot(records)
+
+    def update_experiment_info_checkpoint(
+        self,
+        exp_id: str,
+        last_mobility_safe_step: int,
+        prev_mobility_safe_step: int,
+        economy_checkpoint_path: str,
+    ) -> None:
+        self._db.update_experiment_info_checkpoint(
+            exp_id=exp_id,
+            last_mobility_safe_step=last_mobility_safe_step,
+            prev_mobility_safe_step=prev_mobility_safe_step,
+            economy_checkpoint_path=economy_checkpoint_path,
+        )
 
     def fetch_resume_data(self, source_exp_id: str):
         return self._db.fetch_resume_data(source_exp_id)
