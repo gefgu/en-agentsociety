@@ -211,6 +211,8 @@ class DuckDBDatabase:
 
     @staticmethod
     def _convert_clickhouse_types(statement: str) -> str:
+        out = DuckDBDatabase._strip_codec_clauses(statement)
+
         replacements = [
             (r"Array\(LowCardinality\(String\)\)", "VARCHAR"),
             (r"Array\(String\)", "VARCHAR"),
@@ -223,14 +225,17 @@ class DuckDBDatabase:
             (r"Int64", "BIGINT"),
             (r"Int32", "INTEGER"),
             (r"UUID", "VARCHAR"),
-            (r"String\s+CODEC\([^\)]*\)", "VARCHAR"),
             (r"String", "VARCHAR"),
         ]
 
-        out = statement
         for pattern, replacement in replacements:
             out = re.sub(pattern, replacement, out)
         return out
+
+    @staticmethod
+    def _strip_codec_clauses(statement: str) -> str:
+        # Remove ClickHouse column codecs, including nested parentheses like CODEC(ZSTD(3)).
+        return re.sub(r"\s+CODEC\((?:[^)(]+|\([^)(]*\))*\)", "", statement)
 
     @staticmethod
     def _strip_clickhouse_engine_clause(statement: str) -> str:
@@ -254,9 +259,21 @@ class DuckDBDatabase:
         table_name = match.group(1)
         tail = match.group(2)
         columns = [col.strip() for col in tail.split(",") if col.strip()]
+
+        normalized_columns: list[str] = []
+        for column in columns:
+            normalized_columns.append(
+                re.sub(
+                    r"^ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+",
+                    "",
+                    column,
+                    flags=re.IGNORECASE,
+                )
+            )
+
         return [
             f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS {column}"
-            for column in columns
+            for column in normalized_columns
         ]
 
     def set_simulation_step(self, step: int) -> None:
