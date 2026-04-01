@@ -238,7 +238,7 @@ class SimulationEngine:
                     "Cannot continue resume safely - the economy state would be corrupted."
                 )
             get_logger().info(
-                "No economy checkpoint (resume_step == 0, no checkpoint was ever written); "
+                "No economy checkpoint (latest_step == 0, no checkpoint was ever written); "
                 "economy starts fresh. Expected for experiments that crashed before their first safe step."
             )
 
@@ -278,6 +278,7 @@ class SimulationEngine:
             if not isinstance(step, dict):
                 return None
             evaluation = step.get("evaluation", {})
+            # Primary: to_place in evaluation (set by _execute_movement)
             if isinstance(evaluation, dict):
                 to_place = evaluation.get("to_place")
                 if to_place is not None:
@@ -285,12 +286,28 @@ class SimulationEngine:
                         return int(to_place)
                     except (TypeError, ValueError):
                         pass
+            # Secondary: to_place at step level (copied from mobility_fields)
             to_place = step.get("to_place")
             if to_place is not None:
                 try:
                     return int(to_place)
                 except (TypeError, ValueError):
-                    return None
+                    pass
+            # Tertiary: poi_id at step level (set when PlaceSelectionBlock ran and selected a
+            # destination but MoveBlock had not yet run; set_aoi_schedules accepts POI IDs)
+            poi_id = step.get("poi_id")
+            if poi_id is not None:
+                try:
+                    return int(poi_id)
+                except (TypeError, ValueError):
+                    pass
+            if isinstance(evaluation, dict):
+                poi_id = evaluation.get("poi_id")
+                if poi_id is not None:
+                    try:
+                        return int(poi_id)
+                    except (TypeError, ValueError):
+                        pass
             return None
 
         def _extract_reset_position(
@@ -359,8 +376,9 @@ class SimulationEngine:
         reconstructed_count = 0
         failed_reconstructions = 0
         total_in_motion = 0
+        successfully_reset: set[int] = set()
 
-        # Phase A: move all agents back to their last known AOI.
+        # Phase A: move all agents back to their last known position (AOI or lane).
         for agent_id, kv_entries in kv_snapshots.items():
             try:
                 agent_id_int = int(agent_id)
@@ -381,7 +399,7 @@ class SimulationEngine:
             if reset_target is None:
                 raise RuntimeError(
                     f"Agent {agent_id_int}: could not extract reset position (aoi/lane) from position/current_plan. "
-                    "Cannot continue resume safely because mobility position restoration is incomplete."\
+                    "Cannot continue resume safely because mobility position restoration is incomplete."
                     f"Plan snapshot: {current_plan}, position snapshot: {position}"
                 )
 
@@ -401,11 +419,19 @@ class SimulationEngine:
                         f"Agent {agent_id_int}: unknown reset target kind '{reset_kind}'"
                     )
                 reset_count += 1
+                successfully_reset.add(agent_id_int)
             except Exception as e:
                 get_logger().warning(f"Failed to reset position for agent {agent_id_int}: {e}")
                 failed_position_resets += 1
 
+        if failed_position_resets > 0:
+            raise RuntimeError(
+                f"Mobility Phase A failed: {failed_position_resets} agent(s) could not be reset. "
+                "Resume cannot continue safely."
+            )
+
         # Phase B: re-submit trips for agents that were in motion when checkpoint was taken.
+        # Only processes agents that were successfully reset in Phase A.
         for agent_id, kv_entries in kv_snapshots.items():
             try:
                 agent_id_int = int(agent_id)
@@ -422,6 +448,14 @@ class SimulationEngine:
                 continue
 
             total_in_motion += 1
+
+            if agent_id_int not in successfully_reset:
+                failed_reconstructions += 1
+                raise RuntimeError(
+                    f"Agent {agent_id_int}: in-motion status={status} but position was not reset in Phase A; "
+                    "cannot reconstruct trip safely. Resume cannot continue."
+                )
+
             current_plan = _parse_kv_value(kv_entries, "current_plan")
             if not isinstance(current_plan, dict):
                 failed_reconstructions += 1

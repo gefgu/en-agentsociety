@@ -34,6 +34,7 @@ class SocietyAgentBlockOutput(BlockOutput):
     
     # Mobility-specific fields
     poi_id: Optional[int] = None  # Point of Interest ID (for POI visits)
+    to_place: Optional[int] = None  # AOI or POI ID of the trip destination (set by MoveBlock)
 
 
 class SocietyAgentContext(AgentContext):

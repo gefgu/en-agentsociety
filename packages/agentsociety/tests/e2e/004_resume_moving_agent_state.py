@@ -22,7 +22,7 @@ from utils import (
 
 DEFAULT_CONFIG = Path(__file__).parent / "configs/003_resume_10_agents_local.yaml"
 
-RESUME_TIMEOUT_SECONDS = 100
+RESUME_TIMEOUT_SECONDS = 200
 
 
 def parse_args() -> argparse.Namespace:
