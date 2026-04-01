@@ -196,11 +196,7 @@ class ClickHouseDatabase:
             )
             return
 
-        migration_files = sorted(
-            path
-            for path in self.migrations_dir.glob("*.sql")
-            if not path.name.endswith(".duckdb.sql")
-        )
+        migration_files = sorted(self.migrations_dir.glob("*.sql"))
         if not migration_files:
             get_logger().warning(
                 f"No migration files found in '{self.migrations_dir}'."

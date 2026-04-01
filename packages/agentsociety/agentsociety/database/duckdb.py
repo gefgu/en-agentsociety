@@ -4,6 +4,7 @@ from collections import deque
 from datetime import datetime
 import json
 from pathlib import Path
+import re
 import time
 from typing import Any, List, Optional, TypedDict, Union, cast
 import uuid
@@ -152,10 +153,14 @@ class DuckDBDatabase:
             get_logger().error("DuckDB connection is not available. Cannot create tables.")
             return
 
-        migration_files = sorted(self.migrations_dir.glob("*.duckdb.sql"))
+        migration_files = sorted(
+            path
+            for path in self.migrations_dir.glob("*.sql")
+            if not path.name.endswith(".duckdb.sql")
+        )
         if not migration_files:
             get_logger().warning(
-                f"No DuckDB migration files found in '{self.migrations_dir}'."
+                f"No ClickHouse migration files found in '{self.migrations_dir}'."
             )
             return
 
@@ -168,7 +173,7 @@ class DuckDBDatabase:
                 )
                 continue
 
-            statements = [s.strip() for s in raw.split(";") if s.strip()]
+            statements = self._to_duckdb_statements(raw)
             migration_failed = False
             for statement in statements:
                 try:
@@ -176,13 +181,14 @@ class DuckDBDatabase:
                 except Exception as migration_error:
                     migration_failed = True
                     get_logger().error(
-                        f"Failed DuckDB migration '{migration_file.name}' statement: {migration_error}"
+                        "Failed converted DuckDB migration "
+                        f"'{migration_file.name}' statement: {migration_error}"
                     )
             if migration_failed:
                 failed_migrations.append(migration_file.name)
             else:
                 get_logger().debug(
-                    f"Applied DuckDB migration '{migration_file.name}'."
+                    f"Applied converted migration '{migration_file.name}' to DuckDB."
                 )
 
         if failed_migrations:
@@ -192,6 +198,66 @@ class DuckDBDatabase:
             )
         else:
             get_logger().info("Tables created successfully in DuckDB database.")
+
+    @classmethod
+    def _to_duckdb_statements(cls, raw_sql: str) -> list[str]:
+        statements = [s.strip() for s in raw_sql.split(";") if s.strip()]
+        converted: list[str] = []
+        for statement in statements:
+            statement = cls._convert_clickhouse_types(statement)
+            statement = cls._strip_clickhouse_engine_clause(statement)
+            converted.extend(cls._normalize_alter_add_columns(statement))
+        return converted
+
+    @staticmethod
+    def _convert_clickhouse_types(statement: str) -> str:
+        replacements = [
+            (r"Array\(LowCardinality\(String\)\)", "VARCHAR"),
+            (r"Array\(String\)", "VARCHAR"),
+            (r"Nullable\(Int32\)", "INTEGER"),
+            (r"Nullable\(String\)", "VARCHAR"),
+            (r"LowCardinality\(String\)", "VARCHAR"),
+            (r"DateTime64\(3\)", "TIMESTAMP"),
+            (r"Float64", "DOUBLE"),
+            (r"Float32", "REAL"),
+            (r"Int64", "BIGINT"),
+            (r"Int32", "INTEGER"),
+            (r"UUID", "VARCHAR"),
+            (r"String\s+CODEC\([^\)]*\)", "VARCHAR"),
+            (r"String", "VARCHAR"),
+        ]
+
+        out = statement
+        for pattern, replacement in replacements:
+            out = re.sub(pattern, replacement, out)
+        return out
+
+    @staticmethod
+    def _strip_clickhouse_engine_clause(statement: str) -> str:
+        return re.sub(
+            r"\s+ENGINE\s*=\s*.*$",
+            "",
+            statement,
+            flags=re.DOTALL,
+        ).strip()
+
+    @staticmethod
+    def _normalize_alter_add_columns(statement: str) -> list[str]:
+        match = re.match(
+            r"^ALTER\s+TABLE\s+(\S+)\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+(.+)$",
+            statement,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        if not match:
+            return [statement]
+
+        table_name = match.group(1)
+        tail = match.group(2)
+        columns = [col.strip() for col in tail.split(",") if col.strip()]
+        return [
+            f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS {column}"
+            for column in columns
+        ]
 
     def set_simulation_step(self, step: int) -> None:
         self.simulation_step = step

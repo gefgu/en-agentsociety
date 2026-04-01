@@ -1,23 +1,25 @@
 # Database Module
 
-This folder contains the ClickHouse persistence layer used to store simulation telemetry.
+This folder contains the simulation telemetry persistence layer with
+ClickHouse-first startup and DuckDB fallback.
 
 ## Purpose
 
 The database package provides:
 
-- A ClickHouse client wrapper with batched writes.
+- A ClickHouse backend with batched writes.
+- A DuckDB fallback backend for environments without ClickHouse.
 - Strongly typed telemetry record schemas.
-- Optional Ray actor wrappers for distributed execution.
+- A Ray actor wrapper used by simulation code.
 - SQL migration loading on startup.
 
 ## Files
 
 - `clickhouse.py`: Main `ClickHouseDatabase` implementation.
+- `duckdb.py`: `DuckDBDatabase` fallback implementation.
 - `schema.py`: TypedDict definitions for all record payloads.
-- `database_actor.py`: Ray actor wrapper delegating calls to `ClickHouseDatabase`.
-- `clickhouse_actor.py`: Same wrapper plus `ClickHouseActor` compatibility alias.
-- `migrations/`: SQL files applied at startup in lexicographic order.
+- `database_actor.py`: Ray actor wrapper that selects backend at init.
+- `migrations/`: ClickHouse SQL files applied at startup in lexicographic order.
 - `__init__.py`: Public exports.
 
 ## Data Model
@@ -32,11 +34,12 @@ Record contracts are defined in `schema.py`:
 - `BlockDispatcherRecord`
 - `ExperimentInfoRecord`
 
-`ClickHouseDatabase` maps each table name to one schema and derives column names from the TypedDict annotations to reduce duplication.
+Both backends map each table name to one schema and derive column names from the
+TypedDict annotations to reduce duplication.
 
 ## Batching Behavior
 
-`ClickHouseDatabase` uses a unified per-table batch state:
+Both backends use a unified per-table batch state:
 
 - In-memory queue per table.
 - Last flush timestamp per table.
@@ -47,15 +50,37 @@ Record contracts are defined in `schema.py`:
 Manual flush methods:
 
 - `flush_all_batches()`: flushes all table queues.
-- `close()`: flushes and closes the ClickHouse client.
+- `close()`: flushes and closes the active backend connection.
 
 ## Startup Flow
 
-On initialization, `ClickHouseDatabase`:
+On actor initialization, `DatabaseActor`:
 
-1. Optionally creates the target database if it does not exist.
-2. Connects to ClickHouse.
-3. Applies SQL migrations from `migrations/`.
+1. Attempts to initialize ClickHouse first.
+2. If ClickHouse is unavailable, initializes DuckDB fallback.
+3. Uses the same actor method surface for simulation regardless of backend.
+
+DuckDB file layout:
+
+- `<data_dir>/duckdb/<exp_id>.duckdb`
+
+## Migration Conversion For DuckDB
+
+DuckDB does not use separate migration files. It reads the ClickHouse `.sql`
+migrations and converts them at runtime.
+
+Current conversion rules include:
+
+- Type conversions such as `LowCardinality(String)` -> `VARCHAR`,
+	`DateTime64(3)` -> `TIMESTAMP`, `Int32` -> `INTEGER`, `Float64` -> `DOUBLE`.
+- `Array(...)` and `Nullable(...)` ClickHouse types converted to DuckDB-compatible
+	scalar/text representations.
+- ClickHouse `CODEC(...)` removed.
+- `ENGINE = ...`, `ORDER BY ...`, and `PARTITION BY ...` clauses removed.
+- Multi-column `ALTER TABLE ... ADD COLUMN ...` normalized into per-column DuckDB
+	`ALTER TABLE ... ADD COLUMN IF NOT EXISTS ...` statements.
+
+When adding migrations, keep SQL compatible with this conversion approach.
 
 ## Simulation Step
 
@@ -101,6 +126,12 @@ db.flush_all_batches()
 db.close()
 ```
 
+Optional DuckDB dependency install:
+
+```bash
+pip install .[duckdb]
+```
+
 ## Ray Actor Usage Example
 
 ```python
@@ -130,8 +161,15 @@ db_actor.flush_all_batches.remote()
 db_actor.close.remote()
 ```
 
+## Resume Behavior
+
+- Resume fetch probes available backends and returns the first matching source
+	experiment data.
+- Checkpoint and snapshot resume data are supported by both backends.
+
 ## Notes
 
-- If ClickHouse is unavailable, insert/flush calls are logged and skipped.
+- Backend fallback is init-time only.
+- If ClickHouse is unavailable at startup, simulation uses DuckDB automatically.
 - Metrics can be emitted through an optional Prometheus actor handle.
 - Keep migrations backward-compatible for existing deployments.
