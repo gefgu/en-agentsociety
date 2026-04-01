@@ -88,7 +88,7 @@ when the snapshot was taken.
   when `resume_step > 0`
 - Reset `current_plan["index"]` back to the in-progress step index before resuming, so agents
   replay from that step
-- Add a hard crash guard for mobility reconstruction failures exceeding a threshold
+- Add a hard crash guard for any citizen mobility reconstruction failure
 - Add `FINAL` to the `fetch_resume_data()` SELECT as defense-in-depth
 
 **Out of scope:**
@@ -312,7 +312,7 @@ position shows `"aoi_position"`. Agents mid-trip (with `"lane_position"`) are si
 
 **After:** The method implements two sequential phases.
 
-**Phase A — Position reset for ALL agents (at AOI and mid-trip alike):**
+**Phase A — Position reset for all citizen agents (at AOI and mid-trip alike):**
 
 For every citizen agent in `kv_snapshots`:
 - Parse `position` from the KV entry.
@@ -399,22 +399,14 @@ resume_step = self._resume_state.get("last_mobility_safe_step", -1)
 
 **Mobility reconstruction crash guard.**
 
-After Phase B of Fix 3, add:
+After Phase B of Fix 3, enforce strict correctness:
 ```python
-if total_in_motion > 0:
-    failure_rate = failed_reconstructions / total_in_motion
-    if failure_rate > MOBILITY_RECONSTRUCTION_FAILURE_THRESHOLD:
-        raise RuntimeError(
-            f"Mobility reconstruction failed for {failed_reconstructions}/{total_in_motion} "
-            "in-motion agents. This indicates a corrupt or incomplete KV snapshot. "
-            "Cannot continue — simulation state would be inconsistent."
-        )
+if failed_position_resets > 0 or failed_reconstructions > 0:
+  raise RuntimeError(...)
 ```
 
-`MOBILITY_RECONSTRUCTION_FAILURE_THRESHOLD = 0.5` — module-level constant in
-`simulationengine.py`. Crash if more than 50% of in-motion agents cannot have their trip
-reconstructed. Individual agent failures (malformed plan dict from an LLM edge case at crash
-time) are tolerated; systemic failures are not.
+No failure threshold is allowed. If any citizen agent cannot be reset to a valid AOI, or if any
+in-motion citizen agent cannot have its trip re-submitted, resume must hard crash immediately.
 
 ---
 
@@ -445,6 +437,9 @@ time) are tolerated; systemic failures are not.
 - **Economy crash guard fires on `resume_step > 0` with no economy file.** If the economy
   checkpoint file was written but then deleted externally (e.g., disk cleanup), the resume will
   crash with a clear error rather than silently proceeding. This is the correct behavior.
+- **Mobility restore now has strict failure semantics.** Any missing AOI reset or failed trip
+  reconstruction causes an immediate crash. This prevents silent continuation from a broken
+  mobility state but may halt resume on single-agent data corruption.
 
 ---
 
@@ -483,11 +478,9 @@ Why rejected: The existing behavior already logs at INFO. A warning means users 
 simulations with corrupted economy state without knowing it. The economy state diverges silently
 across many simulation steps — this is worse than a clean crash with a clear error message.
 
-**Approach: Crash immediately if any single in-motion agent fails reconstruction**
-Why rejected: In large simulations, a single agent may have a malformed `current_plan` due to an
-LLM returning truncated JSON at the exact moment of crash. Crashing the resume for thousands of
-other agents because of one is disproportionate. The 50% threshold tolerates individual failures
-while catching systemic failures.
+**Approach: Tolerate a fraction of reconstruction failures (threshold mode)**
+Why rejected: the user explicitly requires hard fail semantics for broken mobility restore. Any
+partial reconstruction means resume state is inconsistent; continuing is unacceptable.
 
 **Approach: Advance `current_plan["index"]` past the in-progress step on resume**
 Why rejected: The user explicitly decided agents should replay from the in-progress step
@@ -555,9 +548,9 @@ but is marked as done).
    the last AOI from the last completed plan step's `evaluation["to_place"]` instead.
 
 5. **Fix 3 (trip reconstruction):** Rewrite `_restore_external_simulator_state()` at
-   `simulationengine.py:210` to implement Phase A (position reset to last known AOI) and Phase B
-   (trip re-submission for in-motion agents). Add the `MOBILITY_RECONSTRUCTION_FAILURE_THRESHOLD`
-   constant and the crash guard after Phase B.
+  `simulationengine.py:210` to implement Phase A (position reset to last known AOI) and Phase B
+  (trip re-submission for in-motion agents). Apply strict crash behavior on any citizen mobility
+  restore failure.
 
 6. **Verify all four fixes** with a test run:
    - 5 agents, 3 steps, interrupt at a step where agents are mid-trip.

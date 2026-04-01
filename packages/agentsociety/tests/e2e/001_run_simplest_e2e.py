@@ -10,25 +10,14 @@ Usage:
 """
 
 import argparse
-import asyncio
 import logging
-import sys
 from pathlib import Path
 
-import os
-
-# Must be set before importing ray — the constant is evaluated at import time.
-# Disables Ray's automatic uv-run environment replication, which packages the
-# working directory (including Docker-owned data/) and fails on permission errors.
-os.environ["RAY_ENABLE_UV_RUN_RUNTIME_ENV"] = "0"
-
-import ray
-from agentsociety.cityagent import default  # type: ignore
-from agentsociety.configs import Config  # type: ignore
-from agentsociety.configs.utils import load_config_from_file  # type: ignore
 from agentsociety.simulation import AgentSociety  # type: ignore
 
-DEFAULT_CONFIG = Path(__file__).parent / "001_run_simplest_e2e"
+from utils import ensure_config_exists, load_default_config, run_with_ray
+
+DEFAULT_CONFIG = Path(__file__).parent / "configs/001_run_simplest_e2e.yaml"
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="AgentSociety end-to-end test")
@@ -43,8 +32,7 @@ def parse_args() -> argparse.Namespace:
 
 async def run(config_path: Path) -> None:
     logging.info(f"Loading config from {config_path}")
-    config: Config = load_config_from_file(str(config_path), Config)
-    config = default(config)
+    config = load_default_config(config_path)
 
     society = AgentSociety.create(config)
     try:
@@ -58,17 +46,13 @@ async def run(config_path: Path) -> None:
 def main() -> None:
     args = parse_args()
 
-    if not args.config.exists():
-        print(f"ERROR: config file not found: {args.config}", file=sys.stderr)
-        sys.exit(1)
-
-    ray.init()
+    ensure_config_exists(args.config)
 
     try:
-        asyncio.run(run(args.config))
+        run_with_ray(run(args.config))
     except Exception as e:
         logging.exception(f"E2E test FAILED: {e}")
-        sys.exit(1)
+        raise SystemExit(1) from e
 
 
 if __name__ == "__main__":

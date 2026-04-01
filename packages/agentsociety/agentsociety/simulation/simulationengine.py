@@ -209,8 +209,14 @@ class SimulationEngine:
 
     async def _restore_external_simulator_state(self) -> None:
         """Restore economy and mobility simulator state from checkpoint on resume."""
-        if self._resume_state is None or self._environment is None:
+        if (
+            self._resume_state is None
+            or self._environment is None
+            or self._agent_manager is None
+        ):
             return
+
+        resume_step = int(self._resume_state.get("last_mobility_safe_step", -1) or -1)
 
         # Economy simulator restore
         economy_checkpoint_path = self._resume_state.get("economy_checkpoint_path", "")
@@ -221,41 +227,245 @@ class SimulationEngine:
             except Exception as e:
                 get_logger().warning(f"Failed to restore economy state: {e}")
         else:
-            get_logger().info("No economy checkpoint path found; economy starts fresh")
+            if resume_step > 0:
+                raise RuntimeError(
+                    f"Resume at step {resume_step} has no economy checkpoint path. "
+                    "The economy simulator cannot be restored. "
+                    "This indicates a checkpoint write failure or incomplete flush. "
+                    "Cannot continue resume safely - the economy state would be corrupted."
+                )
+            get_logger().info(
+                "No economy checkpoint (resume_step == 0, no checkpoint was ever written); "
+                "economy starts fresh. Expected for experiments that crashed before their first safe step."
+            )
 
-        # Mobility simulator: reset each citizen agent to their last safe AOI position
-        resume_step = self._resume_state.get("last_mobility_safe_step", -1)
+        # Mobility simulator: reset each agent to last known AOI and reconstruct in-flight trips.
         if resume_step < 0:
             get_logger().info("No mobility-safe step found; skipping mobility position reset")
             return
 
-        kv_snapshots = self._resume_state.get("kv_snapshots", {})
-        reset_count = 0
-        for agent_id, kv_entries in kv_snapshots.items():
-            position_json = next(
-                (e["value_json"] for e in kv_entries if e.get("key") == "position"), None
-            )
-            if position_json is None:
-                continue
+        def _parse_kv_value(
+            kv_entries: list[dict[str, Any]], key: str
+        ) -> Optional[dict[str, Any]]:
+            raw = next((e.get("value_json") for e in kv_entries if e.get("key") == key), None)
+            if raw is None:
+                return None
             try:
-                position = json.loads(position_json)
+                parsed = json.loads(raw)
+                return parsed if isinstance(parsed, dict) else None
             except (json.JSONDecodeError, TypeError):
-                continue
-            aoi_pos = position.get("aoi_position")
-            if aoi_pos is None:
-                continue
-            aoi_id = aoi_pos.get("aoi_id")
-            if aoi_id is None:
-                continue
+                return None
+
+        def _parse_kv_int(kv_entries: list[dict[str, Any]], key: str) -> Optional[int]:
+            raw = next((e.get("value_json") for e in kv_entries if e.get("key") == key), None)
+            if raw is None:
+                return None
             try:
-                await self._environment.reset_person_position(int(agent_id), aoi_id=int(aoi_id))
+                value = json.loads(raw)
+                return int(value)
+            except (json.JSONDecodeError, TypeError, ValueError):
+                return None
+
+        def _extract_target_aoi_from_plan_step(step: dict[str, Any]) -> Optional[int]:
+            if not isinstance(step, dict):
+                return None
+            evaluation = step.get("evaluation", {})
+            if isinstance(evaluation, dict):
+                to_place = evaluation.get("to_place")
+                if to_place is not None:
+                    try:
+                        return int(to_place)
+                    except (TypeError, ValueError):
+                        pass
+            to_place = step.get("to_place")
+            if to_place is not None:
+                try:
+                    return int(to_place)
+                except (TypeError, ValueError):
+                    return None
+            return None
+
+        def _extract_last_known_aoi(
+            position: dict[str, Any], current_plan: Optional[dict[str, Any]]
+        ) -> Optional[int]:
+            aoi_pos = position.get("aoi_position")
+            if isinstance(aoi_pos, dict):
+                aoi_id = aoi_pos.get("aoi_id")
+                if aoi_id is not None:
+                    try:
+                        return int(aoi_id)
+                    except (TypeError, ValueError):
+                        pass
+
+            # lane_position in cityproto has lane_id/s only, so infer AOI from the last completed step.
+            if not isinstance(current_plan, dict):
+                return None
+            steps = current_plan.get("steps", [])
+            step_index = current_plan.get("index", 0)
+            if not isinstance(steps, list):
+                return None
+            try:
+                idx = int(step_index)
+            except (TypeError, ValueError):
+                idx = 0
+
+            for i in range(min(idx, len(steps) - 1), -1, -1):
+                step = steps[i]
+                if not isinstance(step, dict):
+                    continue
+                target_aoi = _extract_target_aoi_from_plan_step(step)
+                if target_aoi is not None:
+                    return target_aoi
+            return None
+
+        kv_snapshots = self._resume_state.get("kv_snapshots", {})
+        citizen_ids = {
+            aid
+            for aid, agent in self._agent_manager.agents.items()
+            if isinstance(agent, CitizenAgentBase)
+        }
+
+        reset_count = 0
+        failed_position_resets = 0
+        reconstructed_count = 0
+        failed_reconstructions = 0
+        total_in_motion = 0
+
+        # Phase A: move all agents back to their last known AOI.
+        for agent_id, kv_entries in kv_snapshots.items():
+            try:
+                agent_id_int = int(agent_id)
+            except (TypeError, ValueError):
+                continue
+            if agent_id_int not in citizen_ids:
+                continue
+
+            if not isinstance(kv_entries, list):
+                continue
+
+            position = _parse_kv_value(kv_entries, "position")
+            if not isinstance(position, dict):
+                continue
+
+            current_plan = _parse_kv_value(kv_entries, "current_plan")
+            target_aoi_id = _extract_last_known_aoi(position, current_plan)
+            if target_aoi_id is None:
+                raise RuntimeError(
+                    f"Agent {agent_id_int}: could not extract last known AOI from position/current_plan. "
+                    "Cannot continue resume safely because mobility position restoration is incomplete."
+                )
+
+            try:
+                await self._environment.reset_person_position(
+                    agent_id_int, aoi_id=int(target_aoi_id)
+                )
                 reset_count += 1
             except Exception as e:
-                get_logger().warning(f"Failed to reset position for agent {agent_id}: {e}")
+                get_logger().warning(f"Failed to reset position for agent {agent_id_int}: {e}")
+                failed_position_resets += 1
+
+        # Phase B: re-submit trips for agents that were in motion when checkpoint was taken.
+        for agent_id, kv_entries in kv_snapshots.items():
+            try:
+                agent_id_int = int(agent_id)
+            except (TypeError, ValueError):
+                continue
+            if agent_id_int not in citizen_ids:
+                continue
+
+            if not isinstance(kv_entries, list):
+                continue
+
+            status = _parse_kv_int(kv_entries, "status")
+            if status is None or status in {0, 1}:
+                continue
+
+            total_in_motion += 1
+            current_plan = _parse_kv_value(kv_entries, "current_plan")
+            if not isinstance(current_plan, dict):
+                failed_reconstructions += 1
+                raise RuntimeError(
+                    f"Agent {agent_id_int}: in-motion status={status} but missing current_plan; "
+                    "cannot reconstruct trip. Resume cannot continue safely."
+                )
+
+            if current_plan.get("completed") or current_plan.get("failed"):
+                failed_reconstructions += 1
+                raise RuntimeError(
+                    f"Agent {agent_id_int}: in-motion status={status} but current_plan is completed/failed; "
+                    "cannot reconstruct trip. Resume cannot continue safely."
+                )
+
+            steps = current_plan.get("steps", [])
+            step_index = current_plan.get("index", 0)
+            if not isinstance(steps, list) or not steps:
+                failed_reconstructions += 1
+                raise RuntimeError(
+                    f"Agent {agent_id_int}: in-motion status={status} but current_plan has no steps; "
+                    "cannot reconstruct trip. Resume cannot continue safely."
+                )
+
+            try:
+                idx = int(step_index)
+            except (TypeError, ValueError) as err:
+                failed_reconstructions += 1
+                raise RuntimeError(
+                    f"Agent {agent_id_int}: invalid current_plan index={step_index}; "
+                    "cannot reconstruct trip. Resume cannot continue safely."
+                ) from err
+
+            if idx < 0 or idx >= len(steps):
+                failed_reconstructions += 1
+                raise RuntimeError(
+                    f"Agent {agent_id_int}: current_plan index {idx} out of range for {len(steps)} steps; "
+                    "cannot reconstruct trip. Resume cannot continue safely."
+                )
+
+            current_step = steps[idx]
+            if not isinstance(current_step, dict):
+                failed_reconstructions += 1
+                raise RuntimeError(
+                    f"Agent {agent_id_int}: current_plan step at index {idx} is invalid; "
+                    "cannot reconstruct trip. Resume cannot continue safely."
+                )
+
+            target_aoi_id = _extract_target_aoi_from_plan_step(current_step)
+            if target_aoi_id is None:
+                failed_reconstructions += 1
+                raise RuntimeError(
+                    f"Agent {agent_id_int}: missing target AOI in current plan step {idx}; "
+                    "cannot reconstruct trip. Resume cannot continue safely."
+                )
+
+            try:
+                await self._environment.set_aoi_schedules(
+                    agent_id_int,
+                    [int(target_aoi_id)],
+                )
+                reconstructed_count += 1
+                get_logger().debug(
+                    f"Agent {agent_id_int}: trip re-submitted to AOI {target_aoi_id}"
+                )
+            except Exception as e:
+                failed_reconstructions += 1
+                raise RuntimeError(
+                    f"Agent {agent_id_int}: failed to re-submit trip to AOI {target_aoi_id}: {e}. "
+                    "Resume cannot continue safely."
+                ) from e
+
+        if failed_position_resets > 0 or failed_reconstructions > 0:
+            raise RuntimeError(
+                "Mobility restoration failed. "
+                f"position_reset_failures={failed_position_resets}, "
+                f"trip_reconstruction_failures={failed_reconstructions}. "
+                "Resume cannot continue safely."
+            )
 
         get_logger().info(
-            f"Mobility positions reset for {reset_count} agents to step {resume_step} AOI positions. "
-            "Agents mid-trip at crash time were teleported to their last safe AOI position."
+            "Mobility restoration summary at step "
+            f"{resume_step}: reset={reset_count}, reset_failed={failed_position_resets}, "
+            f"in_motion={total_in_motion}, reconstructed={reconstructed_count}, "
+            f"reconstruction_failed={failed_reconstructions}"
         )
 
     async def _restore_messager_state(self) -> None:
@@ -368,11 +578,9 @@ class SimulationEngine:
             await self._agent_manager.initialize_agents(agents, self._resume_state)
 
             # Restore external simulators and Messager state on resume
+            await self._finalize_initialization(self._agent_manager._agent_toolbox, metrics_tool)
             await self._restore_external_simulator_state()
             await self._restore_messager_state()
-
-            # Finalize initialization
-            await self._finalize_initialization(self._agent_manager._agent_toolbox, metrics_tool)
 
         except Exception as e:
             get_logger().error(f"Init error: {str(e)}\n{traceback.format_exc()}")

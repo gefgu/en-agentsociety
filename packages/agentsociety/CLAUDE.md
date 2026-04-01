@@ -20,12 +20,6 @@ agentsociety check --config <file.yaml>       # validate config
 agentsociety ui --config <file.yaml>          # launch web UI
 ```
 
-### Linting
-```bash
-ruff check agentsociety/
-ruff format agentsociety/
-```
-
 ### Documentation
 ```bash
 # From workspace root /mnt/raid5/gustavo/citysim/

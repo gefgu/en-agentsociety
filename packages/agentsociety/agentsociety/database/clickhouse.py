@@ -573,6 +573,9 @@ class ClickHouseDatabase:
                 "id": str(uuid.UUID(record["id"])),
                 "created_at": created_at,
                 "updated_at": updated_at,
+                "last_mobility_safe_step": record.get("last_mobility_safe_step", -1),
+                "prev_mobility_safe_step": record.get("prev_mobility_safe_step", -1),
+                "economy_checkpoint_path": record.get("economy_checkpoint_path", ""),
             }
             self._queue_record("experiment_info", normalized_record)
 
@@ -620,7 +623,7 @@ class ClickHouseDatabase:
                 "id, tenant_id, name, num_day, status, cur_day, cur_t, config, error, "
                 "input_tokens, output_tokens, created_at, updated_at, "
                 "last_mobility_safe_step, prev_mobility_safe_step, economy_checkpoint_path "
-                "FROM experiment_info "
+                "FROM experiment_info FINAL "
                 f"WHERE id = toUUID('{escaped_source_uuid}') "
                 "ORDER BY updated_at DESC "
                 "LIMIT 1"
@@ -816,18 +819,65 @@ class ClickHouseDatabase:
         prev_mobility_safe_step: int,
         economy_checkpoint_path: str,
     ) -> None:
+        """Write checkpoint columns for an experiment by inserting a new row.
+
+        Reads the current ``experiment_info`` row for ``exp_id`` via a FINAL
+        SELECT (to collapse ReplacingMergeTree duplicates), then inserts a new
+        row with the same non-checkpoint fields plus the updated checkpoint
+        values.  This eliminates the ALTER TABLE UPDATE mutation race: the
+        ReplacingMergeTree engine deduplicates on the next FINAL read, always
+        preferring the row with the highest ``updated_at``.
+
+        Args:
+            exp_id: UUID string of the experiment to update.
+            last_mobility_safe_step: Step index of the latest mobility-safe checkpoint.
+            prev_mobility_safe_step: Step index of the previous mobility-safe checkpoint.
+            economy_checkpoint_path: Filesystem path to the economy snapshot file.
+
+        @usedBy: simulationengine.py via ``_db_actor.update_experiment_info_checkpoint.remote(...)``
+        Side effects: queues one INSERT into the ``experiment_info`` ClickHouse table.
+        """
         if self.client is None:
             return
         try:
-            escaped = self._escape_sql_string(str(uuid.UUID(exp_id)))
-            escaped_path = self._escape_sql_string(economy_checkpoint_path)
-            self.client.command(
-                f"ALTER TABLE experiment_info UPDATE "
-                f"last_mobility_safe_step = {last_mobility_safe_step}, "
-                f"prev_mobility_safe_step = {prev_mobility_safe_step}, "
-                f"economy_checkpoint_path = '{escaped_path}' "
-                f"WHERE id = toUUID('{escaped}')"
+            source_uuid = str(uuid.UUID(exp_id))
+            escaped_uuid = self._escape_sql_string(source_uuid)
+
+            rows = self._query_rows(
+                "SELECT "
+                "id, tenant_id, name, num_day, status, cur_day, cur_t, config, error, "
+                "input_tokens, output_tokens, created_at, updated_at "
+                "FROM experiment_info FINAL "
+                f"WHERE id = toUUID('{escaped_uuid}') "
+                "ORDER BY updated_at DESC "
+                "LIMIT 1"
             )
+            if not rows:
+                get_logger().error(
+                    f"update_experiment_info_checkpoint: no row found for exp_id={exp_id}"
+                )
+                return
+
+            base = rows[0]
+            new_record: ExperimentInfoRecord = {
+                "tenant_id": base["tenant_id"],
+                "id": str(base["id"]),
+                "name": base["name"],
+                "num_day": base["num_day"],
+                "status": base["status"],
+                "cur_day": base["cur_day"],
+                "cur_t": base["cur_t"],
+                "config": base["config"],
+                "error": base["error"],
+                "input_tokens": base["input_tokens"],
+                "output_tokens": base["output_tokens"],
+                "created_at": base["created_at"],
+                "updated_at": datetime.now(),
+                "last_mobility_safe_step": last_mobility_safe_step,
+                "prev_mobility_safe_step": prev_mobility_safe_step,
+                "economy_checkpoint_path": economy_checkpoint_path,
+            }
+            self.insert_experiment_info_record(new_record)
         except Exception as e:
             get_logger().error(f"Failed to update experiment_info checkpoint columns: {e}")
 

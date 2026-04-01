@@ -170,7 +170,7 @@ class PendingMessageSnapshotRecord(TypedDict):
     extra_json: Optional[str]
 
 
-class ExperimentInfoRecord(TypedDict):
+class _ExperimentInfoRecordRequired(TypedDict):
     tenant_id: str
     id: str
     name: str
@@ -184,3 +184,16 @@ class ExperimentInfoRecord(TypedDict):
     output_tokens: int
     created_at: datetime
     updated_at: datetime
+
+
+class ExperimentInfoRecord(_ExperimentInfoRecordRequired, total=False):
+    """TypedDict for a row in the experiment_info ClickHouse table.
+
+    The required fields mirror the original 12-column schema. The optional
+    fields correspond to checkpoint columns added in migration 0013 and are
+    filled with defaults by ``insert_experiment_info_record`` when absent.
+    """
+
+    last_mobility_safe_step: int
+    prev_mobility_safe_step: int
+    economy_checkpoint_path: str
