@@ -111,3 +111,7 @@ All config lives in `configs/__init__.py`. Workflow steps are defined as a list 
 ### Observability
 
 `performance/` provides an optional Prometheus + Grafana + ClickHouse + Loki stack. `PrometheusActor` and `DatabaseActor` are Ray actors for metrics. Enable via Docker Compose in `performance/`.
+
+### Testing
+
+Use `sh tests/run_e2e_tests`
