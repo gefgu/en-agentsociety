@@ -2,16 +2,18 @@ from __future__ import annotations
 
 from collections import deque
 from datetime import datetime
-import uuid
-import time
+import json
 from pathlib import Path
+import time
 from typing import Any, List, Optional, TypedDict, Union, cast
-import ray
+import uuid
 
 try:
-    import clickhouse_connect
+    import duckdb
 except ImportError:
-    clickhouse_connect = None  # type: ignore[assignment]
+    duckdb = None  # type: ignore[assignment]
+
+import ray
 
 from ..logger import get_logger
 from ..performance.prometheusActor import PrometheusActor
@@ -29,8 +31,6 @@ from .schema import (
     StaticAgentAttributesRecord,
     StepAgentStatusRecord,
 )
-
-ClickHouseClient = Any
 
 TableRecord = Union[
     AdjustNeedsRecord,
@@ -53,33 +53,22 @@ class TableBatchState(TypedDict):
     last_flush_time: float
 
 
-class ClickHouseDatabase:
-    """ClickHouse database manager for simulation telemetry and batch writes."""
+class DuckDBDatabase:
+    """DuckDB database manager for simulation telemetry and batch writes."""
 
     def __init__(
         self,
         exp_id: str,
         home_dir: str,
-        host: str = "localhost",
-        port: int = 8123,
-        username: str = "default",
-        password: str = "clickhouse",
-        database: str = "fastsociety",
         batch_size: int = 128,
         batch_timeout: float = 30.0,
-        auto_create_database: bool = True,
         metrics_actor: Optional[ray.actor.ActorHandle[PrometheusActor]] = None,
     ):
         self.exp_id = exp_id
         self.home_dir = Path(home_dir)
-        self.host = host
-        self.port = port
-        self.username = username
-        self.password = password
-        self.database = database
-        self.auto_create_database = auto_create_database
-        self.db_path = self.home_dir / "clickhouse"
+        self.db_path = self.home_dir / "duckdb"
         self.db_path.mkdir(parents=True, exist_ok=True)
+        self.db_file = self.db_path / f"{self.exp_id}.duckdb"
         self.migrations_dir = Path(__file__).resolve().parent / "migrations"
         self._metrics_actor = metrics_actor
 
@@ -105,7 +94,6 @@ class ClickHouseDatabase:
             table_name: list(schema.__annotations__.keys())
             for table_name, schema in self.table_schemas.items()
         }
-        # This column is persisted in ClickHouse but inferred from DB state.
         self.table_columns["NeedsBlock_adjust_needs"].insert(1, "simulation_step")
 
         self.table_batches: dict[str, TableBatchState] = {
@@ -118,24 +106,26 @@ class ClickHouseDatabase:
 
         self.simulation_step = -1
 
-        self.client: Optional[ClickHouseClient] = None
+        self.conn: Optional[Any] = None
         self._connect()
         self._create_tables()
 
-        get_logger().info(f"ClickHouseDatabase initialized with {batch_size=}")
+        get_logger().info(
+            f"DuckDBDatabase initialized with {batch_size=}, db_file='{self.db_file}'"
+        )
 
     @property
     def backend_name(self) -> str:
-        return "clickhouse"
+        return "duckdb"
 
     def is_available(self) -> bool:
-        if self.client is None:
+        if self.conn is None:
             return False
         try:
-            self.client.command("SELECT 1")
+            self.conn.execute("SELECT 1")
             return True
         except Exception as e:
-            get_logger().error(f"ClickHouse health check failed: {e}")
+            get_logger().error(f"DuckDB health check failed: {e}")
             return False
 
     def _record_metric(self, table_name: str, size: int) -> None:
@@ -143,67 +133,29 @@ class ClickHouseDatabase:
             return
         self._metrics_actor.record_table_records.remote(table_name, size)
 
-    def _connect(self):
-        """Establish connection to ClickHouse server."""
-        if clickhouse_connect is None:
+    def _connect(self) -> None:
+        if duckdb is None:
             get_logger().error(
-                "clickhouse_connect package is not installed. ClickHouse backend is unavailable."
+                "duckdb package is not installed. DuckDB fallback backend is unavailable."
             )
-            self.client = None
+            self.conn = None
             return
-
         try:
-            if self.auto_create_database:
-                temp_client = None
-                try:
-                    temp_client = clickhouse_connect.get_client(
-                        host=self.host,
-                        port=self.port,
-                        username=self.username,
-                        password=self.password,
-                    )
-                    temp_client.command(
-                        f"CREATE DATABASE IF NOT EXISTS {self.database}"
-                    )
-                    get_logger().info(
-                        f"Database '{self.database}' ensured in ClickHouse server."
-                    )
-                except Exception as e:
-                    get_logger().error(
-                        f"Failed to ensure database '{self.database}': {e}"
-                    )
-                finally:
-                    if temp_client:
-                        temp_client.close()
-            self.client = clickhouse_connect.get_client(
-                host=self.host,
-                port=self.port,
-                username=self.username,
-                password=self.password,
-                database=self.database,
-            )
-
-            get_logger().info("Connected to ClickHouse server.")
+            self.conn = duckdb.connect(str(self.db_file))
+            get_logger().info(f"Connected to DuckDB file '{self.db_file}'.")
         except Exception as e:
-            get_logger().error(f"Failed to connect to ClickHouse server: {e}")
-            self.client = None
+            get_logger().error(f"Failed to connect to DuckDB: {e}")
+            self.conn = None
 
-    def _create_tables(self):
-        """Create necessary tables in ClickHouse database."""
-        if self.client is None:
-            get_logger().error(
-                "ClickHouse client is not connected. Cannot create tables."
-            )
+    def _create_tables(self) -> None:
+        if self.conn is None:
+            get_logger().error("DuckDB connection is not available. Cannot create tables.")
             return
 
-        migration_files = sorted(
-            path
-            for path in self.migrations_dir.glob("*.sql")
-            if not path.name.endswith(".duckdb.sql")
-        )
+        migration_files = sorted(self.migrations_dir.glob("*.duckdb.sql"))
         if not migration_files:
             get_logger().warning(
-                f"No migration files found in '{self.migrations_dir}'."
+                f"No DuckDB migration files found in '{self.migrations_dir}'."
             )
             return
 
@@ -216,34 +168,35 @@ class ClickHouseDatabase:
                 )
                 continue
 
-            # Split on semicolons so files with multiple statements work correctly.
             statements = [s.strip() for s in raw.split(";") if s.strip()]
             migration_failed = False
             for statement in statements:
                 try:
-                    self.client.command(statement)
+                    self.conn.execute(statement)
                 except Exception as migration_error:
                     migration_failed = True
                     get_logger().error(
-                        f"Failed migration '{migration_file.name}' statement: {migration_error}"
+                        f"Failed DuckDB migration '{migration_file.name}' statement: {migration_error}"
                     )
             if migration_failed:
                 failed_migrations.append(migration_file.name)
             else:
-                get_logger().debug(f"Applied migration '{migration_file.name}'.")
+                get_logger().debug(
+                    f"Applied DuckDB migration '{migration_file.name}'."
+                )
 
         if failed_migrations:
             get_logger().warning(
-                "Completed table initialization with failed migrations: "
+                "Completed DuckDB table initialization with failed migrations: "
                 + ", ".join(failed_migrations)
             )
         else:
-            get_logger().info("Tables created successfully in ClickHouse database.")
+            get_logger().info("Tables created successfully in DuckDB database.")
 
-    def set_simulation_step(self, step: int):
+    def set_simulation_step(self, step: int) -> None:
         self.simulation_step = step
 
-    def _clean_incoming_record(self, timestamp: Any, agent_id: Any):
+    def _clean_incoming_record(self, timestamp: Any, agent_id: Any) -> tuple[datetime, int]:
         if isinstance(timestamp, (int, float)):
             timestamp = datetime.fromtimestamp(timestamp)
         elif not isinstance(timestamp, datetime):
@@ -261,18 +214,15 @@ class ClickHouseDatabase:
         raw_record = cast(dict[str, Any], record)
         if column_name == "simulation_step" and "simulation_step" not in raw_record:
             return self.simulation_step
-        return raw_record[column_name]
 
-    @staticmethod
-    def _is_unknown_table_error(error: Exception) -> bool:
-        message = str(error)
-        return "UNKNOWN_TABLE" in message or "does not exist" in message
+        value = raw_record[column_name]
+        if column_name in {"possible_blocks", "hobbies"}:
+            return json.dumps(value if value is not None else [])
+        return value
 
     def _flush_table_batch(self, table_name: str) -> None:
-        if self.client is None:
-            get_logger().error(
-                "ClickHouse client is not connected. Cannot flush batch."
-            )
+        if self.conn is None:
+            get_logger().error("DuckDB connection is not available. Cannot flush batch.")
             return
 
         table_state = self.table_batches.get(table_name)
@@ -290,47 +240,22 @@ class ClickHouseDatabase:
 
         try:
             records = list(table_state["batch"])
-            column_data = [
-                [self._record_value(record, column_name) for record in records]
-                for column_name in column_names
+            row_data = [
+                tuple(self._record_value(record, column_name) for column_name in column_names)
+                for record in records
             ]
-
-            self.client.insert(
-                table_name,
-                column_data,
-                column_names=column_names,
-                column_oriented=True,
+            placeholders = ", ".join(["?"] * len(column_names))
+            sql = (
+                f"INSERT INTO {table_name} ({', '.join(column_names)}) "
+                f"VALUES ({placeholders})"
             )
+            self.conn.executemany(sql, row_data)
 
             table_state["batch"].clear()
             table_state["last_flush_time"] = time.time()
             self._record_metric(table_name, len(records))
         except Exception as e:
-            if self._is_unknown_table_error(e):
-                get_logger().warning(
-                    f"Table '{table_name}' is missing. Re-applying migrations and retrying batch flush once."
-                )
-                try:
-                    self._create_tables()
-                    self.client.insert(
-                        table_name,
-                        column_data,
-                        column_names=column_names,
-                        column_oriented=True,
-                    )
-                    table_state["batch"].clear()
-                    table_state["last_flush_time"] = time.time()
-                    self._record_metric(table_name, len(records))
-                    get_logger().info(
-                        f"Recovered missing table '{table_name}' and flushed pending batch."
-                    )
-                    return
-                except Exception as retry_error:
-                    get_logger().error(
-                        f"Retry after recreating table '{table_name}' failed: {retry_error}"
-                    )
-
-            get_logger().error(f"Failed to flush '{table_name}' batch to ClickHouse: {e}")
+            get_logger().error(f"Failed to flush '{table_name}' batch to DuckDB: {e}")
 
     def _queue_record(self, table_name: str, record: TableRecord) -> None:
         table_state = self.table_batches.get(table_name)
@@ -345,10 +270,8 @@ class ClickHouseDatabase:
             self._flush_table_batch(table_name)
 
     def insert_adjust_needs_record(self, record: AdjustNeedsRecord) -> None:
-        if self.client is None:
-            get_logger().error(
-                "ClickHouse client is not connected. Cannot insert record."
-            )
+        if self.conn is None:
+            get_logger().error("DuckDB connection is not available. Cannot insert record.")
             return
 
         timestamp, agent_id = self._clean_incoming_record(
@@ -370,10 +293,10 @@ class ClickHouseDatabase:
         response: str,
         block_name: str,
         func_name: str,
-    ):
-        if self.client is None:
+    ) -> None:
+        if self.conn is None:
             get_logger().error(
-                "ClickHouse client is not connected. Cannot insert prompt-response record."
+                "DuckDB connection is not available. Cannot insert prompt-response record."
             )
             return
 
@@ -409,10 +332,10 @@ class ClickHouseDatabase:
         timestamp: datetime,
         agent_id: int,
         location_type: str,
-    ):
-        if self.client is None:
+    ) -> None:
+        if self.conn is None:
             get_logger().error(
-                "ClickHouse client is not connected. Cannot insert agent location type record."
+                "DuckDB connection is not available. Cannot insert agent location type record."
             )
             return
 
@@ -436,10 +359,10 @@ class ClickHouseDatabase:
         timestamp: datetime,
         agent_id: int,
         transport_type: str,
-    ):
-        if self.client is None:
+    ) -> None:
+        if self.conn is None:
             get_logger().error(
-                "ClickHouse client is not connected. Cannot insert agent transport type record."
+                "DuckDB connection is not available. Cannot insert agent transport type record."
             )
             return
 
@@ -467,10 +390,10 @@ class ClickHouseDatabase:
         parent_id: int,
         action: str,
         status: str,
-    ):
-        if self.client is None:
+    ) -> None:
+        if self.conn is None:
             get_logger().error(
-                "ClickHouse client is not connected. Cannot insert step agent status record."
+                "DuckDB connection is not available. Cannot insert step agent status record."
             )
             return
 
@@ -511,10 +434,10 @@ class ClickHouseDatabase:
         ctx_temperature: int,
         ctx_other_info: str,
         ctx_plan_target: str,
-    ):
-        if self.client is None:
+    ) -> None:
+        if self.conn is None:
             get_logger().error(
-                "ClickHouse client is not connected. Cannot insert block dispatcher record."
+                "DuckDB connection is not available. Cannot insert block dispatcher record."
             )
             return
 
@@ -553,9 +476,9 @@ class ClickHouseDatabase:
     def insert_static_agent_attributes_record(
         self, record: StaticAgentAttributesRecord
     ) -> None:
-        if self.client is None:
+        if self.conn is None:
             get_logger().error(
-                "ClickHouse client is not connected. Cannot insert static agent attributes record."
+                "DuckDB connection is not available. Cannot insert static agent attributes record."
             )
             return
 
@@ -574,14 +497,12 @@ class ClickHouseDatabase:
             self._queue_record("static_agent_attributes", normalized_record)
 
         except Exception as e:
-            get_logger().error(
-                f"Failed to insert static agent attributes record: {e}"
-            )
+            get_logger().error(f"Failed to insert static agent attributes record: {e}")
 
     def insert_experiment_info_record(self, record: ExperimentInfoRecord) -> None:
-        if self.client is None:
+        if self.conn is None:
             get_logger().error(
-                "ClickHouse client is not connected. Cannot insert experiment info record."
+                "DuckDB connection is not available. Cannot insert experiment info record."
             )
             return
 
@@ -611,29 +532,38 @@ class ClickHouseDatabase:
         except Exception as e:
             get_logger().error(f"Failed to insert experiment info record: {e}")
 
-    @staticmethod
-    def _escape_sql_string(value: str) -> str:
-        return value.replace("'", "''")
-
-    def _query_rows(self, query: str) -> list[dict[str, Any]]:
-        if self.client is None:
-            get_logger().error("ClickHouse client is not connected. Cannot query.")
+    def _query_rows(self, query: str, params: Optional[list[Any]] = None) -> list[dict[str, Any]]:
+        if self.conn is None:
+            get_logger().error("DuckDB connection is not available. Cannot query.")
             return []
 
         try:
-            result = self.client.query(query)
-            rows = getattr(result, "result_rows", [])
-            column_names = getattr(result, "column_names", [])
+            cursor = self.conn.execute(query, params or [])
+            rows = cursor.fetchall()
+            column_names = [col[0] for col in (cursor.description or [])]
             return [dict(zip(column_names, row, strict=False)) for row in rows]
         except Exception as e:
-            get_logger().error(f"Failed to query ClickHouse: {e}")
+            get_logger().error(f"Failed to query DuckDB: {e}")
             return []
 
+    @staticmethod
+    def _decode_json_array(value: Any) -> list[Any]:
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return value
+        if isinstance(value, str):
+            try:
+                loaded = json.loads(value)
+                return loaded if isinstance(loaded, list) else []
+            except json.JSONDecodeError:
+                return []
+        return []
+
     def fetch_resume_data(self, source_exp_id: str) -> Optional[dict[str, Any]]:
-        """Fetch config, latest step, and latest static attributes for a source experiment."""
-        if self.client is None:
+        if self.conn is None:
             get_logger().error(
-                "ClickHouse client is not connected. Cannot fetch resume data."
+                "DuckDB connection is not available. Cannot fetch resume data."
             )
             return None
 
@@ -643,20 +573,18 @@ class ClickHouseDatabase:
             get_logger().error(f"Invalid source experiment id: {source_exp_id}")
             return None
 
-        escaped_exp_id = self._escape_sql_string(source_exp_id)
-        escaped_source_uuid = self._escape_sql_string(source_uuid)
-
         exp_info_rows = self._query_rows(
             (
                 "SELECT "
                 "id, tenant_id, name, num_day, status, cur_day, cur_t, config, error, "
                 "input_tokens, output_tokens, created_at, updated_at, "
                 "last_mobility_safe_step, prev_mobility_safe_step, economy_checkpoint_path "
-                "FROM experiment_info FINAL "
-                f"WHERE id = toUUID('{escaped_source_uuid}') "
+                "FROM experiment_info "
+                "WHERE id = ? "
                 "ORDER BY updated_at DESC "
                 "LIMIT 1"
-            )
+            ),
+            [source_uuid],
         )
         if not exp_info_rows:
             return None
@@ -667,23 +595,23 @@ class ClickHouseDatabase:
             (
                 "SELECT max(simulation_step) AS max_step "
                 "FROM step_agent_status "
-                f"WHERE exp_id = '{escaped_exp_id}'"
-            )
+                "WHERE exp_id = ?"
+            ),
+            [source_exp_id],
         )
         latest_step_raw = step_rows[0].get("max_step") if step_rows else None
         latest_step = int(latest_step_raw) if latest_step_raw is not None else 0
 
-        # Use last_mobility_safe_step as the canonical resume step
-        last_safe_raw = latest_exp_info.get("last_mobility_safe_step")
-        last_safe_step = int(last_safe_raw) if last_safe_raw is not None else -1
+        last_safe_step = int(latest_exp_info.get("last_mobility_safe_step") or -1)
         economy_checkpoint_path = str(latest_exp_info.get("economy_checkpoint_path") or "")
 
         static_step_rows = self._query_rows(
             (
                 "SELECT max(simulation_step) AS max_static_step "
                 "FROM static_agent_attributes "
-                f"WHERE exp_id = '{escaped_exp_id}'"
-            )
+                "WHERE exp_id = ?"
+            ),
+            [source_exp_id],
         )
         static_step_raw = (
             static_step_rows[0].get("max_static_step") if static_step_rows else None
@@ -704,12 +632,14 @@ class ClickHouseDatabase:
                 "income, currency, residence, city, race, religion, "
                 "marriage_status, background_story "
                 "FROM static_agent_attributes "
-                f"WHERE exp_id = '{escaped_exp_id}' AND simulation_step = {static_step} "
+                "WHERE exp_id = ? AND simulation_step = ? "
                 "ORDER BY agent_id"
-            )
+            ),
+            [source_exp_id, static_step],
         )
+        for row in static_rows:
+            row["hobbies"] = self._decode_json_array(row.get("hobbies"))
 
-        # Determine the resume step for checkpoint data (N-1 fallback if incomplete)
         resume_step = last_safe_step
         kv_snapshots: dict[int, list[dict]] = {}
         stream_snapshots: dict[int, list[dict]] = {}
@@ -719,13 +649,9 @@ class ClickHouseDatabase:
         if resume_step >= 0:
             resume_step, kv_snapshots, stream_snapshots, spatial_snapshots, pending_messages = (
                 self._fetch_checkpoint_snapshots(
-                    escaped_exp_id=escaped_exp_id,
+                    source_exp_id=source_exp_id,
                     resume_step=resume_step,
-                    prev_step=(
-                        int(latest_exp_info.get("prev_mobility_safe_step"))
-                        if latest_exp_info.get("prev_mobility_safe_step") is not None
-                        else -1
-                    ),
+                    prev_step=int(latest_exp_info.get("prev_mobility_safe_step") or -1),
                     expected_agent_ids={int(r["agent_id"]) for r in static_rows},
                 )
             )
@@ -747,41 +673,50 @@ class ClickHouseDatabase:
 
     def _fetch_checkpoint_snapshots(
         self,
-        escaped_exp_id: str,
+        source_exp_id: str,
         resume_step: int,
         prev_step: int,
         expected_agent_ids: set[int],
     ) -> tuple[int, dict[int, list], dict[int, list], dict[int, list], list[dict]]:
-        """Fetch KV/stream/spatial/message snapshots at resume_step with N-1 fallback."""
         for attempt_step in [resume_step, prev_step]:
             if attempt_step < 0:
                 continue
 
             kv_rows = self._query_rows(
-                f"SELECT agent_id, key, value_json FROM agent_kv_snapshot "
-                f"WHERE exp_id = '{escaped_exp_id}' AND simulation_step = {attempt_step}"
+                (
+                    "SELECT agent_id, key, value_json FROM agent_kv_snapshot "
+                    "WHERE exp_id = ? AND simulation_step = ?"
+                ),
+                [source_exp_id, attempt_step],
             )
 
-            # Integrity check: all expected agents must have KV data
             kv_agent_ids = {int(r["agent_id"]) for r in kv_rows}
             if expected_agent_ids and not expected_agent_ids.issubset(kv_agent_ids):
                 missing = expected_agent_ids - kv_agent_ids
                 get_logger().warning(
                     f"KV snapshot at step {attempt_step} is incomplete (missing {len(missing)} agents). "
-                    + (f"Falling back to step {prev_step}." if attempt_step == resume_step else "No valid checkpoint found.")
+                    + (
+                        f"Falling back to step {prev_step}."
+                        if attempt_step == resume_step
+                        else "No valid checkpoint found."
+                    )
                 )
                 continue
 
-            # Group KV by agent_id
             kv_snapshots: dict[int, list[dict]] = {}
             for row in kv_rows:
                 aid = int(row["agent_id"])
-                kv_snapshots.setdefault(aid, []).append({"key": row["key"], "value_json": row["value_json"]})
+                kv_snapshots.setdefault(aid, []).append(
+                    {"key": row["key"], "value_json": row["value_json"]}
+                )
 
             stream_rows = self._query_rows(
-                f"SELECT agent_id, memory_id, cognition_id, topic, location, description, day, t "
-                f"FROM agent_stream_snapshot "
-                f"WHERE exp_id = '{escaped_exp_id}' AND simulation_step = {attempt_step}"
+                (
+                    "SELECT agent_id, memory_id, cognition_id, topic, location, description, day, t "
+                    "FROM agent_stream_snapshot "
+                    "WHERE exp_id = ? AND simulation_step = ?"
+                ),
+                [source_exp_id, attempt_step],
             )
             stream_snapshots: dict[int, list[dict]] = {}
             for row in stream_rows:
@@ -789,9 +724,12 @@ class ClickHouseDatabase:
                 stream_snapshots.setdefault(aid, []).append(row)
 
             spatial_rows = self._query_rows(
-                f"SELECT agent_id, location_id, description, price, atmosphere, satisfaction, convenience, uncertainty "
-                f"FROM agent_spatial_snapshot "
-                f"WHERE exp_id = '{escaped_exp_id}' AND simulation_step = {attempt_step}"
+                (
+                    "SELECT agent_id, location_id, description, price, atmosphere, satisfaction, convenience, uncertainty "
+                    "FROM agent_spatial_snapshot "
+                    "WHERE exp_id = ? AND simulation_step = ?"
+                ),
+                [source_exp_id, attempt_step],
             )
             spatial_snapshots: dict[int, list[dict]] = {}
             for row in spatial_rows:
@@ -799,19 +737,28 @@ class ClickHouseDatabase:
                 spatial_snapshots.setdefault(aid, []).append(row)
 
             pending_messages = self._query_rows(
-                f"SELECT from_id, to_id, day, t, kind, payload_json, created_at, extra_json "
-                f"FROM pending_messages_snapshot "
-                f"WHERE exp_id = '{escaped_exp_id}' AND simulation_step = {attempt_step}"
+                (
+                    "SELECT from_id, to_id, day, t, kind, payload_json, created_at, extra_json "
+                    "FROM pending_messages_snapshot "
+                    "WHERE exp_id = ? AND simulation_step = ?"
+                ),
+                [source_exp_id, attempt_step],
             )
 
             get_logger().info(f"Loaded checkpoint snapshots at step {attempt_step}")
-            return attempt_step, kv_snapshots, stream_snapshots, spatial_snapshots, pending_messages
+            return (
+                attempt_step,
+                kv_snapshots,
+                stream_snapshots,
+                spatial_snapshots,
+                pending_messages,
+            )
 
         get_logger().warning("No valid checkpoint snapshots found; memory will start from defaults")
         return -1, {}, {}, {}, []
 
     def insert_kv_snapshot_batch(self, records: List[AgentKVSnapshotRecord]) -> None:
-        if self.client is None:
+        if self.conn is None:
             return
         try:
             for record in records:
@@ -820,7 +767,7 @@ class ClickHouseDatabase:
             get_logger().error(f"Failed to insert KV snapshot batch: {e}")
 
     def insert_stream_snapshot_batch(self, records: List[AgentStreamSnapshotRecord]) -> None:
-        if self.client is None:
+        if self.conn is None:
             return
         try:
             for record in records:
@@ -829,7 +776,7 @@ class ClickHouseDatabase:
             get_logger().error(f"Failed to insert stream snapshot batch: {e}")
 
     def insert_spatial_snapshot_batch(self, records: List[AgentSpatialSnapshotRecord]) -> None:
-        if self.client is None:
+        if self.conn is None:
             return
         try:
             for record in records:
@@ -838,7 +785,7 @@ class ClickHouseDatabase:
             get_logger().error(f"Failed to insert spatial snapshot batch: {e}")
 
     def insert_pending_messages_snapshot(self, records: List[PendingMessageSnapshotRecord]) -> None:
-        if self.client is None:
+        if self.conn is None:
             return
         try:
             for record in records:
@@ -853,38 +800,20 @@ class ClickHouseDatabase:
         prev_mobility_safe_step: int,
         economy_checkpoint_path: str,
     ) -> None:
-        """Write checkpoint columns for an experiment by inserting a new row.
-
-        Reads the current ``experiment_info`` row for ``exp_id`` via a FINAL
-        SELECT (to collapse ReplacingMergeTree duplicates), then inserts a new
-        row with the same non-checkpoint fields plus the updated checkpoint
-        values.  This eliminates the ALTER TABLE UPDATE mutation race: the
-        ReplacingMergeTree engine deduplicates on the next FINAL read, always
-        preferring the row with the highest ``updated_at``.
-
-        Args:
-            exp_id: UUID string of the experiment to update.
-            last_mobility_safe_step: Step index of the latest mobility-safe checkpoint.
-            prev_mobility_safe_step: Step index of the previous mobility-safe checkpoint.
-            economy_checkpoint_path: Filesystem path to the economy snapshot file.
-
-        @usedBy: simulationengine.py via ``_db_actor.update_experiment_info_checkpoint.remote(...)``
-        Side effects: queues one INSERT into the ``experiment_info`` ClickHouse table.
-        """
-        if self.client is None:
+        if self.conn is None:
             return
         try:
             source_uuid = str(uuid.UUID(exp_id))
-            escaped_uuid = self._escape_sql_string(source_uuid)
 
             rows = self._query_rows(
                 "SELECT "
                 "id, tenant_id, name, num_day, status, cur_day, cur_t, config, error, "
                 "input_tokens, output_tokens, created_at, updated_at "
-                "FROM experiment_info FINAL "
-                f"WHERE id = toUUID('{escaped_uuid}') "
+                "FROM experiment_info "
+                "WHERE id = ? "
                 "ORDER BY updated_at DESC "
-                "LIMIT 1"
+                "LIMIT 1",
+                [source_uuid],
             )
             if not rows:
                 get_logger().error(
@@ -915,12 +844,12 @@ class ClickHouseDatabase:
         except Exception as e:
             get_logger().error(f"Failed to update experiment_info checkpoint columns: {e}")
 
-    def flush_all_batches(self):
+    def flush_all_batches(self) -> None:
         for table_name in self.table_batches:
             self._flush_table_batch(table_name)
 
-    def close(self):
-        if self.client:
+    def close(self) -> None:
+        if self.conn is not None:
             self.flush_all_batches()
-            self.client.close()
-            get_logger().info("ClickHouse client connection closed.")
+            self.conn.close()
+            get_logger().info("DuckDB connection closed.")

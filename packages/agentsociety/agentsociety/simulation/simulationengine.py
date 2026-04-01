@@ -216,7 +216,8 @@ class SimulationEngine:
         ):
             return
 
-        resume_step = int(self._resume_state.get("last_mobility_safe_step", -1) or -1)
+        resume_step = int(self._resume_state.get("last_mobility_safe_step", -1))
+        latest_step = int(self._resume_state.get("latest_step", -1) or -1)
 
         # Economy simulator restore
         economy_checkpoint_path = self._resume_state.get("economy_checkpoint_path", "")
@@ -227,9 +228,9 @@ class SimulationEngine:
             except Exception as e:
                 get_logger().warning(f"Failed to restore economy state: {e}")
         else:
-            if resume_step > 0:
+            if latest_step > 0:
                 raise RuntimeError(
-                    f"Resume at step {resume_step} has no economy checkpoint path. "
+                    f"Resume at step {latest_step} has no economy checkpoint path. "
                     "The economy simulator cannot be restored. "
                     "This indicates a checkpoint write failure or incomplete flush. "
                     "Cannot continue resume safely - the economy state would be corrupted."
@@ -241,7 +242,12 @@ class SimulationEngine:
 
         # Mobility simulator: reset each agent to last known AOI and reconstruct in-flight trips.
         if resume_step < 0:
-            get_logger().info("No mobility-safe step found; skipping mobility position reset")
+            if latest_step > 0:
+                raise RuntimeError(
+                    f"Resume at step {latest_step} has no mobility checkpoint step recorded. "
+                    "Cannot restore mobility state safely."
+                )
+            get_logger().info("No mobility checkpoint step found; skipping mobility position reset")
             return
 
         def _parse_kv_value(
@@ -1044,7 +1050,7 @@ class SimulationEngine:
                     "value_json": value_json,
                 })
 
-            # Check mobility safety (only for citizen agents)
+            # Keep tracking this for observability; checkpoint persistence no longer depends on it.
             from ..agent import CitizenAgentBase
             if isinstance(agent, CitizenAgentBase) and all_at_aoi:
                 position = kv_data.get("position", {})
@@ -1113,23 +1119,23 @@ class SimulationEngine:
         if msg_records:
             await self._data_recorder.enqueue_message_snapshot(msg_records)
 
-        # Mobility-safe step: checkpoint economy state
-        if all_at_aoi and self._agent_manager.agents:
+        # Persist external checkpoint metadata every step so resume can reconstruct from latest snapshots.
+        if self._agent_manager.agents:
             checkpoint_dir = Path(self._config.env.home_dir) / "checkpoints" / self.exp_id
             checkpoint_dir.mkdir(parents=True, exist_ok=True)
             econ_path = str(checkpoint_dir / f"econ_step_{step}.bin")
             try:
                 await self.environment.economy_client.save(econ_path)
-                prev_safe = getattr(self, "_last_mobility_safe_step", -1)
+                prev_checkpoint = getattr(self, "_last_mobility_safe_step", -1)
                 self._last_mobility_safe_step = step
                 self._db_actor.update_experiment_info_checkpoint.remote(
                     exp_id=self.exp_id,
                     last_mobility_safe_step=step,
-                    prev_mobility_safe_step=prev_safe,
+                    prev_mobility_safe_step=prev_checkpoint,
                     economy_checkpoint_path=econ_path,
                 )
                 get_logger().debug(
-                    f"Mobility-safe step {step}: economy checkpoint saved to {econ_path}"
+                    f"Checkpoint step {step}: economy checkpoint saved to {econ_path} (all_at_aoi={all_at_aoi})"
                 )
             except Exception as e:
                 get_logger().warning(f"Economy checkpoint failed at step {step}: {e}")

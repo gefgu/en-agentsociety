@@ -196,17 +196,17 @@ class InfrastructureManager:
             )
 
     async def load_resume_state(self) -> None:
-        """Load resume metadata from ClickHouse when resume_exp_id is set."""
+        """Load resume metadata from database backends when resume_exp_id is set."""
         if not self._resume_exp_id:
             return
 
         if self._db_actor is None:
-            raise RuntimeError("ClickHouse actor is required when resume exp_id is set")
+            raise RuntimeError("Database actor is required when resume exp_id is set")
 
         resume_data = await self._db_actor.fetch_resume_data.remote(self._resume_exp_id)
         if resume_data is None:
             get_logger().warning(
-                f"No ClickHouse resume data found for experiment id '{self._resume_exp_id}'"
+                f"No resume data found for experiment id '{self._resume_exp_id}'"
             )
             return
 
@@ -301,9 +301,9 @@ class InfrastructureManager:
             return None
 
     def _init_clickhouse_actor(self):
-        """Initialize the ClickHouse actor and corresponding toolbox tool."""
+        """Initialize the simulation database actor and corresponding toolbox tool."""
         if not self._config.env.database_enabled:
-            get_logger().info("Database disabled by config, skipping ClickHouse actor.")
+            get_logger().info("Database disabled by config, skipping database actor.")
             return
         try:
             clickhouse_cfg = self._config.env.clickhouse
@@ -323,11 +323,11 @@ class InfrastructureManager:
             self._db_tool = CustomTool(
                 name="db_actor",
                 tool=self._db_actor,
-                description="Ray actor for storing simulation data in ClickHouse database",
+                description="Ray actor for storing simulation data in the simulation database backend",
             )
-            get_logger().info("ClickHouse actor initialized")
+            get_logger().info("Simulation database actor initialized")
         except Exception as e:
-            get_logger().warning(f"Failed to initialize ClickHouse actor: {e}")
+            get_logger().warning(f"Failed to initialize simulation database actor: {e}")
 
     async def _init_core_components(self):
         """Initialize LLM, environment, messager, and embedding components."""

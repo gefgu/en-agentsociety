@@ -49,13 +49,12 @@ This path at `simulationengine.py:224` is a silent `get_logger().info(...)` foll
 The economy simulator is a stateful C++ binary. If an agent was hired, paid taxes, or accumulated
 savings before the crash, those are all lost. This must be a hard crash, not an informational log.
 
-**Design limitation — "Last safe step" teleport is too restrictive.**
-The original approach only checkpoints mobility state when ALL citizen agents are simultaneously
-at AOI positions (`all_at_aoi = True` in `_save_checkpoint()`). In large-scale simulations with
-thousands of agents, there is almost always at least one agent in transit, so mobility checkpoints
-are rare or never happen in practice. The user requires a more general approach: reconstruct
-each agent's trip from the KV snapshot of their `current_plan`, regardless of where agents were
-when the snapshot was taken.
+**Design limitation — checkpoint metadata was too restrictive.**
+The original approach only updated external checkpoint metadata when ALL citizen agents were
+simultaneously at AOI positions (`all_at_aoi = True` in `_save_checkpoint()`). In large-scale
+simulations, this frequently left `last_mobility_safe_step` and `economy_checkpoint_path` stale
+or empty even though KV snapshots were written every step. The fix writes external checkpoint
+metadata every step and reconstructs mobility trips from KV snapshots.
 
 ---
 
@@ -69,7 +68,7 @@ when the snapshot was taken.
 3. Each citizen agent whose KV snapshot shows a `lane_position` is placed at their last known
    AOI (from the `position` KV entry's `aoi_id` — see Resolved Decisions) via
    `ResetPersonPosition`, then has their in-progress trip re-submitted.
-4. Attempting to resume an experiment where `resume_step > 0` but `economy_checkpoint_path` is
+4. Attempting to resume an experiment where `latest_step > 0` but `economy_checkpoint_path` is
    empty raises a `RuntimeError` immediately. No silent economy fresh-start.
 5. `update_experiment_info_checkpoint()` writes checkpoint columns via `INSERT` instead of
    `ALTER TABLE ... UPDATE`, eliminating the mutation race without requiring `FINAL` on reads.
@@ -85,7 +84,7 @@ when the snapshot was taken.
 - Extend `_restore_external_simulator_state()` to: (a) reset each agent to their last known AOI
   position from KV, then (b) re-submit in-progress trips for agents that were mid-trip
 - Change the economy missing-path branch from `get_logger().info(...)` to `raise RuntimeError`
-  when `resume_step > 0`
+  when `latest_step > 0`
 - Reset `current_plan["index"]` back to the in-progress step index before resuming, so agents
   replay from that step
 - Add a hard crash guard for any citizen mobility reconstruction failure
@@ -96,8 +95,8 @@ when the snapshot was taken.
   The approach is: re-submit from last known AOI, not mid-road position.
 - Changing snapshot table schemas or migration files (the migration for the checkpoint columns
   already exists in `0013_alter_experiment_info_checkpoint_cols.sql`)
-- Removing the `all_at_aoi` check in `_save_checkpoint()`: the economy checkpoint still only
-  fires when all agents are at AOI. Trip reconstruction handles the case of agents mid-trip.
+- Blocking checkpoint writes to wait for async ClickHouse flush completion (fire-and-forget
+  remains acceptable; see Resolved Decisions).
 - Blocking the checkpoint INSERT flush (fire-and-forget is acceptable; see Resolved Decisions)
 
 ---
@@ -174,11 +173,9 @@ means the following keys are always in the KV snapshot:
   Each step dict has `to_place`, `start_time`, `intention`, and `evaluation`. Written in
   `societyagent.py:759-761` after each `step_execution()` call.
 
-The `all_at_aoi` check at `simulationengine.py:843-844` ensures a full checkpoint (with economy
-save) only fires when `"lane_position" not in position` for all citizen agents. But the KV
-snapshot is written at EVERY step regardless (`simulationengine.py:899-900` enqueues it
-unconditionally). This means even at steps where agents are mid-trip, their `current_plan` with
-the target destination is preserved.
+KV snapshots are written at EVERY step (`simulationengine.py:899-900` enqueues them
+unconditionally). Economy checkpoint metadata is also now written every step, so resume can load
+economy from the latest checkpoint file and reconstruct mobility from that same step's KV snapshot.
 
 ### The gRPC mobility API
 
@@ -220,12 +217,12 @@ checkpoint time (which is the value already stored in the snapshot; no arithmeti
 just preserve it rather than advancing it).
 
 **Q3: What is the crash condition for a missing economy checkpoint?**
-Decision: Crash whenever `resume_step > 0`. The exact guard is:
+Decision: Crash whenever `latest_step > 0`. The exact guard is:
 ```python
-if resume_step > 0 and not economy_checkpoint_path:
+if latest_step > 0 and not economy_checkpoint_path:
     raise RuntimeError(...)
 ```
-No tolerance for broken state at any step after step 0. Only when `resume_step == 0` (experiment
+No tolerance for broken state at any step after step 0. Only when `latest_step == 0` (experiment
 crashed before any checkpoint was written) is a fresh economy start acceptable.
 
 **Q4: Does the C++ mobility simulator clock mismatch matter for trip re-submission?**
@@ -433,8 +430,9 @@ in-motion citizen agent cannot have its trip re-submitted, resume must hard cras
 - **INSERT + FINAL is redundant once INSERT is stable.** `FINAL` adds a small in-memory merge
   overhead at read time. For a startup-time query over a single UUID, this is negligible.
 - **`update_experiment_info_checkpoint()` now does a read before write.** One additional SELECT
-  per checkpoint event. Checkpoints are infrequent (only at mobility-safe steps); negligible cost.
-- **Economy crash guard fires on `resume_step > 0` with no economy file.** If the economy
+  per checkpoint event. Because checkpoint metadata is now written every step, this adds steady
+  write-side overhead in exchange for deterministic resume correctness.
+- **Economy crash guard fires on `latest_step > 0` with no economy file.** If the economy
   checkpoint file was written but then deleted externally (e.g., disk cleanup), the resume will
   crash with a clear error rather than silently proceeding. This is the correct behavior.
 - **Mobility restore now has strict failure semantics.** Any missing AOI reset or failed trip

@@ -49,6 +49,11 @@ dependencies = [
     "json-repair>=0.46.2",
 ]
 
+[project.optional-dependencies]
+duckdb = [
+    "duckdb>=1.1.0",
+]
+
 [project.urls]
 Homepage = "https://github.com/tsinghua-fib-lab/agentsociety"
 Repository = "https://github.com/tsinghua-fib-lab/agentsociety.git"

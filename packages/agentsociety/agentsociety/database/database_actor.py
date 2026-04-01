@@ -5,8 +5,10 @@ from datetime import datetime
 
 import ray
 
+from ..logger import get_logger
 from ..performance.prometheusActor import PrometheusActor
 from .clickhouse import ClickHouseDatabase
+from .duckdb import DuckDBDatabase
 from .schema import (
     AdjustNeedsRecord,
     AgentKVSnapshotRecord,
@@ -19,7 +21,10 @@ from .schema import (
 
 @ray.remote
 class DatabaseActor:
-    """Ray actor wrapper around ClickHouseDatabase."""
+    """Ray actor wrapper around simulation telemetry databases.
+
+    It tries ClickHouse first and falls back to DuckDB at initialization time.
+    """
 
     def __init__(
         self,
@@ -35,7 +40,7 @@ class DatabaseActor:
         auto_create_database: bool = True,
         metrics_actor: Optional[ray.actor.ActorHandle[PrometheusActor]] = None,
     ):
-        self._db = ClickHouseDatabase(
+        clickhouse_db = ClickHouseDatabase(
             exp_id=exp_id,
             home_dir=home_dir,
             host=host,
@@ -48,6 +53,28 @@ class DatabaseActor:
             auto_create_database=auto_create_database,
             metrics_actor=metrics_actor,
         )
+
+
+        if clickhouse_db.is_available():
+            self._db = clickhouse_db
+            get_logger().info("DatabaseActor initialized with ClickHouse backend")
+        else:
+            get_logger().warning(
+                "ClickHouse unavailable at startup. Falling back to DuckDB backend."
+            )
+            self._db = DuckDBDatabase(
+                exp_id=exp_id,
+                home_dir=home_dir,
+                batch_size=batch_size,
+                batch_timeout=batch_timeout,
+                metrics_actor=metrics_actor,
+            )
+            if not self._db.is_available():
+                raise RuntimeError(
+                    "Failed to initialize both ClickHouse and DuckDB backends."
+                )
+
+            get_logger().info("DatabaseActor initialized with DuckDB backend")
 
     def set_simulation_step(self, step: int):
         self._db.set_simulation_step(step)
@@ -191,7 +218,20 @@ class DatabaseActor:
         )
 
     def fetch_resume_data(self, source_exp_id: str):
-        return self._db.fetch_resume_data(source_exp_id)
+        try:
+            data = self._db.fetch_resume_data(source_exp_id)
+            if data is not None:
+                get_logger().info(
+                    f"Loaded resume data for source_exp_id={source_exp_id} from primary backend={self._db.backend_name}"
+                )
+                return data
+        except Exception as e:
+            get_logger().warning(
+                f"Resume probe failed on primary backend={self._db.backend_name}: {e}"
+            )
+
+        return None
+
 
     def flush_all_batches(self):
         self._db.flush_all_batches()
