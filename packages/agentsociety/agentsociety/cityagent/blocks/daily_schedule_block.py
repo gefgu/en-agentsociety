@@ -65,7 +65,7 @@ class DailyScheduleBlock(Block):
         retry = 3
         while retry > 0:
             try:
-                get_logger().info(
+                get_logger().debug(
                     f"Agent {self.agent.id}: Requesting daily schedule generation for day {day}"
                 )
                 response = await self.llm.atext_request(
@@ -243,7 +243,7 @@ class DailyScheduleBlock(Block):
 
         # Check if we need to generate a new schedule for today
         if daily_schedule is None or daily_schedule.get("day", -99) != day:
-            get_logger().info(
+            get_logger().debug(
                 f"Agent {self.agent.id}: Generating daily schedule for day {day}"
             )
             new_schedule = await self._generate_daily_schedule(day)

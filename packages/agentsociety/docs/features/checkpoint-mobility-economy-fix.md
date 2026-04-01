@@ -65,9 +65,9 @@ metadata every step and reconstructs mobility trips from KV snapshots.
    mobility simulator, targeting the same destination AOI recorded in `current_plan`.
 2. Each citizen agent whose KV snapshot shows an `aoi_position` is placed at that AOI via
    `ResetPersonPosition`.
-3. Each citizen agent whose KV snapshot shows a `lane_position` is placed at their last known
-   AOI (from the `position` KV entry's `aoi_id` — see Resolved Decisions) via
-   `ResetPersonPosition`, then has their in-progress trip re-submitted.
+3. Each citizen agent whose KV snapshot shows a `lane_position` can be restored directly on that
+  lane via `ResetPersonPosition(lane_id, s)`. If lane data is incomplete, fallback is to last
+  known AOI inferred from plan history, then trip re-submission.
 4. Attempting to resume an experiment where `latest_step > 0` but `economy_checkpoint_path` is
    empty raises a `RuntimeError` immediately. No silent economy fresh-start.
 5. `update_experiment_info_checkpoint()` writes checkpoint columns via `INSERT` instead of
@@ -200,12 +200,9 @@ The following questions were open in v2 and have been answered by the user.
 
 **Q1: When a mid-trip agent is reset for reconstruction, should they be placed at home or at
 their last known AOI position?**
-Decision: Always reset to the **last known AOI position** stored in the agent's KV memory at the
-checkpoint step. For an agent with `"lane_position"` in their `position` KV entry, the position
-dict also carries an `aoi_id` field representing the last AOI the simulator reported — use that.
-Do NOT use home as the fallback. If `aoi_id` cannot be extracted from the position entry, log a
-WARNING and skip that agent (they will re-plan on the next tick from wherever the simulator places
-them).
+Decision (updated): Prefer exact restore from KV position. If `aoi_position` exists, reset to AOI.
+If only `lane_position` exists, reset to `(lane_id, s)`. If neither can be resolved, fallback to
+AOI inferred from plan history. Do NOT use home as fallback.
 
 **Q2: Should `current_plan["index"]` be reset after reconstruction?**
 Decision: Reset `current_plan["step_index"]` (the `index` field inside the `current_plan` dict

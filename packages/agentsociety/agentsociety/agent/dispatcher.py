@@ -35,8 +35,6 @@ class BlockDispatcher:
         agent_memory: Memory,
         selection_prompt: str = DISPATCHER_PROMPT,
         use_cache: bool = True,
-        cache_min_sample_size: int = 100,
-        cache_agreement_threshold: float = 0.999,
     ):
         """Initialize dispatcher with LLM interface.
 
@@ -47,12 +45,7 @@ class BlockDispatcher:
         self.memory = agent_memory
         self.blocks: dict[str, Block] = {}
         self.dispatcher_prompt = FormatPrompt(selection_prompt, memory=self.memory)
-        self.dispatcher_cache: DispatcherCache | None = None
-        if use_cache:
-            self.dispatcher_cache = DispatcherCache(
-                min_sample_size=cache_min_sample_size,
-                agreement_threshold=cache_agreement_threshold,
-            )
+        self.use_cache = use_cache
 
     def register_dispatcher_prompt(self, dispatcher_prompt: str) -> None:
         """Register a dispatcher prompt.
@@ -135,43 +128,56 @@ class BlockDispatcher:
             await self.dispatcher_prompt.format(context=context)
             agent_id = await self.memory.status.get("id")
             db_tool = self.toolbox.get_tool("db_actor")
+            dispatcher_cache_tool = self.toolbox.get_tool("dispatcher_cache_actor")
+            global_dispatcher_cache = (
+                dispatcher_cache_tool.get_tool()
+                if dispatcher_cache_tool is not None
+                else None
+            )
             selected_block = None
             possible_blocks = function_schema["function"]["parameters"]["properties"][
                 "block_name"
             ]["enum"]
             ctx_intention = str(context.get("current_intention", ""))
 
-            if self.dispatcher_cache is not None:
-                cached_block = self.dispatcher_cache.check_cache(
-                    possible_blocks=possible_blocks,
-                    ctx_intention=ctx_intention,
-                )
-                if cached_block is not None:
-                    selected_block = cached_block
-                    reason = "Cache hit"
-                    get_logger().debug(
-                        f"Dispatcher cache hit. Intention: {ctx_intention}, selected: {selected_block}"
+            cached_block = None
+            if self.use_cache and global_dispatcher_cache is not None:
+                try:
+                    cached_block = await global_dispatcher_cache.check_cache.remote(
+                        possible_blocks=possible_blocks,
+                        ctx_intention=ctx_intention,
+                    )
+                except Exception as e:
+                    get_logger().warning(
+                        f"Global dispatcher cache check failed: {e}"
                     )
 
-                    if db_tool is not None:
-                        await self.log_dispatch(  # type: ignore
-                            db_tool=db_tool,
-                            agent_id=agent_id,
-                            selected_block=selected_block,
-                            reason=reason,
-                            function_schema=function_schema,
-                            context=context,
-                        )
+            if cached_block is not None:
+                selected_block = cached_block
+                reason = "Cache hit"
+                get_logger().debug(
+                    f"Dispatcher cache hit. Intention: {ctx_intention}, selected: {selected_block}"
+                )
 
-                    if selected_block == "no_suitable_block":
-                        return None
+                if db_tool is not None:
+                    await self.log_dispatch(  # type: ignore
+                        db_tool=db_tool,
+                        agent_id=agent_id,
+                        selected_block=selected_block,
+                        reason=reason,
+                        function_schema=function_schema,
+                        context=context,
+                    )
 
-                    if selected_block not in self.blocks:
-                        raise ValueError(
-                            f"Selected block '{selected_block}' not found in registered blocks"
-                        )
+                if selected_block == "no_suitable_block":
+                    return None
 
-                    return self.blocks[selected_block]
+                if selected_block not in self.blocks:
+                    raise ValueError(
+                        f"Selected block '{selected_block}' not found in registered blocks"
+                    )
+
+                return self.blocks[selected_block]
 
             # Call LLM with tools schema
             response = await self.toolbox.llm.atext_request(
@@ -205,12 +211,18 @@ class BlockDispatcher:
 
             reason = function_args.get("reason", "No reason provided")
 
-            if self.dispatcher_cache is not None and selected_block is not None:
-                self.dispatcher_cache.update_cache(
-                    possible_blocks=possible_blocks,
-                    ctx_intention=ctx_intention,
-                    target_block=selected_block,
-                )
+            if selected_block is not None:
+                if self.use_cache and global_dispatcher_cache is not None:
+                    try:
+                        await global_dispatcher_cache.update_cache.remote(
+                            possible_blocks=possible_blocks,
+                            ctx_intention=ctx_intention,
+                            target_block=selected_block,
+                        )
+                    except Exception as e:
+                        get_logger().warning(
+                            f"Global dispatcher cache update failed: {e}"
+                        )
 
             if db_tool is not None:
                 await self.log_dispatch(  # type: ignore
@@ -301,53 +313,3 @@ class BlockDispatcher:
             get_logger().warning(f"Failed to log dispatcher activity: {e}")
 
 
-class DispatcherCache:
-    """Manages statistical caching for LLM-based block dispatching."""
-
-    def __init__(self, min_sample_size=100, agreement_threshold=0.999):
-        self.cache = {}
-        self.min_sample_size = min_sample_size
-        self.agreement_threshold = agreement_threshold
-
-    def _build_key(self, possible_blocks: list, ctx_intention: str) -> tuple:
-        # Using a tuple is faster for dictionary keys and avoids string memory allocation
-        return (tuple(sorted(possible_blocks)), ctx_intention)
-
-    def check_cache(self, possible_blocks: list, ctx_intention: str):
-        key = self._build_key(possible_blocks, ctx_intention)
-
-        if key in self.cache:
-            value = self.cache[key]
-            if (value["count"] >= self.min_sample_size) and (
-                value["agreement_rate"] >= self.agreement_threshold
-            ):
-                value["cache_hit_count"] += 1
-                return value["most_common_block"]
-        return None
-
-    def update_cache(
-        self, possible_blocks: list, ctx_intention: str, target_block: str
-    ):
-        key = self._build_key(possible_blocks, ctx_intention)
-
-        if key not in self.cache:
-            self.cache[key] = {
-                "block_counts": {},
-                "most_common_block": None,
-                "agreement_rate": 0.0,
-                "count": 0,
-                "cache_hit_count": 0,
-            }
-
-        value = self.cache[key]
-        value["count"] += 1
-        value["block_counts"][target_block] = (
-            value["block_counts"].get(target_block, 0) + 1
-        )
-
-        # Update most common block and agreement rate
-        most_common_block, most_common_count = max(
-            value["block_counts"].items(), key=lambda x: x[1]
-        )
-        value["most_common_block"] = most_common_block
-        value["agreement_rate"] = most_common_count / value["count"]

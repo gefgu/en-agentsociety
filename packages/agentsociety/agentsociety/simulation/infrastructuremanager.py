@@ -12,6 +12,7 @@ from typing import Any, Optional, Union
 from fastembed import SparseTextEmbedding
 
 from ..agent import Agent, CustomTool, CitizenAgentBase
+from ..agent.dispatcher_cache_actor import GlobalDispatcherCacheActor
 from ..configs import Config
 from ..database.database_actor import DatabaseActor
 from ..environment import EnvironmentStarter
@@ -50,8 +51,10 @@ class InfrastructureManager:
         self._metrics_actor: Optional[PrometheusActor] = None
         self._db_actor: Optional[DatabaseActor] = None
         self._messager: Optional[Messager] = None
+        self._dispatcher_cache_actor: Optional[Any] = None
         self._metrics_tool: Optional[CustomTool] = None
         self._db_tool: Optional[CustomTool] = None
+        self._dispatcher_cache_tool: Optional[CustomTool] = None
         self._resume_exp_id: Optional[str] = None
         self._resume_state: Optional[dict[str, Any]] = None
 
@@ -94,6 +97,10 @@ class InfrastructureManager:
     @property
     def db_tool(self) -> Optional[CustomTool]:
         return self._db_tool
+
+    @property
+    def dispatcher_cache_tool(self) -> Optional[CustomTool]:
+        return self._dispatcher_cache_tool
 
     @property
     def resume_state(self) -> Optional[dict[str, Any]]:
@@ -329,6 +336,19 @@ class InfrastructureManager:
         except Exception as e:
             get_logger().warning(f"Failed to initialize simulation database actor: {e}")
 
+    def _init_dispatcher_cache_actor(self):
+        """Initialize a global dispatcher cache actor and corresponding toolbox tool."""
+        try:
+            self._dispatcher_cache_actor = GlobalDispatcherCacheActor.remote()
+            self._dispatcher_cache_tool = CustomTool(
+                name="dispatcher_cache_actor",
+                tool=self._dispatcher_cache_actor,
+                description="Ray actor for global block dispatcher cache",
+            )
+            get_logger().info("Global dispatcher cache actor initialized")
+        except Exception as e:
+            get_logger().warning(f"Failed to initialize global dispatcher cache actor: {e}")
+
     async def _init_core_components(self):
         """Initialize LLM, environment, messager, and embedding components."""
         get_logger().info("Initializing LLM...")
@@ -372,11 +392,18 @@ class InfrastructureManager:
         await self._init_database_writer_if_enabled()
         self._metrics_tool = self._start_monitoring_services()
         self._init_clickhouse_actor()
+        self._init_dispatcher_cache_actor()
         await self._init_core_components()
 
     async def close(self):
         """Close all infrastructure components initialized by this manager."""
         get_logger().info("Closing ClickHouse tool...")
+        if self._dispatcher_cache_actor is not None:
+            try:
+                await self._dispatcher_cache_actor.close.remote()
+            except Exception as e:
+                get_logger().warning(f"Error closing dispatcher cache actor: {e}")
+
         if self._db_actor is not None:
             try:
                 await self._db_actor.close.remote()

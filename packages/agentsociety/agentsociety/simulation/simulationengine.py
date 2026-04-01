@@ -82,6 +82,7 @@ class SimulationEngine:
         self._metrics_actor: Optional[PrometheusActor] = None
         self._db_actor: Optional[DatabaseActor] = None
         self._db_tool: Optional[CustomTool] = None
+        self._dispatcher_cache_tool: Optional[CustomTool] = None
         self._agent_manager: Optional[AgentManager] = None
         self._data_recorder: Optional[DataRecorder] = None
         yaml_config = yaml.dump(
@@ -146,6 +147,7 @@ class SimulationEngine:
         self._db_actor = self._infrastructure_manager.db_actor
         self._messager = self._infrastructure_manager.messager
         self._db_tool = self._infrastructure_manager.db_tool
+        self._dispatcher_cache_tool = self._infrastructure_manager.dispatcher_cache_tool
         self._resume_state = self._infrastructure_manager.resume_state
 
     def _start_data_recorder(self) -> None:
@@ -291,19 +293,34 @@ class SimulationEngine:
                     return None
             return None
 
-        def _extract_last_known_aoi(
+        def _extract_reset_position(
             position: dict[str, Any], current_plan: Optional[dict[str, Any]]
-        ) -> Optional[int]:
+        ) -> Optional[tuple[str, int, Optional[float]]]:
             aoi_pos = position.get("aoi_position")
             if isinstance(aoi_pos, dict):
                 aoi_id = aoi_pos.get("aoi_id")
                 if aoi_id is not None:
                     try:
-                        return int(aoi_id)
+                        return ("aoi", int(aoi_id), None)
                     except (TypeError, ValueError):
                         pass
 
-            # lane_position in cityproto has lane_id/s only, so infer AOI from the last completed step.
+            lane_pos = position.get("lane_position")
+            if isinstance(lane_pos, dict):
+                lane_id = lane_pos.get("lane_id")
+                if lane_id is not None:
+                    try:
+                        lane_id_int = int(lane_id)
+                        s_raw = lane_pos.get("s", 0.0)
+                        try:
+                            s = float(s_raw)
+                        except (TypeError, ValueError):
+                            s = 0.0
+                        return ("lane", lane_id_int, s)
+                    except (TypeError, ValueError):
+                        pass
+
+            # Fallback when explicit position is incomplete: infer last AOI from plan history.
             if not isinstance(current_plan, dict):
                 return None
             steps = current_plan.get("steps", [])
@@ -319,9 +336,15 @@ class SimulationEngine:
                 step = steps[i]
                 if not isinstance(step, dict):
                     continue
+                step_position = step.get("position")
+                if step_position is not None:
+                    try:
+                        return ("aoi", int(step_position), None)
+                    except (TypeError, ValueError):
+                        pass
                 target_aoi = _extract_target_aoi_from_plan_step(step)
                 if target_aoi is not None:
-                    return target_aoi
+                    return ("aoi", target_aoi, None)
             return None
 
         kv_snapshots = self._resume_state.get("kv_snapshots", {})
@@ -354,17 +377,29 @@ class SimulationEngine:
                 continue
 
             current_plan = _parse_kv_value(kv_entries, "current_plan")
-            target_aoi_id = _extract_last_known_aoi(position, current_plan)
-            if target_aoi_id is None:
+            reset_target = _extract_reset_position(position, current_plan)
+            if reset_target is None:
                 raise RuntimeError(
-                    f"Agent {agent_id_int}: could not extract last known AOI from position/current_plan. "
-                    "Cannot continue resume safely because mobility position restoration is incomplete."
+                    f"Agent {agent_id_int}: could not extract reset position (aoi/lane) from position/current_plan. "
+                    "Cannot continue resume safely because mobility position restoration is incomplete."\
+                    f"Plan snapshot: {current_plan}, position snapshot: {position}"
                 )
 
+            reset_kind, reset_id, reset_s = reset_target
+
             try:
-                await self._environment.reset_person_position(
-                    agent_id_int, aoi_id=int(target_aoi_id)
-                )
+                if reset_kind == "aoi":
+                    await self._environment.reset_person_position(
+                        agent_id_int, aoi_id=int(reset_id)
+                    )
+                elif reset_kind == "lane":
+                    await self._environment.reset_person_position(
+                        agent_id_int, lane_id=int(reset_id), s=reset_s
+                    )
+                else:
+                    raise RuntimeError(
+                        f"Agent {agent_id_int}: unknown reset target kind '{reset_kind}'"
+                    )
                 reset_count += 1
             except Exception as e:
                 get_logger().warning(f"Failed to reset position for agent {agent_id_int}: {e}")
@@ -523,6 +558,10 @@ class SimulationEngine:
         get_logger().info("Adding clickhouse tool to Agents...")
         if self._db_tool is not None:
             agent_toolbox.add_tool(self._db_tool)
+
+        get_logger().info("Adding dispatcher cache tool to Agents...")
+        if self._dispatcher_cache_tool is not None:
+            agent_toolbox.add_tool(self._dispatcher_cache_tool)
 
         get_logger().info("Initializing the agents...")
 
