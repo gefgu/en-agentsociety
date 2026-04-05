@@ -852,24 +852,39 @@ class MoveBlock(Block):
                     next_place = context.get("next_place", None)
                     # Store poi_id from place selection result
                     poi_id = place_selection_result.get("poi_id")
+                else:
+                    get_logger().warning(
+                        f"MobilityBlock (Agent {self.agent.id}): PlaceSelectionBlock failed for intention '{context['current_step']['intention']}'. Evaluation: {place_selection_result.get('evaluation', 'No evaluation')}",
+                        extra={"agent_id": self.agent.id},
+                    )
 
-            # 2b. If still None, pick Random
+            # 2b. Enforce place selection: fail if destination is still unavailable
             if next_place is None:
-                aois = self.environment.map.get_all_aois()
-                while True:
-                    r_aoi = random.choice(aois)
-                    if len(r_aoi["poi_ids"]) > 0:
-                        r_poi = random.choice(r_aoi["poi_ids"])
-                        break
-                poi = self.environment.map.get_poi(r_poi)
-                poi_cat = poi.get("category", "unknown")
-                # Structure: (Name, AOI_ID, Type)
-                next_place = (poi["name"], poi["aoi_id"], poi_cat)
-                poi_id = r_poi
-                get_logger().warning(
-                    f"MobilityBlock (Agent {self.agent.id}): Move to other place: no next_place provided, randomly selected {next_place}. POI ID: {poi_id}, AOI ID: {r_aoi['id']}",
+                failure_reason = (
+                    "PlaceSelectionBlock did not provide next_place"
+                    if place_selection_result is None
+                    else place_selection_result.get(
+                        "evaluation", "PlaceSelectionBlock did not provide next_place"
+                    )
+                )
+                get_logger().error(
+                    f"MobilityBlock (Agent {self.agent.id}): Move to other place failed because next_place is missing after PlaceSelectionBlock. Reason: {failure_reason}",
                     extra={"agent_id": self.agent.id},
                 )
+                node_id = await self.memory.stream.add(
+                    topic="mobility",
+                    description=(
+                        f"Failed to find destination for {context['current_step']['intention']}: {failure_reason}"
+                    ),
+                )
+                return {
+                    "success": False,
+                    "evaluation": f"Failed to select destination: {failure_reason}",
+                    "consumed_time": 5,
+                    "node_id": node_id,
+                    "poi_id": None,
+                    "is_poi": False,
+                }
 
             # 2c. Unpack tuple
             # Assumes next_place is (Name, AOI_ID, Type) based on your original random logic

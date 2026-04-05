@@ -10,6 +10,7 @@ This package wraps the external city simulators and provides agents with a view 
 |---|---|
 | `environment.py` | `Environment` facade — unified interface to all sub-systems |
 | `mapdata.py` | `MapData` — POI, road network, and area data |
+| `NEIGHBORHOODS.md` | How neighborhood polygons are loaded and used in mobility decisions |
 | `download_sim.py` | Utility to download city simulator binaries |
 | `sim/` | Mobility simulator client (gRPC) |
 | `economy/` | Economic simulator client |
@@ -65,6 +66,37 @@ Provides access to a pre-processed city map:
 map_data = MapData(map_path="city_map.pb")
 pois = map_data.query_pois(center=(39.9, 116.4), radius=1000, categories=["restaurant"])
 ```
+
+### Neighborhoods
+
+Neighborhoods are optional polygon regions loaded from `MapConfig.neighborhood_file_path`.
+
+When enabled, `MapData`:
+- loads neighborhood JSON from local disk or S3
+- parses and stores neighborhoods in `self.neighborhoods`
+- builds `shapely_xy` / `shapely_lnglat` geometry
+- creates a spatial index for fast point and radius lookup
+
+The main neighborhood APIs are:
+- `get_all_neighborhoods()`
+- `get_neighborhood(neighborhood_id)`
+- `query_neighborhood_by_point(point)`
+- `query_neighborhoods(center, radius)`
+
+### How Neighborhoods Affect Simulation Behavior
+
+Neighborhoods are currently used by the mobility place-selection flow (`cityagent/blocks/mobility_block.py`) as a pre-filtering stage:
+
+1. Query candidate POIs by intention category and search radius.
+2. Map each POI to a containing neighborhood.
+3. Rank neighborhoods by matching POI count.
+4. Ask the LLM to select neighborhood IDs from ranked candidates.
+5. Filter POIs to those selected neighborhoods.
+6. If this fails or returns empty, fall back to AOI-based filtering.
+
+This gives a semantic "local zone" selection layer before AOI fallback.
+
+For a focused reference, see `NEIGHBORHOODS.md`.
 
 ---
 
