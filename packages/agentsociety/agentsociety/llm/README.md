@@ -8,7 +8,9 @@ This package provides a unified LLM client that works with any OpenAI-compatible
 
 | File | Purpose |
 |---|---|
-| `llm.py` | `LLM` class and `LLMConfig` |
+| `llm.py` | `LLM` orchestrator and configuration models (`LLM`, `LLMConfig`) |
+| `llm_actor.py` | Ray remote execution worker (`LLMActor`) that performs OpenAI-compatible calls |
+| `load_balancer.py` | Routing, cooldown, health-check, and circuit-breaker policy (`LLMLoadBalancer`) |
 
 ---
 
@@ -63,6 +65,24 @@ vectors = await llm.aembedding_request(texts=["hello world", "foo bar"])
 # Token usage
 usage = llm.get_token_usage()    # {"prompt_tokens": N, "completion_tokens": M}
 ```
+
+---
+
+## Architecture: `LLM` vs `LLMActor`
+
+`LLM` and `LLMActor` have distinct responsibilities:
+
+- `LLM` (in `llm.py`) owns orchestration: provider selection through `LLMLoadBalancer`, retry-across-server flow, token aggregation, and metrics/database recording.
+- `LLMActor` (in `llm_actor.py`) owns execution: one OpenAI-compatible request, provider-specific system-role adaptation, and per-request retry/backoff within that worker.
+
+Execution flow:
+
+1. `LLM.atext_request()` asks `LLMLoadBalancer` for an available provider slot.
+2. `LLM` dispatches the request to a Ray actor (`LLMActor.call.remote(...)`).
+3. `LLMActor` performs the API call and returns `(success, result, log)`.
+4. `LLM` updates counters/telemetry and informs `LLMLoadBalancer` whether the provider should be cooled down.
+
+This split keeps policy and orchestration in-process (`LLM` + `LLMLoadBalancer`) while isolating network execution and retry behavior inside Ray workers (`LLMActor`).
 
 ---
 
