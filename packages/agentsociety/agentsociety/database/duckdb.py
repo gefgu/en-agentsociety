@@ -39,6 +39,7 @@ class DuckDBDatabase(BaseSimulationDatabase):
             batch_timeout=batch_timeout,
             metrics_actor=metrics_actor,
         )
+        self._insert_sql_by_table = self._build_insert_sql_by_table()
         self.db_file = self.db_path / f"{self.exp_id}.duckdb"
         self._connect()
         self._create_tables()
@@ -212,6 +213,16 @@ class DuckDBDatabase(BaseSimulationDatabase):
             return json.dumps(value if value is not None else [])
         return value
 
+    def _build_insert_sql_by_table(self) -> dict[str, str]:
+        insert_sql: dict[str, str] = {}
+        for table_name, column_names in self.table_columns.items():
+            placeholders = ", ".join(["?"] * len(column_names))
+            columns = ", ".join(column_names)
+            insert_sql[table_name] = (
+                "INSERT INTO " + table_name + " (" + columns + ") VALUES (" + placeholders + ")"
+            )
+        return insert_sql
+
     def _flush_records(
         self, table_name: str, records: list[TableRecord], column_names: list[str]
     ) -> None:
@@ -222,11 +233,9 @@ class DuckDBDatabase(BaseSimulationDatabase):
             tuple(self._record_value(record, column_name) for column_name in column_names)
             for record in records
         ]
-        placeholders = ", ".join(["?"] * len(column_names))
-        sql = (
-            f"INSERT INTO {table_name} ({', '.join(column_names)}) "
-            f"VALUES ({placeholders})"
-        )
+        sql = self._insert_sql_by_table.get(table_name)
+        if sql is None:
+            raise ValueError(f"Unknown table '{table_name}'")
         self.conn.executemany(sql, row_data)
 
     def _close_connection(self) -> None:

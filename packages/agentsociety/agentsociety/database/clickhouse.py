@@ -208,17 +208,15 @@ class ClickHouseDatabase(BaseSimulationDatabase):
             self.client.close()
             self.client = None
 
-    @staticmethod
-    def _escape_sql_string(value: str) -> str:
-        return value.replace("'", "''")
-
-    def _query_rows(self, query: str) -> list[dict[str, Any]]:
+    def _query_rows(
+        self, query: str, parameters: Optional[dict[str, Any]] = None
+    ) -> list[dict[str, Any]]:
         if self.client is None:
             get_logger().error("ClickHouse client is not connected. Cannot query.")
             return []
 
         try:
-            result = self.client.query(query)
+            result = self.client.query(query, parameters=parameters)
             rows = getattr(result, "result_rows", [])
             column_names = getattr(result, "column_names", [])
             return [dict(zip(column_names, row, strict=False)) for row in rows]
@@ -240,8 +238,10 @@ class ClickHouseDatabase(BaseSimulationDatabase):
             get_logger().error(f"Invalid source experiment id: {source_exp_id}")
             return None
 
-        escaped_exp_id = self._escape_sql_string(source_exp_id)
-        escaped_source_uuid = self._escape_sql_string(source_uuid)
+        params = {
+            "source_uuid": source_uuid,
+            "source_exp_id": source_exp_id,
+        }
 
         exp_info_rows = self._query_rows(
             (
@@ -250,10 +250,11 @@ class ClickHouseDatabase(BaseSimulationDatabase):
                 "input_tokens, output_tokens, created_at, updated_at, "
                 "last_mobility_safe_step, prev_mobility_safe_step, economy_checkpoint_path "
                 "FROM experiment_info FINAL "
-                f"WHERE id = toUUID('{escaped_source_uuid}') "
+                "WHERE id = toUUID(%(source_uuid)s) "
                 "ORDER BY updated_at DESC "
                 "LIMIT 1"
-            )
+            ),
+            params,
         )
         if not exp_info_rows:
             return None
@@ -264,8 +265,9 @@ class ClickHouseDatabase(BaseSimulationDatabase):
             (
                 "SELECT max(simulation_step) AS max_step "
                 "FROM step_agent_status "
-                f"WHERE exp_id = '{escaped_exp_id}'"
-            )
+                "WHERE exp_id = %(source_exp_id)s"
+            ),
+            params,
         )
         latest_step_raw = step_rows[0].get("max_step") if step_rows else None
         latest_step = int(latest_step_raw) if latest_step_raw is not None else 0
@@ -281,8 +283,9 @@ class ClickHouseDatabase(BaseSimulationDatabase):
             (
                 "SELECT max(simulation_step) AS max_static_step "
                 "FROM static_agent_attributes "
-                f"WHERE exp_id = '{escaped_exp_id}'"
-            )
+                "WHERE exp_id = %(source_exp_id)s"
+            ),
+            params,
         )
         static_step_raw = (
             static_step_rows[0].get("max_static_step") if static_step_rows else None
@@ -303,9 +306,13 @@ class ClickHouseDatabase(BaseSimulationDatabase):
                 "income, currency, residence, city, race, religion, "
                 "marriage_status, background_story "
                 "FROM static_agent_attributes "
-                f"WHERE exp_id = '{escaped_exp_id}' AND simulation_step = {static_step} "
+                "WHERE exp_id = %(source_exp_id)s AND simulation_step = %(static_step)s "
                 "ORDER BY agent_id"
-            )
+            ),
+            {
+                **params,
+                "static_step": static_step,
+            },
         )
 
         # Determine the resume step for checkpoint data (N-1 fallback if incomplete)
@@ -323,7 +330,7 @@ class ClickHouseDatabase(BaseSimulationDatabase):
                 spatial_snapshots,
                 pending_messages,
             ) = self._fetch_checkpoint_snapshots(
-                escaped_exp_id=escaped_exp_id,
+                source_exp_id=source_exp_id,
                 resume_step=resume_step,
                 prev_step=(
                     int(latest_exp_info.get("prev_mobility_safe_step"))
@@ -350,7 +357,7 @@ class ClickHouseDatabase(BaseSimulationDatabase):
 
     def _fetch_checkpoint_snapshots(
         self,
-        escaped_exp_id: str,
+        source_exp_id: str,
         resume_step: int,
         prev_step: int,
         expected_agent_ids: set[int],
@@ -361,8 +368,14 @@ class ClickHouseDatabase(BaseSimulationDatabase):
                 continue
 
             kv_rows = self._query_rows(
-                f"SELECT agent_id, key, value_json FROM agent_kv_snapshot "
-                f"WHERE exp_id = '{escaped_exp_id}' AND simulation_step = {attempt_step}"
+                (
+                    "SELECT agent_id, key, value_json FROM agent_kv_snapshot "
+                    "WHERE exp_id = %(source_exp_id)s AND simulation_step = %(attempt_step)s"
+                ),
+                {
+                    "source_exp_id": source_exp_id,
+                    "attempt_step": attempt_step,
+                },
             )
 
             # Integrity check: all expected agents must have KV data
@@ -388,9 +401,15 @@ class ClickHouseDatabase(BaseSimulationDatabase):
                 )
 
             stream_rows = self._query_rows(
-                f"SELECT agent_id, memory_id, cognition_id, topic, location, description, day, t "
-                f"FROM agent_stream_snapshot "
-                f"WHERE exp_id = '{escaped_exp_id}' AND simulation_step = {attempt_step}"
+                (
+                    "SELECT agent_id, memory_id, cognition_id, topic, location, description, day, t "
+                    "FROM agent_stream_snapshot "
+                    "WHERE exp_id = %(source_exp_id)s AND simulation_step = %(attempt_step)s"
+                ),
+                {
+                    "source_exp_id": source_exp_id,
+                    "attempt_step": attempt_step,
+                },
             )
             stream_snapshots: dict[int, list[dict]] = {}
             for row in stream_rows:
@@ -398,9 +417,15 @@ class ClickHouseDatabase(BaseSimulationDatabase):
                 stream_snapshots.setdefault(aid, []).append(row)
 
             spatial_rows = self._query_rows(
-                f"SELECT agent_id, location_id, description, price, atmosphere, satisfaction, convenience, uncertainty "
-                f"FROM agent_spatial_snapshot "
-                f"WHERE exp_id = '{escaped_exp_id}' AND simulation_step = {attempt_step}"
+                (
+                    "SELECT agent_id, location_id, description, price, atmosphere, satisfaction, convenience, uncertainty "
+                    "FROM agent_spatial_snapshot "
+                    "WHERE exp_id = %(source_exp_id)s AND simulation_step = %(attempt_step)s"
+                ),
+                {
+                    "source_exp_id": source_exp_id,
+                    "attempt_step": attempt_step,
+                },
             )
             spatial_snapshots: dict[int, list[dict]] = {}
             for row in spatial_rows:
@@ -408,9 +433,15 @@ class ClickHouseDatabase(BaseSimulationDatabase):
                 spatial_snapshots.setdefault(aid, []).append(row)
 
             pending_messages = self._query_rows(
-                f"SELECT from_id, to_id, day, t, kind, payload_json, created_at, extra_json "
-                f"FROM pending_messages_snapshot "
-                f"WHERE exp_id = '{escaped_exp_id}' AND simulation_step = {attempt_step}"
+                (
+                    "SELECT from_id, to_id, day, t, kind, payload_json, created_at, extra_json "
+                    "FROM pending_messages_snapshot "
+                    "WHERE exp_id = %(source_exp_id)s AND simulation_step = %(attempt_step)s"
+                ),
+                {
+                    "source_exp_id": source_exp_id,
+                    "attempt_step": attempt_step,
+                },
             )
 
             get_logger().info(f"Loaded checkpoint snapshots at step {attempt_step}")
@@ -456,16 +487,16 @@ class ClickHouseDatabase(BaseSimulationDatabase):
             return
         try:
             source_uuid = str(uuid.UUID(exp_id))
-            escaped_uuid = self._escape_sql_string(source_uuid)
 
             rows = self._query_rows(
                 "SELECT "
                 "id, tenant_id, name, num_day, status, cur_day, cur_t, config, error, "
                 "input_tokens, output_tokens, created_at, updated_at "
                 "FROM experiment_info FINAL "
-                f"WHERE id = toUUID('{escaped_uuid}') "
+                "WHERE id = toUUID(%(source_uuid)s) "
                 "ORDER BY updated_at DESC "
-                "LIMIT 1"
+                "LIMIT 1",
+                {"source_uuid": source_uuid},
             )
             if not rows:
                 get_logger().error(
