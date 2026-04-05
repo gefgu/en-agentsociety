@@ -12,7 +12,6 @@ This module provides the AgentManager class, which is responsible for:
 import asyncio
 import json
 from copy import deepcopy
-from datetime import datetime
 from typing import Any, Optional, Union, cast
 
 from ..agent import (
@@ -26,7 +25,6 @@ from ..agent.memory_config_generator import (
 )
 from ..configs import AgentConfig, AgentFilterConfig, Config
 from ..database.database_actor import DatabaseActor
-from ..database.schema import StaticAgentAttributesRecord
 from ..logger import get_logger
 from ..llm import LLM
 from ..memory import Memory
@@ -135,61 +133,6 @@ class AgentManager:
             if issubclass(agent_class, CitizenAgentBase):
                 count += 1
         return count
-
-    @staticmethod
-    def _static_record_to_memory_updates(static_record: dict[str, Any]) -> dict[str, Any]:
-        """Convert a static database record to memory update format."""
-        return {
-            "type": static_record.get("type"),
-            "home": {"aoi_position": {"aoi_id": int(static_record.get("home_aoi_id", 0))}},
-            "work": {"aoi_position": {"aoi_id": int(static_record.get("work_aoi_id", 0))}},
-            "name": static_record.get("name"),
-            "gender": static_record.get("gender"),
-            "age": int(static_record.get("age", 0)),
-            "education": static_record.get("education"),
-            "household": static_record.get("household"),
-            "life_stage": static_record.get("life_stage"),
-            "skill": static_record.get("skill"),
-            "occupation": static_record.get("occupation"),
-            "work_skill": float(static_record.get("work_skill", 0.0)),
-            "firm_id": int(static_record.get("firm_id", 0)),
-            "government_id": int(static_record.get("government_id", 0)),
-            "bank_id": int(static_record.get("bank_id", 0)),
-            "nbs_id": int(static_record.get("nbs_id", 0)),
-            "preferences": {
-                "chronotype": static_record.get("preferences_chronotype"),
-                "risk_tolerance": float(
-                    static_record.get("preferences_risk_tolerance", 0.5)
-                ),
-                "spending_tendency": float(
-                    static_record.get("preferences_spending_tendency", 0.5)
-                ),
-                "social_frequency": float(
-                    static_record.get("preferences_social_frequency", 0.5)
-                ),
-                "work_ethic": float(static_record.get("preferences_work_ethic", 0.5)),
-                "leisure_preference": static_record.get("preferences_leisure_preference"),
-            },
-            "hobbies": static_record.get("hobbies", []),
-            "personality": static_record.get("personality"),
-            "big5": {
-                "openness": int(static_record.get("big5_openness", 2)),
-                "conscientiousness": int(
-                    static_record.get("big5_conscientiousness", 2)
-                ),
-                "extraversion": int(static_record.get("big5_extraversion", 2)),
-                "agreeableness": int(static_record.get("big5_agreeableness", 2)),
-                "neuroticism": int(static_record.get("big5_neuroticism", 2)),
-            },
-            "income": float(static_record.get("income", 0.0)),
-            "currency": float(static_record.get("currency", 0.0)),
-            "residence": static_record.get("residence"),
-            "city": static_record.get("city"),
-            "race": static_record.get("race"),
-            "religion": static_record.get("religion"),
-            "marriage_status": static_record.get("marriage_status"),
-            "background_story": static_record.get("background_story"),
-        }
 
     async def prepare_agents(
         self,
@@ -569,12 +512,6 @@ class AgentManager:
             raise RuntimeError("Agent toolbox not created. Call create_toolbox() first.")
 
         get_logger().info(f"Initializing {len(agents)} agents...")
-        resume_static_by_agent_id: dict[int, dict[str, Any]] = {}
-        if resume_state is not None:
-            for record in resume_state.get("static_records", []):
-                agent_id = int(record.get("agent_id", -1))
-                if agent_id >= 0:
-                    resume_static_by_agent_id[agent_id] = record
 
         for agent_init in agents:
             (
@@ -596,13 +533,6 @@ class AgentManager:
 
             # Apply resume state if available
             if resume_state is not None and issubclass(agent_class, CitizenAgentBase):
-                static_record = resume_static_by_agent_id.get(agent_id)
-                if static_record is None:
-                    raise ValueError(
-                        f"Missing static resume data for citizen agent id {agent_id}"
-                    )
-                static_updates = self._static_record_to_memory_updates(static_record)
-
                 kv_snapshots = resume_state.get("kv_snapshots", {})
                 kv_entries = kv_snapshots.get(agent_id, [])
                 stream_snapshots = resume_state.get("stream_snapshots", {})
@@ -611,7 +541,6 @@ class AgentManager:
                 spatial_entries = spatial_snapshots.get(agent_id, [])
 
                 await memory_init.resume_from_snapshots(
-                    static_updates=static_updates,
                     kv_entries=kv_entries,
                     stream_entries=stream_entries,
                     spatial_entries=spatial_entries,
@@ -836,155 +765,3 @@ class AgentManager:
 
         return filtered_ids
 
-    async def save_agent_static_info(self, step: int) -> int:
-        """
-        Save static agent information to the database.
-
-        Args:
-            step: Current simulation step
-
-        Returns:
-            Number of agents for which info was saved
-        """
-        if self._db_actor is None:
-            get_logger().info("ClickHouse actor is not initialized; skip static info save")
-            return 0
-
-        if not self._id2agent:
-            get_logger().info("No agents found; skip static info save")
-            return 0
-
-        def _as_int(value: Any, default: int = 0) -> int:
-            try:
-                return int(value)
-            except (TypeError, ValueError):
-                return default
-
-        def _as_float(value: Any, default: float = 0.0) -> float:
-            try:
-                return float(value)
-            except (TypeError, ValueError):
-                return default
-
-        def _as_str(value: Any, default: str = "unknown") -> str:
-            if value is None:
-                return default
-            return str(value)
-
-        def _extract_aoi_id(value: Any) -> int:
-            if isinstance(value, dict):
-                aoi_position = value.get("aoi_position")
-                if isinstance(aoi_position, dict):
-                    return _as_int(aoi_position.get("aoi_id"), 0)
-                return _as_int(value.get("aoi_id"), 0)
-            return _as_int(value, 0)
-
-        saved_count = 0
-        for agent in self._id2agent.values():
-            if not isinstance(agent, CitizenAgentBase):
-                continue
-
-            filter_base_entry = self._filter_base.get(agent.id)
-            if filter_base_entry is None:
-                get_logger().warning(
-                    f"Missing filter base for agent {agent.id}; skip static info save"
-                )
-                continue
-
-            _, memory_config = filter_base_entry
-            static_keys = [
-                key
-                for key, attr in memory_config.attributes.items()
-                if attr.storage_class == "static"
-            ]
-
-            try:
-                values = await agent.status.export(static_keys)
-
-                preferences = values.get("preferences", {})
-                if not isinstance(preferences, dict):
-                    preferences = {}
-
-                big5 = values.get("big5", {})
-                if not isinstance(big5, dict):
-                    big5 = {}
-
-                hobbies = values.get("hobbies", [])
-                if not isinstance(hobbies, list):
-                    hobbies = [hobbies] if hobbies is not None else []
-
-                record: StaticAgentAttributesRecord = {
-                    "exp_id": self._exp_id,
-                    "simulation_step": step,
-                    "timestamp": datetime.now(),
-                    "agent_id": agent.id,
-                    "type": _as_str(values.get("type"), "citizen"),
-                    "home_aoi_id": _extract_aoi_id(values.get("home", {})),
-                    "work_aoi_id": _extract_aoi_id(values.get("work", {})),
-                    "name": _as_str(values.get("name"), "unknown"),
-                    "gender": _as_str(values.get("gender"), "unknown"),
-                    "age": _as_int(values.get("age"), 0),
-                    "education": _as_str(values.get("education"), "unknown"),
-                    "household": _as_str(values.get("household"), "unknown"),
-                    "life_stage": _as_str(values.get("life_stage"), "unknown"),
-                    "skill": _as_str(values.get("skill"), "unknown"),
-                    "occupation": _as_str(values.get("occupation"), "unknown"),
-                    "work_skill": _as_float(values.get("work_skill"), 0.0),
-                    "firm_id": _as_int(values.get("firm_id"), 0),
-                    "government_id": _as_int(values.get("government_id"), 0),
-                    "bank_id": _as_int(values.get("bank_id"), 0),
-                    "nbs_id": _as_int(values.get("nbs_id"), 0),
-                    "preferences_chronotype": _as_str(
-                        preferences.get("chronotype"), "standard"
-                    ),
-                    "preferences_risk_tolerance": _as_float(
-                        preferences.get("risk_tolerance"), 0.5
-                    ),
-                    "preferences_spending_tendency": _as_float(
-                        preferences.get("spending_tendency"), 0.5
-                    ),
-                    "preferences_social_frequency": _as_float(
-                        preferences.get("social_frequency"), 0.5
-                    ),
-                    "preferences_work_ethic": _as_float(
-                        preferences.get("work_ethic"), 0.5
-                    ),
-                    "preferences_leisure_preference": _as_str(
-                        preferences.get("leisure_preference"), "indoor"
-                    ),
-                    "hobbies": [str(item) for item in hobbies],
-                    "personality": _as_str(values.get("personality"), "unknown"),
-                    "big5_openness": _as_int(big5.get("openness"), 2),
-                    "big5_conscientiousness": _as_int(
-                        big5.get("conscientiousness"), 2
-                    ),
-                    "big5_extraversion": _as_int(big5.get("extraversion"), 2),
-                    "big5_agreeableness": _as_int(big5.get("agreeableness"), 2),
-                    "big5_neuroticism": _as_int(big5.get("neuroticism"), 2),
-                    "income": _as_float(values.get("income"), 0.0),
-                    "currency": _as_float(values.get("currency"), 0.0),
-                    "residence": _as_str(values.get("residence"), "unknown"),
-                    "city": _as_str(values.get("city"), "unknown"),
-                    "race": _as_str(values.get("race"), "unknown"),
-                    "religion": _as_str(values.get("religion"), "unknown"),
-                    "marriage_status": _as_str(
-                        values.get("marriage_status"), "unknown"
-                    ),
-                    "background_story": _as_str(
-                        values.get("background_story"), "No background story"
-                    ),
-                }
-
-                self._db_actor.insert_static_agent_attributes_record.remote(
-                    record=record
-                )
-                saved_count += 1
-            except Exception as e:
-                get_logger().warning(
-                    f"Failed to save static info for agent {agent.id}: {e}"
-                )
-
-        get_logger().info(
-            f"Saved static info for {saved_count} citizen agents"
-        )
-        return saved_count

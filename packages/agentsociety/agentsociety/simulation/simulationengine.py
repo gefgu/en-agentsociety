@@ -604,14 +604,6 @@ class SimulationEngine:
         self._save_context()
         get_logger().info("Experiment info saved")
 
-
-        if self._resume_state is None:
-            if self._agent_manager is not None:
-                await self._agent_manager.save_agent_static_info(self._total_steps)
-            get_logger().info("Agent static info saved")
-        else:
-            get_logger().info("Resume source experiment detected; skip saving static agent info to avoid duplication")
-
         init_funcs = self._config.agents.init_funcs
         for init_func in init_funcs:
             if inspect.iscoroutinefunction(init_func):

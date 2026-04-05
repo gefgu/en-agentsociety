@@ -20,7 +20,6 @@ from .schema import (
     ExperimentInfoRecord,
     PendingMessageSnapshotRecord,
     PromptResponseRecord,
-    StaticAgentAttributesRecord,
     StepAgentStatusRecord,
 )
 
@@ -211,12 +210,6 @@ class DatabaseActor:
             "ctx_plan_target": ctx_plan_target,
         }
         self._db.insert_record("block_dispatcher", record)
-
-    def insert_static_agent_attributes_record(
-        self,
-        record: StaticAgentAttributesRecord,
-    ) -> None:
-        self._db.insert_record("static_agent_attributes", record)
 
     def insert_experiment_info_record(self, record: ExperimentInfoRecord):
         self._db.insert_record("experiment_info", record)

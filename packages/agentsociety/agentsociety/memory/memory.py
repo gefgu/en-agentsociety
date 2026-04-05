@@ -161,7 +161,6 @@ class Memory:
 
     async def resume_from_snapshots(
         self,
-        static_updates: dict[str, Any],
         kv_entries: list[dict[str, Any]],
         stream_entries: list[dict[str, Any]],
         spatial_entries: list[dict[str, Any]],
@@ -169,11 +168,6 @@ class Memory:
         """
         Restore all memory stores from resume snapshots.
         """
-        static_keys = set(static_updates.keys())
-        for key, value in static_updates.items():
-            if value is not None:
-                await self._status.update(key, value, mode="replace")
-
-        await self._status.resume(kv_entries, skip_keys=static_keys)
+        await self._status.resume(kv_entries)
         await self._stream.resume(stream_entries)
         await self._spatial.resume(spatial_entries)

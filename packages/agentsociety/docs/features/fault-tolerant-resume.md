@@ -94,43 +94,36 @@ This pattern is established at `simulationengine.py:1197-1199`. Since the path i
 
 ### Step 2 — Add depth query to `_fetch_checkpoint_snapshots()` (ClickHouse)
 
-**Before**: `clickhouse.py:752` — the candidate list is built as `[resume_step, prev_step]`, a hardcoded two-element sequence from `experiment_info` columns only.
+**Before**: `clickhouse.py` — the candidate list was built as `[resume_step, prev_step]`, a hardcoded two-element sequence.
 
-**After**: Replace the hardcoded candidate list with a query that discovers all steps with KV snapshot data, sorted descending, capped at `rollback_depth`. New signature:
+**After** (implemented): New signature:
 
 ```python
 def _fetch_checkpoint_snapshots(
     self,
-    escaped_exp_id: str,
+    source_exp_id: str,
     resume_step: int,
     rollback_depth: int,
     expected_agent_ids: set[int],
-    home_dir: str,       # needed to derive economy file path
-    exp_id_raw: str,     # raw (unescaped) UUID for file path
+    has_economy: bool = False,
 ) -> tuple[int, dict[int, list], dict[int, list], dict[int, list], list[dict], str]:
 ```
 
-The candidate steps are collected as:
+`self.home_dir` (a `Path`) is already available from `BaseSimulationDatabase`, so no extra parameter is needed to derive the economy file path.
+
+Candidate steps are discovered as:
 ```sql
 SELECT DISTINCT simulation_step FROM agent_kv_snapshot
-WHERE exp_id = '{escaped_exp_id}' AND simulation_step <= {resume_step}
+WHERE exp_id = %(source_exp_id)s AND simulation_step <= %(resume_step)s
 ORDER BY simulation_step DESC
-LIMIT {rollback_depth}
+LIMIT %(rollback_depth)s
 ```
 
-This naturally includes `resume_step` as the first candidate. For each candidate:
-1. Run the existing KV integrity check (all expected agents present).
-2. If KV is complete, derive the economy file path as `{home_dir}/checkpoints/{exp_id_raw}/econ_step_{step}.bin` and verify it exists on disk with `os.path.isfile()`.
-3. If economy file is missing, log a WARNING and continue to next candidate.
-4. If both checks pass, load stream/spatial/messages for that step and return, now including the economy path as a 6th return value.
-
-The WARNING log for each failure must include: step number attempted, reason (KV incomplete / economy file missing), and remaining candidates.
+For each candidate: KV integrity check → economy file check (if `has_economy`) → load rest → return 6-tuple `(step, kv, stream, spatial, messages, econ_path)`. Each failure logs a WARNING with remaining candidate count. The first failure reason is captured and logged if all candidates are exhausted.
 
 ### Step 3 — Mirror the change in DuckDB
 
-**Before**: `duckdb.py:764` — same hardcoded `[resume_step, prev_step]` pattern.
-
-**After**: Same structural change as Step 2. The query uses `?` placeholders instead of f-string interpolation:
+**After** (implemented): Identical logic using `?` positional placeholders:
 ```sql
 SELECT DISTINCT simulation_step FROM agent_kv_snapshot
 WHERE exp_id = ? AND simulation_step <= ?
@@ -138,22 +131,20 @@ ORDER BY simulation_step DESC
 LIMIT ?
 ```
 
-### Step 4 — Thread `rollback_depth` and `home_dir` through the call chain
+### Step 4 — Thread `rollback_depth` through the call chain
 
-**Before**:
-- `fetch_resume_data(source_exp_id: str)` at `clickhouse.py:628` and `duckdb.py:646`
-- `DatabaseActor.fetch_resume_data(source_exp_id: str)` at `database_actor.py:220`
-- `load_resume_state()` at `infrastructuremanager.py:205`
+**After** (implemented):
+- `fetch_resume_data(source_exp_id, rollback_depth=10)` in both `clickhouse.py` and `duckdb.py` — passes `rollback_depth` and `has_economy=bool(economy_checkpoint_path)` to `_fetch_checkpoint_snapshots()`; uses the returned `econ_path` to update `economy_checkpoint_path` in the result dict.
+- `DatabaseActor.fetch_resume_data(source_exp_id, rollback_depth=10)` in `database_actor.py` — forwards `rollback_depth` to the DB backend.
+- `InfrastructureManager.load_resume_state()` in `infrastructuremanager.py` — passes `rollback_depth=self._config.env.resume_rollback_depth` to the Ray remote call.
 
-**After**: Each function gains `rollback_depth: int = 10` and (for the DB classes) `home_dir: str` parameters. `load_resume_state()` reads `self._config.env.resume_rollback_depth` and `self._config.env.home_dir` and passes them down. The returned `resume_data` dict now includes `"economy_checkpoint_path"` set to the path from the selected checkpoint step (replacing the old pattern of always taking it from `experiment_info`).
+No `home_dir` threading needed: `self.home_dir` (a `Path`) is already on `BaseSimulationDatabase`.
 
-### Step 5 — Re-raise original error after all attempts exhausted
+### Step 5 — Failure logging after all attempts exhausted
 
-**Before**: `_fetch_checkpoint_snapshots()` returns `(-1, {}, {}, {}, [])` silently when no valid step is found (`clickhouse.py:806`, `duckdb.py:840`).
+`_fetch_checkpoint_snapshots()` captures the first failure reason and logs it after exhausting all candidates, then returns `(-1, {}, {}, {}, [], "")`. `fetch_resume_data()` returns `None`-equivalent state; `load_resume_state()` already logs a WARNING on `None` resume data. The existing error contract is preserved.
 
-**After**: Capture the failure reason from the first (latest) attempt. After exhausting all candidates, the caller (`fetch_resume_data`) raises with the original failure message, not a generic "no checkpoint found" message. This preserves the current error contract expected by `load_resume_state()` callers.
-
-No changes are needed to `_restore_external_simulator_state()` (`simulationengine.py:212`) — it already uses `self._resume_state["economy_checkpoint_path"]` and `self._resume_state["last_mobility_safe_step"]`, which will now reflect the successfully selected rollback step.
+No changes are needed to `_restore_external_simulator_state()` (`simulationengine.py`) — it already uses `self._resume_state["economy_checkpoint_path"]` and `self._resume_state["last_mobility_safe_step"]`, which now reflect the successfully selected rollback step.
 
 ## Trade-Offs
 
@@ -202,18 +193,14 @@ No changes are needed to `_restore_external_simulator_state()` (`simulationengin
 
 - `infrastructuremanager.py:205` — `load_resume_state()` is a long method that mixes config validation, agent count validation, and snapshot fetching. Splitting these into sub-methods would make the rollback thread-through cleaner.
 
-## Proposed Next Steps
+## Implementation Status
 
-1. Add `resume_rollback_depth: int = Field(default=10, ge=0)` to `EnvConfig` at `agentsociety/configs/env.py:43`.
+All steps implemented. Files changed:
 
-2. Change `_fetch_checkpoint_snapshots()` signature and inner loop in `agentsociety/database/clickhouse.py:744` to query available steps via `DISTINCT simulation_step ... ORDER BY simulation_step DESC LIMIT rollback_depth`, check economy file existence per attempt, and capture the first-attempt error for re-raise.
+1. `agentsociety/configs/env.py` — added `resume_rollback_depth: int = Field(default=10, ge=0)` to `EnvConfig`.
+2. `agentsociety/database/clickhouse.py` — rewrote `_fetch_checkpoint_snapshots()` with dynamic step query and updated `fetch_resume_data()` signature.
+3. `agentsociety/database/duckdb.py` — mirrored the same changes.
+4. `agentsociety/database/database_actor.py` — added `rollback_depth` parameter to `fetch_resume_data()`.
+5. `agentsociety/simulation/infrastructuremanager.py` — passes `rollback_depth=self._config.env.resume_rollback_depth` to the Ray remote call.
 
-3. Mirror the same change in `agentsociety/database/duckdb.py:757`.
-
-4. Update `ClickHouseDatabase.fetch_resume_data()` at `clickhouse.py:628` and `DuckDBDatabase.fetch_resume_data()` at `duckdb.py:646` to accept and forward `rollback_depth` and `home_dir`, and to update `economy_checkpoint_path` in the returned dict with the path from the selected step.
-
-5. Update `DatabaseActor.fetch_resume_data()` at `database_actor.py:220` to accept and forward `rollback_depth` and `home_dir`.
-
-6. Update `InfrastructureManager.load_resume_state()` at `infrastructuremanager.py:205` to read `self._config.env.resume_rollback_depth` and `self._config.env.home_dir` and pass them to the Ray remote call.
-
-7. Validate with an example script from `/mnt/raid5/gustavo/citysim/examples/` by running a simulation to step N, artificially corrupting the KV snapshot at step N in the database, and confirming resume succeeds from step N-1.
+To validate: run a simulation to step N, corrupt the KV snapshot at step N in the database, and confirm resume succeeds from step N-1.

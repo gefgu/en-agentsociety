@@ -79,50 +79,6 @@ class BlockDispatcherRecord(TypedDict):
     ctx_plan_target: str
 
 
-class StaticAgentAttributesRecord(TypedDict):
-    exp_id: str
-    simulation_step: int
-    timestamp: datetime
-    agent_id: int
-    type: str
-    home_aoi_id: int
-    work_aoi_id: int
-    name: str
-    gender: str
-    age: int
-    education: str
-    household: str
-    life_stage: str
-    skill: str
-    occupation: str
-    work_skill: float
-    firm_id: int
-    government_id: int
-    bank_id: int
-    nbs_id: int
-    preferences_chronotype: str
-    preferences_risk_tolerance: float
-    preferences_spending_tendency: float
-    preferences_social_frequency: float
-    preferences_work_ethic: float
-    preferences_leisure_preference: str
-    hobbies: List[str]
-    personality: str
-    big5_openness: int
-    big5_conscientiousness: int
-    big5_extraversion: int
-    big5_agreeableness: int
-    big5_neuroticism: int
-    income: float
-    currency: float
-    residence: str
-    city: str
-    race: str
-    religion: str
-    marriage_status: str
-    background_story: str
-
-
 class AgentKVSnapshotRecord(TypedDict):
     exp_id: str
     simulation_step: int

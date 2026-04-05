@@ -34,7 +34,5 @@ exp:
   environment:
     start_tick: 25200  # 7 * 60 * 60 = 7 AM
     workday: true
-    weather: "The weather is sunny"
-    temperature: "The temperature is 15C"
 
 logging_level: INFO

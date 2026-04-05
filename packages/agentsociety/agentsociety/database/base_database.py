@@ -25,7 +25,6 @@ from .schema import (
 	ExperimentInfoRecord,
 	PendingMessageSnapshotRecord,
 	PromptResponseRecord,
-	StaticAgentAttributesRecord,
 	StepAgentStatusRecord,
 )
 
@@ -36,7 +35,6 @@ TableRecord = Union[
 	AgentTransportTypeRecord,
 	StepAgentStatusRecord,
 	BlockDispatcherRecord,
-	StaticAgentAttributesRecord,
 	ExperimentInfoRecord,
 	AgentKVSnapshotRecord,
 	AgentStreamSnapshotRecord,
@@ -82,7 +80,6 @@ class BaseSimulationDatabase(ABC):
 			"agent_transport_type": AgentTransportTypeRecord,
 			"step_agent_status": StepAgentStatusRecord,
 			"block_dispatcher": BlockDispatcherRecord,
-			"static_agent_attributes": StaticAgentAttributesRecord,
 			"experiment_info": ExperimentInfoRecord,
 			"agent_kv_snapshot": AgentKVSnapshotRecord,
 			"agent_stream_snapshot": AgentStreamSnapshotRecord,
@@ -150,7 +147,6 @@ class BaseSimulationDatabase(ABC):
 		resume_step: Optional[int] = None,
 		rollback_depth: Optional[int] = None,
 		attempt_step: Optional[int] = None,
-		static_step: Optional[int] = None,
 	) -> tuple[str, Optional[Any]]:
 		"""Return backend-specific SQL and parameters for shared resume logic."""
 		raise NotImplementedError
@@ -379,7 +375,6 @@ class BaseSimulationDatabase(ABC):
 		resume_step: Optional[int] = None,
 		rollback_depth: Optional[int] = None,
 		attempt_step: Optional[int] = None,
-		static_step: Optional[int] = None,
 	) -> list[dict[str, Any]]:
 		query, parameters = self._resume_query(
 			query_name=query_name,
@@ -388,15 +383,8 @@ class BaseSimulationDatabase(ABC):
 			resume_step=resume_step,
 			rollback_depth=rollback_depth,
 			attempt_step=attempt_step,
-			static_step=static_step,
 		)
 		return self._query_rows(query, parameters)
-
-	def _postprocess_static_rows(
-		self, static_rows: list[dict[str, Any]]
-	) -> list[dict[str, Any]]:
-		"""Backend hook for normalizing static row fields (for example JSON arrays)."""
-		return static_rows
 
 	def fetch_resume_data(
 		self, source_exp_id: str, rollback_depth: int = 10
@@ -438,24 +426,6 @@ class BaseSimulationDatabase(ABC):
 			latest_exp_info.get("economy_checkpoint_path") or ""
 		)
 
-		static_step_rows = self._run_resume_query(
-			"latest_static_step",
-			source_exp_id=source_exp_id,
-			source_uuid=source_uuid,
-		)
-		static_step_raw = (
-			static_step_rows[0].get("max_static_step") if static_step_rows else None
-		)
-		static_step = int(static_step_raw) if static_step_raw is not None else 0
-
-		static_rows = self._run_resume_query(
-			"static_rows",
-			source_exp_id=source_exp_id,
-			source_uuid=source_uuid,
-			static_step=static_step,
-		)
-		static_rows = self._postprocess_static_rows(static_rows)
-
 		resume_step = last_safe_step
 		kv_snapshots: dict[int, list[dict]] = {}
 		stream_snapshots: dict[int, list[dict]] = {}
@@ -475,7 +445,7 @@ class BaseSimulationDatabase(ABC):
 				source_uuid=source_uuid,
 				resume_step=resume_step,
 				rollback_depth=rollback_depth,
-				expected_agent_ids={int(r["agent_id"]) for r in static_rows},
+				expected_agent_ids=set(),
 				has_economy=bool(economy_checkpoint_path),
 			)
 
@@ -486,8 +456,6 @@ class BaseSimulationDatabase(ABC):
 			"latest_step": latest_step,
 			"last_mobility_safe_step": resume_step,
 			"economy_checkpoint_path": economy_checkpoint_path,
-			"static_step": static_step,
-			"static_records": static_rows,
 			"kv_snapshots": kv_snapshots,
 			"stream_snapshots": stream_snapshots,
 			"spatial_snapshots": spatial_snapshots,

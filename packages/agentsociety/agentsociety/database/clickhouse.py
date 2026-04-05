@@ -230,7 +230,6 @@ class ClickHouseDatabase(BaseSimulationDatabase):
         resume_step: Optional[int] = None,
         rollback_depth: Optional[int] = None,
         attempt_step: Optional[int] = None,
-        static_step: Optional[int] = None,
     ) -> tuple[str, Optional[Any]]:
         base_params = {
             "source_exp_id": source_exp_id,
@@ -255,36 +254,6 @@ class ClickHouseDatabase(BaseSimulationDatabase):
                 "FROM step_agent_status "
                 "WHERE exp_id = {source_exp_id:String}",
                 base_params,
-            )
-        if query_name == "latest_static_step":
-            return (
-                "SELECT max(simulation_step) AS max_static_step "
-                "FROM static_agent_attributes "
-                "WHERE exp_id = {source_exp_id:String}",
-                base_params,
-            )
-        if query_name == "static_rows":
-            if static_step is None:
-                raise ValueError("static_step is required for static_rows query")
-            return (
-                "SELECT "
-                "agent_id, type, home_aoi_id, work_aoi_id, name, gender, age, "
-                "education, household, life_stage, skill, occupation, work_skill, "
-                "firm_id, government_id, bank_id, nbs_id, "
-                "preferences_chronotype, preferences_risk_tolerance, "
-                "preferences_spending_tendency, preferences_social_frequency, "
-                "preferences_work_ethic, preferences_leisure_preference, hobbies, "
-                "personality, big5_openness, big5_conscientiousness, "
-                "big5_extraversion, big5_agreeableness, big5_neuroticism, "
-                "income, currency, residence, city, race, religion, "
-                "marriage_status, background_story "
-                "FROM static_agent_attributes "
-                "WHERE exp_id = {source_exp_id:String} AND simulation_step = {static_step:Int32} "
-                "ORDER BY agent_id",
-                {
-                    **base_params,
-                    "static_step": static_step,
-                },
             )
         if query_name == "candidate_steps":
             if resume_step is None or rollback_depth is None:

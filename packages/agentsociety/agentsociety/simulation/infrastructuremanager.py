@@ -192,14 +192,14 @@ class InfrastructureManager:
         if self._resume_state is None:
             return
 
-        static_records = self._resume_state.get("static_records", [])
+        kv_snapshots = self._resume_state.get("kv_snapshots", {})
         expected_citizens = self._count_citizen_agents(agents)
-        available_citizens = len(static_records)
+        available_citizens = len(kv_snapshots)
         if expected_citizens != available_citizens:
             raise ValueError(
                 "Agent number mismatch for resume source experiment "
                 f"'{self._resume_exp_id}': configured citizens={expected_citizens}, "
-                f"static citizen records={available_citizens}"
+                f"kv snapshot agent count={available_citizens}"
             )
 
     async def load_resume_state(self) -> None:
@@ -210,7 +210,10 @@ class InfrastructureManager:
         if self._db_actor is None:
             raise RuntimeError("Database actor is required when resume exp_id is set")
 
-        resume_data = await self._db_actor.fetch_resume_data.remote(self._resume_exp_id)
+        resume_data = await self._db_actor.fetch_resume_data.remote(
+            self._resume_exp_id,
+            rollback_depth=self._config.env.resume_rollback_depth,
+        )
         if resume_data is None:
             get_logger().warning(
                 f"No resume data found for experiment id '{self._resume_exp_id}'"
