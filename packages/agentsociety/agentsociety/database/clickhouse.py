@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from collections import deque
-from datetime import datetime
 import uuid
-import time
-from pathlib import Path
-from typing import Any, List, Optional, TypedDict, Union, cast
+from datetime import datetime
+from typing import Any, Optional
+
 import ray
 
 try:
@@ -15,45 +13,12 @@ except ImportError:
 
 from ..logger import get_logger
 from ..performance.prometheusActor import PrometheusActor
-from .schema import (
-    AdjustNeedsRecord,
-    AgentKVSnapshotRecord,
-    AgentLocationTypeRecord,
-    AgentSpatialSnapshotRecord,
-    AgentStreamSnapshotRecord,
-    AgentTransportTypeRecord,
-    BlockDispatcherRecord,
-    ExperimentInfoRecord,
-    PendingMessageSnapshotRecord,
-    PromptResponseRecord,
-    StaticAgentAttributesRecord,
-    StepAgentStatusRecord,
-)
+from .base_database import BaseSimulationDatabase, TableRecord
+from .schema import ExperimentInfoRecord
 
 ClickHouseClient = Any
 
-TableRecord = Union[
-    AdjustNeedsRecord,
-    PromptResponseRecord,
-    AgentLocationTypeRecord,
-    AgentTransportTypeRecord,
-    StepAgentStatusRecord,
-    BlockDispatcherRecord,
-    StaticAgentAttributesRecord,
-    ExperimentInfoRecord,
-    AgentKVSnapshotRecord,
-    AgentStreamSnapshotRecord,
-    AgentSpatialSnapshotRecord,
-    PendingMessageSnapshotRecord,
-]
-
-
-class TableBatchState(TypedDict):
-    batch: deque[TableRecord]
-    last_flush_time: float
-
-
-class ClickHouseDatabase:
+class ClickHouseDatabase(BaseSimulationDatabase):
     """ClickHouse database manager for simulation telemetry and batch writes."""
 
     def __init__(
@@ -70,55 +35,21 @@ class ClickHouseDatabase:
         auto_create_database: bool = True,
         metrics_actor: Optional[ray.actor.ActorHandle[PrometheusActor]] = None,
     ):
-        self.exp_id = exp_id
-        self.home_dir = Path(home_dir)
         self.host = host
         self.port = port
         self.username = username
         self.password = password
         self.database = database
         self.auto_create_database = auto_create_database
-        self.db_path = self.home_dir / "clickhouse"
-        self.db_path.mkdir(parents=True, exist_ok=True)
-        self.migrations_dir = Path(__file__).resolve().parent / "migrations"
-        self._metrics_actor = metrics_actor
-
-        self.batch_size = batch_size
-        self.batch_timeout = batch_timeout
-
-        self.table_schemas: dict[str, type] = {
-            "NeedsBlock_adjust_needs": AdjustNeedsRecord,
-            "prompt_responses": PromptResponseRecord,
-            "agent_location_type": AgentLocationTypeRecord,
-            "agent_transport_type": AgentTransportTypeRecord,
-            "step_agent_status": StepAgentStatusRecord,
-            "block_dispatcher": BlockDispatcherRecord,
-            "static_agent_attributes": StaticAgentAttributesRecord,
-            "experiment_info": ExperimentInfoRecord,
-            "agent_kv_snapshot": AgentKVSnapshotRecord,
-            "agent_stream_snapshot": AgentStreamSnapshotRecord,
-            "agent_spatial_snapshot": AgentSpatialSnapshotRecord,
-            "pending_messages_snapshot": PendingMessageSnapshotRecord,
-        }
-
-        self.table_columns: dict[str, List[str]] = {
-            table_name: list(schema.__annotations__.keys())
-            for table_name, schema in self.table_schemas.items()
-        }
-        # This column is persisted in ClickHouse but inferred from DB state.
-        self.table_columns["NeedsBlock_adjust_needs"].insert(1, "simulation_step")
-
-        self.table_batches: dict[str, TableBatchState] = {
-            table_name: {
-                "batch": deque(),
-                "last_flush_time": time.time(),
-            }
-            for table_name in self.table_columns
-        }
-
-        self.simulation_step = -1
-
         self.client: Optional[ClickHouseClient] = None
+        super().__init__(
+            exp_id=exp_id,
+            home_dir=home_dir,
+            db_subdir="clickhouse",
+            batch_size=batch_size,
+            batch_timeout=batch_timeout,
+            metrics_actor=metrics_actor,
+        )
         self._connect()
         self._create_tables()
 
@@ -129,7 +60,7 @@ class ClickHouseDatabase:
         return "clickhouse"
 
     def is_available(self) -> bool:
-        if self.client is None:
+        if not self._is_connected():
             return False
         try:
             self.client.command("SELECT 1")
@@ -138,10 +69,8 @@ class ClickHouseDatabase:
             get_logger().error(f"ClickHouse health check failed: {e}")
             return False
 
-    def _record_metric(self, table_name: str, size: int) -> None:
-        if self._metrics_actor is None:
-            return
-        self._metrics_actor.record_table_records.remote(table_name, size)
+    def _is_connected(self) -> bool:
+        return self.client is not None
 
     def _connect(self):
         """Establish connection to ClickHouse server."""
@@ -236,376 +165,48 @@ class ClickHouseDatabase:
         else:
             get_logger().info("Tables created successfully in ClickHouse database.")
 
-    def set_simulation_step(self, step: int):
-        self.simulation_step = step
-
-    def _clean_incoming_record(self, timestamp: Any, agent_id: Any):
-        if isinstance(timestamp, (int, float)):
-            timestamp = datetime.fromtimestamp(timestamp)
-        elif not isinstance(timestamp, datetime):
-            timestamp = datetime.now()
-
-        if not isinstance(agent_id, int):
-            try:
-                agent_id = int(agent_id)
-            except (ValueError, TypeError):
-                agent_id = -1
-
-        return timestamp, agent_id
-
-    def _record_value(self, record: TableRecord, column_name: str) -> Any:
-        raw_record = cast(dict[str, Any], record)
-        if column_name == "simulation_step" and "simulation_step" not in raw_record:
-            return self.simulation_step
-        return raw_record[column_name]
-
     @staticmethod
     def _is_unknown_table_error(error: Exception) -> bool:
         message = str(error)
         return "UNKNOWN_TABLE" in message or "does not exist" in message
 
-    def _flush_table_batch(self, table_name: str) -> None:
-        if self.client is None:
-            get_logger().error(
-                "ClickHouse client is not connected. Cannot flush batch."
-            )
-            return
-
-        table_state = self.table_batches.get(table_name)
-        if table_state is None:
-            get_logger().error(f"Unknown table '{table_name}'. Cannot flush batch.")
-            return
-
-        if not table_state["batch"]:
-            return
-
-        column_names = self.table_columns.get(table_name)
-        if column_names is None:
-            get_logger().error(f"No columns configured for table '{table_name}'.")
-            return
-
-        try:
-            records = list(table_state["batch"])
-            column_data = [
-                [self._record_value(record, column_name) for record in records]
-                for column_name in column_names
-            ]
-
-            self.client.insert(
-                table_name,
-                column_data,
-                column_names=column_names,
-                column_oriented=True,
-            )
-
-            table_state["batch"].clear()
-            table_state["last_flush_time"] = time.time()
-            self._record_metric(table_name, len(records))
-        except Exception as e:
-            if self._is_unknown_table_error(e):
-                get_logger().warning(
-                    f"Table '{table_name}' is missing. Re-applying migrations and retrying batch flush once."
-                )
-                try:
-                    self._create_tables()
-                    self.client.insert(
-                        table_name,
-                        column_data,
-                        column_names=column_names,
-                        column_oriented=True,
-                    )
-                    table_state["batch"].clear()
-                    table_state["last_flush_time"] = time.time()
-                    self._record_metric(table_name, len(records))
-                    get_logger().info(
-                        f"Recovered missing table '{table_name}' and flushed pending batch."
-                    )
-                    return
-                except Exception as retry_error:
-                    get_logger().error(
-                        f"Retry after recreating table '{table_name}' failed: {retry_error}"
-                    )
-
-            get_logger().error(f"Failed to flush '{table_name}' batch to ClickHouse: {e}")
-
-    def _queue_record(self, table_name: str, record: TableRecord) -> None:
-        table_state = self.table_batches.get(table_name)
-        if table_state is None:
-            get_logger().error(f"Unknown table '{table_name}'. Cannot queue record.")
-            return
-
-        table_state["batch"].append(record)
-        if (len(table_state["batch"]) >= self.batch_size) or (
-            time.time() - table_state["last_flush_time"] >= self.batch_timeout
-        ):
-            self._flush_table_batch(table_name)
-
-    def insert_adjust_needs_record(self, record: AdjustNeedsRecord) -> None:
-        if self.client is None:
-            get_logger().error(
-                "ClickHouse client is not connected. Cannot insert record."
-            )
-            return
-
-        timestamp, agent_id = self._clean_incoming_record(
-            record["timestamp"], record["agent_id"]
-        )
-        normalized_record: AdjustNeedsRecord = {
-            **record,
-            "exp_id": self.exp_id,
-            "timestamp": timestamp,
-            "agent_id": agent_id,
-        }
-        self._queue_record("NeedsBlock_adjust_needs", normalized_record)
-
-    def insert_prompt_response_record(
+    def _recover_missing_table_and_retry_flush(
         self,
-        timestamp: datetime,
-        agent_id: int,
-        prompt: str,
-        response: str,
-        block_name: str,
-        func_name: str,
-    ):
-        if self.client is None:
-            get_logger().error(
-                "ClickHouse client is not connected. Cannot insert prompt-response record."
-            )
-            return
-
+        table_name: str,
+        records: list[TableRecord],
+        column_names: list[str],
+    ) -> bool:
         try:
-            timestamp, agent_id = self._clean_incoming_record(timestamp, agent_id)
-
-            if not isinstance(response, str):
-                if hasattr(response, "choices") and len(response.choices) > 0:
-                    response = response.choices[0].message.content or ""
-                else:
-                    response = str(response)
-
-            if not isinstance(prompt, str):
-                prompt = str(prompt)
-
-            record: PromptResponseRecord = {
-                "exp_id": self.exp_id,
-                "simulation_step": self.simulation_step,
-                "timestamp": timestamp,
-                "agent_id": agent_id,
-                "prompt": prompt,
-                "response": response,
-                "block_name": block_name,
-                "func_name": func_name,
-            }
-            self._queue_record("prompt_responses", record)
-
-        except Exception as e:
-            get_logger().error(f"Failed to insert prompt-response record: {e}")
-
-    def insert_user_location_type_record(
-        self,
-        timestamp: datetime,
-        agent_id: int,
-        location_type: str,
-    ):
-        if self.client is None:
+            self._create_tables()
+            self._flush_records(table_name, records, column_names)
+            return True
+        except Exception as retry_error:
             get_logger().error(
-                "ClickHouse client is not connected. Cannot insert agent location type record."
+                f"Retry after recreating table '{table_name}' failed: {retry_error}"
             )
-            return
+            return False
 
-        try:
-            timestamp, agent_id = self._clean_incoming_record(timestamp, agent_id)
-
-            record: AgentLocationTypeRecord = {
-                "exp_id": self.exp_id,
-                "simulation_step": self.simulation_step,
-                "timestamp": timestamp,
-                "agent_id": agent_id,
-                "location_type": location_type,
-            }
-            self._queue_record("agent_location_type", record)
-
-        except Exception as e:
-            get_logger().error(f"Failed to insert agent location type record: {e}")
-
-    def insert_user_transport_type_record(
-        self,
-        timestamp: datetime,
-        agent_id: int,
-        transport_type: str,
-    ):
-        if self.client is None:
-            get_logger().error(
-                "ClickHouse client is not connected. Cannot insert agent transport type record."
-            )
-            return
-
-        try:
-            timestamp, agent_id = self._clean_incoming_record(timestamp, agent_id)
-
-            record: AgentTransportTypeRecord = {
-                "exp_id": self.exp_id,
-                "simulation_step": self.simulation_step,
-                "timestamp": timestamp,
-                "agent_id": agent_id,
-                "transport_type": transport_type,
-            }
-            self._queue_record("agent_transport_type", record)
-
-        except Exception as e:
-            get_logger().error(f"Failed to insert agent transport type record: {e}")
-
-    def insert_step_agent_status_record(
-        self,
-        agent_id: int,
-        timestamp: datetime,
-        lat: float,
-        lng: float,
-        parent_id: int,
-        action: str,
-        status: str,
-    ):
-        if self.client is None:
-            get_logger().error(
-                "ClickHouse client is not connected. Cannot insert step agent status record."
-            )
-            return
-
-        try:
-            timestamp, agent_id = self._clean_incoming_record(timestamp, agent_id)
-
-            record: StepAgentStatusRecord = {
-                "exp_id": self.exp_id,
-                "agent_id": agent_id,
-                "simulation_step": self.simulation_step,
-                "timestamp": timestamp,
-                "lat": lat,
-                "lng": lng,
-                "parent_id": parent_id,
-                "action": action,
-                "status": status,
-            }
-            self._queue_record("step_agent_status", record)
-
-        except Exception as e:
-            get_logger().error(f"Failed to insert step agent status record: {e}")
-
-    def insert_block_dispatcher_record(
-        self,
-        agent_id: int,
-        timestamp: datetime,
-        target_block: str,
-        reason: str,
-        possible_blocks: List[str],
-        ctx_time: str,
-        ctx_need: str,
-        ctx_intention: str,
-        ctx_emotion: str,
-        ctx_thought: str,
-        ctx_location: str,
-        ctx_area_info: str,
-        ctx_weather: str,
-        ctx_temperature: int,
-        ctx_other_info: str,
-        ctx_plan_target: str,
-    ):
-        if self.client is None:
-            get_logger().error(
-                "ClickHouse client is not connected. Cannot insert block dispatcher record."
-            )
-            return
-
-        record: Optional[BlockDispatcherRecord] = None
-        try:
-            timestamp, agent_id = self._clean_incoming_record(timestamp, agent_id)
-
-            record = {
-                "exp_id": self.exp_id,
-                "agent_id": agent_id,
-                "simulation_step": self.simulation_step,
-                "timestamp": timestamp,
-                "target_block": target_block,
-                "reason": reason,
-                "possible_blocks": possible_blocks,
-                "ctx_time": ctx_time,
-                "ctx_need": ctx_need,
-                "ctx_intention": ctx_intention,
-                "ctx_emotion": ctx_emotion,
-                "ctx_thought": ctx_thought,
-                "ctx_location": ctx_location,
-                "ctx_area_info": ctx_area_info,
-                "ctx_weather": ctx_weather,
-                "ctx_temperature": ctx_temperature,
-                "ctx_other_info": ctx_other_info,
-                "ctx_plan_target": ctx_plan_target,
-            }
-
-            self._queue_record("block_dispatcher", record)
-
-        except Exception as e:
-            get_logger().error(
-                f"Failed to insert block dispatcher record: {e}. Record: {record}"
-            )
-
-    def insert_static_agent_attributes_record(
-        self, record: StaticAgentAttributesRecord
+    def _flush_records(
+        self, table_name: str, records: list[TableRecord], column_names: list[str]
     ) -> None:
         if self.client is None:
-            get_logger().error(
-                "ClickHouse client is not connected. Cannot insert static agent attributes record."
-            )
-            return
+            raise RuntimeError("ClickHouse client is not connected")
 
-        try:
-            timestamp, agent_id = self._clean_incoming_record(
-                record["timestamp"], record["agent_id"]
-            )
+        column_data = [
+            [self._record_value(record, column_name) for record in records]
+            for column_name in column_names
+        ]
+        self.client.insert(
+            table_name,
+            column_data,
+            column_names=column_names,
+            column_oriented=True,
+        )
 
-            normalized_record: StaticAgentAttributesRecord = {
-                **record,
-                "exp_id": self.exp_id,
-                "simulation_step": self.simulation_step,
-                "timestamp": timestamp,
-                "agent_id": agent_id,
-            }
-            self._queue_record("static_agent_attributes", normalized_record)
-
-        except Exception as e:
-            get_logger().error(
-                f"Failed to insert static agent attributes record: {e}"
-            )
-
-    def insert_experiment_info_record(self, record: ExperimentInfoRecord) -> None:
-        if self.client is None:
-            get_logger().error(
-                "ClickHouse client is not connected. Cannot insert experiment info record."
-            )
-            return
-
-        try:
-            created_at = record["created_at"]
-            updated_at = record["updated_at"]
-            if isinstance(created_at, (int, float)):
-                created_at = datetime.fromtimestamp(created_at)
-            if isinstance(updated_at, (int, float)):
-                updated_at = datetime.fromtimestamp(updated_at)
-            if not isinstance(created_at, datetime):
-                created_at = datetime.now()
-            if not isinstance(updated_at, datetime):
-                updated_at = datetime.now()
-
-            normalized_record: ExperimentInfoRecord = {
-                **record,
-                "id": str(uuid.UUID(record["id"])),
-                "created_at": created_at,
-                "updated_at": updated_at,
-                "last_mobility_safe_step": record.get("last_mobility_safe_step", -1),
-                "prev_mobility_safe_step": record.get("prev_mobility_safe_step", -1),
-                "economy_checkpoint_path": record.get("economy_checkpoint_path", ""),
-            }
-            self._queue_record("experiment_info", normalized_record)
-
-        except Exception as e:
-            get_logger().error(f"Failed to insert experiment info record: {e}")
+    def _close_connection(self) -> None:
+        if self.client is not None:
+            self.client.close()
+            self.client = None
 
     @staticmethod
     def _escape_sql_string(value: str) -> str:
@@ -672,7 +273,9 @@ class ClickHouseDatabase:
         # Use last_mobility_safe_step as the canonical resume step
         last_safe_raw = latest_exp_info.get("last_mobility_safe_step")
         last_safe_step = int(last_safe_raw) if last_safe_raw is not None else -1
-        economy_checkpoint_path = str(latest_exp_info.get("economy_checkpoint_path") or "")
+        economy_checkpoint_path = str(
+            latest_exp_info.get("economy_checkpoint_path") or ""
+        )
 
         static_step_rows = self._query_rows(
             (
@@ -713,17 +316,21 @@ class ClickHouseDatabase:
         pending_messages: list[dict] = []
 
         if resume_step >= 0:
-            resume_step, kv_snapshots, stream_snapshots, spatial_snapshots, pending_messages = (
-                self._fetch_checkpoint_snapshots(
-                    escaped_exp_id=escaped_exp_id,
-                    resume_step=resume_step,
-                    prev_step=(
-                        int(latest_exp_info.get("prev_mobility_safe_step"))
-                        if latest_exp_info.get("prev_mobility_safe_step") is not None
-                        else -1
-                    ),
-                    expected_agent_ids={int(r["agent_id"]) for r in static_rows},
-                )
+            (
+                resume_step,
+                kv_snapshots,
+                stream_snapshots,
+                spatial_snapshots,
+                pending_messages,
+            ) = self._fetch_checkpoint_snapshots(
+                escaped_exp_id=escaped_exp_id,
+                resume_step=resume_step,
+                prev_step=(
+                    int(latest_exp_info.get("prev_mobility_safe_step"))
+                    if latest_exp_info.get("prev_mobility_safe_step") is not None
+                    else -1
+                ),
+                expected_agent_ids={int(r["agent_id"]) for r in static_rows},
             )
 
         return {
@@ -764,7 +371,11 @@ class ClickHouseDatabase:
                 missing = expected_agent_ids - kv_agent_ids
                 get_logger().warning(
                     f"KV snapshot at step {attempt_step} is incomplete (missing {len(missing)} agents). "
-                    + (f"Falling back to step {prev_step}." if attempt_step == resume_step else "No valid checkpoint found.")
+                    + (
+                        f"Falling back to step {prev_step}."
+                        if attempt_step == resume_step
+                        else "No valid checkpoint found."
+                    )
                 )
                 continue
 
@@ -772,7 +383,9 @@ class ClickHouseDatabase:
             kv_snapshots: dict[int, list[dict]] = {}
             for row in kv_rows:
                 aid = int(row["agent_id"])
-                kv_snapshots.setdefault(aid, []).append({"key": row["key"], "value_json": row["value_json"]})
+                kv_snapshots.setdefault(aid, []).append(
+                    {"key": row["key"], "value_json": row["value_json"]}
+                )
 
             stream_rows = self._query_rows(
                 f"SELECT agent_id, memory_id, cognition_id, topic, location, description, day, t "
@@ -801,46 +414,18 @@ class ClickHouseDatabase:
             )
 
             get_logger().info(f"Loaded checkpoint snapshots at step {attempt_step}")
-            return attempt_step, kv_snapshots, stream_snapshots, spatial_snapshots, pending_messages
+            return (
+                attempt_step,
+                kv_snapshots,
+                stream_snapshots,
+                spatial_snapshots,
+                pending_messages,
+            )
 
-        get_logger().warning("No valid checkpoint snapshots found; memory will start from defaults")
+        get_logger().warning(
+            "No valid checkpoint snapshots found; memory will start from defaults"
+        )
         return -1, {}, {}, {}, []
-
-    def insert_kv_snapshot_batch(self, records: List[AgentKVSnapshotRecord]) -> None:
-        if self.client is None:
-            return
-        try:
-            for record in records:
-                self._queue_record("agent_kv_snapshot", record)
-        except Exception as e:
-            get_logger().error(f"Failed to insert KV snapshot batch: {e}")
-
-    def insert_stream_snapshot_batch(self, records: List[AgentStreamSnapshotRecord]) -> None:
-        if self.client is None:
-            return
-        try:
-            for record in records:
-                self._queue_record("agent_stream_snapshot", record)
-        except Exception as e:
-            get_logger().error(f"Failed to insert stream snapshot batch: {e}")
-
-    def insert_spatial_snapshot_batch(self, records: List[AgentSpatialSnapshotRecord]) -> None:
-        if self.client is None:
-            return
-        try:
-            for record in records:
-                self._queue_record("agent_spatial_snapshot", record)
-        except Exception as e:
-            get_logger().error(f"Failed to insert spatial snapshot batch: {e}")
-
-    def insert_pending_messages_snapshot(self, records: List[PendingMessageSnapshotRecord]) -> None:
-        if self.client is None:
-            return
-        try:
-            for record in records:
-                self._queue_record("pending_messages_snapshot", record)
-        except Exception as e:
-            get_logger().error(f"Failed to insert pending messages snapshot: {e}")
 
     def update_experiment_info_checkpoint(
         self,
@@ -907,16 +492,8 @@ class ClickHouseDatabase:
                 "prev_mobility_safe_step": prev_mobility_safe_step,
                 "economy_checkpoint_path": economy_checkpoint_path,
             }
-            self.insert_experiment_info_record(new_record)
+            self.insert_record("experiment_info", new_record)
         except Exception as e:
-            get_logger().error(f"Failed to update experiment_info checkpoint columns: {e}")
-
-    def flush_all_batches(self):
-        for table_name in self.table_batches:
-            self._flush_table_batch(table_name)
-
-    def close(self):
-        if self.client:
-            self.flush_all_batches()
-            self.client.close()
-            get_logger().info("ClickHouse client connection closed.")
+            get_logger().error(
+                f"Failed to update experiment_info checkpoint columns: {e}"
+            )

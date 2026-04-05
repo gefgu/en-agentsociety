@@ -113,13 +113,16 @@ db = ClickHouseDatabase(
 
 db.set_simulation_step(42)
 
-db.insert_prompt_response_record(
-	timestamp=datetime.now(),
-	agent_id=7,
-	prompt="What should I do next?",
-	response="Go to work",
-	block_name="PlannerBlock",
-	func_name="step",
+db.insert_record(
+	"prompt_responses",
+	{
+		"timestamp": datetime.now(),
+		"agent_id": 7,
+		"prompt": "What should I do next?",
+		"response": "Go to work",
+		"block_name": "PlannerBlock",
+		"func_name": "step",
+	},
 )
 
 db.flush_all_batches()

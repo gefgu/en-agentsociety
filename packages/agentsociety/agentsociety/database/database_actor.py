@@ -12,10 +12,16 @@ from .duckdb import DuckDBDatabase
 from .schema import (
     AdjustNeedsRecord,
     AgentKVSnapshotRecord,
+    AgentLocationTypeRecord,
     AgentSpatialSnapshotRecord,
     AgentStreamSnapshotRecord,
+    AgentTransportTypeRecord,
+    BlockDispatcherRecord,
+    ExperimentInfoRecord,
     PendingMessageSnapshotRecord,
+    PromptResponseRecord,
     StaticAgentAttributesRecord,
+    StepAgentStatusRecord,
 )
 
 
@@ -80,7 +86,7 @@ class DatabaseActor:
         self._db.set_simulation_step(step)
 
     def insert_adjust_needs_record(self, record: AdjustNeedsRecord) -> None:
-        self._db.insert_adjust_needs_record(record)
+        self._db.insert_record("NeedsBlock_adjust_needs", record)
 
     def insert_prompt_response_record(
         self,
@@ -91,14 +97,26 @@ class DatabaseActor:
         block_name: str,
         func_name: str,
     ):
-        self._db.insert_prompt_response_record(
-            timestamp=timestamp,
-            agent_id=agent_id,
-            prompt=prompt,
-            response=response,
-            block_name=block_name,
-            func_name=func_name,
-        )
+        response_text = response
+        if not isinstance(response_text, str):
+            if hasattr(response_text, "choices") and len(response_text.choices) > 0:
+                response_text = response_text.choices[0].message.content or ""
+            else:
+                response_text = str(response_text)
+
+        prompt_text = prompt if isinstance(prompt, str) else str(prompt)
+
+        record: PromptResponseRecord = {
+            "exp_id": "",
+            "simulation_step": -1,
+            "timestamp": timestamp,
+            "agent_id": agent_id,
+            "prompt": prompt_text,
+            "response": response_text,
+            "block_name": block_name,
+            "func_name": func_name,
+        }
+        self._db.insert_record("prompt_responses", record)
 
     def insert_user_location_type_record(
         self,
@@ -106,11 +124,14 @@ class DatabaseActor:
         agent_id: int,
         location_type: str,
     ):
-        self._db.insert_user_location_type_record(
-            timestamp=timestamp,
-            agent_id=agent_id,
-            location_type=location_type,
-        )
+        record: AgentLocationTypeRecord = {
+            "exp_id": "",
+            "simulation_step": -1,
+            "timestamp": timestamp,
+            "agent_id": agent_id,
+            "location_type": location_type,
+        }
+        self._db.insert_record("agent_location_type", record)
 
     def insert_user_transport_type_record(
         self,
@@ -118,11 +139,14 @@ class DatabaseActor:
         agent_id: int,
         transport_type: str,
     ):
-        self._db.insert_user_transport_type_record(
-            timestamp=timestamp,
-            agent_id=agent_id,
-            transport_type=transport_type,
-        )
+        record: AgentTransportTypeRecord = {
+            "exp_id": "",
+            "simulation_step": -1,
+            "timestamp": timestamp,
+            "agent_id": agent_id,
+            "transport_type": transport_type,
+        }
+        self._db.insert_record("agent_transport_type", record)
 
     def insert_step_agent_status_record(
         self,
@@ -134,15 +158,18 @@ class DatabaseActor:
         action: str,
         status: str,
     ):
-        self._db.insert_step_agent_status_record(
-            agent_id=agent_id,
-            timestamp=timestamp,
-            lat=lat,
-            lng=lng,
-            parent_id=parent_id,
-            action=action,
-            status=status,
-        )
+        record: StepAgentStatusRecord = {
+            "exp_id": "",
+            "agent_id": agent_id,
+            "simulation_step": -1,
+            "timestamp": timestamp,
+            "lat": lat,
+            "lng": lng,
+            "parent_id": parent_id,
+            "action": action,
+            "status": status,
+        }
+        self._db.insert_record("step_agent_status", record)
 
     def insert_block_dispatcher_record(
         self,
@@ -163,45 +190,48 @@ class DatabaseActor:
         ctx_other_info: str,
         ctx_plan_target: str,
     ):
-        self._db.insert_block_dispatcher_record(
-            agent_id=agent_id,
-            timestamp=timestamp,
-            target_block=target_block,
-            reason=reason,
-            possible_blocks=possible_blocks,
-            ctx_time=ctx_time,
-            ctx_need=ctx_need,
-            ctx_intention=ctx_intention,
-            ctx_emotion=ctx_emotion,
-            ctx_thought=ctx_thought,
-            ctx_location=ctx_location,
-            ctx_area_info=ctx_area_info,
-            ctx_weather=ctx_weather,
-            ctx_temperature=ctx_temperature,
-            ctx_other_info=ctx_other_info,
-            ctx_plan_target=ctx_plan_target,
-        )
+        record: BlockDispatcherRecord = {
+            "exp_id": "",
+            "agent_id": agent_id,
+            "simulation_step": -1,
+            "timestamp": timestamp,
+            "target_block": target_block,
+            "reason": reason,
+            "possible_blocks": possible_blocks,
+            "ctx_time": ctx_time,
+            "ctx_need": ctx_need,
+            "ctx_intention": ctx_intention,
+            "ctx_emotion": ctx_emotion,
+            "ctx_thought": ctx_thought,
+            "ctx_location": ctx_location,
+            "ctx_area_info": ctx_area_info,
+            "ctx_weather": ctx_weather,
+            "ctx_temperature": ctx_temperature,
+            "ctx_other_info": ctx_other_info,
+            "ctx_plan_target": ctx_plan_target,
+        }
+        self._db.insert_record("block_dispatcher", record)
 
     def insert_static_agent_attributes_record(
         self,
         record: StaticAgentAttributesRecord,
     ) -> None:
-        self._db.insert_static_agent_attributes_record(record)
+        self._db.insert_record("static_agent_attributes", record)
 
-    def insert_experiment_info_record(self, record):
-        self._db.insert_experiment_info_record(record)
+    def insert_experiment_info_record(self, record: ExperimentInfoRecord):
+        self._db.insert_record("experiment_info", record)
 
     def insert_kv_snapshot_batch(self, records: List[AgentKVSnapshotRecord]) -> None:
-        self._db.insert_kv_snapshot_batch(records)
+        self._db.insert_records("agent_kv_snapshot", records)
 
     def insert_stream_snapshot_batch(self, records: List[AgentStreamSnapshotRecord]) -> None:
-        self._db.insert_stream_snapshot_batch(records)
+        self._db.insert_records("agent_stream_snapshot", records)
 
     def insert_spatial_snapshot_batch(self, records: List[AgentSpatialSnapshotRecord]) -> None:
-        self._db.insert_spatial_snapshot_batch(records)
+        self._db.insert_records("agent_spatial_snapshot", records)
 
     def insert_pending_messages_snapshot(self, records: List[PendingMessageSnapshotRecord]) -> None:
-        self._db.insert_pending_messages_snapshot(records)
+        self._db.insert_records("pending_messages_snapshot", records)
 
     def update_experiment_info_checkpoint(
         self,
