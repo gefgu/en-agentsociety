@@ -134,6 +134,27 @@ class BaseSimulationDatabase(ABC):
 	def _close_connection(self) -> None:
 		raise NotImplementedError
 
+	@abstractmethod
+	def _query_rows(
+		self, query: str, parameters: Optional[Any] = None
+	) -> list[dict[str, Any]]:
+		raise NotImplementedError
+
+	@abstractmethod
+	def _resume_query(
+		self,
+		query_name: str,
+		*,
+		source_exp_id: str,
+		source_uuid: str,
+		resume_step: Optional[int] = None,
+		rollback_depth: Optional[int] = None,
+		attempt_step: Optional[int] = None,
+		static_step: Optional[int] = None,
+	) -> tuple[str, Optional[Any]]:
+		"""Return backend-specific SQL and parameters for shared resume logic."""
+		raise NotImplementedError
+
 	def _is_unknown_table_error(self, error: Exception) -> bool:
 		return False
 
@@ -348,3 +369,315 @@ class BaseSimulationDatabase(ABC):
 			self.flush_all_batches()
 			self._close_connection()
 			get_logger().info(f"{self.backend_name} connection closed.")
+
+	def _run_resume_query(
+		self,
+		query_name: str,
+		*,
+		source_exp_id: str,
+		source_uuid: str,
+		resume_step: Optional[int] = None,
+		rollback_depth: Optional[int] = None,
+		attempt_step: Optional[int] = None,
+		static_step: Optional[int] = None,
+	) -> list[dict[str, Any]]:
+		query, parameters = self._resume_query(
+			query_name=query_name,
+			source_exp_id=source_exp_id,
+			source_uuid=source_uuid,
+			resume_step=resume_step,
+			rollback_depth=rollback_depth,
+			attempt_step=attempt_step,
+			static_step=static_step,
+		)
+		return self._query_rows(query, parameters)
+
+	def _postprocess_static_rows(
+		self, static_rows: list[dict[str, Any]]
+	) -> list[dict[str, Any]]:
+		"""Backend hook for normalizing static row fields (for example JSON arrays)."""
+		return static_rows
+
+	def fetch_resume_data(
+		self, source_exp_id: str, rollback_depth: int = 10
+	) -> Optional[dict[str, Any]]:
+		"""Fetch config, latest step, and latest static attributes for a source experiment."""
+		if not self._is_connected():
+			get_logger().error(
+				f"{self.backend_name} backend is not connected. Cannot fetch resume data."
+			)
+			return None
+
+		try:
+			source_uuid = str(uuid.UUID(source_exp_id))
+		except (ValueError, TypeError):
+			get_logger().error(f"Invalid source experiment id: {source_exp_id}")
+			return None
+
+		exp_info_rows = self._run_resume_query(
+			"latest_experiment_info",
+			source_exp_id=source_exp_id,
+			source_uuid=source_uuid,
+		)
+		if not exp_info_rows:
+			return None
+
+		latest_exp_info = exp_info_rows[0]
+
+		step_rows = self._run_resume_query(
+			"latest_step",
+			source_exp_id=source_exp_id,
+			source_uuid=source_uuid,
+		)
+		latest_step_raw = step_rows[0].get("max_step") if step_rows else None
+		latest_step = int(latest_step_raw) if latest_step_raw is not None else 0
+
+		last_safe_raw = latest_exp_info.get("last_mobility_safe_step")
+		last_safe_step = int(last_safe_raw) if last_safe_raw is not None else -1
+		economy_checkpoint_path = str(
+			latest_exp_info.get("economy_checkpoint_path") or ""
+		)
+
+		static_step_rows = self._run_resume_query(
+			"latest_static_step",
+			source_exp_id=source_exp_id,
+			source_uuid=source_uuid,
+		)
+		static_step_raw = (
+			static_step_rows[0].get("max_static_step") if static_step_rows else None
+		)
+		static_step = int(static_step_raw) if static_step_raw is not None else 0
+
+		static_rows = self._run_resume_query(
+			"static_rows",
+			source_exp_id=source_exp_id,
+			source_uuid=source_uuid,
+			static_step=static_step,
+		)
+		static_rows = self._postprocess_static_rows(static_rows)
+
+		resume_step = last_safe_step
+		kv_snapshots: dict[int, list[dict]] = {}
+		stream_snapshots: dict[int, list[dict]] = {}
+		spatial_snapshots: dict[int, list[dict]] = {}
+		pending_messages: list[dict] = []
+
+		if resume_step >= 0:
+			(
+				resume_step,
+				kv_snapshots,
+				stream_snapshots,
+				spatial_snapshots,
+				pending_messages,
+				economy_checkpoint_path,
+			) = self._fetch_checkpoint_snapshots(
+				source_exp_id=source_exp_id,
+				source_uuid=source_uuid,
+				resume_step=resume_step,
+				rollback_depth=rollback_depth,
+				expected_agent_ids={int(r["agent_id"]) for r in static_rows},
+				has_economy=bool(economy_checkpoint_path),
+			)
+
+		return {
+			"source_exp_id": source_exp_id,
+			"config": str(latest_exp_info.get("config") or ""),
+			"latest_experiment_info": latest_exp_info,
+			"latest_step": latest_step,
+			"last_mobility_safe_step": resume_step,
+			"economy_checkpoint_path": economy_checkpoint_path,
+			"static_step": static_step,
+			"static_records": static_rows,
+			"kv_snapshots": kv_snapshots,
+			"stream_snapshots": stream_snapshots,
+			"spatial_snapshots": spatial_snapshots,
+			"pending_messages": pending_messages,
+		}
+
+	def _fetch_checkpoint_snapshots(
+		self,
+		source_exp_id: str,
+		source_uuid: str,
+		resume_step: int,
+		rollback_depth: int,
+		expected_agent_ids: set[int],
+		has_economy: bool = False,
+	) -> tuple[int, dict[int, list], dict[int, list], dict[int, list], list[dict], str]:
+		"""Fetch KV/stream/spatial/message snapshots, rolling back up to rollback_depth steps."""
+		candidate_rows = self._run_resume_query(
+			"candidate_steps",
+			source_exp_id=source_exp_id,
+			source_uuid=source_uuid,
+			resume_step=resume_step,
+			rollback_depth=rollback_depth,
+		)
+		candidate_steps = [
+			int(r["simulation_step"])
+			for r in candidate_rows
+			if r.get("simulation_step") is not None
+		]
+
+		first_failure_reason: Optional[str] = None
+
+		for i, attempt_step in enumerate(candidate_steps):
+			remaining = len(candidate_steps) - i - 1
+
+			kv_rows = self._run_resume_query(
+				"kv_rows",
+				source_exp_id=source_exp_id,
+				source_uuid=source_uuid,
+				attempt_step=attempt_step,
+			)
+
+			kv_agent_ids = {int(r["agent_id"]) for r in kv_rows}
+			if expected_agent_ids and not expected_agent_ids.issubset(kv_agent_ids):
+				missing = expected_agent_ids - kv_agent_ids
+				reason = (
+					f"KV snapshot at step {attempt_step} is incomplete "
+					f"(missing {len(missing)} agents)"
+				)
+				if first_failure_reason is None:
+					first_failure_reason = reason
+				get_logger().warning(
+					reason
+					+ (
+						f". Trying older step ({remaining} remaining)."
+						if remaining > 0
+						else ". No more candidates."
+					)
+				)
+				continue
+
+			econ_path = ""
+			if has_economy:
+				econ_path = str(
+					self.home_dir
+					/ "checkpoints"
+					/ source_exp_id
+					/ f"econ_step_{attempt_step}.bin"
+				)
+				if not Path(econ_path).is_file():
+					reason = (
+						f"Economy checkpoint missing at step {attempt_step}: {econ_path}"
+					)
+					if first_failure_reason is None:
+						first_failure_reason = reason
+					get_logger().warning(
+						reason
+						+ (
+							f". Trying older step ({remaining} remaining)."
+							if remaining > 0
+							else ". No more candidates."
+						)
+					)
+					continue
+
+			kv_snapshots: dict[int, list[dict]] = {}
+			for row in kv_rows:
+				aid = int(row["agent_id"])
+				kv_snapshots.setdefault(aid, []).append(
+					{"key": row["key"], "value_json": row["value_json"]}
+				)
+
+			stream_rows = self._run_resume_query(
+				"stream_rows",
+				source_exp_id=source_exp_id,
+				source_uuid=source_uuid,
+				attempt_step=attempt_step,
+			)
+			stream_snapshots: dict[int, list[dict]] = {}
+			for row in stream_rows:
+				aid = int(row["agent_id"])
+				stream_snapshots.setdefault(aid, []).append(row)
+
+			spatial_rows = self._run_resume_query(
+				"spatial_rows",
+				source_exp_id=source_exp_id,
+				source_uuid=source_uuid,
+				attempt_step=attempt_step,
+			)
+			spatial_snapshots: dict[int, list[dict]] = {}
+			for row in spatial_rows:
+				aid = int(row["agent_id"])
+				spatial_snapshots.setdefault(aid, []).append(row)
+
+			pending_messages = self._run_resume_query(
+				"pending_messages",
+				source_exp_id=source_exp_id,
+				source_uuid=source_uuid,
+				attempt_step=attempt_step,
+			)
+
+			if attempt_step != resume_step:
+				get_logger().warning(
+					f"Resumed from rolled-back checkpoint at step {attempt_step} "
+					f"(latest was {resume_step}, rolled back {resume_step - attempt_step} steps)"
+				)
+			get_logger().info(f"Loaded checkpoint snapshots at step {attempt_step}")
+			return (
+				attempt_step,
+				kv_snapshots,
+				stream_snapshots,
+				spatial_snapshots,
+				pending_messages,
+				econ_path,
+			)
+
+		if first_failure_reason:
+			get_logger().warning(
+				f"All {len(candidate_steps)} checkpoint candidate(s) failed. "
+				f"First error: {first_failure_reason}"
+			)
+		get_logger().warning(
+			"No valid checkpoint snapshots found; memory will start from defaults"
+		)
+		return -1, {}, {}, {}, [], ""
+
+	def update_experiment_info_checkpoint(
+		self,
+		exp_id: str,
+		last_mobility_safe_step: int,
+		prev_mobility_safe_step: int,
+		economy_checkpoint_path: str,
+	) -> None:
+		"""Write checkpoint columns for an experiment by inserting a new row."""
+		if not self._is_connected():
+			return
+		try:
+			source_uuid = str(uuid.UUID(exp_id))
+
+			rows = self._run_resume_query(
+				"experiment_info_for_update",
+				source_exp_id=exp_id,
+				source_uuid=source_uuid,
+			)
+			if not rows:
+				get_logger().error(
+					f"update_experiment_info_checkpoint: no row found for exp_id={exp_id}"
+				)
+				return
+
+			base = rows[0]
+			new_record: ExperimentInfoRecord = {
+				"tenant_id": base["tenant_id"],
+				"id": str(base["id"]),
+				"name": base["name"],
+				"num_day": base["num_day"],
+				"status": base["status"],
+				"cur_day": base["cur_day"],
+				"cur_t": base["cur_t"],
+				"config": base["config"],
+				"error": base["error"],
+				"input_tokens": base["input_tokens"],
+				"output_tokens": base["output_tokens"],
+				"created_at": base["created_at"],
+				"updated_at": datetime.now(),
+				"last_mobility_safe_step": last_mobility_safe_step,
+				"prev_mobility_safe_step": prev_mobility_safe_step,
+				"economy_checkpoint_path": economy_checkpoint_path,
+			}
+			self.insert_record("experiment_info", new_record)
+		except Exception as e:
+			get_logger().error(
+				f"Failed to update experiment_info checkpoint columns: {e}"
+			)

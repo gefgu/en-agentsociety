@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime
 import json
 import re
 from typing import Any, Optional
-import uuid
 
 try:
     import duckdb
@@ -16,7 +14,6 @@ import ray
 from ..logger import get_logger
 from ..performance.prometheusActor import PrometheusActor
 from .base_database import BaseSimulationDatabase, TableRecord
-from .schema import ExperimentInfoRecord
 
 
 class DuckDBDatabase(BaseSimulationDatabase):
@@ -243,7 +240,7 @@ class DuckDBDatabase(BaseSimulationDatabase):
             self.conn.close()
             self.conn = None
 
-    def _query_rows(self, query: str, params: Optional[list[Any]] = None) -> list[dict[str, Any]]:
+    def _query_rows(self, query: str, params: Optional[Any] = None) -> list[dict[str, Any]]:
         if self.conn is None:
             get_logger().error("DuckDB connection is not available. Cannot query.")
             return []
@@ -271,21 +268,26 @@ class DuckDBDatabase(BaseSimulationDatabase):
                 return []
         return []
 
-    def fetch_resume_data(self, source_exp_id: str) -> Optional[dict[str, Any]]:
-        if self.conn is None:
-            get_logger().error(
-                "DuckDB connection is not available. Cannot fetch resume data."
-            )
-            return None
+    def _postprocess_static_rows(
+        self, static_rows: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        for row in static_rows:
+            row["hobbies"] = self._decode_json_array(row.get("hobbies"))
+        return static_rows
 
-        try:
-            source_uuid = str(uuid.UUID(source_exp_id))
-        except (ValueError, TypeError):
-            get_logger().error(f"Invalid source experiment id: {source_exp_id}")
-            return None
-
-        exp_info_rows = self._query_rows(
-            (
+    def _resume_query(
+        self,
+        query_name: str,
+        *,
+        source_exp_id: str,
+        source_uuid: str,
+        resume_step: Optional[int] = None,
+        rollback_depth: Optional[int] = None,
+        attempt_step: Optional[int] = None,
+        static_step: Optional[int] = None,
+    ) -> tuple[str, Optional[Any]]:
+        if query_name == "latest_experiment_info":
+            return (
                 "SELECT "
                 "id, tenant_id, name, num_day, status, cur_day, cur_t, config, error, "
                 "input_tokens, output_tokens, created_at, updated_at, "
@@ -293,44 +295,27 @@ class DuckDBDatabase(BaseSimulationDatabase):
                 "FROM experiment_info "
                 "WHERE id = ? "
                 "ORDER BY updated_at DESC "
-                "LIMIT 1"
-            ),
-            [source_uuid],
-        )
-        if not exp_info_rows:
-            return None
-
-        latest_exp_info = exp_info_rows[0]
-
-        step_rows = self._query_rows(
-            (
+                "LIMIT 1",
+                [source_uuid],
+            )
+        if query_name == "latest_step":
+            return (
                 "SELECT max(simulation_step) AS max_step "
                 "FROM step_agent_status "
-                "WHERE exp_id = ?"
-            ),
-            [source_exp_id],
-        )
-        latest_step_raw = step_rows[0].get("max_step") if step_rows else None
-        latest_step = int(latest_step_raw) if latest_step_raw is not None else 0
-
-        last_safe_step = int(latest_exp_info.get("last_mobility_safe_step") or -1)
-        economy_checkpoint_path = str(latest_exp_info.get("economy_checkpoint_path") or "")
-
-        static_step_rows = self._query_rows(
-            (
+                "WHERE exp_id = ?",
+                [source_exp_id],
+            )
+        if query_name == "latest_static_step":
+            return (
                 "SELECT max(simulation_step) AS max_static_step "
                 "FROM static_agent_attributes "
-                "WHERE exp_id = ?"
-            ),
-            [source_exp_id],
-        )
-        static_step_raw = (
-            static_step_rows[0].get("max_static_step") if static_step_rows else None
-        )
-        static_step = int(static_step_raw) if static_step_raw is not None else 0
-
-        static_rows = self._query_rows(
-            (
+                "WHERE exp_id = ?",
+                [source_exp_id],
+            )
+        if query_name == "static_rows":
+            if static_step is None:
+                raise ValueError("static_step is required for static_rows query")
+            return (
                 "SELECT "
                 "agent_id, type, home_aoi_id, work_aoi_id, name, gender, age, "
                 "education, household, life_stage, skill, occupation, work_skill, "
@@ -344,143 +329,56 @@ class DuckDBDatabase(BaseSimulationDatabase):
                 "marriage_status, background_story "
                 "FROM static_agent_attributes "
                 "WHERE exp_id = ? AND simulation_step = ? "
-                "ORDER BY agent_id"
-            ),
-            [source_exp_id, static_step],
-        )
-        for row in static_rows:
-            row["hobbies"] = self._decode_json_array(row.get("hobbies"))
-
-        resume_step = last_safe_step
-        kv_snapshots: dict[int, list[dict]] = {}
-        stream_snapshots: dict[int, list[dict]] = {}
-        spatial_snapshots: dict[int, list[dict]] = {}
-        pending_messages: list[dict] = []
-
-        if resume_step >= 0:
-            resume_step, kv_snapshots, stream_snapshots, spatial_snapshots, pending_messages = (
-                self._fetch_checkpoint_snapshots(
-                    source_exp_id=source_exp_id,
-                    resume_step=resume_step,
-                    prev_step=int(latest_exp_info.get("prev_mobility_safe_step") or -1),
-                    expected_agent_ids={int(r["agent_id"]) for r in static_rows},
-                )
+                "ORDER BY agent_id",
+                [source_exp_id, static_step],
             )
-
-        return {
-            "source_exp_id": source_exp_id,
-            "config": str(latest_exp_info.get("config") or ""),
-            "latest_experiment_info": latest_exp_info,
-            "latest_step": latest_step,
-            "last_mobility_safe_step": resume_step,
-            "economy_checkpoint_path": economy_checkpoint_path,
-            "static_step": static_step,
-            "static_records": static_rows,
-            "kv_snapshots": kv_snapshots,
-            "stream_snapshots": stream_snapshots,
-            "spatial_snapshots": spatial_snapshots,
-            "pending_messages": pending_messages,
-        }
-
-    def _fetch_checkpoint_snapshots(
-        self,
-        source_exp_id: str,
-        resume_step: int,
-        prev_step: int,
-        expected_agent_ids: set[int],
-    ) -> tuple[int, dict[int, list], dict[int, list], dict[int, list], list[dict]]:
-        for attempt_step in [resume_step, prev_step]:
-            if attempt_step < 0:
-                continue
-
-            kv_rows = self._query_rows(
-                (
-                    "SELECT agent_id, key, value_json FROM agent_kv_snapshot "
-                    "WHERE exp_id = ? AND simulation_step = ?"
-                ),
-                [source_exp_id, attempt_step],
-            )
-
-            kv_agent_ids = {int(r["agent_id"]) for r in kv_rows}
-            if expected_agent_ids and not expected_agent_ids.issubset(kv_agent_ids):
-                missing = expected_agent_ids - kv_agent_ids
-                get_logger().warning(
-                    f"KV snapshot at step {attempt_step} is incomplete (missing {len(missing)} agents). "
-                    + (
-                        f"Falling back to step {prev_step}."
-                        if attempt_step == resume_step
-                        else "No valid checkpoint found."
-                    )
-                )
-                continue
-
-            kv_snapshots: dict[int, list[dict]] = {}
-            for row in kv_rows:
-                aid = int(row["agent_id"])
-                kv_snapshots.setdefault(aid, []).append(
-                    {"key": row["key"], "value_json": row["value_json"]}
-                )
-
-            stream_rows = self._query_rows(
-                (
-                    "SELECT agent_id, memory_id, cognition_id, topic, location, description, day, t "
-                    "FROM agent_stream_snapshot "
-                    "WHERE exp_id = ? AND simulation_step = ?"
-                ),
-                [source_exp_id, attempt_step],
-            )
-            stream_snapshots: dict[int, list[dict]] = {}
-            for row in stream_rows:
-                aid = int(row["agent_id"])
-                stream_snapshots.setdefault(aid, []).append(row)
-
-            spatial_rows = self._query_rows(
-                (
-                    "SELECT agent_id, location_id, description, price, atmosphere, satisfaction, convenience, uncertainty "
-                    "FROM agent_spatial_snapshot "
-                    "WHERE exp_id = ? AND simulation_step = ?"
-                ),
-                [source_exp_id, attempt_step],
-            )
-            spatial_snapshots: dict[int, list[dict]] = {}
-            for row in spatial_rows:
-                aid = int(row["agent_id"])
-                spatial_snapshots.setdefault(aid, []).append(row)
-
-            pending_messages = self._query_rows(
-                (
-                    "SELECT from_id, to_id, day, t, kind, payload_json, created_at, extra_json "
-                    "FROM pending_messages_snapshot "
-                    "WHERE exp_id = ? AND simulation_step = ?"
-                ),
-                [source_exp_id, attempt_step],
-            )
-
-            get_logger().info(f"Loaded checkpoint snapshots at step {attempt_step}")
+        if query_name == "candidate_steps":
+            if resume_step is None or rollback_depth is None:
+                raise ValueError("resume_step and rollback_depth are required for candidate_steps query")
             return (
-                attempt_step,
-                kv_snapshots,
-                stream_snapshots,
-                spatial_snapshots,
-                pending_messages,
+                "SELECT DISTINCT simulation_step FROM agent_kv_snapshot "
+                "WHERE exp_id = ? AND simulation_step <= ? "
+                "ORDER BY simulation_step DESC "
+                "LIMIT ?",
+                [source_exp_id, resume_step, rollback_depth],
             )
-
-        get_logger().warning("No valid checkpoint snapshots found; memory will start from defaults")
-        return -1, {}, {}, {}, []
-
-    def update_experiment_info_checkpoint(
-        self,
-        exp_id: str,
-        last_mobility_safe_step: int,
-        prev_mobility_safe_step: int,
-        economy_checkpoint_path: str,
-    ) -> None:
-        if self.conn is None:
-            return
-        try:
-            source_uuid = str(uuid.UUID(exp_id))
-
-            rows = self._query_rows(
+        if query_name == "kv_rows":
+            if attempt_step is None:
+                raise ValueError("attempt_step is required for kv_rows query")
+            return (
+                "SELECT agent_id, key, value_json FROM agent_kv_snapshot "
+                "WHERE exp_id = ? AND simulation_step = ?",
+                [source_exp_id, attempt_step],
+            )
+        if query_name == "stream_rows":
+            if attempt_step is None:
+                raise ValueError("attempt_step is required for stream_rows query")
+            return (
+                "SELECT agent_id, memory_id, cognition_id, topic, location, description, day, t "
+                "FROM agent_stream_snapshot "
+                "WHERE exp_id = ? AND simulation_step = ?",
+                [source_exp_id, attempt_step],
+            )
+        if query_name == "spatial_rows":
+            if attempt_step is None:
+                raise ValueError("attempt_step is required for spatial_rows query")
+            return (
+                "SELECT agent_id, location_id, description, price, atmosphere, satisfaction, convenience, uncertainty "
+                "FROM agent_spatial_snapshot "
+                "WHERE exp_id = ? AND simulation_step = ?",
+                [source_exp_id, attempt_step],
+            )
+        if query_name == "pending_messages":
+            if attempt_step is None:
+                raise ValueError("attempt_step is required for pending_messages query")
+            return (
+                "SELECT from_id, to_id, day, t, kind, payload_json, created_at, extra_json "
+                "FROM pending_messages_snapshot "
+                "WHERE exp_id = ? AND simulation_step = ?",
+                [source_exp_id, attempt_step],
+            )
+        if query_name == "experiment_info_for_update":
+            return (
                 "SELECT "
                 "id, tenant_id, name, num_day, status, cur_day, cur_t, config, error, "
                 "input_tokens, output_tokens, created_at, updated_at "
@@ -490,32 +388,6 @@ class DuckDBDatabase(BaseSimulationDatabase):
                 "LIMIT 1",
                 [source_uuid],
             )
-            if not rows:
-                get_logger().error(
-                    f"update_experiment_info_checkpoint: no row found for exp_id={exp_id}"
-                )
-                return
 
-            base = rows[0]
-            new_record: ExperimentInfoRecord = {
-                "tenant_id": base["tenant_id"],
-                "id": str(base["id"]),
-                "name": base["name"],
-                "num_day": base["num_day"],
-                "status": base["status"],
-                "cur_day": base["cur_day"],
-                "cur_t": base["cur_t"],
-                "config": base["config"],
-                "error": base["error"],
-                "input_tokens": base["input_tokens"],
-                "output_tokens": base["output_tokens"],
-                "created_at": base["created_at"],
-                "updated_at": datetime.now(),
-                "last_mobility_safe_step": last_mobility_safe_step,
-                "prev_mobility_safe_step": prev_mobility_safe_step,
-                "economy_checkpoint_path": economy_checkpoint_path,
-            }
-            self.insert_record("experiment_info", new_record)
-        except Exception as e:
-            get_logger().error(f"Failed to update experiment_info checkpoint columns: {e}")
+        raise ValueError(f"Unknown resume query '{query_name}'")
 

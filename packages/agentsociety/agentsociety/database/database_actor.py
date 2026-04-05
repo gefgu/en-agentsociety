@@ -247,9 +247,9 @@ class DatabaseActor:
             economy_checkpoint_path=economy_checkpoint_path,
         )
 
-    def fetch_resume_data(self, source_exp_id: str):
+    def fetch_resume_data(self, source_exp_id: str, rollback_depth: int = 10):
         try:
-            data = self._db.fetch_resume_data(source_exp_id)
+            data = self._db.fetch_resume_data(source_exp_id, rollback_depth=rollback_depth)
             if data is not None:
                 get_logger().info(
                     f"Loaded resume data for source_exp_id={source_exp_id} from primary backend={self._db.backend_name}"

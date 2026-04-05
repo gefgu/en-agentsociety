@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import uuid
-from datetime import datetime
 from typing import Any, Optional
 
 import ray
@@ -14,7 +12,6 @@ except ImportError:
 from ..logger import get_logger
 from ..performance.prometheusActor import PrometheusActor
 from .base_database import BaseSimulationDatabase, TableRecord
-from .schema import ExperimentInfoRecord
 
 ClickHouseClient = Any
 
@@ -209,7 +206,7 @@ class ClickHouseDatabase(BaseSimulationDatabase):
             self.client = None
 
     def _query_rows(
-        self, query: str, parameters: Optional[dict[str, Any]] = None
+        self, query: str, parameters: Optional[Any] = None
     ) -> list[dict[str, Any]]:
         if self.client is None:
             get_logger().error("ClickHouse client is not connected. Cannot query.")
@@ -224,76 +221,52 @@ class ClickHouseDatabase(BaseSimulationDatabase):
             get_logger().error(f"Failed to query ClickHouse: {e}")
             return []
 
-    def fetch_resume_data(self, source_exp_id: str) -> Optional[dict[str, Any]]:
-        """Fetch config, latest step, and latest static attributes for a source experiment."""
-        if self.client is None:
-            get_logger().error(
-                "ClickHouse client is not connected. Cannot fetch resume data."
-            )
-            return None
-
-        try:
-            source_uuid = str(uuid.UUID(source_exp_id))
-        except (ValueError, TypeError):
-            get_logger().error(f"Invalid source experiment id: {source_exp_id}")
-            return None
-
-        params = {
-            "source_uuid": source_uuid,
+    def _resume_query(
+        self,
+        query_name: str,
+        *,
+        source_exp_id: str,
+        source_uuid: str,
+        resume_step: Optional[int] = None,
+        rollback_depth: Optional[int] = None,
+        attempt_step: Optional[int] = None,
+        static_step: Optional[int] = None,
+    ) -> tuple[str, Optional[Any]]:
+        base_params = {
             "source_exp_id": source_exp_id,
+            "source_uuid": source_uuid,
         }
 
-        exp_info_rows = self._query_rows(
-            (
+        if query_name == "latest_experiment_info":
+            return (
                 "SELECT "
                 "id, tenant_id, name, num_day, status, cur_day, cur_t, config, error, "
                 "input_tokens, output_tokens, created_at, updated_at, "
                 "last_mobility_safe_step, prev_mobility_safe_step, economy_checkpoint_path "
                 "FROM experiment_info FINAL "
-                "WHERE id = toUUID(%(source_uuid)s) "
+                "WHERE id = toUUID({source_uuid:String}) "
                 "ORDER BY updated_at DESC "
-                "LIMIT 1"
-            ),
-            params,
-        )
-        if not exp_info_rows:
-            return None
-
-        latest_exp_info = exp_info_rows[0]
-
-        step_rows = self._query_rows(
-            (
+                "LIMIT 1",
+                base_params,
+            )
+        if query_name == "latest_step":
+            return (
                 "SELECT max(simulation_step) AS max_step "
                 "FROM step_agent_status "
-                "WHERE exp_id = %(source_exp_id)s"
-            ),
-            params,
-        )
-        latest_step_raw = step_rows[0].get("max_step") if step_rows else None
-        latest_step = int(latest_step_raw) if latest_step_raw is not None else 0
-
-        # Use last_mobility_safe_step as the canonical resume step
-        last_safe_raw = latest_exp_info.get("last_mobility_safe_step")
-        last_safe_step = int(last_safe_raw) if last_safe_raw is not None else -1
-        economy_checkpoint_path = str(
-            latest_exp_info.get("economy_checkpoint_path") or ""
-        )
-
-        static_step_rows = self._query_rows(
-            (
+                "WHERE exp_id = {source_exp_id:String}",
+                base_params,
+            )
+        if query_name == "latest_static_step":
+            return (
                 "SELECT max(simulation_step) AS max_static_step "
                 "FROM static_agent_attributes "
-                "WHERE exp_id = %(source_exp_id)s"
-            ),
-            params,
-        )
-        static_step_raw = (
-            static_step_rows[0].get("max_static_step") if static_step_rows else None
-        )
-        static_step = int(static_step_raw) if static_step_raw is not None else 0
-
-        static_rows = self._query_rows(
-            (
+                "WHERE exp_id = {source_exp_id:String}",
+                base_params,
+            )
+        if query_name == "static_rows":
+            if static_step is None:
+                raise ValueError("static_step is required for static_rows query")
+            return (
                 "SELECT "
                 "agent_id, type, home_aoi_id, work_aoi_id, name, gender, age, "
                 "education, household, life_stage, skill, occupation, work_skill, "
@@ -306,225 +279,84 @@ class ClickHouseDatabase(BaseSimulationDatabase):
                 "income, currency, residence, city, race, religion, "
                 "marriage_status, background_story "
                 "FROM static_agent_attributes "
-                "WHERE exp_id = %(source_exp_id)s AND simulation_step = %(static_step)s "
-                "ORDER BY agent_id"
-            ),
-            {
-                **params,
-                "static_step": static_step,
-            },
-        )
-
-        # Determine the resume step for checkpoint data (N-1 fallback if incomplete)
-        resume_step = last_safe_step
-        kv_snapshots: dict[int, list[dict]] = {}
-        stream_snapshots: dict[int, list[dict]] = {}
-        spatial_snapshots: dict[int, list[dict]] = {}
-        pending_messages: list[dict] = []
-
-        if resume_step >= 0:
-            (
-                resume_step,
-                kv_snapshots,
-                stream_snapshots,
-                spatial_snapshots,
-                pending_messages,
-            ) = self._fetch_checkpoint_snapshots(
-                source_exp_id=source_exp_id,
-                resume_step=resume_step,
-                prev_step=(
-                    int(latest_exp_info.get("prev_mobility_safe_step"))
-                    if latest_exp_info.get("prev_mobility_safe_step") is not None
-                    else -1
-                ),
-                expected_agent_ids={int(r["agent_id"]) for r in static_rows},
-            )
-
-        return {
-            "source_exp_id": source_exp_id,
-            "config": str(latest_exp_info.get("config") or ""),
-            "latest_experiment_info": latest_exp_info,
-            "latest_step": latest_step,
-            "last_mobility_safe_step": resume_step,
-            "economy_checkpoint_path": economy_checkpoint_path,
-            "static_step": static_step,
-            "static_records": static_rows,
-            "kv_snapshots": kv_snapshots,
-            "stream_snapshots": stream_snapshots,
-            "spatial_snapshots": spatial_snapshots,
-            "pending_messages": pending_messages,
-        }
-
-    def _fetch_checkpoint_snapshots(
-        self,
-        source_exp_id: str,
-        resume_step: int,
-        prev_step: int,
-        expected_agent_ids: set[int],
-    ) -> tuple[int, dict[int, list], dict[int, list], dict[int, list], list[dict]]:
-        """Fetch KV/stream/spatial/message snapshots at resume_step with N-1 fallback."""
-        for attempt_step in [resume_step, prev_step]:
-            if attempt_step < 0:
-                continue
-
-            kv_rows = self._query_rows(
-                (
-                    "SELECT agent_id, key, value_json FROM agent_kv_snapshot "
-                    "WHERE exp_id = %(source_exp_id)s AND simulation_step = %(attempt_step)s"
-                ),
+                "WHERE exp_id = {source_exp_id:String} AND simulation_step = {static_step:Int32} "
+                "ORDER BY agent_id",
                 {
-                    "source_exp_id": source_exp_id,
-                    "attempt_step": attempt_step,
+                    **base_params,
+                    "static_step": static_step,
                 },
             )
-
-            # Integrity check: all expected agents must have KV data
-            kv_agent_ids = {int(r["agent_id"]) for r in kv_rows}
-            if expected_agent_ids and not expected_agent_ids.issubset(kv_agent_ids):
-                missing = expected_agent_ids - kv_agent_ids
-                get_logger().warning(
-                    f"KV snapshot at step {attempt_step} is incomplete (missing {len(missing)} agents). "
-                    + (
-                        f"Falling back to step {prev_step}."
-                        if attempt_step == resume_step
-                        else "No valid checkpoint found."
-                    )
-                )
-                continue
-
-            # Group KV by agent_id
-            kv_snapshots: dict[int, list[dict]] = {}
-            for row in kv_rows:
-                aid = int(row["agent_id"])
-                kv_snapshots.setdefault(aid, []).append(
-                    {"key": row["key"], "value_json": row["value_json"]}
-                )
-
-            stream_rows = self._query_rows(
-                (
-                    "SELECT agent_id, memory_id, cognition_id, topic, location, description, day, t "
-                    "FROM agent_stream_snapshot "
-                    "WHERE exp_id = %(source_exp_id)s AND simulation_step = %(attempt_step)s"
-                ),
-                {
-                    "source_exp_id": source_exp_id,
-                    "attempt_step": attempt_step,
-                },
-            )
-            stream_snapshots: dict[int, list[dict]] = {}
-            for row in stream_rows:
-                aid = int(row["agent_id"])
-                stream_snapshots.setdefault(aid, []).append(row)
-
-            spatial_rows = self._query_rows(
-                (
-                    "SELECT agent_id, location_id, description, price, atmosphere, satisfaction, convenience, uncertainty "
-                    "FROM agent_spatial_snapshot "
-                    "WHERE exp_id = %(source_exp_id)s AND simulation_step = %(attempt_step)s"
-                ),
-                {
-                    "source_exp_id": source_exp_id,
-                    "attempt_step": attempt_step,
-                },
-            )
-            spatial_snapshots: dict[int, list[dict]] = {}
-            for row in spatial_rows:
-                aid = int(row["agent_id"])
-                spatial_snapshots.setdefault(aid, []).append(row)
-
-            pending_messages = self._query_rows(
-                (
-                    "SELECT from_id, to_id, day, t, kind, payload_json, created_at, extra_json "
-                    "FROM pending_messages_snapshot "
-                    "WHERE exp_id = %(source_exp_id)s AND simulation_step = %(attempt_step)s"
-                ),
-                {
-                    "source_exp_id": source_exp_id,
-                    "attempt_step": attempt_step,
-                },
-            )
-
-            get_logger().info(f"Loaded checkpoint snapshots at step {attempt_step}")
+        if query_name == "candidate_steps":
+            if resume_step is None or rollback_depth is None:
+                raise ValueError("resume_step and rollback_depth are required for candidate_steps query")
             return (
-                attempt_step,
-                kv_snapshots,
-                stream_snapshots,
-                spatial_snapshots,
-                pending_messages,
+                "SELECT DISTINCT simulation_step FROM agent_kv_snapshot "
+                "WHERE exp_id = {source_exp_id:String} AND simulation_step <= {resume_step:Int32} "
+                "ORDER BY simulation_step DESC "
+                "LIMIT {rollback_depth:Int32}",
+                {
+                    **base_params,
+                    "resume_step": resume_step,
+                    "rollback_depth": rollback_depth,
+                },
             )
-
-        get_logger().warning(
-            "No valid checkpoint snapshots found; memory will start from defaults"
-        )
-        return -1, {}, {}, {}, []
-
-    def update_experiment_info_checkpoint(
-        self,
-        exp_id: str,
-        last_mobility_safe_step: int,
-        prev_mobility_safe_step: int,
-        economy_checkpoint_path: str,
-    ) -> None:
-        """Write checkpoint columns for an experiment by inserting a new row.
-
-        Reads the current ``experiment_info`` row for ``exp_id`` via a FINAL
-        SELECT (to collapse ReplacingMergeTree duplicates), then inserts a new
-        row with the same non-checkpoint fields plus the updated checkpoint
-        values.  This eliminates the ALTER TABLE UPDATE mutation race: the
-        ReplacingMergeTree engine deduplicates on the next FINAL read, always
-        preferring the row with the highest ``updated_at``.
-
-        Args:
-            exp_id: UUID string of the experiment to update.
-            last_mobility_safe_step: Step index of the latest mobility-safe checkpoint.
-            prev_mobility_safe_step: Step index of the previous mobility-safe checkpoint.
-            economy_checkpoint_path: Filesystem path to the economy snapshot file.
-
-        @usedBy: simulationengine.py via ``_db_actor.update_experiment_info_checkpoint.remote(...)``
-        Side effects: queues one INSERT into the ``experiment_info`` ClickHouse table.
-        """
-        if self.client is None:
-            return
-        try:
-            source_uuid = str(uuid.UUID(exp_id))
-
-            rows = self._query_rows(
+        if query_name == "kv_rows":
+            if attempt_step is None:
+                raise ValueError("attempt_step is required for kv_rows query")
+            return (
+                "SELECT agent_id, key, value_json FROM agent_kv_snapshot "
+                "WHERE exp_id = {source_exp_id:String} AND simulation_step = {attempt_step:Int32}",
+                {
+                    **base_params,
+                    "attempt_step": attempt_step,
+                },
+            )
+        if query_name == "stream_rows":
+            if attempt_step is None:
+                raise ValueError("attempt_step is required for stream_rows query")
+            return (
+                "SELECT agent_id, memory_id, cognition_id, topic, location, description, day, t "
+                "FROM agent_stream_snapshot "
+                "WHERE exp_id = {source_exp_id:String} AND simulation_step = {attempt_step:Int32}",
+                {
+                    **base_params,
+                    "attempt_step": attempt_step,
+                },
+            )
+        if query_name == "spatial_rows":
+            if attempt_step is None:
+                raise ValueError("attempt_step is required for spatial_rows query")
+            return (
+                "SELECT agent_id, location_id, description, price, atmosphere, satisfaction, convenience, uncertainty "
+                "FROM agent_spatial_snapshot "
+                "WHERE exp_id = {source_exp_id:String} AND simulation_step = {attempt_step:Int32}",
+                {
+                    **base_params,
+                    "attempt_step": attempt_step,
+                },
+            )
+        if query_name == "pending_messages":
+            if attempt_step is None:
+                raise ValueError("attempt_step is required for pending_messages query")
+            return (
+                "SELECT from_id, to_id, day, t, kind, payload_json, created_at, extra_json "
+                "FROM pending_messages_snapshot "
+                "WHERE exp_id = {source_exp_id:String} AND simulation_step = {attempt_step:Int32}",
+                {
+                    **base_params,
+                    "attempt_step": attempt_step,
+                },
+            )
+        if query_name == "experiment_info_for_update":
+            return (
                 "SELECT "
                 "id, tenant_id, name, num_day, status, cur_day, cur_t, config, error, "
                 "input_tokens, output_tokens, created_at, updated_at "
                 "FROM experiment_info FINAL "
-                "WHERE id = toUUID(%(source_uuid)s) "
+                "WHERE id = toUUID({source_uuid:String}) "
                 "ORDER BY updated_at DESC "
                 "LIMIT 1",
                 {"source_uuid": source_uuid},
             )
-            if not rows:
-                get_logger().error(
-                    f"update_experiment_info_checkpoint: no row found for exp_id={exp_id}"
-                )
-                return
 
-            base = rows[0]
-            new_record: ExperimentInfoRecord = {
-                "tenant_id": base["tenant_id"],
-                "id": str(base["id"]),
-                "name": base["name"],
-                "num_day": base["num_day"],
-                "status": base["status"],
-                "cur_day": base["cur_day"],
-                "cur_t": base["cur_t"],
-                "config": base["config"],
-                "error": base["error"],
-                "input_tokens": base["input_tokens"],
-                "output_tokens": base["output_tokens"],
-                "created_at": base["created_at"],
-                "updated_at": datetime.now(),
-                "last_mobility_safe_step": last_mobility_safe_step,
-                "prev_mobility_safe_step": prev_mobility_safe_step,
-                "economy_checkpoint_path": economy_checkpoint_path,
-            }
-            self.insert_record("experiment_info", new_record)
-        except Exception as e:
-            get_logger().error(
-                f"Failed to update experiment_info checkpoint columns: {e}"
-            )
+        raise ValueError(f"Unknown resume query '{query_name}'")
