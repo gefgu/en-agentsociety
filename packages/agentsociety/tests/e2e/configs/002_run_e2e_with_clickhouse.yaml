@@ -3,7 +3,7 @@ llm:
     base_url: "http://localhost:8080/v1/"
     api_key: ""
     model: "Qwen/Qwen2.5-32B-Instruct-AWQ"
-    concurrency: 256
+    concurrency: 16
     timeout: 60
 
 env:
@@ -41,7 +41,5 @@ exp:
   environment:
     start_tick: 25200
     workday: true
-    weather: "The weather is sunny"
-    temperature: "The temperature is 15C"
 
 logging_level: INFO

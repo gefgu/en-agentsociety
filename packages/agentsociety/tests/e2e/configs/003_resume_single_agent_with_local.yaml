@@ -46,7 +46,5 @@ exp:
   environment:
     start_tick: 25200
     workday: true
-    weather: "The weather is sunny"
-    temperature: "15C"
 
 logging_level: INFO
