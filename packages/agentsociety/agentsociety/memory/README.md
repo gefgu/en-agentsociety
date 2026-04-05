@@ -8,7 +8,10 @@ This package implements the multi-layered memory system used by every agent.
 
 | File | Purpose |
 |---|---|
-| `memory.py` | `KVMemory`, `StreamMemory`, `SpatialMemory`, `Memory` |
+| `memory.py` | `Memory` orchestrator class |
+| `kv_memory.py` | `KVMemory` |
+| `stream_memory.py` | `MemoryNode`, `StreamMemory` |
+| `spatial_memory.py` | `SpatialMemoryNode`, `SpatialMemory` |
 | `const.py` | Memory-related constants |
 
 ---

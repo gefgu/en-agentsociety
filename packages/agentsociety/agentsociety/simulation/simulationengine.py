@@ -1108,20 +1108,17 @@ class SimulationEngine:
         for agent in self._agent_manager.agents.values():
             agent_id = agent.id
 
-            # KV snapshot
-            kv_data = await agent.status.export(list(agent.status._data.keys()))
-            for key, value in kv_data.items():
-                try:
-                    value_json = json.dumps(value, ensure_ascii=False)
-                except (TypeError, ValueError):
-                    value_json = json.dumps(str(value))
-                kv_records.append({
-                    "exp_id": self.exp_id,
-                    "simulation_step": step,
-                    "agent_id": agent_id,
-                    "key": key,
-                    "value_json": value_json,
-                })
+            snapshot_records = await agent.memory.create_snapshot_records(
+                exp_id=self.exp_id,
+                simulation_step=step,
+                agent_id=agent_id,
+                day=day,
+                t=t,
+            )
+            kv_records.extend(snapshot_records.get("kv", []))
+            stream_records.extend(snapshot_records.get("stream", []))
+            spatial_records.extend(snapshot_records.get("spatial", []))
+            kv_data = snapshot_records.get("status", {})
 
             # Keep tracking this for observability; checkpoint persistence no longer depends on it.
             from ..agent import CitizenAgentBase
@@ -1129,37 +1126,6 @@ class SimulationEngine:
                 position = kv_data.get("position", {})
                 if position and "lane_position" in position:
                     all_at_aoi = False
-
-            # Stream snapshot
-            stream_nodes = await agent.stream.get_all()
-            for node in stream_nodes:
-                stream_records.append({
-                    "exp_id": self.exp_id,
-                    "simulation_step": step,
-                    "agent_id": agent_id,
-                    "memory_id": node["id"] or 0,
-                    "cognition_id": node.get("cognition_id"),
-                    "topic": node.get("topic", ""),
-                    "location": str(node.get("location", "")),
-                    "description": node.get("description", ""),
-                    "day": node.get("day", day),
-                    "t": node.get("t", t),
-                })
-
-            # Spatial snapshot
-            for loc_id, node in agent.memory.spatial._locations.items():
-                spatial_records.append({
-                    "exp_id": self.exp_id,
-                    "simulation_step": step,
-                    "agent_id": agent_id,
-                    "location_id": str(loc_id),
-                    "description": node.description,
-                    "price": node.price,
-                    "atmosphere": node.atmosphere,
-                    "satisfaction": node.satisfaction,
-                    "convenience": node.convenience,
-                    "uncertainty": node.uncertainty,
-                })
 
         # Message snapshot (before the drain in step())
         msg_records: list[dict] = []
