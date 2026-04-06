@@ -104,7 +104,7 @@ class LLM:
     def __init__(
         self,
         configs: List[LLMConfig],
-        num_actors: int = max(cpu_count() * 2, 32),
+        num_actors: int = min(cpu_count(), 32),
         metrics_actor: Optional[PrometheusActor] = None,
         db_actor: Optional[DatabaseActor] = None,
     ):
@@ -114,7 +114,7 @@ class LLM:
         - **Parameters**:
             - `configs`: An instance of `LLMConfig` containing configuration settings for the LLM.
             - `num_actors` (`int`): Number of actor instances to create for parallel processing.
-              Defaults to max(cpu_count() * 2, 32) to support high-concurrency workloads.
+              Defaults to min(cpu_count(), 32) to support high-concurrency workloads.
               For 1000+ agents, consider increasing to 64+ actors.
         """
 

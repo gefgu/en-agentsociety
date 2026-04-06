@@ -5,7 +5,8 @@ from typing import Literal, Optional, Dict, List, Any
 import uuid
 
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import select, update, text, and_, desc, asc
+from sqlalchemy import select, update, text, and_, desc, asc, event
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -79,7 +80,27 @@ class DatabaseConfig(BaseModel):
             raise ValueError(f"Unsupported database type: {self.db_type}")
 
 def _create_async_engine_from_config(config: DatabaseConfig, sqlite_path: Path):
-    return create_async_engine(config.get_dsn(sqlite_path))
+    dsn = config.get_dsn(sqlite_path)
+    if config.db_type == "sqlite":
+        # SQLite defaults are too strict for mixed async read/write workloads.
+        # Use WAL + busy_timeout so short lock windows do not fail the simulation.
+        engine = create_async_engine(
+            dsn,
+            connect_args={"timeout": 30},
+            pool_pre_ping=True,
+        )
+
+        @event.listens_for(engine.sync_engine, "connect")
+        def _set_sqlite_pragmas(dbapi_connection, _connection_record):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+            cursor.execute("PRAGMA busy_timeout=30000")
+            cursor.close()
+
+        return engine
+
+    return create_async_engine(dsn, pool_pre_ping=True)
 
 
 async def _create_tables(exp_id: str, config: DatabaseConfig, sqlite_path: Path):
@@ -181,6 +202,14 @@ class DatabaseWriter:
             return sqlite_insert
         else:
             raise ValueError(f"Unsupported database type: {self._config.db_type}")
+
+    def _is_sqlite_lock_error(self, error: Exception) -> bool:
+        if self._config.db_type != "sqlite":
+            return False
+        if not isinstance(error, OperationalError):
+            return False
+        err_msg = str(error).lower()
+        return "database is locked" in err_msg or "database table is locked" in err_msg
 
     @property
     def exp_info_file(self):
@@ -963,6 +992,7 @@ class DatabaseWriter:
                 get_logger().error(f"Error updating experiment info in {self._config.db_type}: {e}")
                 raise
 
+    @lock_decorator
     async def fetch_pending_dialogs(self):
         """
         Fetch all unprocessed pending dialogs from the database.
@@ -972,17 +1002,33 @@ class DatabaseWriter:
         """
         table_obj = self._tables["pending_dialog"]["table"]
         
-        async with self._async_session() as session:
-            try:
-                stmt = select(table_obj).where(table_obj.c.processed == False)
-                result = await session.execute(stmt)
-                rows = result.fetchall()
-                
-                return [StoragePendingDialog(**row._asdict()) for row in rows]
-                
-            except Exception as e:
-                get_logger().error(f"Error fetching pending dialogs from {self._config.db_type}: {e}")
-                raise
+        max_attempts = 4 if self._config.db_type == "sqlite" else 1
+
+        for attempt in range(1, max_attempts + 1):
+            async with self._async_session() as session:
+                try:
+                    stmt = select(table_obj).where(table_obj.c.processed.is_(False))
+                    result = await session.execute(stmt)
+                    rows = result.fetchall()
+
+                    return [StoragePendingDialog(**row._asdict()) for row in rows]
+
+                except Exception as e:
+                    if attempt < max_attempts and self._is_sqlite_lock_error(e):
+                        delay_seconds = 0.2 * attempt
+                        get_logger().warning(
+                            "SQLite lock while fetching pending dialogs "
+                            f"(attempt {attempt}/{max_attempts}), retrying in {delay_seconds:.1f}s: {e}"
+                        )
+                        await asyncio.sleep(delay_seconds)
+                        continue
+
+                    get_logger().error(
+                        f"Error fetching pending dialogs from {self._config.db_type}: {e}"
+                    )
+                    raise
+
+        return []
 
     @lock_decorator
     async def mark_dialogs_as_processed(self, pending_ids: list[int]):
@@ -1015,6 +1061,7 @@ class DatabaseWriter:
                 get_logger().error(f"Error marking dialogs as processed in {self._config.db_type}: {e}")
                 raise
 
+    @lock_decorator
     async def fetch_pending_surveys(self):
         """
         Fetch all unprocessed pending surveys from the database.
@@ -1024,23 +1071,39 @@ class DatabaseWriter:
         """
         table_obj = self._tables["pending_survey"]["table"]
         
-        async with self._async_session() as session:
-            try:
-                stmt = select(table_obj).where(table_obj.c.processed == False)
-                result = await session.execute(stmt)
-                rows = result.fetchall()
-                
-                results = []
-                for row in rows:
-                    row_dict = row._asdict()
-                    row_dict["survey_id"] = str(row_dict["survey_id"])
-                    results.append(StoragePendingSurvey(**row_dict))
-                
-                return results
-                
-            except Exception as e:
-                get_logger().error(f"Error fetching pending surveys from {self._config.db_type}: {e}")
-                raise
+        max_attempts = 4 if self._config.db_type == "sqlite" else 1
+
+        for attempt in range(1, max_attempts + 1):
+            async with self._async_session() as session:
+                try:
+                    stmt = select(table_obj).where(table_obj.c.processed.is_(False))
+                    result = await session.execute(stmt)
+                    rows = result.fetchall()
+
+                    results = []
+                    for row in rows:
+                        row_dict = row._asdict()
+                        row_dict["survey_id"] = str(row_dict["survey_id"])
+                        results.append(StoragePendingSurvey(**row_dict))
+
+                    return results
+
+                except Exception as e:
+                    if attempt < max_attempts and self._is_sqlite_lock_error(e):
+                        delay_seconds = 0.2 * attempt
+                        get_logger().warning(
+                            "SQLite lock while fetching pending surveys "
+                            f"(attempt {attempt}/{max_attempts}), retrying in {delay_seconds:.1f}s: {e}"
+                        )
+                        await asyncio.sleep(delay_seconds)
+                        continue
+
+                    get_logger().error(
+                        f"Error fetching pending surveys from {self._config.db_type}: {e}"
+                    )
+                    raise
+
+        return []
 
     @lock_decorator
     async def mark_surveys_as_processed(self, pending_ids: list[int]):
