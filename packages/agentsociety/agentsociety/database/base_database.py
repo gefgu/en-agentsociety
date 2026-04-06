@@ -446,7 +446,6 @@ class BaseSimulationDatabase(ABC):
 				resume_step=resume_step,
 				rollback_depth=rollback_depth,
 				expected_agent_ids=set(),
-				has_economy=bool(economy_checkpoint_path),
 			)
 
 		return {
@@ -469,7 +468,6 @@ class BaseSimulationDatabase(ABC):
 		resume_step: int,
 		rollback_depth: int,
 		expected_agent_ids: set[int],
-		has_economy: bool = False,
 	) -> tuple[int, dict[int, list], dict[int, list], dict[int, list], list[dict], str]:
 		"""Fetch KV/stream/spatial/message snapshots, rolling back up to rollback_depth steps."""
 		candidate_rows = self._run_resume_query(
@@ -516,29 +514,12 @@ class BaseSimulationDatabase(ABC):
 				)
 				continue
 
-			econ_path = ""
-			if has_economy:
-				econ_path = str(
-					self.home_dir
-					/ "checkpoints"
-					/ source_exp_id
-					/ f"econ_step_{attempt_step}.bin"
-				)
-				if not Path(econ_path).is_file():
-					reason = (
-						f"Economy checkpoint missing at step {attempt_step}: {econ_path}"
-					)
-					if first_failure_reason is None:
-						first_failure_reason = reason
-					get_logger().warning(
-						reason
-						+ (
-							f". Trying older step ({remaining} remaining)."
-							if remaining > 0
-							else ". No more candidates."
-						)
-					)
-					continue
+			econ_path = str(
+				self.home_dir
+				/ "checkpoints"
+				/ source_exp_id
+				/ f"econ_step_{attempt_step}.bin"
+			)
 
 			kv_snapshots: dict[int, list[dict]] = {}
 			for row in kv_rows:
@@ -591,15 +572,12 @@ class BaseSimulationDatabase(ABC):
 				econ_path,
 			)
 
-		if first_failure_reason:
-			get_logger().warning(
-				f"All {len(candidate_steps)} checkpoint candidate(s) failed. "
-				f"First error: {first_failure_reason}"
-			)
-		get_logger().warning(
-			"No valid checkpoint snapshots found; memory will start from defaults"
+		n = len(candidate_steps)
+		detail = f" First error: {first_failure_reason}" if first_failure_reason else ""
+		raise RuntimeError(
+			f"Resume failed: no valid checkpoint found for experiment '{source_exp_id}'. "
+			f"All {n} candidate step(s) were rejected.{detail}"
 		)
-		return -1, {}, {}, {}, [], ""
 
 	def update_experiment_info_checkpoint(
 		self,
