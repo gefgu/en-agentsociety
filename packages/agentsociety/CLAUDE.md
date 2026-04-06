@@ -108,4 +108,11 @@ All config lives in `configs/__init__.py`. Workflow steps are defined as a list 
 
 ### Testing
 
-Use `sh tests/run_e2e_tests`
+Always run tests using the shell script, never with `python` directly:
+
+```bash
+# From packages/agentsociety/
+sh tests/run_e2e_tests.sh
+```
+
+The script handles Python interpreter selection, Ray environment variables, and working directory setup. Running individual test files with `python` directly will fail due to missing environment setup.

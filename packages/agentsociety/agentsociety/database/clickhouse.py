@@ -260,7 +260,7 @@ class ClickHouseDatabase(BaseSimulationDatabase):
                 raise ValueError("resume_step and rollback_depth are required for candidate_steps query")
             return (
                 "SELECT DISTINCT simulation_step FROM agent_kv_snapshot "
-                "WHERE exp_id = {source_exp_id:String} AND simulation_step <= {resume_step:Int32} "
+                "WHERE exp_id = {source_exp_id:String} AND simulation_step >= 1 AND simulation_step <= {resume_step:Int32} "
                 "ORDER BY simulation_step DESC "
                 "LIMIT {rollback_depth:Int32}",
                 {

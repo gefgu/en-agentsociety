@@ -1,12 +1,10 @@
 # Fault-Tolerant Resume — Economy Checkpoint Check Fix — Run Tracking
 
 Plan: `docs/features/fault-tolerant-resume-economy-fix.md`
-Test command: `python -m py_compile`
+Test command: `cd /mnt/raid5/gustavo/citysim/packages/agentsociety && sh tests/run_e2e_tests.sh`
 
 ## Steps
 
-- [ ] Step 1: `clickhouse.py` — `_fetch_checkpoint_snapshots()`: remove `has_economy` param, add `AND simulation_step >= 1`, replace economy guard with unconditional `econ_path` assignment
-- [ ] Step 2: `clickhouse.py` — `fetch_resume_data()`: remove `has_economy=bool(economy_checkpoint_path)` from call
-- [ ] Step 3: `duckdb.py` — `_fetch_checkpoint_snapshots()`: mirror Step 1
-- [ ] Step 4: `duckdb.py` — `fetch_resume_data()`: mirror Step 2
-- [ ] Step 5: `simulationengine.py` — `_restore_external_simulator_state()`: replace `RuntimeError` with WARNING log
+- [x] Step 1: `base_database.py` — `_fetch_checkpoint_snapshots()`: remove `has_economy` param, replace economy guard block with unconditional `econ_path` assignment, replace silent fallback with `RuntimeError`
+- [x] Step 2: `base_database.py` — `fetch_resume_data()`: remove `has_economy=bool(economy_checkpoint_path)` from call
+- [x] Step 3: `clickhouse.py` and `duckdb.py` — `_resume_query("candidate_steps", ...)`: add `AND simulation_step >= 1` to WHERE clause in both backends

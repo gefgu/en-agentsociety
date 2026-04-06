@@ -302,7 +302,7 @@ class DuckDBDatabase(BaseSimulationDatabase):
                 raise ValueError("resume_step and rollback_depth are required for candidate_steps query")
             return (
                 "SELECT DISTINCT simulation_step FROM agent_kv_snapshot "
-                "WHERE exp_id = ? AND simulation_step <= ? "
+                "WHERE exp_id = ? AND simulation_step >= 1 AND simulation_step <= ? "
                 "ORDER BY simulation_step DESC "
                 "LIMIT ?",
                 [source_exp_id, resume_step, rollback_depth],
