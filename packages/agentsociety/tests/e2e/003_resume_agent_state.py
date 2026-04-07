@@ -70,7 +70,7 @@ def main() -> None:
 
         try:
             # Running without a timeout so it runs to completion
-            run_with_ray(run_society(config_run2, timeout=None))
+            run_with_ray(run_society(config_run2, timeout=args.crash_after_seconds))
             logging.info("E2E ClickHouse RESUME test PASSED — simulation completed without crashing.")
         except Exception as e:
             logging.exception(f"E2E ClickHouse RESUME test FAILED: {e}")

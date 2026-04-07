@@ -522,7 +522,7 @@ class CheckpointManager:
                 await environment.economy_client.save(econ_path)
                 prev_checkpoint = self._last_mobility_safe_step
                 self._last_mobility_safe_step = step
-                db_actor.update_experiment_info_checkpoint.remote(
+                await db_actor.update_experiment_info_checkpoint.remote(
                     exp_id=self._exp_id,
                     last_mobility_safe_step=step,
                     prev_mobility_safe_step=prev_checkpoint,

@@ -221,17 +221,9 @@ class SimulationEngine:
             assert self._environment is not None, "Environment is not initialized"
             assert self._messager is not None, "Messager is not initialized"
             assert self._embedding is not None, "Embedding is not initialized"
-            await self._infrastructure_manager.load_resume_state()
-            self._sync_infrastructure_state()
-            self._total_steps = self._checkpoint_manager.restore_runtime_state(
-                resume_state=self._resume_state,
-                exp_info=self._exp_info,
-                llm=self._llm,
-                environment=self._environment,
-            )
-            self._start_data_recorder()
 
-            # Initialize agent manager
+            # Initialize agent manager and prepare agent list before loading resume state
+            # so we can pass expected_agent_ids to the snapshot completeness check.
             self._agent_manager = AgentManager(
                 config=self._config,
                 llm=self._llm,
@@ -243,12 +235,20 @@ class SimulationEngine:
                 db_actor=self._db_actor,
                 exp_id=self.exp_id,
             )
-
-            # Create toolbox and initialize agents
             await self._agent_manager.create_toolbox()
-            agents = await self._agent_manager.prepare_agents(
-                resume_state=self._resume_state
+            agents = await self._agent_manager.prepare_agents()
+            expected_agent_ids = {agent_init[0] for agent_init in agents}
+
+            await self._infrastructure_manager.load_resume_state(expected_agent_ids=expected_agent_ids)
+            self._sync_infrastructure_state()
+            self._total_steps = self._checkpoint_manager.restore_runtime_state(
+                resume_state=self._resume_state,
+                exp_info=self._exp_info,
+                llm=self._llm,
+                environment=self._environment,
             )
+            self._start_data_recorder()
+
             self._infrastructure_manager._validate_resume_agent_count(agents)
             await self._agent_manager.initialize_agents(agents, self._resume_state)
 

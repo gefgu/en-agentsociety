@@ -42,7 +42,7 @@ if [ -n "${PYTHON_BIN}" ]; then
 	# "$PYTHON_BIN" "003_resume_agent_state.py" "--config" "$E2E_DIR/configs/003_resume_single_agent_with_local.yaml" "$@"
 	"$PYTHON_BIN" "003_resume_agent_state.py" "--config" "$E2E_DIR/configs/003_resume_10_agents_local.yaml" "$@"
 	# "$PYTHON_BIN" "004_resume_moving_agent_state.py" "--config" "$E2E_DIR/configs/003_resume_10_agents_local.yaml" "$@"
-    # "${PYTHON_BIN}" "004_resume_moving_agent_state.py" "--config" "${E2E_DIR}/configs/003_resume_100_agents_local.yaml" "--wait-for-movement-timeout-seconds" "900" "$@"
+	# "${PYTHON_BIN}" "004_resume_moving_agent_state.py" "--config" "${E2E_DIR}/configs/003_resume_100_agents_local.yaml" "--wait-for-movement-timeout-seconds" "900" "$@"
 fi
 
 # It takes about 5-10 minutes to run fully each script

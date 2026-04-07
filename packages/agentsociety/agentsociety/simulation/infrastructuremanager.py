@@ -169,41 +169,74 @@ class InfrastructureManager:
             env_config.pop("db", None)
             env_config.pop("clickhouse", None)
             env_config.pop("s3", None)
+            env_config.pop("logging_level", None)
+            env_config.pop("monitoring_enabled", None)
+            env_config.pop("data_dir", None)
 
         normalized = InfrastructureManager._normalize_config_value(loaded)
         if isinstance(normalized, dict):
             return normalized
         return {}
 
-    @staticmethod
-    def _count_citizen_agents(agents: list[tuple[Any, ...]]) -> int:
-        """Count citizen agents in agent initialization list."""
-        count = 0
-        for agent_init in agents:
-            _, agent_class, *_ = agent_init
-            if issubclass(agent_class, CitizenAgentBase):
-                count += 1
-        return count
-
     def _validate_resume_agent_count(
         self, agents: list[tuple[Any, ...]]
     ) -> None:
-        """Validate citizen agent count matches resume source."""
+        """Validate total agent count matches KV snapshot count from resume source.
+
+        Compares the total number of agents configured for this run (citizens +
+        institutions) against the number of unique agent IDs found in the KV
+        snapshot table.  Old snapshots that contain only citizens will produce
+        a warning instead of an error so that backward-compat is preserved.
+
+        Args:
+            agents: List of agent initialization tuples produced by
+                ``AgentManager.prepare_agents``.
+
+        @usedBy: simulationengine.SimulationEngine.init
+        """
         if self._resume_state is None:
             return
 
         kv_snapshots = self._resume_state.get("kv_snapshots", {})
-        expected_citizens = self._count_citizen_agents(agents)
-        available_citizens = len(kv_snapshots)
-        if expected_citizens != available_citizens:
-            raise ValueError(
-                "Agent number mismatch for resume source experiment "
-                f"'{self._resume_exp_id}': configured citizens={expected_citizens}, "
-                f"kv snapshot agent count={available_citizens}"
-            )
+        expected_total = len(agents)
+        available_total = len(kv_snapshots)
 
-    async def load_resume_state(self) -> None:
-        """Load resume metadata from database backends when resume_exp_id is set."""
+        if expected_total == available_total:
+            return
+
+        # Count citizens only to distinguish old-snapshot compat from a real mismatch.
+        expected_citizens = sum(
+            1 for agent_init in agents
+            if issubclass(agent_init[1], CitizenAgentBase)
+        )
+        if available_total == expected_citizens:
+            get_logger().warning(
+                f"Resume source experiment '{self._resume_exp_id}' snapshot contains "
+                f"only citizen agents ({available_total}), but this run has "
+                f"{expected_total} total agents (including institutions). "
+                "Institution agent memory will be re-initialized from config."
+            )
+            return
+
+        raise ValueError(
+            f"Agent number mismatch for resume source experiment '{self._resume_exp_id}': "
+            f"configured total={expected_total} (citizens={expected_citizens}), "
+            f"kv snapshot agent count={available_total}"
+        )
+
+    async def load_resume_state(self, expected_agent_ids: Optional[set[int]] = None) -> None:
+        """Load resume metadata from database backends when resume_exp_id is set.
+
+        Args:
+            expected_agent_ids: Set of agent IDs expected in the snapshot.  When
+                provided, the completeness check inside
+                ``_fetch_checkpoint_snapshots`` is activated and the system will
+                roll back to an earlier step if any of these IDs are missing from
+                the chosen snapshot.  Pass ``None`` (or omit) to skip the check.
+
+        @usedBy: simulationengine.SimulationEngine.init
+        Side effects: sets ``self._resume_state``.
+        """
         if not self._resume_exp_id:
             return
 
@@ -213,6 +246,7 @@ class InfrastructureManager:
         resume_data = await self._db_actor.fetch_resume_data.remote(
             self._resume_exp_id,
             rollback_depth=self._config.env.resume_rollback_depth,
+            expected_agent_ids=expected_agent_ids if expected_agent_ids is not None else set(),
         )
         if resume_data is None:
             get_logger().warning(

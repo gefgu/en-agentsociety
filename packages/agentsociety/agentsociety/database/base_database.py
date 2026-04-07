@@ -387,7 +387,7 @@ class BaseSimulationDatabase(ABC):
 		return self._query_rows(query, parameters)
 
 	def fetch_resume_data(
-		self, source_exp_id: str, rollback_depth: int = 10
+		self, source_exp_id: str, rollback_depth: int = 10, expected_agent_ids: set[int] = set()
 	) -> Optional[dict[str, Any]]:
 		"""Fetch config, latest step, and latest static attributes for a source experiment."""
 		if not self._is_connected():
@@ -432,6 +432,13 @@ class BaseSimulationDatabase(ABC):
 		spatial_snapshots: dict[int, list[dict]] = {}
 		pending_messages: list[dict] = []
 
+		if resume_step == 0:
+			raise RuntimeError(
+				f"Resume failed for experiment '{source_exp_id}': the only available "
+				"checkpoint is at step 0, which is excluded from resume by design "
+				"(step-0 state is semantically empty). Please start a new experiment."
+			)
+
 		if resume_step >= 0:
 			(
 				resume_step,
@@ -445,7 +452,7 @@ class BaseSimulationDatabase(ABC):
 				source_uuid=source_uuid,
 				resume_step=resume_step,
 				rollback_depth=rollback_depth,
-				expected_agent_ids=set(),
+				expected_agent_ids=expected_agent_ids,
 			)
 
 		return {

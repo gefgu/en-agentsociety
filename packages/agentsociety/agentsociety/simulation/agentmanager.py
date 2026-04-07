@@ -17,7 +17,6 @@ from typing import Any, Optional, Union, cast
 from ..agent import (
     Agent,
     AgentToolbox,
-    CitizenAgentBase,
 )
 from ..agent.distribution import DistributionConfig, DistributionType
 from ..agent.memory_config_generator import (
@@ -123,16 +122,6 @@ class AgentManager:
             database_writer=self._database_writer,
         )
         return self._agent_toolbox
-
-    @staticmethod
-    def _count_citizen_agents(agents: list[tuple[Any, ...]]) -> int:
-        """Count the number of citizen agents in a list of agent tuples."""
-        count = 0
-        for agent_init in agents:
-            _, agent_class, *_ = agent_init
-            if issubclass(agent_class, CitizenAgentBase):
-                count += 1
-        return count
 
     async def prepare_agents(
         self,
@@ -531,8 +520,8 @@ class AgentManager:
                 memory_config=memory_config,
             )
 
-            # Apply resume state if available
-            if resume_state is not None and issubclass(agent_class, CitizenAgentBase):
+            # Apply resume state if available (for all agent types).
+            if resume_state is not None:
                 kv_snapshots = resume_state.get("kv_snapshots", {})
                 kv_entries = kv_snapshots.get(agent_id, [])
                 stream_snapshots = resume_state.get("stream_snapshots", {})
@@ -540,11 +529,12 @@ class AgentManager:
                 spatial_snapshots = resume_state.get("spatial_snapshots", {})
                 spatial_entries = spatial_snapshots.get(agent_id, [])
 
-                await memory_init.resume_from_snapshots(
-                    kv_entries=kv_entries,
-                    stream_entries=stream_entries,
-                    spatial_entries=spatial_entries,
-                )
+                if kv_entries or stream_entries or spatial_entries:
+                    await memory_init.resume_from_snapshots(
+                        kv_entries=kv_entries,
+                        stream_entries=stream_entries,
+                        spatial_entries=spatial_entries,
+                    )
 
             # Create blocks if provided
             if blocks is not None:
