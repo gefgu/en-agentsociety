@@ -1,7 +1,7 @@
 [metadata]
 name = "other_sleep_time_estimate"
 version = "1.0.0"
-origin = "agentsociety"
+origin = "citysim"
 description = "Estimate sleep action duration from plan, intention, and persona"
 
 [inputs]
