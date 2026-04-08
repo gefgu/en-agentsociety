@@ -135,11 +135,11 @@ class PlanBlock(Block):
         response = await self.llm.atext_request(
             dialog,
             response_format={"type": "json_object"},
-            context={
-                "block_name": self.name,
-                "func_name": "select_guidance",
-                "agent_id": self.agent.id,
-            },
+            context=self.build_llm_prompt_context(
+                prompt_name=self.guidance_prompt_name,
+                state_dict=state_dict,
+                func_name="select_guidance",
+            ),
         )
 
         retry = 3
@@ -200,11 +200,11 @@ class PlanBlock(Block):
 
         response = await self.llm.atext_request(
             dialog,
-            context={
-                "block_name": self.name,
-                "func_name": "generate_detailed_plan",
-                "agent_id": self.agent.id,
-            },
+            context=self.build_llm_prompt_context(
+                prompt_name=self.detail_prompt_name,
+                state_dict=state_dict,
+                func_name="generate_detailed_plan",
+            ),
         )
 
         retry = 3

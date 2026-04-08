@@ -19,8 +19,64 @@ required = [
     "agreeableness",
     "neuroticism",
     "risk_tolerance",
-    "other_information"
+    "other_information",
 ]
+
+[inputs.weather]
+type = "text"
+description = "Weather input value used by this prompt."
+
+[inputs.temperature]
+type = "float"
+description = "Current temperature context value."
+
+[inputs.current_emotion]
+type = "text"
+description = "Current emotion input value used by this prompt."
+
+[inputs.current_thought]
+type = "text"
+description = "Current thought input value used by this prompt."
+
+[inputs.household]
+type = "text"
+description = "Household input value used by this prompt."
+
+[inputs.life_stage]
+type = "text"
+description = "Life stage input value used by this prompt."
+
+[inputs.hobbies]
+type = "text"
+description = "Hobbies input value used by this prompt."
+
+[inputs.openness]
+type = "integer"
+description = "Big Five trait: Openness (1=Low, 2=Medium, 3=High)."
+
+[inputs.conscientiousness]
+type = "integer"
+description = "Big Five trait: Conscientiousness (1=Low, 2=Medium, 3=High)."
+
+[inputs.extraversion]
+type = "integer"
+description = "Big Five trait: Extraversion (1=Low, 2=Medium, 3=High)."
+
+[inputs.agreeableness]
+type = "integer"
+description = "Big Five trait: Agreeableness (1=Low, 2=Medium, 3=High)."
+
+[inputs.neuroticism]
+type = "integer"
+description = "Big Five trait: Neuroticism (1=Low, 2=Medium, 3=High)."
+
+[inputs.risk_tolerance]
+type = "float"
+description = "Risk tolerance for uncertain or unfamiliar options (0.0 to 1.0)."
+
+[inputs.other_information]
+type = "text"
+description = "Other information input value used by this prompt."
 
 [prompt]
 input = """As an intelligent decision system, please determine the maximum travel radius (in meters) based on the current emotional state.
@@ -48,3 +104,8 @@ Please response in json format (Do not return any other text), example:
     "radius": 10000
 }}
 """
+output_guidance = "Return JSON only, without any extra text."
+
+[outputs.radius]
+type = "integer"
+description = "Selected mobility search radius in meters."

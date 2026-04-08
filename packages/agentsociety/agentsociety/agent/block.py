@@ -152,6 +152,37 @@ class Block:
     @property
     def environment(self) -> Environment:
         return self._toolbox.environment
+
+    def build_llm_prompt_context(
+        self,
+        *,
+        prompt_name: str,
+        state_dict: dict[str, Any],
+        func_name: str,
+        block_name: Optional[str] = None,
+    ) -> dict[str, Any]:
+        if self.prompt_manager is None:
+            raise RuntimeError("PromptManager is not initialized")
+
+        # Avoid raising when a block is invoked before set_agent; fall back to block-level id.
+        agent_ref = self._agent
+        agent_id = getattr(agent_ref, "id", None)
+        if agent_id is None:
+            agent_id = getattr(self, "id", "unknown")
+
+        return {
+            "block_name": block_name or self.name,
+            "func_name": func_name,
+            "agent_id": str(agent_id),
+            "prompt_identity": self.prompt_manager.get_prompt_identity(prompt_name),
+            "prompt_inputs": {
+                key: state_dict[key]
+                for key in self.prompt_manager.get_typed_input_fields(prompt_name)
+                if key in state_dict
+            },
+            "prompt_input_schema": self.prompt_manager.get_input_schema(prompt_name),
+            "prompt_output_schema": self.prompt_manager.get_output_schema(prompt_name),
+        }
     
     @classmethod
     def _get_or_create_prompt_manager(cls, simulation_prompt_config: Optional[dict]) -> Optional[PromptManager]:

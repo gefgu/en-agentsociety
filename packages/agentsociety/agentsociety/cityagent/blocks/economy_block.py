@@ -92,11 +92,11 @@ class WorkBlock(Block):
         result = await self.llm.atext_request(
             final_prompt,
             response_format={"type": "json_object"},
-            context={
-                "block_name": self.name,
-                "func_name": "forward",
-                "agent_id": self.agent.id,
-            },
+            context=self.build_llm_prompt_context(
+                prompt_name=self.prompt_name,
+                state_dict=state_dict,
+                func_name="forward",
+            ),
         )
         result = clean_json_response(result)
         try:
@@ -511,11 +511,11 @@ class MonthEconomyPlanBlock(Block):
                 content = await self.llm.atext_request(
                     list(dialog_queue),
                     timeout=300,
-                    context={
-                        "block_name": self.name,
-                        "func_name": "forward",
-                        "agent_id": agent_id,
-                    },
+                    context=self.build_llm_prompt_context(
+                        prompt_name=self.month_plan_prompt_name,
+                        state_dict=obs_state,
+                        func_name="forward",
+                    ),
                 )
                 await self.memory.status.update(
                     "dialog_queue",
@@ -582,11 +582,11 @@ class MonthEconomyPlanBlock(Block):
                 content = await self.llm.atext_request(
                     [{"role": "user", "content": obs_prompt}],
                     timeout=300,
-                    context={
-                        "block_name": self.name,
-                        "func_name": "forward",
-                        "agent_id": agent_id,
-                    },
+                    context=self.build_llm_prompt_context(
+                        prompt_name=self.mental_health_prompt_name,
+                        state_dict=mental_state,
+                        func_name="forward",
+                    ),
                 )
                 inverse_score_items = [3, 8, 12, 16]
                 category2score = {"rarely": 0, "some": 1, "occasionally": 2, "most": 3}
@@ -651,11 +651,11 @@ class MonthEconomyPlanBlock(Block):
             content = await self.llm.atext_request(
                 [{"role": "user", "content": GOALS_PROMPT}],
                 timeout=300,
-                context={
-                    "block_name": self.name,
-                    "func_name": "forward_goal_creation",
-                    "agent_id": agent_id,
-                },
+                context=self.build_llm_prompt_context(
+                    prompt_name=self.goal_creation_prompt_name,
+                    state_dict=goals_state,
+                    func_name="forward_goal_creation",
+                ),
             )
 
             try:

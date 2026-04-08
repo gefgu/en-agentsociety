@@ -1,13 +1,14 @@
 [metadata]
-name = "needs_reflection"
+name = "needs_evaluation"
 version = "1.0.0"
-origin = "agentsociety"
-description = "Reflect intervention impact and rebuild needs"
+origin = "citysim"
+description = "Evaluate completed plan results and adjust need satisfaction"
 
 [inputs]
 required = [
-    "intervention_message",
-    "current_action",
+    "current_need",
+    "plan_target",
+    "evaluation_results",
     "hunger_satisfaction",
     "energy_satisfaction",
     "safety_satisfaction",
@@ -15,6 +16,7 @@ required = [
     "household",
     "life_stage",
     "hobbies",
+    "goals",
     "openness",
     "conscientiousness",
     "extraversion",
@@ -23,13 +25,17 @@ required = [
     "social_frequency",
 ]
 
-[inputs.intervention_message]
+[inputs.current_need]
 type = "text"
-description = "Intervention message input value used by this prompt."
+description = "The current need to evaluate (e.g., hunger, energy, safety, social, whatever)."
 
-[inputs.current_action]
+[inputs.plan_target]
 type = "text"
-description = "Current action input value used by this prompt."
+description = "The goal the agent attempted to complete for the current need."
+
+[inputs.evaluation_results]
+type = "text"
+description = "Execution outcome and observed results for the completed actions."
 
 [inputs.hunger_satisfaction]
 type = "float"
@@ -49,15 +55,19 @@ description = "Current social satisfaction level (0.0 to 1.0)."
 
 [inputs.household]
 type = "text"
-description = "Household input value used by this prompt."
+description = "Description of the agent's household composition."
 
 [inputs.life_stage]
 type = "text"
-description = "Life stage input value used by this prompt."
+description = "The agent's current stage of life (e.g., Young adulthood, Mid-life)."
 
 [inputs.hobbies]
 type = "text"
-description = "Hobbies input value used by this prompt."
+description = "Interests and activities the agent enjoys."
+
+[inputs.goals]
+type = "text"
+description = "The agent's short-term or long-term objectives."
 
 [inputs.openness]
 type = "integer"
@@ -84,14 +94,13 @@ type = "float"
 description = "Frequency of seeking social interaction (0.0 to 1.0)."
 
 [prompt]
-input = """You are an intelligent agent reflection system. Based on the intervention message below, please help to rebuild the satisfaction levels of the agent.
+input = """You are an evaluation system for an intelligent agent. The agent has performed the following actions to satisfy the {current_need} need:
 
-The agent has received/sense the following intervention message:
---------------------------------
-{intervention_message}
---------------------------------
+Goal: {plan_target}
+Execution situation:
+{evaluation_results}
 
-And the agent's current needs are:
+Current satisfaction:
 - hunger_satisfaction: {hunger_satisfaction}
 - energy_satisfaction: {energy_satisfaction}
 - safety_satisfaction: {safety_satisfaction}
@@ -100,6 +109,7 @@ And the agent's current needs are:
 Household type: {household}
 Life stage: {life_stage}
 Hobbies: {hobbies}
+Goals: {goals}
 
 Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 - Openness: {openness}
@@ -111,50 +121,41 @@ Big Five Personality Traits (1=Low, 2=Medium, 3=High):
 Behavioral Preferences:
 - Social Frequency: {social_frequency} (0.0=Rarely initiates social contact, 1.0=Frequently seeks social interaction)
 
-The agent's current action is:
---------------------------------
-{current_action}
---------------------------------
+Please evaluate and adjust the value of {current_need} satisfaction based on the execution results above.
 
-Please response in json format, example:
+Notes:
+1. Satisfaction values range from 0-1, where:
+   - 1 means the need is fully satisfied
+   - 0 means the need is completely unsatisfied
+   - Higher values indicate greater need satisfaction
+2. Consider social_frequency when evaluating social satisfaction: higher social_frequency means social activities have greater impact.
+"""
+output_guidance = """Return JSON only, without any extra text.
+
+If current_need is not "whatever", return only the updated value for that need, for example:
 {{
-    "hunger_satisfaction": new_hunger_satisfaction_value,
-    "energy_satisfaction": new_energy_satisfaction_value,
+    "hunger_satisfaction": new_hunger_satisfaction_value
+}}
+
+If current_need is "whatever", return both safety and social satisfaction values, for example:
+{{
     "safety_satisfaction": new_safety_satisfaction_value,
     "social_satisfaction": new_social_satisfaction_value
 }}
-If you think the agent has to stop the current action and do something to satisfy the needs, please response in json format, example:
-{{
-    "do_something": true,
-    "description": "Go to the hospital"
-}}
 """
-output_guidance = "Return JSON only, without any extra text."
-
-[outputs.do_something]
-type = "categorical"
-description = "Whether intervention requires an explicit action."
-categories = [
-    "yes",
-    "no",
-]
-
-[outputs.description]
-type = "text"
-description = "Intervention action description when do_something is yes."
 
 [outputs.hunger_satisfaction]
 type = "float"
-description = "Updated hunger satisfaction level."
+description = "Updated hunger satisfaction level (0.0 to 1.0)."
 
 [outputs.energy_satisfaction]
 type = "float"
-description = "Updated energy satisfaction level."
+description = "Updated energy satisfaction level (0.0 to 1.0)."
 
 [outputs.safety_satisfaction]
 type = "float"
-description = "Updated safety satisfaction level."
+description = "Updated safety satisfaction level (0.0 to 1.0)."
 
 [outputs.social_satisfaction]
 type = "float"
-description = "Updated social satisfaction level."
+description = "Updated social satisfaction level (0.0 to 1.0)."

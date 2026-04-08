@@ -6,16 +6,52 @@ description = "Initialize behavioral preferences from profile and psychographics
 
 [inputs]
 required = [
-  "age",
-  "occupation",
-  "income",
-  "household",
-  "openness",
-  "conscientiousness",
-  "extraversion",
-  "agreeableness",
-  "neuroticism"
+    "age",
+    "occupation",
+    "income",
+    "household",
+    "openness",
+    "conscientiousness",
+    "extraversion",
+    "agreeableness",
+    "neuroticism",
 ]
+
+[inputs.age]
+type = "integer"
+description = "Age input value used by this prompt."
+
+[inputs.occupation]
+type = "text"
+description = "Occupation input value used by this prompt."
+
+[inputs.income]
+type = "text"
+description = "Income input value used by this prompt."
+
+[inputs.household]
+type = "text"
+description = "Household input value used by this prompt."
+
+[inputs.openness]
+type = "integer"
+description = "Big Five trait: Openness (1=Low, 2=Medium, 3=High)."
+
+[inputs.conscientiousness]
+type = "integer"
+description = "Big Five trait: Conscientiousness (1=Low, 2=Medium, 3=High)."
+
+[inputs.extraversion]
+type = "integer"
+description = "Big Five trait: Extraversion (1=Low, 2=Medium, 3=High)."
+
+[inputs.agreeableness]
+type = "integer"
+description = "Big Five trait: Agreeableness (1=Low, 2=Medium, 3=High)."
+
+[inputs.neuroticism]
+type = "integer"
+description = "Big Five trait: Neuroticism (1=Low, 2=Medium, 3=High)."
 
 [prompt]
 input = """You are an intelligent agent behavioral analyst. Based on the demographic and psychographic profile below, please initialize the agent's daily habits and behavioral preferences.
@@ -60,3 +96,8 @@ DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
 DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
 DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
 """
+output_guidance = "Return JSON only, without any extra text."
+
+[outputs.preferences]
+type = "text"
+description = "JSON object containing initialized behavioral preferences."

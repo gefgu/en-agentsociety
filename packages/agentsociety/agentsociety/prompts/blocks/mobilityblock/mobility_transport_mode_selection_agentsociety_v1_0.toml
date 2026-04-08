@@ -22,8 +22,76 @@ required = [
     "neuroticism",
     "risk_tolerance",
     "emotion",
-    "available_modes"
+    "available_modes",
 ]
+
+[inputs.distance]
+type = "float"
+description = "Travel distance value used for decision-making."
+
+[inputs.time]
+type = "integer"
+description = "Estimated duration in minutes."
+
+[inputs.month]
+type = "text"
+description = "Month input value used by this prompt."
+
+[inputs.weather]
+type = "text"
+description = "Weather input value used by this prompt."
+
+[inputs.temperature]
+type = "float"
+description = "Current temperature context value."
+
+[inputs.persona]
+type = "text"
+description = "Persona input value used by this prompt."
+
+[inputs.household]
+type = "text"
+description = "Household input value used by this prompt."
+
+[inputs.life_stage]
+type = "text"
+description = "Life stage input value used by this prompt."
+
+[inputs.hobbies]
+type = "text"
+description = "Hobbies input value used by this prompt."
+
+[inputs.openness]
+type = "integer"
+description = "Big Five trait: Openness (1=Low, 2=Medium, 3=High)."
+
+[inputs.conscientiousness]
+type = "integer"
+description = "Big Five trait: Conscientiousness (1=Low, 2=Medium, 3=High)."
+
+[inputs.extraversion]
+type = "integer"
+description = "Big Five trait: Extraversion (1=Low, 2=Medium, 3=High)."
+
+[inputs.agreeableness]
+type = "integer"
+description = "Big Five trait: Agreeableness (1=Low, 2=Medium, 3=High)."
+
+[inputs.neuroticism]
+type = "integer"
+description = "Big Five trait: Neuroticism (1=Low, 2=Medium, 3=High)."
+
+[inputs.risk_tolerance]
+type = "float"
+description = "Risk tolerance for uncertain or unfamiliar options (0.0 to 1.0)."
+
+[inputs.emotion]
+type = "text"
+description = "Emotion input value used by this prompt."
+
+[inputs.available_modes]
+type = "text"
+description = "Available modes input value used by this prompt."
 
 [prompt]
 input = """As an intelligent transport decision system, please select the most appropriate transport mode for the user based on the current context and their persona.
@@ -61,3 +129,12 @@ Please response in json format (Do not return any other text), example:
     "reason": "Given the heavy rain and the 5km distance, driving is the most comfortable option despite the traffic."
 }}
 """
+output_guidance = "Return JSON only, without any extra text."
+
+[outputs.mode]
+type = "categorical"
+description = "Selected transport mode."
+
+[outputs.reason]
+type = "text"
+description = "Reasoning for selecting transport mode."

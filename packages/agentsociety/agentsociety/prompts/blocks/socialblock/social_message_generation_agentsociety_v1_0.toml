@@ -27,8 +27,96 @@ required = [
     "chat_history",
     "intention",
     "environment_info",
-    "discussion_constraint"
+    "discussion_constraint",
 ]
+
+[inputs.name]
+type = "text"
+description = "Name input value used by this prompt."
+
+[inputs.gender]
+type = "text"
+description = "Gender input value used by this prompt."
+
+[inputs.occupation]
+type = "text"
+description = "Occupation input value used by this prompt."
+
+[inputs.education]
+type = "text"
+description = "Education input value used by this prompt."
+
+[inputs.personality]
+type = "text"
+description = "Personality input value used by this prompt."
+
+[inputs.emotion_types]
+type = "text"
+description = "Emotion types input value used by this prompt."
+
+[inputs.thought]
+type = "text"
+description = "Thought input value used by this prompt."
+
+[inputs.background_story]
+type = "text"
+description = "Background story input value used by this prompt."
+
+[inputs.household]
+type = "text"
+description = "Household input value used by this prompt."
+
+[inputs.life_stage]
+type = "text"
+description = "Life stage input value used by this prompt."
+
+[inputs.hobbies]
+type = "text"
+description = "Hobbies input value used by this prompt."
+
+[inputs.openness]
+type = "integer"
+description = "Big Five trait: Openness (1=Low, 2=Medium, 3=High)."
+
+[inputs.conscientiousness]
+type = "integer"
+description = "Big Five trait: Conscientiousness (1=Low, 2=Medium, 3=High)."
+
+[inputs.extraversion]
+type = "integer"
+description = "Big Five trait: Extraversion (1=Low, 2=Medium, 3=High)."
+
+[inputs.agreeableness]
+type = "integer"
+description = "Big Five trait: Agreeableness (1=Low, 2=Medium, 3=High)."
+
+[inputs.neuroticism]
+type = "integer"
+description = "Big Five trait: Neuroticism (1=Low, 2=Medium, 3=High)."
+
+[inputs.relationship_type]
+type = "text"
+description = "Relationship type input value used by this prompt."
+
+[inputs.relationship_strength]
+type = "float"
+description = "Relationship strength score (0.0=weak, 1.0=strong)."
+
+[inputs.chat_history]
+type = "text"
+description = "Chat history input value used by this prompt."
+
+[inputs.intention]
+type = "text"
+description = "Intention input value used by this prompt."
+
+[inputs.environment_info]
+type = "text"
+description = "Environment info input value used by this prompt."
+
+[inputs.discussion_constraint]
+type = "text"
+description = "Discussion constraint input value used by this prompt."
 
 [prompt]
 input = """My name is {name}, I am a {gender}
@@ -68,3 +156,8 @@ The message should reflect my personality and background.
 
 Please output the message from a first-person perspective, without any other text
 """
+output_guidance = "Return JSON only, without any extra text."
+
+[outputs.message]
+type = "text"
+description = "Generated social message content."

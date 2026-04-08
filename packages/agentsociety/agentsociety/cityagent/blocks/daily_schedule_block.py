@@ -71,11 +71,11 @@ class DailyScheduleBlock(Block):
                 response = await self.llm.atext_request(
                     dialog,
                     response_format={"type": "json_object"},
-                    context={
-                        "block_name": self.name,
-                        "func_name": "generate_daily_schedule",
-                        "agent_id": self.agent.id,
-                    },
+                    context=self.build_llm_prompt_context(
+                        prompt_name=self.daily_schedule_prompt_name,
+                        state_dict=state_dict,
+                        func_name="generate_daily_schedule",
+                    ),
                 )
 
                 result: Any = json_repair.loads(clean_json_response(response))
@@ -172,11 +172,11 @@ class DailyScheduleBlock(Block):
         response = await self.llm.atext_request(
             dialog,
             response_format={"type": "json_object"},
-            context={
-                "block_name": self.name,
-                "func_name": "_fill_empty_block",
-                "agent_id": self.agent.id,
-            },
+            context=self.build_llm_prompt_context(
+                prompt_name=self.empty_block_prompt_name,
+                state_dict=state_dict,
+                func_name="_fill_empty_block",
+            ),
         )
 
         retry = 3

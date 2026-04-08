@@ -22,8 +22,76 @@ required = [
     "household",
     "life_stage",
     "wealth",
-    "interest_rate_pct"
+    "interest_rate_pct",
 ]
+
+[inputs.name]
+type = "text"
+description = "Name input value used by this prompt."
+
+[inputs.age]
+type = "integer"
+description = "Age input value used by this prompt."
+
+[inputs.city]
+type = "text"
+description = "City input value used by this prompt."
+
+[inputs.job]
+type = "text"
+description = "Job input value used by this prompt."
+
+[inputs.skill]
+type = "text"
+description = "Skill input value used by this prompt."
+
+[inputs.consumption_summary]
+type = "text"
+description = "Consumption summary input value used by this prompt."
+
+[inputs.tax_summary]
+type = "text"
+description = "Tax summary input value used by this prompt."
+
+[inputs.price]
+type = "text"
+description = "Price input value used by this prompt."
+
+[inputs.openness]
+type = "integer"
+description = "Big Five trait: Openness (1=Low, 2=Medium, 3=High)."
+
+[inputs.conscientiousness]
+type = "integer"
+description = "Big Five trait: Conscientiousness (1=Low, 2=Medium, 3=High)."
+
+[inputs.extraversion]
+type = "integer"
+description = "Big Five trait: Extraversion (1=Low, 2=Medium, 3=High)."
+
+[inputs.agreeableness]
+type = "integer"
+description = "Big Five trait: Agreeableness (1=Low, 2=Medium, 3=High)."
+
+[inputs.neuroticism]
+type = "integer"
+description = "Big Five trait: Neuroticism (1=Low, 2=Medium, 3=High)."
+
+[inputs.household]
+type = "text"
+description = "Household input value used by this prompt."
+
+[inputs.life_stage]
+type = "text"
+description = "Life stage input value used by this prompt."
+
+[inputs.wealth]
+type = "text"
+description = "Wealth input value used by this prompt."
+
+[inputs.interest_rate_pct]
+type = "float"
+description = "Current interest rate percentage context."
 
 [prompt]
 input = """You're {name}, a {age}-year-old individual living in {city}. As with all Americans, a portion of your monthly income is taxed by the federal government. This taxation system is tiered, income is taxed cumulatively within defined brackets, combined with a redistributive policy: after collection, the government evenly redistributes the tax revenue back to all citizens, irrespective of their earnings.
@@ -49,3 +117,12 @@ Please share your decisions in a JSON format as follows:
 }}
 Any other output words are NOT allowed.
 """
+output_guidance = "Return JSON only, without any extra text."
+
+[outputs.work]
+type = "float"
+description = "Work propensity score."
+
+[outputs.consumption]
+type = "float"
+description = "Consumption propensity score."

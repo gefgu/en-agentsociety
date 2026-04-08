@@ -82,6 +82,7 @@ class SimulationEngine:
         self._db_actor: Optional[DatabaseActor] = None
         self._db_tool: Optional[CustomTool] = None
         self._dispatcher_cache_tool: Optional[CustomTool] = None
+        self._llm_cache_tool: Optional[CustomTool] = None
         self._agent_manager: Optional[AgentManager] = None
         self._data_recorder: Optional[DataRecorder] = None
         yaml_config = yaml.dump(
@@ -152,6 +153,7 @@ class SimulationEngine:
         self._messager = self._infrastructure_manager.messager
         self._db_tool = self._infrastructure_manager.db_tool
         self._dispatcher_cache_tool = self._infrastructure_manager.dispatcher_cache_tool
+        self._llm_cache_tool = self._infrastructure_manager.llm_cache_tool
         self._resume_state = self._infrastructure_manager.resume_state
 
     def _start_data_recorder(self) -> None:
@@ -195,6 +197,10 @@ class SimulationEngine:
         get_logger().info("Adding dispatcher cache tool to Agents...")
         if self._dispatcher_cache_tool is not None:
             agent_toolbox.add_tool(self._dispatcher_cache_tool)
+
+        get_logger().info("Adding llm cache tool to Agents...")
+        if self._llm_cache_tool is not None:
+            agent_toolbox.add_tool(self._llm_cache_tool)
 
         get_logger().info("Initializing the agents...")
 

@@ -29,7 +29,7 @@ exp:
   name: "001_run_simplest_e2e"
   workflow:
     - type: step
-      steps: 3
+      steps: 10
       ticks_per_step: 600
   environment:
     start_tick: 25200  # 7 * 60 * 60 = 7 AM

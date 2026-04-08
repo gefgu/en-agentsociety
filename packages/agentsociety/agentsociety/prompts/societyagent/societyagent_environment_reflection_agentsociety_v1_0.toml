@@ -18,8 +18,60 @@ required = [
     "extraversion",
     "agreeableness",
     "neuroticism",
-    "area_information"
+    "area_information",
 ]
+
+[inputs.occupation]
+type = "text"
+description = "Occupation input value used by this prompt."
+
+[inputs.age]
+type = "integer"
+description = "Age input value used by this prompt."
+
+[inputs.emotion_types]
+type = "text"
+description = "Emotion types input value used by this prompt."
+
+[inputs.household]
+type = "text"
+description = "Household input value used by this prompt."
+
+[inputs.life_stage]
+type = "text"
+description = "Life stage input value used by this prompt."
+
+[inputs.hobbies]
+type = "text"
+description = "Hobbies input value used by this prompt."
+
+[inputs.goals]
+type = "text"
+description = "Goals input value used by this prompt."
+
+[inputs.openness]
+type = "integer"
+description = "Big Five trait: Openness (1=Low, 2=Medium, 3=High)."
+
+[inputs.conscientiousness]
+type = "integer"
+description = "Big Five trait: Conscientiousness (1=Low, 2=Medium, 3=High)."
+
+[inputs.extraversion]
+type = "integer"
+description = "Big Five trait: Extraversion (1=Low, 2=Medium, 3=High)."
+
+[inputs.agreeableness]
+type = "integer"
+description = "Big Five trait: Agreeableness (1=Low, 2=Medium, 3=High)."
+
+[inputs.neuroticism]
+type = "integer"
+description = "Big Five trait: Neuroticism (1=Low, 2=Medium, 3=High)."
+
+[inputs.area_information]
+type = "text"
+description = "Area information input value used by this prompt."
 
 [prompt]
 input = """You are a citizen of the city.
@@ -43,3 +95,8 @@ In your current location, you can sense the following information:
 
 What's your feeling about those environmental information?
 """
+output_guidance = "Return JSON only, without any extra text."
+
+[outputs.reflection]
+type = "text"
+description = "Generated free-text reflection about current environment."

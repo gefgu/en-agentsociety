@@ -6,14 +6,42 @@ description = "Initialize Big Five psychographic traits from profile"
 
 [inputs]
 required = [
-  "gender",
-  "education",
-  "consumption",
-  "occupation",
-  "age",
-  "income",
-  "background_story"
+    "gender",
+    "education",
+    "consumption",
+    "occupation",
+    "age",
+    "income",
+    "background_story",
 ]
+
+[inputs.gender]
+type = "text"
+description = "Gender input value used by this prompt."
+
+[inputs.education]
+type = "text"
+description = "Education input value used by this prompt."
+
+[inputs.consumption]
+type = "float"
+description = "Consumption input value used by this prompt."
+
+[inputs.occupation]
+type = "text"
+description = "Occupation input value used by this prompt."
+
+[inputs.age]
+type = "integer"
+description = "Age input value used by this prompt."
+
+[inputs.income]
+type = "text"
+description = "Income input value used by this prompt."
+
+[inputs.background_story]
+type = "text"
+description = "Background story input value used by this prompt."
 
 [prompt]
 input = """You are an intelligent agent psychographic initialization system. Based on the profile information below, please help initialize the agent's Big Five personality traits.
@@ -52,3 +80,8 @@ DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
 DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
 DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
 """
+output_guidance = "Return JSON only, without any extra text."
+
+[outputs.psychographic_traits]
+type = "text"
+description = "JSON object containing Big Five trait values."

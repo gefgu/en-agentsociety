@@ -3,6 +3,7 @@ from typing import Optional, Union
 from pydantic import BaseModel, Field
 
 from ..filesystem import FileSystemClient
+from ..llm.qdrant_cache_config import QdrantCacheConfig
 from ..s3 import S3Client, S3Config
 from ..storage import DatabaseConfig
 
@@ -74,6 +75,9 @@ class EnvConfig(BaseModel):
     resume_rollback_depth: int = Field(default=10, ge=0)
     """Maximum number of older checkpoints to try when the latest checkpoint is
     invalid during resume. 0 means fail immediately on the first bad step."""
+
+    qdrant_cache: QdrantCacheConfig = Field(default_factory=QdrantCacheConfig)
+    """Qdrant-backed LLM semantic cache configuration."""
 
 
     @property

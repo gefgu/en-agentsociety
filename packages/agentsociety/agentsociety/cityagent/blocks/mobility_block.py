@@ -193,11 +193,11 @@ class PlaceSelectionBlock(Block):
             response = await self.llm.atext_request(
                 dialog,
                 response_format={"type": "json_object"},
-                context={
-                    "block_name": self.name,
-                    "func_name": "AOI Area Selection",
-                    "agent_id": self.agent.id,
-                },
+                context=self.build_llm_prompt_context(
+                    prompt_name=self.area_selection_prompt_name,
+                    state_dict=state_dict,
+                    func_name="AOI Area Selection",
+                ),
             )
             
             result = json_repair.loads(clean_json_response(response))
@@ -300,11 +300,11 @@ class PlaceSelectionBlock(Block):
             response = await self.llm.atext_request(
                 dialog,
                 response_format={"type": "json_object"},
-                context={
-                    "block_name": self.name,
-                    "func_name": "Neighborhood Selection",
-                    "agent_id": self.agent.id,
-                },
+                context=self.build_llm_prompt_context(
+                    prompt_name=self.neighborhood_selection_prompt_name,
+                    state_dict=state_dict,
+                    func_name="Neighborhood Selection",
+                ),
             )
 
             result = json_repair.loads(clean_json_response(response))
@@ -463,11 +463,11 @@ class PlaceSelectionBlock(Block):
             levelOneType = await self.llm.atext_request(
                 type_dialog,
                 response_format={"type": "json_object"},
-                context={
-                    "block_name": self.name,
-                    "func_name": "Level 1 Type Selection",
-                    "agent_id": self.agent.id,
-                },
+                context=self.build_llm_prompt_context(
+                    prompt_name=self.type_selection_prompt_name,
+                    state_dict=type_state,
+                    func_name="Level 1 Type Selection",
+                ),
             )
             levelOneType = json_repair.loads(clean_json_response(levelOneType))["place_type"]  # type: ignore
             sub_category = poi_cate[levelOneType]
@@ -497,11 +497,11 @@ class PlaceSelectionBlock(Block):
             levelTwoType = await self.llm.atext_request(
                 second_type_dialog,
                 response_format={"type": "json_object"},
-                context={
-                    "block_name": self.name,
-                    "func_name": "Level 2 Type Selection",
-                    "agent_id": self.agent.id,
-                },
+                context=self.build_llm_prompt_context(
+                    prompt_name=self.second_type_selection_prompt_name,
+                    state_dict=second_type_state,
+                    func_name="Level 2 Type Selection",
+                ),
             )
             levelTwoType = json_repair.loads(clean_json_response(levelTwoType))["place_type"]  # type: ignore
         except Exception as e:
@@ -530,11 +530,11 @@ class PlaceSelectionBlock(Block):
             radius = await self.llm.atext_request(
                 radius_dialog,
                 response_format={"type": "json_object"},
-                context={
-                    "block_name": self.name,
-                    "func_name": "Radius Selection",
-                    "agent_id": self.agent.id,
-                },
+                context=self.build_llm_prompt_context(
+                    prompt_name=self.radius_prompt_name,
+                    state_dict=radius_state,
+                    func_name="Radius Selection",
+                ),
             )
             radius = int(json_repair.loads(clean_json_response(radius))["radius"])  # type: ignore
 
@@ -795,11 +795,11 @@ class MoveBlock(Block):
         response = await self.llm.atext_request(
             dialog,
             response_format={"type": "json_object"},
-            context={
-                "block_name": self.name,
-                "func_name": "Place Analysis",
-                "agent_id": self.agent.id,
-            },
+            context=self.build_llm_prompt_context(
+                prompt_name=self.place_analysis_prompt_name,
+                state_dict=state_dict,
+                func_name="Place Analysis",
+            ),
         )
 
         try:
@@ -1069,11 +1069,11 @@ class TransportModeSelectionBlock(Block):
             response = await self.llm.atext_request(
                 dialog,
                 response_format={"type": "json_object"},
-                context={
-                    "block_name": self.name,
-                    "func_name": "forward",
-                    "agent_id": self.agent.id,
-                },
+                context=self.build_llm_prompt_context(
+                    prompt_name=self.mode_selection_prompt_name,
+                    state_dict=state_dict,
+                    func_name="forward",
+                ),
             )
             response = clean_json_response(response)
             response = json_repair.loads(response)

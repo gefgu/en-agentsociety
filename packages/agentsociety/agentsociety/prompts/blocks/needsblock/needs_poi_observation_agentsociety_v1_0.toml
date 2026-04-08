@@ -17,8 +17,56 @@ required = [
     "hobbies",
     "poi_name",
     "poi_category",
-    "observation"
+    "observation",
 ]
+
+[inputs.gender]
+type = "text"
+description = "Gender input value used by this prompt."
+
+[inputs.age]
+type = "integer"
+description = "Age input value used by this prompt."
+
+[inputs.income]
+type = "text"
+description = "Income input value used by this prompt."
+
+[inputs.openness]
+type = "integer"
+description = "Big Five trait: Openness (1=Low, 2=Medium, 3=High)."
+
+[inputs.conscientiousness]
+type = "integer"
+description = "Big Five trait: Conscientiousness (1=Low, 2=Medium, 3=High)."
+
+[inputs.extraversion]
+type = "integer"
+description = "Big Five trait: Extraversion (1=Low, 2=Medium, 3=High)."
+
+[inputs.agreeableness]
+type = "integer"
+description = "Big Five trait: Agreeableness (1=Low, 2=Medium, 3=High)."
+
+[inputs.neuroticism]
+type = "integer"
+description = "Big Five trait: Neuroticism (1=Low, 2=Medium, 3=High)."
+
+[inputs.hobbies]
+type = "text"
+description = "Hobbies input value used by this prompt."
+
+[inputs.poi_name]
+type = "text"
+description = "Poi name input value used by this prompt."
+
+[inputs.poi_category]
+type = "text"
+description = "Poi category input value used by this prompt."
+
+[inputs.observation]
+type = "text"
+description = "Observation input value used by this prompt."
 
 [prompt]
 input = """You are a Spatial Memory Observation Encoder. Your task is to quantify the agent's experience at a Point of Interest (POI) into a numerical observation vector.
@@ -80,3 +128,20 @@ Example:
 
 DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
 """
+output_guidance = "Return JSON only, without any extra text."
+
+[outputs.price]
+type = "float"
+description = "Updated belief about price for this POI."
+
+[outputs.atmosphere]
+type = "float"
+description = "Updated belief about atmosphere for this POI."
+
+[outputs.satisfaction]
+type = "float"
+description = "Updated belief about expected satisfaction for this POI."
+
+[outputs.convenience]
+type = "float"
+description = "Updated belief about convenience for this POI."

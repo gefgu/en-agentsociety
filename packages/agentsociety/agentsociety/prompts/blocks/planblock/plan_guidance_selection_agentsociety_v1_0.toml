@@ -30,8 +30,108 @@ required = [
     "work_ethic",
     "social_frequency",
     "leisure_preference",
-    "options"
+    "options",
 ]
+
+[inputs.weather]
+type = "text"
+description = "Weather input value used by this prompt."
+
+[inputs.temperature]
+type = "float"
+description = "Current temperature context value."
+
+[inputs.other_info]
+type = "text"
+description = "Other info input value used by this prompt."
+
+[inputs.current_need]
+type = "text"
+description = "Current need input value used by this prompt."
+
+[inputs.current_location]
+type = "text"
+description = "Current location input value used by this prompt."
+
+[inputs.current_time]
+type = "text"
+description = "Current simulation time (HH:MM)."
+
+[inputs.consumption_level]
+type = "text"
+description = "Consumption level input value used by this prompt."
+
+[inputs.occupation]
+type = "text"
+description = "Occupation input value used by this prompt."
+
+[inputs.age]
+type = "integer"
+description = "Age input value used by this prompt."
+
+[inputs.emotion_types]
+type = "text"
+description = "Emotion types input value used by this prompt."
+
+[inputs.thought]
+type = "text"
+description = "Thought input value used by this prompt."
+
+[inputs.household]
+type = "text"
+description = "Household input value used by this prompt."
+
+[inputs.life_stage]
+type = "text"
+description = "Life stage input value used by this prompt."
+
+[inputs.hobbies]
+type = "text"
+description = "Hobbies input value used by this prompt."
+
+[inputs.goals]
+type = "text"
+description = "Goals input value used by this prompt."
+
+[inputs.openness]
+type = "integer"
+description = "Big Five trait: Openness (1=Low, 2=Medium, 3=High)."
+
+[inputs.conscientiousness]
+type = "integer"
+description = "Big Five trait: Conscientiousness (1=Low, 2=Medium, 3=High)."
+
+[inputs.extraversion]
+type = "integer"
+description = "Big Five trait: Extraversion (1=Low, 2=Medium, 3=High)."
+
+[inputs.agreeableness]
+type = "integer"
+description = "Big Five trait: Agreeableness (1=Low, 2=Medium, 3=High)."
+
+[inputs.neuroticism]
+type = "integer"
+description = "Big Five trait: Neuroticism (1=Low, 2=Medium, 3=High)."
+
+[inputs.chronotype]
+type = "text"
+description = "Chronotype input value used by this prompt."
+
+[inputs.work_ethic]
+type = "float"
+description = "Work-priority preference (0.0=Low work priority, 1.0=High work priority)."
+
+[inputs.social_frequency]
+type = "float"
+description = "Frequency of seeking social interaction (0.0 to 1.0)."
+
+[inputs.leisure_preference]
+type = "text"
+description = "Leisure preference input value used by this prompt."
+
+[inputs.options]
+type = "text"
+description = "Options input value used by this prompt."
 
 [prompt]
 input = """As an intelligent agent's decision system, please help me determine a suitable option to satisfy my current need.
@@ -91,3 +191,12 @@ Please response in json format (Do not return any other text), example:
     }}
 }}
 """
+output_guidance = "Return JSON only, without any extra text."
+
+[outputs.selected_option]
+type = "text"
+description = "Selected guidance option."
+
+[outputs.evaluation]
+type = "text"
+description = "JSON evaluation object for TPB scores and reasoning."

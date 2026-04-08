@@ -125,11 +125,12 @@ class NeedsBlock(Block):
             response = await self.llm.atext_request(
                 dialog,
                 response_format={"type": "json_object"},
-                context={
-                    "block_name": "NeedsBlock",
-                    "func_name": "initialize",
-                    "agent_id": self.id,
-                },
+                context=self.build_llm_prompt_context(
+                    prompt_name=self.initial_prompt_name,
+                    state_dict=state_dict,
+                    func_name="initialize",
+                    block_name="NeedsBlock",
+                ),
             )
             response = clean_json_response(response)
             retry = 3
@@ -198,11 +199,12 @@ class NeedsBlock(Block):
         response = await self.llm.atext_request(
             dialog,
             response_format={"type": "json_object"},
-            context={
-                "block_name": "NeedsBlock",
-                "func_name": "reflect_to_intervention",
-                "agent_id": self.id,
-            },
+            context=self.build_llm_prompt_context(
+                prompt_name=self.reflection_prompt_name,
+                state_dict=state_dict,
+                func_name="reflect_to_intervention",
+                block_name="NeedsBlock",
+            ),
         )
         try:
             reflection: Any = json_repair.loads(clean_json_response(response))
@@ -367,11 +369,12 @@ class NeedsBlock(Block):
                 response = await self.llm.atext_request(
                     dialog,
                     response_format={"type": "json_object"},
-                    context={
-                        "block_name": "NeedsBlock",
-                        "func_name": "update_location_belief",
-                        "agent_id": self.id,
-                    },
+                    context=self.build_llm_prompt_context(
+                        prompt_name=self.poi_belief_update_prompt_name,
+                        state_dict=state_dict,
+                        func_name="update_location_belief",
+                        block_name="NeedsBlock",
+                    ),
                 )
                 belief_update: Any = json_repair.loads(clean_json_response(response))
                 new_price = belief_update.get("price", 0.5)
@@ -606,11 +609,12 @@ class NeedsBlock(Block):
             response = await self.llm.atext_request(
                 dialog,
                 response_format={"type": "json_object"},
-                context={
-                    "block_name": "NeedsBlock",
-                    "func_name": "evaluate_and_adjust_needs",
-                    "agent_id": self.id,
-                },
+                context=self.build_llm_prompt_context(
+                    prompt_name=self.evaluation_prompt_name,
+                    state_dict=state_dict,
+                    func_name="evaluate_and_adjust_needs",
+                    block_name="NeedsBlock",
+                ),
             )
 
             try:

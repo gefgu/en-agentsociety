@@ -6,9 +6,7 @@ from .BlockPerformance import BlockPerformance
 from .RoutingTracker import RoutingTrackerActor
 from ..logger import get_logger
 import ray
-import time
-from collections import defaultdict
-from prometheus_client import Counter, Histogram, Gauge, start_http_server
+from prometheus_client import start_http_server
 
 
 @ray.remote
@@ -67,6 +65,14 @@ class PrometheusActor:
     def record_table_records(self, table_name: str, record_count: int) -> None:
         """Log the number of records inserted into a ClickHouse table."""
         self.metricsTracker.record_table_records(table_name, record_count)
+
+    def record_cache_stats(self, prompt_name: str, hit: bool) -> None:
+        """Record cache hit/miss metrics for a given prompt."""
+        self.metricsTracker.record_cache_stats(prompt_name, hit)
+
+    def record_cache_hit_validation(self, prompt_name: str, right: bool) -> None:
+        """Record whether a cache hit matched the live model output."""
+        self.metricsTracker.record_cache_hit_validation(prompt_name, right)
 
     def get_block_performance_stats(self):
         return self.blockPerformance.get_stats()

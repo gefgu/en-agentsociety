@@ -66,11 +66,11 @@ class SocialNoneBlock(Block):
         result = await self.llm.atext_request(
             dialog,
             response_format={"type": "json_object"},
-            context={
-                "block_name": self.name,
-                "func_name": "forward",
-                "agent_id": self.agent.id,
-            },
+            context=self.build_llm_prompt_context(
+                prompt_name=self.time_estimate_prompt_name,
+                state_dict=state_dict,
+                func_name="forward",
+            ),
         )
         result = clean_json_response(result)
 
@@ -297,11 +297,11 @@ class MessageBlock(Block):
             message = await self.llm.atext_request(
                 dialog,
                 timeout=300,
-                context={
-                    "block_name": self.name,
-                    "func_name": "forward",
-                    "agent_id": self.agent.id,
-                },
+                context=self.build_llm_prompt_context(
+                    prompt_name=self.message_prompt_name,
+                    state_dict=state_dict,
+                    func_name="forward",
+                ),
             )
 
             # Update chat history with proper format

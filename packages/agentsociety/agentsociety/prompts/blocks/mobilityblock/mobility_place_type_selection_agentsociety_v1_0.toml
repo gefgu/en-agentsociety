@@ -20,8 +20,68 @@ required = [
     "agreeableness",
     "neuroticism",
     "leisure_preference",
-    "risk_tolerance"
+    "risk_tolerance",
 ]
+
+[inputs.plan]
+type = "text"
+description = "Plan input value used by this prompt."
+
+[inputs.intention]
+type = "text"
+description = "Intention input value used by this prompt."
+
+[inputs.poi_category]
+type = "text"
+description = "Poi category input value used by this prompt."
+
+[inputs.other_info]
+type = "text"
+description = "Other info input value used by this prompt."
+
+[inputs.household]
+type = "text"
+description = "Household input value used by this prompt."
+
+[inputs.life_stage]
+type = "text"
+description = "Life stage input value used by this prompt."
+
+[inputs.hobbies]
+type = "text"
+description = "Hobbies input value used by this prompt."
+
+[inputs.goals]
+type = "text"
+description = "Goals input value used by this prompt."
+
+[inputs.openness]
+type = "integer"
+description = "Big Five trait: Openness (1=Low, 2=Medium, 3=High)."
+
+[inputs.conscientiousness]
+type = "integer"
+description = "Big Five trait: Conscientiousness (1=Low, 2=Medium, 3=High)."
+
+[inputs.extraversion]
+type = "integer"
+description = "Big Five trait: Extraversion (1=Low, 2=Medium, 3=High)."
+
+[inputs.agreeableness]
+type = "integer"
+description = "Big Five trait: Agreeableness (1=Low, 2=Medium, 3=High)."
+
+[inputs.neuroticism]
+type = "integer"
+description = "Big Five trait: Neuroticism (1=Low, 2=Medium, 3=High)."
+
+[inputs.leisure_preference]
+type = "text"
+description = "Leisure preference input value used by this prompt."
+
+[inputs.risk_tolerance]
+type = "float"
+description = "Risk tolerance for uncertain or unfamiliar options (0.0 to 1.0)."
 
 [prompt]
 input = """As an intelligent decision system, please determine the type of place the user needs to visit based on their input requirement.
@@ -47,3 +107,8 @@ Please response in json format (Do not return any other text), example:
     "place_type": "shopping"
 }}
 """
+output_guidance = "Return JSON only, without any extra text."
+
+[outputs.place_type]
+type = "categorical"
+description = "Selected primary place type."

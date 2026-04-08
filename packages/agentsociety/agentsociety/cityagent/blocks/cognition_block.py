@@ -158,11 +158,11 @@ class CognitionBlock(Block):
                         dialog,
                         timeout=300,
                         response_format={"type": "json_object"},
-                        context={
-                            "block_name": self.name,
-                            "func_name": "attitude_update",
-                            "agent_id": self.agent_id
-                        }
+                        context=self.build_llm_prompt_context(
+                            prompt_name=self.attitude_prompt_name,
+                            state_dict=state_dict,
+                            func_name="attitude_update",
+                        ),
                     )
                     json_str = extract_json(_response)
                     if json_str:
@@ -229,11 +229,11 @@ class CognitionBlock(Block):
                     dialog,
                     timeout=300,
                     response_format={"type": "json_object"},
-                    context={
-                        "block_name": self.name,
-                        "func_name": "thought_update",
-                        "agent_id": self.agent_id
-                    }
+                    context=self.build_llm_prompt_context(
+                        prompt_name=self.thought_prompt_name,
+                        state_dict=state_dict,
+                        func_name="thought_update",
+                    ),
                 )
                 json_str = extract_json(_response)
                 if json_str:
@@ -331,11 +331,11 @@ class CognitionBlock(Block):
                     dialog,
                     timeout=300,
                     response_format={"type": "json_object"},
-                    context={
-                        "block_name": self.name,
-                        "func_name": "emotion_update",
-                        "agent_id": self.agent_id
-                    }
+                    context=self.build_llm_prompt_context(
+                        prompt_name=self.emotion_prompt_name,
+                        state_dict=state_dict,
+                        func_name="emotion_update",
+                    ),
                 )
                 json_str = extract_json(_response)
                 if json_str:
@@ -406,11 +406,12 @@ class CognitionBlock(Block):
         response = await self.llm.atext_request(
             dialog,
             response_format={"type": "json_object"},
-            context={
-                "block_name": self.name,
-                "func_name": "initialize_big5",
-                "agent_id": self.agent_id
-            })
+            context=self.build_llm_prompt_context(
+                prompt_name=self.big5_prompt_name,
+                state_dict=state_dict,
+                func_name="initialize_big5",
+            ),
+        )
         
         response = clean_json_response(response)
         response = json_repair.loads(response)
@@ -455,11 +456,11 @@ class CognitionBlock(Block):
         response = await self.llm.atext_request(
             dialog,
             response_format={"type": "json_object"},
-            context={
-                "block_name": self.name,
-                "func_name": "initialize_hobbies",
-                "agent_id": self.agent_id
-            }
+            context=self.build_llm_prompt_context(
+                prompt_name=self.hobbies_prompt_name,
+                state_dict=state_dict,
+                func_name="initialize_hobbies",
+            ),
         )
         response = clean_json_response(response)
         response = json_repair.loads(response)
@@ -512,11 +513,11 @@ class CognitionBlock(Block):
         response = await self.llm.atext_request(
             dialog,
             response_format={"type": "json_object"},
-            context={
-                "block_name": self.name,
-                "func_name": "initialize_preferences",
-                "agent_id": self.agent_id
-            }
+            context=self.build_llm_prompt_context(
+                prompt_name=self.preferences_prompt_name,
+                state_dict=state_dict,
+                func_name="initialize_preferences",
+            ),
         )
         response = clean_json_response(response)
         response = json_repair.loads(response)

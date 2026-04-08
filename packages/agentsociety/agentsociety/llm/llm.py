@@ -1,4 +1,5 @@
 import os
+import json
 import time
 from enum import Enum
 from multiprocessing import cpu_count
@@ -34,6 +35,10 @@ class LLMContext(TypedDict, total=False):
     block_name: str
     func_name: str
     agent_id: str
+    prompt_identity: tuple[str, str, str]
+    prompt_inputs: dict[str, Any]
+    prompt_input_schema: dict[str, dict[str, Any]]
+    prompt_output_schema: dict[str, dict[str, Any]]
 
 
 class LLMProviderType(str, Enum):
@@ -107,6 +112,7 @@ class LLM:
         num_actors: int = min(cpu_count(), 32),
         metrics_actor: Optional[PrometheusActor] = None,
         db_actor: Optional[DatabaseActor] = None,
+        cache_actor: Optional[Any] = None,
     ):
         """
         Initializes the LLM instance.
@@ -131,6 +137,7 @@ class LLM:
         self._next_index = 0
         self._metrics_actor = metrics_actor
         self._db_actor = db_actor
+        self._cache_actor = cache_actor
 
         for config in self.configs:
             base_url = config.base_url
@@ -268,6 +275,43 @@ class LLM:
             - Never raises exceptions - waits indefinitely until a successful response is obtained.
         """
 
+        # Probe semantic cache before contacting live providers.
+        _probe_result = None
+        _collection_id = None
+        _cache_hit_probe = False
+        if (
+            self._cache_actor is not None
+            and context is not None
+            and "prompt_identity" in context
+            and isinstance(tools, NotGiven)
+        ):
+            _collection_id = context["prompt_identity"]
+            t_probe = time.perf_counter()
+            try:
+                _probe_result = await self._cache_actor.query_and_maybe_serve.remote(
+                    context["prompt_identity"],
+                    context.get("prompt_inputs", {}),
+                    context.get("prompt_input_schema", {}),
+                    context.get("prompt_output_schema", {}),
+                )
+            except Exception as e:
+                get_logger().debug(f"Cache probe failed: {e}")
+                _probe_result = None
+
+            probe_latency = time.perf_counter() - t_probe
+            get_logger().debug(
+                f"Cache probe latency={probe_latency * 1000:.1f}ms "
+                f"hit={_probe_result is not None} collection={_collection_id}"
+            )
+
+            if _probe_result is not None:
+                _cache_hit_probe = True
+                if self._metrics_actor is not None:
+                    self._metrics_actor.record_cache_stats.remote(
+                        prompt_name=str(context["prompt_identity"][0]),
+                        hit=True,
+                    )
+
         # Infinite retry loop - never give up on the request
         while True:
             client_i = await self._load_balancer.acquire_client(
@@ -339,6 +383,38 @@ class LLM:
                         func_name=context.get("func_name", "unknown"),
                     )
                 
+                # If probe hit, validate cache correctness using this live model result.
+                if _cache_hit_probe and _probe_result is not None and context is not None:
+                    output_schema = context.get("prompt_output_schema", {})
+                    cached_norm = self._normalize_for_compare(_probe_result, output_schema)
+                    live_norm = self._normalize_for_compare(result, output_schema)
+                    right = cached_norm == live_norm
+
+                    if self._metrics_actor is not None:
+                        self._metrics_actor.record_cache_hit_validation.remote(
+                            prompt_name=str(context["prompt_identity"][0]),
+                            right=right,
+                        )
+
+                    if isinstance(_probe_result, str):
+                        return _probe_result
+                    return json.dumps(_probe_result, ensure_ascii=True)
+
+                # Cache miss path: record sample and miss metric.
+                if self._cache_actor is not None and _collection_id is not None:
+                    self._cache_actor.record.remote(
+                        context["prompt_identity"],
+                        context.get("prompt_inputs", {}),
+                        context.get("prompt_input_schema", {}),
+                        result,
+                        context.get("prompt_output_schema", {}),
+                    )
+                    if self._metrics_actor is not None:
+                        self._metrics_actor.record_cache_stats.remote(
+                            prompt_name=str(context["prompt_identity"][0]),
+                            hit=False,
+                        )
+
                 # Success - return result
                 return result
                 
@@ -352,3 +428,33 @@ class LLM:
             finally:
                 # Always release the slot back to the pool
                 await self._load_balancer.release_client(client_i)
+
+    def _normalize_for_compare(self, result: Any, schema: dict[str, dict[str, Any]]) -> Any:
+        if isinstance(result, str):
+            try:
+                result = json.loads(result)
+            except Exception:
+                return result.strip()
+
+        if not isinstance(result, dict) or not schema:
+            return result
+
+        normalized: dict[str, Any] = {}
+        for key, field in schema.items():
+            if key not in result:
+                continue
+            value = result[key]
+            field_type = str(field.get("type", "")).lower()
+            if field_type == "float":
+                try:
+                    normalized[key] = round(float(value), 4)
+                except Exception:
+                    normalized[key] = value
+            elif field_type == "integer":
+                try:
+                    normalized[key] = int(float(value))
+                except Exception:
+                    normalized[key] = value
+            else:
+                normalized[key] = value
+        return normalized

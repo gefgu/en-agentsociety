@@ -6,36 +6,152 @@ description = "Update topic attitude based on profile, emotions, and incidents"
 
 [inputs]
 required = [
-  "gender",
-  "age",
-  "race",
-  "religion",
-  "marriage_status",
-  "residence",
-  "occupation",
-  "education",
-  "personality",
-  "consumption",
-  "family_consumption",
-  "income",
-  "skill",
-  "thought",
-  "emotion_types",
-  "openness",
-  "conscientiousness",
-  "extraversion",
-  "agreeableness",
-  "neuroticism",
-  "sadness",
-  "joy",
-  "fear",
-  "disgust",
-  "anger",
-  "surprise",
-  "topic",
-  "previous_attitude",
-  "incident_text"
+    "gender",
+    "age",
+    "race",
+    "religion",
+    "marriage_status",
+    "residence",
+    "occupation",
+    "education",
+    "personality",
+    "consumption",
+    "family_consumption",
+    "income",
+    "skill",
+    "thought",
+    "emotion_types",
+    "openness",
+    "conscientiousness",
+    "extraversion",
+    "agreeableness",
+    "neuroticism",
+    "sadness",
+    "joy",
+    "fear",
+    "disgust",
+    "anger",
+    "surprise",
+    "topic",
+    "previous_attitude",
+    "incident_text",
 ]
+
+[inputs.gender]
+type = "text"
+description = "Gender input value used by this prompt."
+
+[inputs.age]
+type = "integer"
+description = "Age input value used by this prompt."
+
+[inputs.race]
+type = "text"
+description = "Race input value used by this prompt."
+
+[inputs.religion]
+type = "text"
+description = "Religion input value used by this prompt."
+
+[inputs.marriage_status]
+type = "text"
+description = "Marriage status input value used by this prompt."
+
+[inputs.residence]
+type = "text"
+description = "Residence input value used by this prompt."
+
+[inputs.occupation]
+type = "text"
+description = "Occupation input value used by this prompt."
+
+[inputs.education]
+type = "text"
+description = "Education input value used by this prompt."
+
+[inputs.personality]
+type = "text"
+description = "Personality input value used by this prompt."
+
+[inputs.consumption]
+type = "float"
+description = "Consumption input value used by this prompt."
+
+[inputs.family_consumption]
+type = "text"
+description = "Family consumption input value used by this prompt."
+
+[inputs.income]
+type = "text"
+description = "Income input value used by this prompt."
+
+[inputs.skill]
+type = "text"
+description = "Skill input value used by this prompt."
+
+[inputs.thought]
+type = "text"
+description = "Thought input value used by this prompt."
+
+[inputs.emotion_types]
+type = "text"
+description = "Emotion types input value used by this prompt."
+
+[inputs.openness]
+type = "integer"
+description = "Big Five trait: Openness (1=Low, 2=Medium, 3=High)."
+
+[inputs.conscientiousness]
+type = "integer"
+description = "Big Five trait: Conscientiousness (1=Low, 2=Medium, 3=High)."
+
+[inputs.extraversion]
+type = "integer"
+description = "Big Five trait: Extraversion (1=Low, 2=Medium, 3=High)."
+
+[inputs.agreeableness]
+type = "integer"
+description = "Big Five trait: Agreeableness (1=Low, 2=Medium, 3=High)."
+
+[inputs.neuroticism]
+type = "integer"
+description = "Big Five trait: Neuroticism (1=Low, 2=Medium, 3=High)."
+
+[inputs.sadness]
+type = "text"
+description = "Sadness input value used by this prompt."
+
+[inputs.joy]
+type = "text"
+description = "Joy input value used by this prompt."
+
+[inputs.fear]
+type = "text"
+description = "Fear input value used by this prompt."
+
+[inputs.disgust]
+type = "text"
+description = "Disgust input value used by this prompt."
+
+[inputs.anger]
+type = "text"
+description = "Anger input value used by this prompt."
+
+[inputs.surprise]
+type = "text"
+description = "Surprise input value used by this prompt."
+
+[inputs.topic]
+type = "text"
+description = "Topic input value used by this prompt."
+
+[inputs.previous_attitude]
+type = "text"
+description = "Previous attitude input value used by this prompt."
+
+[inputs.incident_text]
+type = "text"
+description = "Incident text input value used by this prompt."
 
 [prompt]
 input = """You are a {gender}, aged {age}, belonging to the {race} race and identifying as {religion}.
@@ -59,3 +175,8 @@ Joy, Distress, Resentment, Pity, Hope, Fear, Satisfaction, Relief, Disappointmen
 You need to decide your attitude towards topic: {topic}, which you previously rated as: {previous_attitude} (0 meaning oppose, 10 meaning support).
 Please return a new attitude rating (0-10, smaller meaning oppose, larger meaning support) in JSON format, e.g. {{"attitude": 5}}.
 """
+output_guidance = "Return JSON only, without any extra text."
+
+[outputs.attitude]
+type = "integer"
+description = "Updated attitude score in range 0-10."

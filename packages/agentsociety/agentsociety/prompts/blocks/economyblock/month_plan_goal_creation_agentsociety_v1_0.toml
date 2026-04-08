@@ -13,8 +13,40 @@ required = [
     "need_fulfillment",
     "social_isolation",
     "interest",
-    "major_events_memories"
+    "major_events_memories",
 ]
+
+[inputs.income]
+type = "text"
+description = "Income input value used by this prompt."
+
+[inputs.consumption]
+type = "float"
+description = "Consumption input value used by this prompt."
+
+[inputs.wealth]
+type = "text"
+description = "Wealth input value used by this prompt."
+
+[inputs.financial_stress]
+type = "text"
+description = "Financial stress input value used by this prompt."
+
+[inputs.need_fulfillment]
+type = "text"
+description = "Need fulfillment input value used by this prompt."
+
+[inputs.social_isolation]
+type = "text"
+description = "Social isolation input value used by this prompt."
+
+[inputs.interest]
+type = "text"
+description = "Interest input value used by this prompt."
+
+[inputs.major_events_memories]
+type = "text"
+description = "Major events memories input value used by this prompt."
 
 [prompt]
 input = """Given the following economic and social context, please create 3 to 5 goals that I can achieve in the next month. These goals should be specific, measurable, achievable, relevant, and time-bound (SMART).
@@ -41,3 +73,8 @@ Return a JSON array of goal, with just the goal description, without any other t
     "Reconnect with an old friend to reduce social isolation."
 ]
 """
+output_guidance = "Return JSON only, without any extra text."
+
+[outputs.goals]
+type = "text"
+description = "Goal list generated for the next month."

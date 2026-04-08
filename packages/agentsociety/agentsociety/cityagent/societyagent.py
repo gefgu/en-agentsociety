@@ -2,7 +2,7 @@ import random
 import time
 
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import json_repair
 
@@ -232,6 +232,27 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         self.step_count = -1
         self.cognition_update = -1
 
+    def _build_prompt_context(
+        self,
+        *,
+        prompt_name: str,
+        state_dict: dict[str, Any],
+        func_name: str,
+    ) -> dict[str, Any]:
+        return {
+            "block_name": "SocietyAgent",
+            "func_name": func_name,
+            "agent_id": str(self.id),
+            "prompt_identity": self.prompt_manager.get_prompt_identity(prompt_name),
+            "prompt_inputs": {
+                key: state_dict[key]
+                for key in self.prompt_manager.get_typed_input_fields(prompt_name)
+                if key in state_dict
+            },
+            "prompt_input_schema": self.prompt_manager.get_input_schema(prompt_name),
+            "prompt_output_schema": self.prompt_manager.get_output_schema(prompt_name),
+        }
+
     async def status_summary(self):
         """
         Status summary
@@ -265,11 +286,11 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         )
         summary_text = await self.llm.atext_request(
             dialog,
-            context={
-                "block_name": "SocietyAgent",
-                "func_name": "status_summary",
-                "agent_id": str(await self.memory.status.get("id")),
-            },
+            context=self._build_prompt_context(
+                prompt_name=self.status_summary_prompt_name,
+                state_dict=state_dict,
+                func_name="status_summary",
+            ),
         )
         await self.memory.status.update("status_summary", summary_text)
 
@@ -368,11 +389,11 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
             )
             reflection = await self.llm.atext_request(
                 dialog,
-                context={
-                    "block_name": "SocietyAgent",
-                    "func_name": "reflect_to_environment",
-                    "agent_id": str(self.id),
-                },
+                context=self._build_prompt_context(
+                    prompt_name=self.environment_reflection_prompt_name,
+                    state_dict=state_dict,
+                    func_name="reflect_to_environment",
+                ),
             )
             await self.save_agent_thought(reflection)
 
@@ -589,11 +610,11 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
                 belief_update_response = await self.llm.atext_request(
                     dialog=dialog,
                     response_format={"type": "json_object"},
-                    context={
-                        "block_name": "SocietyAgent",
-                        "func_name": "do_chat",
-                        "agent_id": str(self.id),
-                    },
+                    context=self._build_prompt_context(
+                        prompt_name=self.chat_belief_update_prompt_name,
+                        state_dict=state_dict,
+                        func_name="do_chat",
+                    ),
                 )
                 belief_update = json_repair.loads(belief_update_response)  # type: ignore
                 if matched_relation is not None:
@@ -627,11 +648,11 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
                 respond = await self.llm.atext_request(
                     dialog=dialog,
                     response_format={"type": "json_object"},
-                    context={
-                        "block_name": "SocietyAgent",
-                        "func_name": "do_chat",
-                        "agent_id": str(self.id),
-                    },
+                    context=self._build_prompt_context(
+                        prompt_name=self.chat_response_decision_prompt_name,
+                        state_dict=state_dict,
+                        func_name="do_chat",
+                    ),
                 )
                 should_respond = json_repair.loads(respond)["should_respond"]  # type: ignore
                 if should_respond == "NO":

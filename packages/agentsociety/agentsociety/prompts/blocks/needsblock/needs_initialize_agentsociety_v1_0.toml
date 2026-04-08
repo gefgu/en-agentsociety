@@ -22,8 +22,76 @@ required = [
     "agreeableness",
     "neuroticism",
     "social_frequency",
-    "current_time"
+    "current_time",
 ]
+
+[inputs.gender]
+type = "text"
+description = "Gender input value used by this prompt."
+
+[inputs.education]
+type = "text"
+description = "Education input value used by this prompt."
+
+[inputs.consumption]
+type = "float"
+description = "Consumption input value used by this prompt."
+
+[inputs.occupation]
+type = "text"
+description = "Occupation input value used by this prompt."
+
+[inputs.age]
+type = "integer"
+description = "Age input value used by this prompt."
+
+[inputs.income]
+type = "text"
+description = "Income input value used by this prompt."
+
+[inputs.household]
+type = "text"
+description = "Household input value used by this prompt."
+
+[inputs.life_stage]
+type = "text"
+description = "Life stage input value used by this prompt."
+
+[inputs.hobbies]
+type = "text"
+description = "Hobbies input value used by this prompt."
+
+[inputs.goals]
+type = "text"
+description = "Goals input value used by this prompt."
+
+[inputs.openness]
+type = "integer"
+description = "Big Five trait: Openness (1=Low, 2=Medium, 3=High)."
+
+[inputs.conscientiousness]
+type = "integer"
+description = "Big Five trait: Conscientiousness (1=Low, 2=Medium, 3=High)."
+
+[inputs.extraversion]
+type = "integer"
+description = "Big Five trait: Extraversion (1=Low, 2=Medium, 3=High)."
+
+[inputs.agreeableness]
+type = "integer"
+description = "Big Five trait: Agreeableness (1=Low, 2=Medium, 3=High)."
+
+[inputs.neuroticism]
+type = "integer"
+description = "Big Five trait: Neuroticism (1=Low, 2=Medium, 3=High)."
+
+[inputs.social_frequency]
+type = "float"
+description = "Frequency of seeking social interaction (0.0 to 1.0)."
+
+[inputs.current_time]
+type = "text"
+description = "Current simulation time (HH:MM)."
 
 [prompt]
 input = """You are an intelligent agent satisfaction initialization system. Based on the profile information below, please help initialize the agent's satisfaction levels and related parameters.
@@ -71,3 +139,8 @@ DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
 DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
 DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
 """
+output_guidance = "Return JSON only, without any extra text."
+
+[outputs.current_satisfaction]
+type = "text"
+description = "JSON object containing initialized satisfaction values."

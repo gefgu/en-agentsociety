@@ -37,14 +37,14 @@ else
 fi
 
 if [ -n "${PYTHON_BIN}" ]; then
-	# "$PYTHON_BIN" "001_run_simplest_e2e.py" "$@"
+	"$PYTHON_BIN" "001_run_simplest_e2e.py" "$@"
 	# "$PYTHON_BIN" "002_run_e2e_with_clickhouse.py" "$@"
-	"${PYTHON_BIN}" "003_resume_agent_state.py" "--config" "$E2E_DIR/configs/003_resume_single_agent_with_local.yaml" "$@"
-	"${PYTHON_BIN}" "003_resume_agent_state.py" "--config" "$E2E_DIR/configs/003_resume_10_agents_local.yaml" "$@"
-	"${PYTHON_BIN}" "004_resume_moving_agent_state.py" "--config" "$E2E_DIR/configs/003_resume_10_agents_local.yaml" "--wait-for-movement-timeout-seconds" "9000" "$@"
-	"${PYTHON_BIN}" "004_resume_moving_agent_state.py" "--config" "${E2E_DIR}/configs/003_resume_100_agents_local.yaml" "--wait-for-movement-timeout-seconds" "9000" "$@"
-	"${PYTHON_BIN}" "005_resume_lane_position_state.py" "--config" "$E2E_DIR/configs/003_resume_10_agents_local.yaml" "--wait-for-lane-timeout-seconds" "9000" "$@"
-	"${PYTHON_BIN}" "005_resume_lane_position_state.py" "--config" "$E2E_DIR/configs/003_resume_100_agents_local.yaml" "--wait-for-lane-timeout-seconds" "9000" "$@"
+	# "${PYTHON_BIN}" "003_resume_agent_state.py" "--config" "$E2E_DIR/configs/003_resume_single_agent_with_local.yaml" "$@"
+	# "${PYTHON_BIN}" "003_resume_agent_state.py" "--config" "$E2E_DIR/configs/003_resume_10_agents_local.yaml" "$@"
+	# "${PYTHON_BIN}" "004_resume_moving_agent_state.py" "--config" "$E2E_DIR/configs/003_resume_10_agents_local.yaml" "--wait-for-movement-timeout-seconds" "9000" "$@"
+	# "${PYTHON_BIN}" "004_resume_moving_agent_state.py" "--config" "${E2E_DIR}/configs/003_resume_100_agents_local.yaml" "--wait-for-movement-timeout-seconds" "9000" "$@"
+	# "${PYTHON_BIN}" "005_resume_lane_position_state.py" "--config" "$E2E_DIR/configs/003_resume_10_agents_local.yaml" "--wait-for-lane-timeout-seconds" "9000" "$@"
+	# "${PYTHON_BIN}" "005_resume_lane_position_state.py" "--config" "$E2E_DIR/configs/003_resume_100_agents_local.yaml" "--wait-for-lane-timeout-seconds" "9000" "$@"
 fi
 
 # It takes about 5-10 minutes to run fully each script

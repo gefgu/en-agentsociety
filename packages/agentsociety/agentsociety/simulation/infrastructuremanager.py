@@ -16,7 +16,7 @@ from ..agent.dispatcher_cache_actor import GlobalDispatcherCacheActor
 from ..configs import Config
 from ..database.database_actor import DatabaseActor
 from ..environment import EnvironmentStarter
-from ..llm import LLM
+from ..llm import LLM, QdrantCacheActor
 from ..logger import attach_otlp_handler, get_logger, set_exp_id
 from ..message import MessageInterceptor, Messager
 from ..performance.monitoring import start_monitoring, stop_monitoring
@@ -52,9 +52,11 @@ class InfrastructureManager:
         self._db_actor: Optional[DatabaseActor] = None
         self._messager: Optional[Messager] = None
         self._dispatcher_cache_actor: Optional[Any] = None
+        self._llm_cache_actor: Optional[Any] = None
         self._metrics_tool: Optional[CustomTool] = None
         self._db_tool: Optional[CustomTool] = None
         self._dispatcher_cache_tool: Optional[CustomTool] = None
+        self._llm_cache_tool: Optional[CustomTool] = None
         self._resume_exp_id: Optional[str] = None
         self._resume_state: Optional[dict[str, Any]] = None
 
@@ -101,6 +103,10 @@ class InfrastructureManager:
     @property
     def dispatcher_cache_tool(self) -> Optional[CustomTool]:
         return self._dispatcher_cache_tool
+
+    @property
+    def llm_cache_tool(self) -> Optional[CustomTool]:
+        return self._llm_cache_tool
 
     @property
     def resume_state(self) -> Optional[dict[str, Any]]:
@@ -386,6 +392,40 @@ class InfrastructureManager:
         except Exception as e:
             get_logger().warning(f"Failed to initialize global dispatcher cache actor: {e}")
 
+    def _init_llm_cache_actor(self):
+        """Initialize Qdrant-backed LLM semantic cache actor and tool."""
+        cfg = self._config.env.qdrant_cache
+        if not cfg.enabled:
+            get_logger().info("Qdrant LLM cache disabled by config, skipping.")
+            return
+
+        qdrant_path = cfg.path or os.path.join(self._config.env.data_dir, "qdrant")
+        embedding_cache_dir = cfg.embedding_cache_dir or os.path.join(
+            self._config.env.home_dir,
+            "huggingface_cache",
+        )
+
+        os.makedirs(qdrant_path, exist_ok=True)
+
+        try:
+            self._llm_cache_actor = QdrantCacheActor.remote(
+                qdrant_path=qdrant_path,
+                embedding_model=cfg.embedding_model,
+                embedding_cache_dir=embedding_cache_dir,
+                probability_threshold=cfg.probability_threshold,
+                batch_size=cfg.batch_size,
+                n_neighbors=cfg.n_neighbors,
+                distance_quantile=cfg.distance_quantile,
+            )
+            self._llm_cache_tool = CustomTool(
+                name="llm_cache_actor",
+                tool=self._llm_cache_actor,
+                description="Ray actor for Qdrant-backed LLM semantic cache",
+            )
+            get_logger().info(f"Qdrant LLM cache actor initialized at {qdrant_path}")
+        except Exception as e:
+            get_logger().warning(f"Failed to initialize LLM cache actor: {e}")
+
     async def _init_core_components(self):
         """Initialize LLM, environment, messager, and embedding components."""
         get_logger().info("Initializing LLM...")
@@ -393,6 +433,7 @@ class InfrastructureManager:
             self._config.llm,
             metrics_actor=self._metrics_actor,
             db_actor=self._db_actor,
+            cache_actor=self._llm_cache_actor,
         )
         get_logger().info("LLM initialized")
 
@@ -430,6 +471,7 @@ class InfrastructureManager:
         self._metrics_tool = self._start_monitoring_services()
         self._init_clickhouse_actor()
         self._init_dispatcher_cache_actor()
+        self._init_llm_cache_actor()
         await self._init_core_components()
 
     async def close(self):
@@ -440,6 +482,12 @@ class InfrastructureManager:
                 await self._dispatcher_cache_actor.close.remote()
             except Exception as e:
                 get_logger().warning(f"Error closing dispatcher cache actor: {e}")
+
+        if self._llm_cache_actor is not None:
+            try:
+                await self._llm_cache_actor.close.remote()
+            except Exception as e:
+                get_logger().warning(f"Error closing LLM cache actor: {e}")
 
         if self._db_actor is not None:
             try:

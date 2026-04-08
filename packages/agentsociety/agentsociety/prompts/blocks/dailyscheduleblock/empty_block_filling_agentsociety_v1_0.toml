@@ -29,8 +29,104 @@ required = [
     "agreeableness",
     "neuroticism",
     "social_frequency",
-    "leisure_preference"
+    "leisure_preference",
 ]
+
+[inputs.current_time]
+type = "text"
+description = "Current simulation time (HH:MM)."
+
+[inputs.current_location]
+type = "text"
+description = "Current location input value used by this prompt."
+
+[inputs.emotion_types]
+type = "text"
+description = "Emotion types input value used by this prompt."
+
+[inputs.thought]
+type = "text"
+description = "Thought input value used by this prompt."
+
+[inputs.block_start_time]
+type = "text"
+description = "Start time of the schedule block (HH:MM)."
+
+[inputs.block_duration]
+type = "integer"
+description = "Duration of the schedule block in minutes."
+
+[inputs.block_description]
+type = "text"
+description = "Block description input value used by this prompt."
+
+[inputs.hunger_satisfaction]
+type = "float"
+description = "Current hunger satisfaction level (0.0 to 1.0)."
+
+[inputs.energy_satisfaction]
+type = "float"
+description = "Current energy satisfaction level (0.0 to 1.0)."
+
+[inputs.safety_satisfaction]
+type = "float"
+description = "Current safety satisfaction level (0.0 to 1.0)."
+
+[inputs.social_satisfaction]
+type = "float"
+description = "Current social satisfaction level (0.0 to 1.0)."
+
+[inputs.occupation]
+type = "text"
+description = "Occupation input value used by this prompt."
+
+[inputs.age]
+type = "integer"
+description = "Age input value used by this prompt."
+
+[inputs.household]
+type = "text"
+description = "Household input value used by this prompt."
+
+[inputs.life_stage]
+type = "text"
+description = "Life stage input value used by this prompt."
+
+[inputs.hobbies]
+type = "text"
+description = "Hobbies input value used by this prompt."
+
+[inputs.goals]
+type = "text"
+description = "Goals input value used by this prompt."
+
+[inputs.openness]
+type = "integer"
+description = "Big Five trait: Openness (1=Low, 2=Medium, 3=High)."
+
+[inputs.conscientiousness]
+type = "integer"
+description = "Big Five trait: Conscientiousness (1=Low, 2=Medium, 3=High)."
+
+[inputs.extraversion]
+type = "integer"
+description = "Big Five trait: Extraversion (1=Low, 2=Medium, 3=High)."
+
+[inputs.agreeableness]
+type = "integer"
+description = "Big Five trait: Agreeableness (1=Low, 2=Medium, 3=High)."
+
+[inputs.neuroticism]
+type = "integer"
+description = "Big Five trait: Neuroticism (1=Low, 2=Medium, 3=High)."
+
+[inputs.social_frequency]
+type = "float"
+description = "Frequency of seeking social interaction (0.0 to 1.0)."
+
+[inputs.leisure_preference]
+type = "text"
+description = "Leisure preference input value used by this prompt."
 
 [prompt]
 input = """You are an intelligent agent's value-driven activity planner. Fill this [EMPTY] time block with the best activity to satisfy your intrinsic desires.
@@ -96,3 +192,8 @@ Response Format (JSON only):
 
 DO NOT INCLUDE COMMENTS. RETURN ONLY VALID JSON.
 """
+output_guidance = "Return JSON only, without any extra text."
+
+[outputs.selected]
+type = "text"
+description = "Selected activity object for filling an empty schedule block."

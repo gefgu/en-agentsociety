@@ -9,8 +9,24 @@ required = [
     "content",
     "sender_id",
     "relationship_type",
-    "relationship_strength"
+    "relationship_strength",
 ]
+
+[inputs.content]
+type = "text"
+description = "Content input value used by this prompt."
+
+[inputs.sender_id]
+type = "text"
+description = "Sender id input value used by this prompt."
+
+[inputs.relationship_type]
+type = "text"
+description = "Relationship type input value used by this prompt."
+
+[inputs.relationship_strength]
+type = "float"
+description = "Relationship strength score (0.0=weak, 1.0=strong)."
 
 [prompt]
 input = """You have received a message: {content}
@@ -22,3 +38,16 @@ Provide a brief update to your beliefs about this sender.
 Return new affinity, trust, and familiarity values (0-1 scale) in JSON format:
 {{"affinity": float, "trust": float, "familiarity": float}}
 """
+output_guidance = "Return JSON only, without any extra text."
+
+[outputs.affinity]
+type = "float"
+description = "Updated affinity score (0.0 to 1.0)."
+
+[outputs.trust]
+type = "float"
+description = "Updated trust score (0.0 to 1.0)."
+
+[outputs.familiarity]
+type = "float"
+description = "Updated familiarity score (0.0 to 1.0)."

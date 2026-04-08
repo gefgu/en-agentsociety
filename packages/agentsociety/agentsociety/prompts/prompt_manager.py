@@ -153,6 +153,65 @@ class PromptManager:
         prompt_data = self._loaded_prompts.get(prompt_name, {})
         return prompt_data.get("inputs", {}).get("required", [])
 
+    def get_prompt_identity(self, prompt_name: str) -> tuple[str, str, str]:
+        if prompt_name not in self._loaded_prompts:
+            raise ValueError(f"Prompt '{prompt_name}' not found in loaded configs")
+        meta = self._loaded_prompts[prompt_name].get("metadata", {})
+        name = str(meta.get("name", prompt_name))
+        origin = str(meta.get("origin", "unknown"))
+        version = str(meta.get("version", "0.0.0"))
+        return (name, origin, version)
+
+    def get_input_schema(self, prompt_name: str) -> dict[str, dict]:
+        prompt_data = self._loaded_prompts.get(prompt_name, {})
+        inputs = prompt_data.get("inputs", {})
+        if not isinstance(inputs, dict):
+            return {}
+        return {
+            k: v
+            for k, v in inputs.items()
+            if k != "required" and isinstance(v, dict)
+        }
+
+    def get_typed_input_fields(self, prompt_name: str) -> list[str]:
+        prompt_data = self._loaded_prompts.get(prompt_name, {})
+        required = prompt_data.get("inputs", {}).get("required", [])
+        schema = self.get_input_schema(prompt_name)
+        allowed_types = {"text", "integer", "float", "categorical"}
+        return [
+            field
+            for field in required
+            if field in schema
+            and str(schema[field].get("type", "")).lower() in allowed_types
+        ]
+
+    def get_text_input_fields(self, prompt_name: str) -> list[str]:
+        prompt_data = self._loaded_prompts.get(prompt_name, {})
+        inputs = {
+            k: v
+            for k, v in prompt_data.get("inputs", {}).items()
+            if k != "required"
+        }
+        return [
+            k
+            for k, v in inputs.items()
+            if isinstance(v, dict) and v.get("type") == "text"
+        ]
+
+    def get_output_schema(self, prompt_name: str) -> dict[str, dict]:
+        prompt_data = self._loaded_prompts.get(prompt_name, {})
+        outputs = prompt_data.get("outputs", {})
+        if not isinstance(outputs, dict):
+            return {}
+        return {k: v for k, v in outputs.items() if isinstance(v, dict)}
+
+    def is_cache_eligible(self, prompt_name: str) -> bool:
+        schema = self.get_output_schema(prompt_name)
+        if not schema:
+            return False
+        allowed = {"categorical", "float", "integer"}
+        return all(str(v.get("type", "")).lower() in allowed for v in schema.values())
+
     def has_prompt(self, prompt_name: str) -> bool:
         return prompt_name in self._loaded_prompts
 
@@ -388,7 +447,12 @@ class PromptManager:
         if prompt_name not in self._loaded_prompts:
             raise ValueError(f"Prompt '{prompt_name}' not found in loaded configs")
 
-        template = self._loaded_prompts[prompt_name].get("prompt", {}).get("input", "")
+        prompt_block = self._loaded_prompts[prompt_name].get("prompt", {})
+        prompt_input = str(prompt_block.get("input", ""))
+        output_guidance = str(prompt_block.get("output_guidance", "")).strip()
+        template = prompt_input
+        if output_guidance:
+            template = f"{prompt_input}\n\n{output_guidance}"
         formatter = string.Formatter()
         try:
             return formatter.vformat(template, (), SafeDict(state_dict))
@@ -406,5 +470,9 @@ class PromptManager:
     def get_prompt_template(self, prompt_name: str) -> str:
         if prompt_name not in self._loaded_prompts:
             raise ValueError(f"Prompt '{prompt_name}' not found in loaded configs")
-
-        return self._loaded_prompts[prompt_name].get("prompt", {}).get("input", "")
+        prompt_block = self._loaded_prompts[prompt_name].get("prompt", {})
+        prompt_input = str(prompt_block.get("input", ""))
+        output_guidance = str(prompt_block.get("output_guidance", "")).strip()
+        if not output_guidance:
+            return prompt_input
+        return f"{prompt_input}\n\n{output_guidance}"

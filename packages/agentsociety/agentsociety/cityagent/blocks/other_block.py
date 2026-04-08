@@ -65,11 +65,11 @@ class SleepBlock(Block):
         result = await self.llm.atext_request(
             dialog,
             response_format={"type": "json_object"},
-            context={
-                "block_name": self.name,
-                "func_name": "forward",
-                "agent_id": self.agent.id,
-            },
+            context=self.build_llm_prompt_context(
+                prompt_name=self.prompt_name,
+                state_dict=state_dict,
+                func_name="forward",
+            ),
         )
         result = clean_json_response(result)
         node_id = await self.memory.stream.add(topic="other", description="I slept")
@@ -128,11 +128,11 @@ class OtherNoneBlock(Block):
         result = await self.llm.atext_request(
             dialog,
             response_format={"type": "json_object"},
-            context={
-                "block_name": self.name,
-                "func_name": "forward",
-                "agent_id": self.agent.id,
-            },
+            context=self.build_llm_prompt_context(
+                prompt_name=self.prompt_name,
+                state_dict=state_dict,
+                func_name="forward",
+            ),
         )
         result = clean_json_response(result)
         node_id = await self.memory.stream.add(

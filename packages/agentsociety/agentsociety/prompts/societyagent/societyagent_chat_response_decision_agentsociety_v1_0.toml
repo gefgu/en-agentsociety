@@ -16,8 +16,52 @@ required = [
     "content",
     "relationship_strength",
     "relationship_type",
-    "recent_chat_history"
+    "recent_chat_history",
 ]
+
+[inputs.current_intention]
+type = "text"
+description = "Current intention input value used by this prompt."
+
+[inputs.gender]
+type = "text"
+description = "Gender input value used by this prompt."
+
+[inputs.education]
+type = "text"
+description = "Education input value used by this prompt."
+
+[inputs.personality]
+type = "text"
+description = "Personality input value used by this prompt."
+
+[inputs.occupation]
+type = "text"
+description = "Occupation input value used by this prompt."
+
+[inputs.background_story]
+type = "text"
+description = "Background story input value used by this prompt."
+
+[inputs.emotion_types]
+type = "text"
+description = "Emotion types input value used by this prompt."
+
+[inputs.content]
+type = "text"
+description = "Content input value used by this prompt."
+
+[inputs.relationship_strength]
+type = "float"
+description = "Relationship strength score (0.0=weak, 1.0=strong)."
+
+[inputs.relationship_type]
+type = "text"
+description = "Relationship type input value used by this prompt."
+
+[inputs.recent_chat_history]
+type = "text"
+description = "Recent chat history input value used by this prompt."
 
 [prompt]
 input = """My current action/intention is: {current_intention}
@@ -44,3 +88,16 @@ Based on the above all information, should I respond to this message? If I shoul
 
 Answer only YES or NO, in JSON format, e.g. {{"should_respond": "YES", "response_content": "Hello, how are you?(optional)"}}
 """
+output_guidance = "Return JSON only, without any extra text."
+
+[outputs.should_respond]
+type = "categorical"
+description = "Whether the agent should respond to the message."
+categories = [
+    "YES",
+    "NO",
+]
+
+[outputs.response_content]
+type = "text"
+description = "Response message content when a reply is needed."
