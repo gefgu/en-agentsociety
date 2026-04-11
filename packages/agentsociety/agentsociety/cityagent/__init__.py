@@ -5,7 +5,7 @@ from ..configs.social_network import initialize_social_network_by_similarity
 
 from ..agent.distribution import Distribution, DistributionConfig
 from ..cityagent.blocks.economy_block import EconomyBlock, EconomyBlockParams
-from ..cityagent.blocks.mobility_block import MobilityBlock, MobilityBlockParams
+from .blocks.mobility_block.mobility_block import MobilityBlock, MobilityBlockParams
 from ..cityagent.blocks.other_block import OtherBlock, OtherBlockParams
 from ..cityagent.blocks.social_block import SocialBlock, SocialBlockParams
 from ..configs import InstitutionAgentClass, AgentConfig, Config

@@ -19,8 +19,8 @@ env:
   clickhouse:
     host: "localhost"
     port: 8123
-    username: "test"
-    password: "test"
+    username: test
+    password: test
     database: "testing"
     auto_create_database: true
   home_dir: "./data/home_data/"

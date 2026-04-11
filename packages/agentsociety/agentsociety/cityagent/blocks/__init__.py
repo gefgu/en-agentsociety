@@ -1,6 +1,6 @@
 from .cognition_block import CognitionBlock
 from .economy_block import EconomyBlock
-from .mobility_block import MobilityBlock
+from .mobility_block.mobility_block import MobilityBlock
 from .needs_block import NeedsBlock
 from .other_block import OtherBlock
 from .plan_block import PlanBlock
