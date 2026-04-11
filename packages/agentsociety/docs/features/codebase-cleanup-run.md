@@ -6,21 +6,21 @@ Progress is tracked here. Original plan file is not modified.
 
 ## Steps
 
-- [ ] Step 1: Fix latent `_db_actor` None-check bug (C4-4 / C6-1) — MEDIUM risk, ASK USER
-- [ ] Step 2: Remove `import time` from `plan_block.py`, `other_block.py`, `social_block.py` (C3-5) — Low risk
-- [ ] Step 3: Remove `person_pb2` imports from `agent.py` and `agent_base.py` (C3-1) — Low risk
-- [ ] Step 4: Remove `map_pb2` import from `environment.py` (C3-2) — Low risk
-- [ ] Step 5: Remove `json` import from `economy_block.py` (C3-3) — Low risk
-- [ ] Step 6: Remove `Optional` from `needs_block.py` imports (C3-4) — Low risk
+- [x] Step 1: Fix latent `_db_actor` None-check bug (C4-4 / C6-1) — MEDIUM risk, ASK USER
+- [x] Step 2: Remove `import time` from `plan_block.py`, `other_block.py`, `social_block.py` (C3-5) — Low risk
+- [x] Step 3: Remove `person_pb2` imports from `agent.py` and `agent_base.py` (C3-1) — Low risk
+- [x] Step 4: Remove `map_pb2` import from `environment.py` (C3-2) — Low risk
+- [x] Step 5: Remove `json` import from `economy_block.py` (C3-3) — Low risk
+- [x] Step 6: Remove `Optional` from `needs_block.py` imports (C3-4) — Low risk
 - [ ] Step 7: Delete commented-out `print` lines (C1-7) — None risk
 - [ ] Step 8: Make `initialize_social_network` a config flag (C1-8) — Low risk
-- [ ] Step 9: Delete `extract_json` copy in `cognition_block.py` (C2-1) — Low risk
+- [x] Step 9: Delete `extract_json` copy in `cognition_block.py` (C2-1) — Low risk
 - [ ] Step 10: Delete `add_custom_tool`, `create_mcp_tool`, `create_normal_tool` from `toolbox.py` (C2-4, C2-5) — Low risk
 - [ ] Step 11: Delete unused introspection methods from `AgentToolbox` (C5-5) — Low risk
 - [ ] Step 12: Delete `BlockParams.block_memory` / `Block.block_memory` / `Block.agent_memory` (C1-1, C5-1) — Low risk
 - [ ] Step 13: Delete inline `import traceback` in `simulationengine.py:676` (C2-6) — None risk
 - [ ] Step 14: Fix typo + wrong name in `INTERVENE` warning message (C6-2) — None risk
-- [ ] Step 15: Replace `extract_dict_from_string` with `json_repair` in `economy_block.py` (C5-4) — Low risk
+- [x] Step 15: Replace `extract_dict_from_string` with `json_repair` in `economy_block.py` (C5-4) — Low risk
 - [ ] Step 16: Remove deprecated `AgentSociety.__init__` constructor body (C4-2) — MEDIUM risk, ASK USER
 - [ ] Step 17: Fix `LLMConfig.validate_configuration` to not block `base_url` on managed providers (C4-3) — Low risk
 - [ ] Step 18: Replace `month = "Current Month"` with real month extraction (C1-4) — Low risk
