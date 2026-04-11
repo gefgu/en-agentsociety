@@ -425,10 +425,6 @@ class MonthEconomyPlanBlock(Block):
             raise RuntimeError("PromptManager is not initialized")
         return prettify_document(self.prompt_manager.format_prompt(prompt_name, state_dict))
     
-    def _get_number_of_contacts_in_last_7_days(self) -> int:
-        # TODO: IMPLEMENT
-        return 0
-
     async def forward(self):
         """Execute monthly planning workflow.
 
@@ -624,12 +620,8 @@ class MonthEconomyPlanBlock(Block):
                 goals_context["need_fulfillment"] = f"{need_fulfillment:.2f}"
 
             if "social_isolation" in goals_required_fields:
-                social_isolation = (
-                    self._get_number_of_contacts_in_last_7_days()
-                ) < 3
-                goals_context["social_isolation"] = (
-                    "Yes" if social_isolation else "No"
-                )
+                # TODO: implement real contact counting; hardcoded 0 until social graph query is available
+                goals_context["social_isolation"] = "Yes"
 
             if "interest" in goals_required_fields:
                 interest = await self.memory.spatial.get_interest()
