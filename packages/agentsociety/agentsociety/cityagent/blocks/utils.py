@@ -1,5 +1,6 @@
-import ast
 import re
+
+import json_repair
 
 
 def prettify_document(document: str) -> str:
@@ -11,6 +12,9 @@ def prettify_document(document: str) -> str:
 def extract_dict_from_string(input_string):
     """
     Extract dictionaries from the input string. Supports multi-line dictionaries and nested dictionaries.
+
+    Uses json_repair.loads instead of ast.literal_eval so that JSON-style values
+    (null, true, false, double-quoted strings) are handled correctly.
     """
     # Use regular expression to find all possible dictionary parts, allowing multi-line dictionaries
     dict_pattern = r"\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}"  # Regular expression to match dictionaries, supports nesting
@@ -22,12 +26,11 @@ def extract_dict_from_string(input_string):
 
     for match in matches:
         try:
-            # Use ast.literal_eval to convert the string to a dictionary
-            parsed_dict = ast.literal_eval(match)
+            parsed_dict = json_repair.loads(match)
             if isinstance(parsed_dict, dict):
                 dicts.append(parsed_dict)
-        except (ValueError, SyntaxError) as e:
-            print(f"Failed to parse dictionary: {e}")
+        except Exception:
+            pass
 
     return dicts
 
