@@ -5,36 +5,9 @@ from pydantic import Field
 from ...logger import get_logger
 from ...memory import Memory
 from ...agent import AgentToolbox, Block, BlockParams, Agent
+from ...agent.agent_base import extract_json
 
 __all__ = ["CognitionBlock"]
-
-
-def extract_json(output_str):
-    """Extract JSON substring from a raw string response.
-
-    Args:
-        output_str: Raw string output that may contain JSON data.
-
-    Returns:
-        Extracted JSON string if valid, otherwise None.
-
-    Note:
-        Searches for the first '{' and last '}' to isolate JSON content.
-        Catches JSON decoding errors and logs warnings.
-    """
-    try:
-        # Find the positions of the first '{' and the last '}'
-        start = output_str.find("{")
-        end = output_str.rfind("}")
-
-        # Extract the substring containing the JSON
-        json_str = output_str[start : end + 1]
-
-        # Convert the JSON string to a dictionary
-        return json_str
-    except ValueError as e:
-        get_logger().warning(f"Failed to extract JSON: {e}")
-        return None
 
 
 class CognitionBlockParams(BlockParams):
