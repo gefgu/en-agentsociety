@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import time
-import random
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -691,24 +690,15 @@ class InstitutionAgentBase(Agent):
         """
         if self.environment is None:
             raise ValueError("Environment is not initialized")
-        map_header: dict = self.environment.map.get_map_header()
-        # TODO: remove random position assignment
+        aoi_id = await self.status.get("aoi_id")
+        aoi = self.environment.map.get_aoi(aoi_id)
+        centroid = aoi["shapely_xy"].centroid
         await self.status.update(
             "position",
             {
                 "xy_position": {
-                    "x": float(
-                        random.randrange(
-                            start=int(map_header["west"]),
-                            stop=int(map_header["east"]),
-                        )
-                    ),
-                    "y": float(
-                        random.randrange(
-                            start=int(map_header["south"]),
-                            stop=int(map_header["north"]),
-                        )
-                    ),
+                    "x": float(centroid.x),
+                    "y": float(centroid.y),
                 }
             },
         )
