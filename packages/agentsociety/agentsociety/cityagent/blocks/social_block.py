@@ -1,6 +1,5 @@
 # Due to the current limitations of the simulator's support, only NoneBlock, MessageBlock, and FindPersonBlock are available in the Dispatcher.
 
-import time
 from typing import Any, Optional
 import json_repair
 
