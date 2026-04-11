@@ -374,14 +374,15 @@ class LLM:
                         agent_id=context.get("agent_id", "unknown"),
                     )
 
-                    self._db_actor.insert_prompt_response_record.remote(
-                        timestamp=time.time(),
-                        agent_id=context.get("agent_id", "unknown"),
-                        prompt=dialog[-1]["content"] if dialog else "",
-                        response=result,
-                        block_name=context.get("block_name", "unknown"),
-                        func_name=context.get("func_name", "unknown"),
-                    )
+                    if self._db_actor is not None:
+                        self._db_actor.insert_prompt_response_record.remote(
+                            timestamp=time.time(),
+                            agent_id=context.get("agent_id", "unknown"),
+                            prompt=dialog[-1]["content"] if dialog else "",
+                            response=result,
+                            block_name=context.get("block_name", "unknown"),
+                            func_name=context.get("func_name", "unknown"),
+                        )
                 
                 # If probe hit, validate cache correctness using this live model result.
                 if _cache_hit_probe and _probe_result is not None and context is not None:
