@@ -7,7 +7,6 @@ from typing import Any, Optional
 
 import json
 import json_repair
-from pycityproto.city.person.v2 import person_pb2 as person_pb2
 
 from ..environment.sim.person_service import PersonService
 from ..logger import get_logger

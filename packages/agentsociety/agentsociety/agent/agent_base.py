@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional, Union
 
-from pycityproto.city.person.v2 import person_pb2 as person_pb2
 from pydantic import BaseModel
 
 from ..logger import get_logger
