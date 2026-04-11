@@ -1,7 +1,6 @@
 import random
 import time
 
-from pathlib import Path
 from typing import Any, Optional
 
 import json_repair
@@ -14,7 +13,6 @@ from ..agent import (
 )
 from ..logger import get_logger
 from ..memory import Memory
-from ..prompts.prompt_manager import PromptManager
 from .blocks import CognitionBlock, NeedsBlock, PlanBlock, DailyScheduleBlock
 from .sharing_params import (
     SocietyAgentConfig,
@@ -217,10 +215,7 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
             agent_memory=self.memory,
         )
 
-        self.prompt_manager = PromptManager(
-            prompts_dir=str(Path(__file__).resolve().parents[1] / "prompts"),
-            active_config={},
-        )
+        self.prompt_manager = Block._get_or_create_prompt_manager(None)
         self.environment_reflection_prompt_name = "societyagent_environment_reflection"
         self.status_summary_prompt_name = "societyagent_status_summary"
         self.chat_belief_update_prompt_name = "societyagent_chat_belief_update"
