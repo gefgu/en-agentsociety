@@ -8,7 +8,6 @@ from subprocess import Popen
 from typing import Any, Literal, Optional, Tuple, Union, overload
 
 import yaml
-from pycityproto.city.map.v2 import map_pb2 as map_pb2
 from pycityproto.city.person.v2 import person_pb2 as person_pb2
 from pycityproto.city.person.v2 import person_service_pb2 as person_service
 from pycityproto.city.trip.v2.trip_pb2 import TripMode
