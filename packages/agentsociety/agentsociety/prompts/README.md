@@ -18,7 +18,17 @@ origin = "citysim"
 description = "What this prompt does"
 
 [inputs]
-required = ["plan", "current_intention", "work_ethic"]
+[inputs.plan]
+type = "text"
+description = "Current plan details."
+
+[inputs.current_intention]
+type = "text"
+description = "Current intention text."
+
+[inputs.work_ethic]
+type = "categorical"
+description = "Work ethic level."
 
 [prompt]
 input = """Your prompt text with {placeholders}."""
@@ -26,7 +36,7 @@ input = """Your prompt text with {placeholders}."""
 
 Rules:
 - `metadata.name` is the key you use in code.
-- `inputs.required` controls which fields are fetched.
+- All `[inputs.<field>]` entries are treated as required prompt fields.
 - Use `{field}` placeholders only.
 
 ## 2. Use PromptManager in the block
@@ -54,7 +64,7 @@ result = await self.llm.atext_request(dialog, response_format={"type": "json_obj
 ## 3. Fetch only what is required
 
 Use `required_fields` to avoid unnecessary work:
-- Compute expensive values only if their field is requested.
+- Compute expensive values only if their field exists in typed inputs.
 - Put precomputed values into `context` so `PromptManager` uses them first.
 - Let `build_agent_state()` fetch remaining fields from memory.
 
@@ -70,7 +80,7 @@ If `active_config` is empty/None, latest version for each prompt name is loaded.
 ## 5. Migration checklist
 
 - Move inline prompt string into TOML.
-- Add all placeholders to `inputs.required`.
+- Add typed `[inputs.<field>]` entries for all placeholders.
 - Replace inline formatting with `PromptManager` calls.
 - Keep parsing/business logic unchanged.
 - Validate prompt output format (`json_object` if needed).

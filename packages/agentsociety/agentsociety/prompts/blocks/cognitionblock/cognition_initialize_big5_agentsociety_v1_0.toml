@@ -5,15 +5,6 @@ origin = "agentsociety"
 description = "Initialize Big Five psychographic traits from profile"
 
 [inputs]
-required = [
-    "gender",
-    "education",
-    "consumption",
-    "occupation",
-    "age",
-    "income",
-    "background_story",
-]
 
 [inputs.gender]
 type = "text"

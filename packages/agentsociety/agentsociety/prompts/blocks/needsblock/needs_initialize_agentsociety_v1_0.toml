@@ -5,25 +5,6 @@ origin = "agentsociety"
 description = "Initialize satisfaction levels from profile and traits"
 
 [inputs]
-required = [
-    "gender",
-    "education",
-    "consumption",
-    "occupation",
-    "age",
-    "income",
-    "household",
-    "life_stage",
-    "hobbies",
-    "goals",
-    "openness",
-    "conscientiousness",
-    "extraversion",
-    "agreeableness",
-    "neuroticism",
-    "social_frequency",
-    "current_time",
-]
 
 [inputs.gender]
 type = "text"

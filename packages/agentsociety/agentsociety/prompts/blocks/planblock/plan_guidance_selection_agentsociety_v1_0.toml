@@ -5,33 +5,6 @@ origin = "agentsociety"
 description = "Select best guidance option for current need using TPB evaluation"
 
 [inputs]
-required = [
-    "weather",
-    "temperature",
-    "other_info",
-    "current_need",
-    "current_location",
-    "current_time",
-    "consumption_level",
-    "occupation",
-    "age",
-    "emotion_types",
-    "thought",
-    "household",
-    "life_stage",
-    "hobbies",
-    "goals",
-    "openness",
-    "conscientiousness",
-    "extraversion",
-    "agreeableness",
-    "neuroticism",
-    "chronotype",
-    "work_ethic",
-    "social_frequency",
-    "leisure_preference",
-    "options",
-]
 
 [inputs.weather]
 type = "text"

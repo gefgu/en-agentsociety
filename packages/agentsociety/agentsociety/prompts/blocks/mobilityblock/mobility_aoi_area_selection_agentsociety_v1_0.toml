@@ -5,21 +5,6 @@ origin = "agentsociety"
 description = "Select candidate AOI areas for place search"
 
 [inputs]
-required = [
-    "plan",
-    "intention",
-    "emotion",
-    "thought",
-    "household",
-    "life_stage",
-    "openness",
-    "conscientiousness",
-    "extraversion",
-    "agreeableness",
-    "neuroticism",
-    "visit_history",
-    "ranked_areas",
-]
 
 [inputs.plan]
 type = "text"

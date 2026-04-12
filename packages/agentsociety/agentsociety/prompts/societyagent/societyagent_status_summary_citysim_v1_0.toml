@@ -5,34 +5,6 @@ origin = "citysim"
 description = "Generate a concise first-person summary of current agent status"
 
 [inputs]
-required = [
-    "name",
-    "age",
-    "gender",
-    "occupation",
-    "education",
-    "personality",
-    "background_story",
-    "household",
-    "life_stage",
-    "hobbies",
-    "goals",
-    "openness",
-    "conscientiousness",
-    "extraversion",
-    "agreeableness",
-    "neuroticism",
-    "current_time",
-    "weather",
-    "temperature",
-    "current_location",
-    "other_information",
-    "current_need",
-    "current_plan_target",
-    "current_intention",
-    "current_emotion",
-    "current_thought",
-]
 
 [inputs.name]
 type = "text"

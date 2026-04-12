@@ -5,21 +5,6 @@ origin = "agentsociety"
 description = "Generate the agent's reflection about current environmental information"
 
 [inputs]
-required = [
-    "occupation",
-    "age",
-    "emotion_types",
-    "household",
-    "life_stage",
-    "hobbies",
-    "goals",
-    "openness",
-    "conscientiousness",
-    "extraversion",
-    "agreeableness",
-    "neuroticism",
-    "area_information",
-]
 
 [inputs.occupation]
 type = "text"

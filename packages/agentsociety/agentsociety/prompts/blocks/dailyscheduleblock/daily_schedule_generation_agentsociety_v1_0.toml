@@ -5,30 +5,6 @@ origin = "agentsociety"
 description = "Generate a value-driven daily schedule with mandatory and flexible time blocks"
 
 [inputs]
-required = [
-    "day",
-    "current_time",
-    "occupation",
-    "age",
-    "income",
-    "household",
-    "life_stage",
-    "hobbies",
-    "goals",
-    "openness",
-    "conscientiousness",
-    "extraversion",
-    "agreeableness",
-    "neuroticism",
-    "chronotype",
-    "work_ethic",
-    "social_frequency",
-    "leisure_preference",
-    "hunger_satisfaction",
-    "energy_satisfaction",
-    "safety_satisfaction",
-    "social_satisfaction",
-]
 
 [inputs.day]
 type = "text"

@@ -5,25 +5,6 @@ origin = "citysim"
 description = "Evaluate completed plan results and adjust need satisfaction"
 
 [inputs]
-required = [
-    "current_need",
-    "plan_target",
-    "evaluation_results",
-    "hunger_satisfaction",
-    "energy_satisfaction",
-    "safety_satisfaction",
-    "social_satisfaction",
-    "household",
-    "life_stage",
-    "hobbies",
-    "goals",
-    "openness",
-    "conscientiousness",
-    "extraversion",
-    "agreeableness",
-    "neuroticism",
-    "social_frequency",
-]
 
 [inputs.current_need]
 type = "text"

@@ -5,12 +5,6 @@ origin = "agentsociety"
 description = "Update belief attributes for a social contact after receiving a message"
 
 [inputs]
-required = [
-    "content",
-    "sender_id",
-    "relationship_type",
-    "relationship_strength",
-]
 
 [inputs.content]
 type = "text"

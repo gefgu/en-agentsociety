@@ -5,20 +5,6 @@ origin = "agentsociety"
 description = "Initialize hobbies from profile and psychographic traits"
 
 [inputs]
-required = [
-    "gender",
-    "age",
-    "occupation",
-    "income",
-    "education",
-    "household",
-    "life_stage",
-    "openness",
-    "conscientiousness",
-    "extraversion",
-    "agreeableness",
-    "neuroticism",
-]
 
 [inputs.gender]
 type = "text"

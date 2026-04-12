@@ -5,16 +5,6 @@ origin = "agentsociety"
 description = "Monthly SMART goal creation prompt from economic and social context"
 
 [inputs]
-required = [
-    "income",
-    "consumption",
-    "wealth",
-    "financial_stress",
-    "need_fulfillment",
-    "social_isolation",
-    "interest",
-    "major_events_memories",
-]
 
 [inputs.income]
 type = "text"

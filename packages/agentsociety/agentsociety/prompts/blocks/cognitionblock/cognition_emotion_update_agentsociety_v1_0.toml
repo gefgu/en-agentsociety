@@ -5,34 +5,6 @@ origin = "agentsociety"
 description = "Update emotion intensities from incident context"
 
 [inputs]
-required = [
-    "gender",
-    "age",
-    "race",
-    "religion",
-    "marriage_status",
-    "residence",
-    "occupation",
-    "education",
-    "personality",
-    "consumption",
-    "family_consumption",
-    "income",
-    "skill",
-    "thought",
-    "openness",
-    "conscientiousness",
-    "extraversion",
-    "agreeableness",
-    "neuroticism",
-    "sadness",
-    "joy",
-    "fear",
-    "disgust",
-    "anger",
-    "surprise",
-    "incident_text",
-]
 
 [inputs.gender]
 type = "text"

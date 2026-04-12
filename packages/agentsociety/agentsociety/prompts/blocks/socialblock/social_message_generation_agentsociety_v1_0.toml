@@ -5,30 +5,6 @@ origin = "agentsociety"
 description = "Generate a context-aware social message to a selected target"
 
 [inputs]
-required = [
-    "name",
-    "gender",
-    "occupation",
-    "education",
-    "personality",
-    "emotion_types",
-    "thought",
-    "background_story",
-    "household",
-    "life_stage",
-    "hobbies",
-    "openness",
-    "conscientiousness",
-    "extraversion",
-    "agreeableness",
-    "neuroticism",
-    "relationship_type",
-    "relationship_strength",
-    "chat_history",
-    "intention",
-    "environment_info",
-    "discussion_constraint",
-]
 
 [inputs.name]
 type = "text"

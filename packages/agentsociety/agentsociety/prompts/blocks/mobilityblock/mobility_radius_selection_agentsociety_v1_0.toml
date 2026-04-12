@@ -5,22 +5,6 @@ origin = "agentsociety"
 description = "Determine mobility travel radius from current state"
 
 [inputs]
-required = [
-    "weather",
-    "temperature",
-    "current_emotion",
-    "current_thought",
-    "household",
-    "life_stage",
-    "hobbies",
-    "openness",
-    "conscientiousness",
-    "extraversion",
-    "agreeableness",
-    "neuroticism",
-    "risk_tolerance",
-    "other_information",
-]
 
 [inputs.weather]
 type = "text"

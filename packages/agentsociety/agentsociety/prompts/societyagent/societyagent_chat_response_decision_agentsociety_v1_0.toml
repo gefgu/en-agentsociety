@@ -5,19 +5,6 @@ origin = "agentsociety"
 description = "Decide whether to respond to an incoming social message and draft response content"
 
 [inputs]
-required = [
-    "current_intention",
-    "gender",
-    "education",
-    "personality",
-    "occupation",
-    "background_story",
-    "emotion_types",
-    "content",
-    "relationship_strength",
-    "relationship_type",
-    "recent_chat_history",
-]
 
 [inputs.current_intention]
 type = "text"

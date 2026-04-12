@@ -5,6 +5,7 @@ import importlib
 from typing import Any, Optional
 
 from ..logger import get_logger
+from .prompt_memory_handler import PromptMemoryHandler
 
 
 def _load_toml_module():
@@ -36,6 +37,7 @@ class PromptManager:
         self.prompts_dir = prompts_dir
         self.active_config = active_config or {}
         self._loaded_prompts: dict[str, dict] = {}
+        self._prompt_memory_handler = PromptMemoryHandler()
         self._resolve_and_load_prompts()
 
     def _load_all_prompts(self) -> list[dict]:
@@ -151,6 +153,10 @@ class PromptManager:
 
     def get_required_fields(self, prompt_name: str) -> list[str]:
         prompt_data = self._loaded_prompts.get(prompt_name, {})
+        schema = self.get_input_schema(prompt_name)
+        if schema:
+            return list(schema.keys())
+        # Backward compatibility for legacy prompt TOMLs.
         return prompt_data.get("inputs", {}).get("required", [])
 
     def get_prompt_identity(self, prompt_name: str) -> tuple[str, str, str]:
@@ -174,28 +180,20 @@ class PromptManager:
         }
 
     def get_typed_input_fields(self, prompt_name: str) -> list[str]:
-        prompt_data = self._loaded_prompts.get(prompt_name, {})
-        required = prompt_data.get("inputs", {}).get("required", [])
         schema = self.get_input_schema(prompt_name)
         allowed_types = {"text", "integer", "float", "categorical"}
         return [
             field
-            for field in required
-            if field in schema
-            and str(schema[field].get("type", "")).lower() in allowed_types
+            for field, field_schema in schema.items()
+            if str(field_schema.get("type", "")).lower() in allowed_types
         ]
 
     def get_text_input_fields(self, prompt_name: str) -> list[str]:
-        prompt_data = self._loaded_prompts.get(prompt_name, {})
-        inputs = {
-            k: v
-            for k, v in prompt_data.get("inputs", {}).items()
-            if k != "required"
-        }
+        inputs = self.get_input_schema(prompt_name)
         return [
             k
             for k, v in inputs.items()
-            if isinstance(v, dict) and v.get("type") == "text"
+            if isinstance(v, dict) and str(v.get("type", "")).lower() == "text"
         ]
 
     def get_output_schema(self, prompt_name: str) -> dict[str, dict]:
@@ -232,193 +230,43 @@ class PromptManager:
         """Build a flat state dict using only fields requested by prompt TOML."""
         state: dict[str, Any] = {}
 
-        current_plan_cache: Optional[dict[str, Any]] = None
-
-        needs_location = any(
-            field in {"current_location", "current_position"}
-            for field in required_fields
-        )
-        position_now = None
-        home_location = None
-        work_location = None
-        location_knowledge = None
-        if needs_location:
-            position_now = await memory.status.get("position", {})
-            home_location = await memory.status.get("home", {})
-            work_location = await memory.status.get("work", {})
-            location_knowledge = await memory.status.get("location_knowledge", {})
-
-        needs_persona = "persona" in required_fields
-        persona_parts: Optional[dict[str, Any]] = None
-        if needs_persona:
-            persona_parts = {
-                "name": await memory.status.get("name", "unknown"),
-                "age": await memory.status.get("age", "unknown"),
-                "gender": await memory.status.get("gender", "unknown"),
-                "occupation": await memory.status.get("occupation", "unknown"),
-                "personality": await memory.status.get("personality", "unknown"),
-            }
-
-        needs_big5 = any(
-            field
-            in {
-                "openness",
-                "conscientiousness",
-                "extraversion",
-                "agreeableness",
-                "neuroticism",
-            }
-            for field in required_fields
-        )
-        big5 = (
-            await memory.status.get("big5", {})
-            if needs_big5 and "big5" not in context
-            else context.get("big5", {})
-        )
-
-        preference_fields = {
-            "work_ethic",
-            "chronotype",
-            "social_frequency",
-            "leisure_preference",
-            "risk_tolerance",
-            "spending_tendency",
-        }
-        needs_preferences = any(field in preference_fields for field in required_fields)
-        preferences = (
-            await memory.status.get("preferences", {})
-            if needs_preferences and "preferences" not in context
-            else context.get("preferences", {})
-        )
-
         for field in required_fields:
             if field in context:
                 value = context[field]
                 state[field] = ", ".join(value) if isinstance(value, list) else value
-            elif field == "plan":
+                continue
+
+            if field == "plan":
                 state[field] = context.get("plan_context", {}).get("plan", "unknown")
-            elif field in {"current_intention", "intention"}:
+                continue
+
+            if field in {"current_intention", "intention"}:
                 from_step = context.get("current_step", {}).get("intention")
                 if from_step:
                     state[field] = from_step
-                elif field == "current_intention":
-                    if current_plan_cache is None:
-                        current_plan_cache = await memory.status.get("current_plan", {})
-                    if current_plan_cache and current_plan_cache.get("steps"):
-                        idx = current_plan_cache.get("index", 0)
-                        try:
-                            state[field] = current_plan_cache["steps"][idx].get(
-                                "intention", "unknown"
-                            )
-                        except Exception:
-                            state[field] = "unknown"
-                    else:
-                        state[field] = "unknown"
-                else:
-                    state[field] = "unknown"
-            elif field in {"emotion_types", "dominant_emotion"}:
-                state[field] = await memory.status.get("emotion_types", "unknown")
-            elif field == "current_emotion":
-                state[field] = context.get(
-                    "current_emotion",
-                    await memory.status.get("emotion_types", "unknown"),
-                )
-            elif field == "current_thought":
-                state[field] = context.get(
-                    "current_thought", await memory.status.get("thought", "unknown")
-                )
-            elif field in {"household", "life_stage"}:
-                state[field] = await memory.status.get(field, "unknown")
-            elif field in {"hobbies", "goals"}:
-                value = await memory.status.get(field, [])
-                state[field] = ", ".join(value) if isinstance(value, list) else value
-            elif field in {"current_plan_target", "plan_target"}:
-                if field in context:
-                    state[field] = context[field]
-                else:
-                    if current_plan_cache is None:
-                        current_plan_cache = await memory.status.get("current_plan", {})
-                    state[field] = (
-                        current_plan_cache.get("target", "unknown")
-                        if isinstance(current_plan_cache, dict)
-                        else "unknown"
-                    )
-            elif field in {"current_location", "current_position"}:
-                if field in context:
-                    state[field] = context[field]
-                elif "current_position" in context:
+                    continue
+
+            if field in {"current_location", "current_position"}:
+                if "current_position" in context:
                     state[field] = context["current_position"]
-                elif "current_location" in context:
+                    continue
+                if "current_location" in context:
                     state[field] = context["current_location"]
-                else:
-                    current_location = "Outside"
-                    if (
-                        isinstance(position_now, dict)
-                        and isinstance(home_location, dict)
-                        and "aoi_position" in position_now
-                        and position_now["aoi_position"] == home_location.get("aoi_position")
-                    ):
-                        current_location = "At home"
-                    elif (
-                        isinstance(position_now, dict)
-                        and isinstance(work_location, dict)
-                        and "aoi_position" in position_now
-                        and position_now["aoi_position"] == work_location.get("aoi_position")
-                    ):
-                        current_location = "At workplace"
-                    elif (
-                        isinstance(position_now, dict)
-                        and isinstance(location_knowledge, dict)
-                        and "aoi_position" in position_now
-                    ):
-                        known_locations = {
-                            info.get("id")
-                            for info in location_knowledge.values()
-                            if isinstance(info, dict)
-                        }
-                        if position_now["aoi_position"] in known_locations:
-                            current_location = str(position_now["aoi_position"])
-                    state[field] = current_location
-            elif field in {
-                "openness",
-                "conscientiousness",
-                "extraversion",
-                "agreeableness",
-                "neuroticism",
-            }:
-                state[field] = big5.get(field, 2)
-            elif field == "work_ethic":
-                state[field] = preferences.get("work_ethic", 0.5)
-            elif field == "chronotype":
-                state[field] = preferences.get("chronotype", "standard")
-            elif field == "social_frequency":
-                state[field] = preferences.get("social_frequency", 0.5)
-            elif field == "leisure_preference":
-                state[field] = preferences.get("leisure_preference", "indoor")
-            elif field == "risk_tolerance":
-                state[field] = preferences.get("risk_tolerance", 0.5)
-            elif field == "spending_tendency":
-                state[field] = preferences.get("spending_tendency", 0.5)
-            elif field == "current_time":
-                state[field] = context.get("current_time", "unknown")
-            elif field == "consumption_level":
-                state[field] = await memory.status.get("consumption", "unknown")
-            elif field == "persona":
-                if field in context:
-                    state[field] = context[field]
-                else:
-                    assert persona_parts is not None
-                    state[field] = (
-                        f"Name: {persona_parts['name']}, "
-                        f"Age: {persona_parts['age']}, "
-                        f"Gender: {persona_parts['gender']}, "
-                        f"Occupation: {persona_parts['occupation']}, "
-                        f"Personality: {persona_parts['personality']}"
-                    )
-            else:
-                # Generic fallback: resolve arbitrary memory status fields only when requested.
-                value = await memory.status.get(field, "unknown")
-                state[field] = ", ".join(value) if isinstance(value, list) else value
+                    continue
+
+            if field == "current_emotion" and "current_emotion" in context:
+                state[field] = context["current_emotion"]
+                continue
+
+            if field == "current_thought" and "current_thought" in context:
+                state[field] = context["current_thought"]
+                continue
+
+            if field == "current_time" and "current_time" in context:
+                state[field] = context["current_time"]
+                continue
+
+            state[field] = await self._prompt_memory_handler.resolve_field(field, memory)
 
         return state
 

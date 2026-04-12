@@ -5,23 +5,6 @@ origin = "agentsociety"
 description = "Reflect intervention impact and rebuild needs"
 
 [inputs]
-required = [
-    "intervention_message",
-    "current_action",
-    "hunger_satisfaction",
-    "energy_satisfaction",
-    "safety_satisfaction",
-    "social_satisfaction",
-    "household",
-    "life_stage",
-    "hobbies",
-    "openness",
-    "conscientiousness",
-    "extraversion",
-    "agreeableness",
-    "neuroticism",
-    "social_frequency",
-]
 
 [inputs.intervention_message]
 type = "text"

@@ -5,9 +5,6 @@ origin = "agentsociety"
 description = "Select the most appropriate registered block to handle an agent's current intention"
 
 [inputs]
-required = [
-    "current_intention",
-]
 
 [inputs.current_intention]
 type = "text"

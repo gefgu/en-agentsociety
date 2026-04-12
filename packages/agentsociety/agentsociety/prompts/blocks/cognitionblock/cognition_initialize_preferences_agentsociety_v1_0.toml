@@ -5,17 +5,6 @@ origin = "agentsociety"
 description = "Initialize behavioral preferences from profile and psychographics"
 
 [inputs]
-required = [
-    "age",
-    "occupation",
-    "income",
-    "household",
-    "openness",
-    "conscientiousness",
-    "extraversion",
-    "agreeableness",
-    "neuroticism",
-]
 
 [inputs.age]
 type = "integer"

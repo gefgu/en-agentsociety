@@ -5,33 +5,6 @@ origin = "agentsociety"
 description = "Generate detailed executable plan steps from selected guidance"
 
 [inputs]
-required = [
-    "weather",
-    "temperature",
-    "other_information",
-    "plan_target",
-    "current_position",
-    "current_time",
-    "consumption_level",
-    "occupation",
-    "age",
-    "emotion_types",
-    "current_thought",
-    "household",
-    "life_stage",
-    "hobbies",
-    "goals",
-    "openness",
-    "conscientiousness",
-    "extraversion",
-    "agreeableness",
-    "neuroticism",
-    "chronotype",
-    "work_ethic",
-    "social_frequency",
-    "leisure_preference",
-    "max_plan_steps",
-]
 
 [inputs.weather]
 type = "text"

@@ -5,25 +5,6 @@ origin = "agentsociety"
 description = "Monthly economic observation prompt for work and consumption propensity decisions"
 
 [inputs]
-required = [
-    "name",
-    "age",
-    "city",
-    "job",
-    "skill",
-    "consumption_summary",
-    "tax_summary",
-    "price",
-    "openness",
-    "conscientiousness",
-    "extraversion",
-    "agreeableness",
-    "neuroticism",
-    "household",
-    "life_stage",
-    "wealth",
-    "interest_rate_pct",
-]
 
 [inputs.name]
 type = "text"

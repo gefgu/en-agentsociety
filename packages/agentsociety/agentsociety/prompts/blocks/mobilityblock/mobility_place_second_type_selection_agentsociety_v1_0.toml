@@ -5,23 +5,6 @@ origin = "agentsociety"
 description = "Select secondary POI category for mobility destination"
 
 [inputs]
-required = [
-    "plan",
-    "intention",
-    "poi_category",
-    "other_info",
-    "household",
-    "life_stage",
-    "hobbies",
-    "goals",
-    "openness",
-    "conscientiousness",
-    "extraversion",
-    "agreeableness",
-    "neuroticism",
-    "leisure_preference",
-    "risk_tolerance",
-]
 
 [inputs.plan]
 type = "text"

@@ -5,21 +5,6 @@ origin = "agentsociety"
 description = "Select candidate neighborhoods for place search"
 
 [inputs]
-required = [
-    "plan",
-    "intention",
-    "emotion",
-    "thought",
-    "household",
-    "life_stage",
-    "openness",
-    "conscientiousness",
-    "extraversion",
-    "agreeableness",
-    "neuroticism",
-    "visit_history",
-    "candidate_neighborhoods",
-]
 
 [inputs.plan]
 type = "text"

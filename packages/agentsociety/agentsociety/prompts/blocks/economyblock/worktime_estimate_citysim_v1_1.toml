@@ -5,21 +5,6 @@ origin = "citysim"
 description = "A prompt for estimating the time needed to complete an action based on the overall plan"
 
 [inputs]
-required = [
-    "plan",
-    "current_intention",
-    "emotion_types",
-    "household",
-    "life_stage",
-    "hobbies",
-    "goals",
-    "openness",
-    "conscientiousness",
-    "extraversion",
-    "agreeableness",
-    "neuroticism",
-    "work_ethic",
-]
 
 [inputs.plan]
 type = "text"

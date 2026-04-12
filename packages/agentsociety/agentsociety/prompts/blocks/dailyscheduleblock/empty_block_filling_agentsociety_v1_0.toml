@@ -5,32 +5,6 @@ origin = "agentsociety"
 description = "Select the best value-driven activity for an empty schedule block"
 
 [inputs]
-required = [
-    "current_time",
-    "current_location",
-    "emotion_types",
-    "thought",
-    "block_start_time",
-    "block_duration",
-    "block_description",
-    "hunger_satisfaction",
-    "energy_satisfaction",
-    "safety_satisfaction",
-    "social_satisfaction",
-    "occupation",
-    "age",
-    "household",
-    "life_stage",
-    "hobbies",
-    "goals",
-    "openness",
-    "conscientiousness",
-    "extraversion",
-    "agreeableness",
-    "neuroticism",
-    "social_frequency",
-    "leisure_preference",
-]
 
 [inputs.current_time]
 type = "text"
