@@ -8,6 +8,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.http import models
 
 from ...logger import get_logger
+from .championship import QdrantCacheChampionship
 
 
 def _sanitize_collection_name(name: str) -> str:
@@ -65,12 +66,30 @@ class MultiFeatureQdrantChampionCache:
         self.buffer_rows: list[dict[str, Any]] = []
         self.master_rows: list[dict[str, Any]] = []
 
-        self.active_feature: Optional[str] = None
-        self.max_neighbor_distance: Optional[float] = None
-        self.last_feature_scores: dict[str, dict[str, Any]] = {}
-        self.rebuild_count = 0
+        self.championship = QdrantCacheChampionship(
+            feature_names=self.feature_names,
+            n_neighbors=self.n_neighbors,
+            validation_size=self.validation_size,
+            random_state=self.random_state,
+        )
 
         self.collection_initialized = False
+
+    @property
+    def active_feature(self) -> Optional[str]:
+        return self.championship.active_feature
+
+    @property
+    def max_neighbor_distance(self) -> Optional[float]:
+        return self.championship.max_neighbor_distance
+
+    @property
+    def last_feature_scores(self) -> dict[str, dict[str, Any]]:
+        return self.championship.last_feature_scores
+
+    @property
+    def rebuild_count(self) -> int:
+        return self.championship.rebuild_count
 
     def _collection_exists(self) -> bool:
         return self.client.collection_exists(self.collection_name)
@@ -141,8 +160,8 @@ class MultiFeatureQdrantChampionCache:
     def model_ready(self) -> bool:
         return (
             self.collection_initialized
-            and self.active_feature is not None
-            and self.max_neighbor_distance is not None
+            and self.championship.active_feature is not None
+            and self.championship.max_neighbor_distance is not None
             and len(self.master_rows) >= self.n_neighbors
         )
 
@@ -182,108 +201,6 @@ class MultiFeatureQdrantChampionCache:
             return None
         return float(np.quantile(np.asarray(furthest_distances, dtype=float), self.distance_quantile))
 
-    def _predict_single_label(
-        self,
-        sims: np.ndarray,
-        y_train: np.ndarray,
-        k: int,
-    ) -> str:
-        top_idx = np.argpartition(-sims, kth=k - 1)[:k]
-        vote_sum: dict[str, float] = defaultdict(float)
-        for i in top_idx:
-            label = str(y_train[i])
-            vote_sum[label] += float(max(sims[i], 1e-12))
-        return max(vote_sum.items(), key=lambda kv: kv[1])[0]
-
-    def _predict_labels(
-        self,
-        X_train_norm: np.ndarray,
-        y_train: np.ndarray,
-        X_val: np.ndarray,
-        k: int,
-    ) -> np.ndarray:
-        y_pred: list[str] = []
-        for q in X_val:
-            q_norm = q / max(float(np.linalg.norm(q)), 1e-12)
-            sims = X_train_norm @ q_norm
-            y_pred.append(self._predict_single_label(sims, y_train, k))
-        return np.asarray(y_pred, dtype=str)
-
-    def _macro_f1_score(self, y_true: np.ndarray, y_pred: np.ndarray) -> float:
-        y_true_str = y_true.astype(str)
-        labels = np.unique(np.concatenate([y_true_str, y_pred]))
-        f1_scores = []
-        for label in labels:
-            tp = np.sum((y_true_str == label) & (y_pred == label))
-            fp = np.sum((y_true_str != label) & (y_pred == label))
-            fn = np.sum((y_true_str == label) & (y_pred != label))
-            precision = tp / max(tp + fp, 1)
-            recall = tp / max(tp + fn, 1)
-            if precision + recall == 0:
-                f1_scores.append(0.0)
-            else:
-                f1_scores.append(float(2 * precision * recall / (precision + recall)))
-        return float(np.mean(f1_scores)) if f1_scores else 0.0
-
-    def _score_feature(self, feature_name: str, X_all: np.ndarray, y_all: np.ndarray) -> dict[str, Any]:
-        if len(y_all) < self.n_neighbors:
-            return {
-                "feature": feature_name,
-                "macro_f1": 0.0,
-                "accuracy": 0.0,
-                "status": "insufficient_samples",
-            }
-
-        unique_labels = np.unique(y_all)
-        if len(unique_labels) < 2:
-            return {
-                "feature": feature_name,
-                "macro_f1": 1.0,
-                "accuracy": 1.0,
-                "status": "single_class",
-            }
-
-        rng = np.random.default_rng(self.random_state)
-        idx = np.arange(len(y_all))
-        rng.shuffle(idx)
-
-        val_count = max(1, int(len(idx) * self.validation_size))
-        if val_count >= len(idx):
-            val_count = max(1, len(idx) // 5)
-
-        val_idx = idx[:val_count]
-        train_idx = idx[val_count:]
-        if len(train_idx) == 0:
-            return {
-                "feature": feature_name,
-                "macro_f1": 0.0,
-                "accuracy": 0.0,
-                "status": "insufficient_train_split",
-            }
-
-        X_train = X_all[train_idx]
-        y_train = y_all[train_idx]
-        X_val = X_all[val_idx]
-        y_val = y_all[val_idx]
-
-        k = max(1, min(self.n_neighbors, len(X_train)))
-        X_train_norm = X_train / np.maximum(
-            np.linalg.norm(X_train, axis=1, keepdims=True),
-            1e-12,
-        )
-        y_pred_arr = self._predict_labels(X_train_norm, y_train, X_val, k)
-
-        # Macro-F1 and accuracy implemented locally to avoid extra dependencies.
-        macro_f1 = self._macro_f1_score(y_val, y_pred_arr)
-        accuracy = float(np.mean(y_val == y_pred_arr)) if len(y_val) else 0.0
-
-        return {
-            "feature": feature_name,
-            "macro_f1": macro_f1,
-            "accuracy": accuracy,
-            "status": "ok",
-        }
-
     def _flush_buffer(self) -> None:
         if not self.buffer_rows:
             return
@@ -310,34 +227,16 @@ class MultiFeatureQdrantChampionCache:
         if len(self.master_rows) < self.n_neighbors:
             return
 
-        y_all = self._labels()
-        feature_scores = []
-        for feature in self.feature_names:
-            X_all = self._feature_matrix(feature)
-            feature_scores.append(self._score_feature(feature, X_all, y_all))
-
-        best = sorted(
-            feature_scores,
-            key=lambda row: (row["macro_f1"], row["accuracy"]),
-            reverse=True,
-        )[0]
-
-        best_feature = str(best["feature"])
-        self.active_feature = best_feature
-        self.max_neighbor_distance = self._compute_threshold_for_feature(best_feature)
-        self.rebuild_count += 1
-        self.last_feature_scores = {
-            str(row["feature"]): {
-                "macro_f1": float(row["macro_f1"]),
-                "accuracy": float(row["accuracy"]),
-                "status": str(row["status"]),
-            }
-            for row in feature_scores
-        }
+        self.championship.rebuild(
+            labels=self._labels(),
+            feature_matrix_provider=self._feature_matrix,
+            threshold_provider=self._compute_threshold_for_feature,
+        )
 
         get_logger().debug(
-            f"Cache rebuild #{self.rebuild_count} for {self.collection_name}: "
-            f"feature={self.active_feature}, max_neighbor_distance={self.max_neighbor_distance}"
+            f"Cache rebuild #{self.championship.rebuild_count} for {self.collection_name}: "
+            f"feature={self.championship.active_feature}, "
+            f"max_neighbor_distance={self.championship.max_neighbor_distance}"
         )
 
     def evaluate(self, feature_row: dict[str, np.ndarray]) -> dict[str, Any]:
@@ -345,11 +244,14 @@ class MultiFeatureQdrantChampionCache:
 
         if not self.model_ready():
             return {"cache_hit": False, "reason": "model_not_ready"}
-        if self.active_feature not in feature_row:
+        if self.championship.active_feature not in feature_row:
             return {"cache_hit": False, "reason": "missing_active_feature"}
 
-        q = np.asarray(feature_row[self.active_feature], dtype=float)
-        pts = self._query_neighbors(self.active_feature, q, self.n_neighbors)
+        active_feature = self.championship.active_feature
+        assert active_feature is not None  # Guarded by model_ready above.
+
+        q = np.asarray(feature_row[active_feature], dtype=float)
+        pts = self._query_neighbors(active_feature, q, self.n_neighbors)
         if len(pts) < self.n_neighbors:
             return {"cache_hit": False, "reason": "insufficient_neighbors"}
 
@@ -370,9 +272,9 @@ class MultiFeatureQdrantChampionCache:
         furthest_neighbor_distance = float(1.0 - float(pts[-1].score))
 
         cache_hit = (
-            self.max_neighbor_distance is not None
+            self.championship.max_neighbor_distance is not None
             and top_proba >= self.probability_threshold
-            and furthest_neighbor_distance <= self.max_neighbor_distance
+            and furthest_neighbor_distance <= self.championship.max_neighbor_distance
         )
 
         return {
@@ -380,7 +282,7 @@ class MultiFeatureQdrantChampionCache:
             "label": pred_label,
             "top_proba": top_proba,
             "furthest_neighbor_distance": furthest_neighbor_distance,
-            "selected_feature": self.active_feature,
+            "selected_feature": active_feature,
         }
 
     def record(self, feature_row: dict[str, np.ndarray], label: str) -> None:
