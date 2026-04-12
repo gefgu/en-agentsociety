@@ -113,6 +113,7 @@ class LLM:
         metrics_actor: Optional[PrometheusActor] = None,
         db_actor: Optional[DatabaseActor] = None,
         cache_actor: Optional[Any] = None,
+        cache_skip_mode: bool = False,
     ):
         """
         Initializes the LLM instance.
@@ -138,6 +139,7 @@ class LLM:
         self._metrics_actor = metrics_actor
         self._db_actor = db_actor
         self._cache_actor = cache_actor
+        self._cache_skip_mode = cache_skip_mode
 
         for config in self.configs:
             base_url = config.base_url
@@ -432,6 +434,12 @@ class LLM:
                 prompt_identity,
                 cache_hit_probe,
             ) = await self._probe_semantic_cache(context)
+
+        # Skip mode: if probe hit, return immediately without calling the live LLM.
+        if self._cache_skip_mode and cache_hit_probe and probe_result is not None:
+            if isinstance(probe_result, str):
+                return probe_result
+            return json.dumps(probe_result, ensure_ascii=True)
 
         # Infinite retry loop - never give up on the request
         while True:

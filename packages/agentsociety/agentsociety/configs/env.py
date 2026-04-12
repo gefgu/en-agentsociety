@@ -3,7 +3,7 @@ from typing import Optional, Union
 from pydantic import BaseModel, Field
 
 from ..filesystem import FileSystemClient
-from ..llm.qdrant_cache_config import QdrantCacheConfig
+from ..llm.cache.config import QdrantCacheConfig
 from ..s3 import S3Client, S3Config
 from ..storage import DatabaseConfig
 

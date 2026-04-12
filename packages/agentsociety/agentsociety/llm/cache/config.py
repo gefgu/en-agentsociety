@@ -14,3 +14,4 @@ class QdrantCacheConfig(BaseModel):
     distance_quantile: float = Field(default=0.95, ge=0.0, le=1.0)
     embedding_model: str = Field(default="BAAI/bge-small-en-v1.5")
     embedding_cache_dir: Optional[str] = Field(default=None)
+    skip_mode: bool = Field(default=False)

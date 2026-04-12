@@ -419,6 +419,7 @@ class InfrastructureManager:
                 batch_size=cfg.batch_size,
                 n_neighbors=cfg.n_neighbors,
                 distance_quantile=cfg.distance_quantile,
+                llm_model_name=self._config.llm[0].model,
             )
             self._llm_cache_tool = CustomTool(
                 name="llm_cache_actor",
@@ -437,6 +438,7 @@ class InfrastructureManager:
             metrics_actor=self._metrics_actor,
             db_actor=self._db_actor,
             cache_actor=self._llm_cache_actor,
+            cache_skip_mode=self._config.env.qdrant_cache.skip_mode,
         )
         get_logger().info("LLM initialized")
 
