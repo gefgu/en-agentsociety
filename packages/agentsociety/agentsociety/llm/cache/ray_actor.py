@@ -71,6 +71,8 @@ class QdrantCacheActor:
         self._schemas: dict[str, dict[str, dict[str, Any]]] = {}
         self._hit_counts: dict[str, int] = defaultdict(int)
         self._miss_counts: dict[str, int] = defaultdict(int)
+        self._shadow_hit_validation_counts: dict[str, int] = defaultdict(int)
+        self._shadow_hit_right_counts: dict[str, int] = defaultdict(int)
 
     def _collection_name(self, prompt_identity: tuple[str, str, str]) -> str:
         """Build a model-scoped Qdrant collection name from prompt identity.
@@ -297,18 +299,44 @@ class QdrantCacheActor:
         cache = self._get_or_create_cache(collection_name, list(feature_row.keys()))
         cache.record(feature_row, label)
 
+    def record_shadow_hit_validation(
+        self,
+        prompt_identity: tuple[str, str, str],
+        right: bool,
+    ) -> None:
+        """Record whether a probed cache hit matched the live LLM output.
+
+        This is used only in shadow mode (cache is evaluated but not used to
+        skip live LLM calls).
+
+        :param prompt_identity: (name, origin, version) triple.
+        :param right: True if cached output equals normalized live output.
+        """
+        collection_name = self._collection_name(prompt_identity)
+        self._shadow_hit_validation_counts[collection_name] += 1
+        if right:
+            self._shadow_hit_right_counts[collection_name] += 1
+
     def get_stats(self) -> dict[str, dict[str, Any]]:
         """Return per-collection hit/miss counters and model state.
 
         :returns: Dict keyed by collection name with hits, misses, total,
-            rebuild_count, active_feature, max_neighbor_distance.
+            rebuild_count, active_feature, max_neighbor_distance,
+            shadow_hit_right, shadow_hit_validations, shadow_hit_right_rate.
 
         Called from: e2e tests and monitoring code.
         """
         output: dict[str, dict[str, Any]] = {}
-        names = set(self._hit_counts.keys()) | set(self._miss_counts.keys()) | set(self._caches.keys())
+        names = (
+            set(self._hit_counts.keys())
+            | set(self._miss_counts.keys())
+            | set(self._caches.keys())
+            | set(self._shadow_hit_validation_counts.keys())
+        )
         for name in names:
             cache = self._caches.get(name)
+            shadow_hit_validations = int(self._shadow_hit_validation_counts.get(name, 0))
+            shadow_hit_right = int(self._shadow_hit_right_counts.get(name, 0))
             output[name] = {
                 "hits": int(self._hit_counts.get(name, 0)),
                 "misses": int(self._miss_counts.get(name, 0)),
@@ -316,6 +344,13 @@ class QdrantCacheActor:
                 "rebuild_count": int(cache.rebuild_count) if cache is not None else 0,
                 "active_feature": cache.active_feature if cache is not None else None,
                 "max_neighbor_distance": cache.max_neighbor_distance if cache is not None else None,
+                "shadow_hit_right": shadow_hit_right,
+                "shadow_hit_validations": shadow_hit_validations,
+                "shadow_hit_right_rate": (
+                    float(shadow_hit_right / shadow_hit_validations)
+                    if shadow_hit_validations > 0
+                    else None
+                ),
             }
         return output
 

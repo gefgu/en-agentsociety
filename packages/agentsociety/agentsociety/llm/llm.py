@@ -340,6 +340,15 @@ class LLM:
                 right=right,
             )
 
+        if not self._cache_skip_mode and self._cache_actor is not None:
+            try:
+                self._cache_actor.record_shadow_hit_validation.remote(
+                    context["prompt_identity"],
+                    right,
+                )
+            except Exception as e:
+                get_logger().debug(f"Shadow validation record failed: {e}")
+
         if isinstance(probe_result, str):
             return probe_result
         return json.dumps(probe_result, ensure_ascii=True)
