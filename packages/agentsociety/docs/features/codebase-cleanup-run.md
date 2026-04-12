@@ -21,14 +21,14 @@ Progress is tracked here. Original plan file is not modified.
 - [ ] Step 13: Delete inline `import traceback` in `simulationengine.py:676` (C2-6) — None risk
 - [ ] Step 14: Fix typo + wrong name in `INTERVENE` warning message (C6-2) — None risk
 - [x] Step 15: Replace `extract_dict_from_string` with `json_repair` in `economy_block.py` (C5-4) — Low risk
-- [ ] Step 16: Remove deprecated `AgentSociety.__init__` constructor body (C4-2) — MEDIUM risk, ASK USER
+- [x] Step 16: Remove deprecated `AgentSociety.__init__` constructor body (C4-2) — MEDIUM risk, ASK USER
 - [ ] Step 17: Fix `LLMConfig.validate_configuration` to not block `base_url` on managed providers (C4-3) — Low risk
 - [ ] Step 18: Replace `month = "Current Month"` with real month extraction (C1-4) — Low risk
 - [ ] Step 19: Fix `EconomyClient._get_request_type` to use dict lookup (C1-6) — Low risk
 - [ ] Step 20: Fix `_save_global_prompt` fallback path (C6-3) — Low risk
 - [ ] Step 21: Clarify / deduplicate `WorkflowType.INTERVENE` vs `MESSAGE_INTERVENE` (C4-6) — Low risk
-- [ ] Step 22: Audit and remove `from __future__ import annotations` per-file (C3-6) — MEDIUM risk, ASK USER
-- [ ] Step 23: Use `Block._shared_prompt_manager` inside `SocietyAgent` (C2-2) — MEDIUM risk, ASK USER
+- [x] Step 22: Audit and remove `from __future__ import annotations` per-file (C3-6) — MEDIUM risk, ASK USER
+- [x] Step 23: Use `Block._shared_prompt_manager` inside `SocietyAgent` (C2-2) — MEDIUM risk, ASK USER
 - [ ] Step 24: Consolidate `_build_prompt_context` / `build_llm_prompt_context` (C2-3) — Low risk
-- [ ] Step 25: Replace `CitizenAgentBase._bind_to_economy` random position with home position (C1-5) — MEDIUM risk, ASK USER
+- [x] Step 25: Replace `CitizenAgentBase._bind_to_economy` random position with home position (C1-5) — MEDIUM risk, ASK USER
 - [ ] Step 26: Replace `print()` with `get_logger()` in production files (C4-5) — Low risk (deferred until FormatPrompt decision)

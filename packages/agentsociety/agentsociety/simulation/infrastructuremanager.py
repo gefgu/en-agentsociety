@@ -14,6 +14,7 @@ from fastembed import SparseTextEmbedding
 from ..agent import Agent, CustomTool, CitizenAgentBase
 from ..agent.dispatcher_cache_actor import GlobalDispatcherCacheActor
 from ..configs import Config
+from ..database import ClickHouseConfig
 from ..database.database_actor import DatabaseActor
 from ..environment import EnvironmentStarter
 from ..llm import LLM, QdrantCacheActor
@@ -360,14 +361,16 @@ class InfrastructureManager:
             self._db_actor = DatabaseActor.remote(
                 exp_id=self._exp_id,
                 home_dir=self._config.env.data_dir,
-                host=clickhouse_cfg.host,
-                port=clickhouse_cfg.port,
-                username=clickhouse_cfg.username,
-                password=clickhouse_cfg.password,
-                database=clickhouse_cfg.database,
+                clickhouse_config=ClickHouseConfig(
+                    host=clickhouse_cfg.host,
+                    port=clickhouse_cfg.port,
+                    username=clickhouse_cfg.username,
+                    password=clickhouse_cfg.password,
+                    database=clickhouse_cfg.database,
+                    auto_create_database=clickhouse_cfg.auto_create_database,
+                ),
                 batch_size=clickhouse_cfg.batch_size,
                 batch_timeout=clickhouse_cfg.batch_timeout,
-                auto_create_database=clickhouse_cfg.auto_create_database,
                 metrics_actor=self._metrics_actor,
             )
             self._db_tool = CustomTool(

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import time
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -690,18 +688,23 @@ class InstitutionAgentBase(Agent):
         """
         if self.environment is None:
             raise ValueError("Environment is not initialized")
-        aoi_id = await self.status.get("aoi_id")
-        aoi = self.environment.map.get_aoi(aoi_id)
-        centroid = aoi["shapely_xy"].centroid
-        await self.status.update(
-            "position",
-            {
-                "xy_position": {
-                    "x": float(centroid.x),
-                    "y": float(centroid.y),
-                }
-            },
-        )
+        aoi_id = await self.status.get("aoi_id", None)
+        if aoi_id is not None:
+            aoi = self.environment.map.get_aoi(aoi_id)
+            centroid = aoi["shapely_xy"].centroid
+            await self.status.update(
+                "position",
+                {
+                    "xy_position": {
+                        "x": float(centroid.x),
+                        "y": float(centroid.y),
+                    }
+                },
+            )
+        else:
+            get_logger().warning(
+                f"Institution agent {self.id} has no aoi_id in memory; skipping position initialization."
+            )
         _type = None
         _status = self.status
         _id = await _status.get("id")

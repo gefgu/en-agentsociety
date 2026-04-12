@@ -1,7 +1,4 @@
 
-
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from collections import deque
 from datetime import datetime
@@ -10,10 +7,7 @@ import uuid
 from pathlib import Path
 from typing import Any, List, Optional, TypedDict, Union, cast
 
-import ray
-
 from ..logger import get_logger
-from ..performance.prometheusActor import PrometheusActor
 from .schema import (
 	AdjustNeedsRecord,
 	AgentKVSnapshotRecord,
@@ -61,7 +55,7 @@ class BaseSimulationDatabase(ABC):
 		db_subdir: str,
 		batch_size: int = 128,
 		batch_timeout: float = 30.0,
-		metrics_actor: Optional[ray.actor.ActorHandle[PrometheusActor]] = None,
+		metrics_actor: Optional[Any] = None,
 	):
 		self.exp_id = exp_id
 		self.home_dir = Path(home_dir)
