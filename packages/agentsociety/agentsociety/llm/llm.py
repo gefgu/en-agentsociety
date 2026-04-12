@@ -194,6 +194,152 @@ class LLM:
         )
         return success, str(result)
 
+    def _should_probe_cache(
+        self,
+        context: Optional[LLMContext],
+        tools: Union[List[ChatCompletionToolParam], NotGiven],
+    ) -> bool:
+        return (
+            self._cache_actor is not None
+            and context is not None
+            and "prompt_identity" in context
+            and isinstance(tools, NotGiven)
+        )
+
+    async def _probe_semantic_cache(
+        self,
+        context: LLMContext,
+    ) -> tuple[Optional[Any], tuple[str, str, str], bool]:
+        prompt_identity = context["prompt_identity"]
+        t_probe = time.perf_counter()
+        probe_result: Optional[Any]
+
+        try:
+            probe_result = await self._cache_actor.query_and_maybe_serve.remote(  # type: ignore
+                context["prompt_identity"],
+                context.get("prompt_inputs", {}),
+                context.get("prompt_input_schema", {}),
+                context.get("prompt_output_schema", {}),
+            )
+        except Exception as e:
+            get_logger().debug(f"Cache probe failed: {e}")
+            probe_result = None
+
+        probe_latency = time.perf_counter() - t_probe
+        get_logger().debug(
+            f"Cache probe latency={probe_latency * 1000:.1f}ms "
+            f"hit={probe_result is not None} prompt_identity={prompt_identity}"
+        )
+
+        cache_hit_probe = probe_result is not None
+        if cache_hit_probe and self._metrics_actor is not None:
+            self._metrics_actor.record_cache_stats.remote(
+                prompt_name=str(context["prompt_identity"][0]),
+                hit=True,
+            )
+
+        return probe_result, prompt_identity, cache_hit_probe
+
+    def _record_request_log(self, log: dict[str, Any]) -> None:
+        self._log_list.append(log)
+        self.prompt_tokens_used += log["input_tokens"]
+        self.completion_tokens_used += log["output_tokens"]
+
+    async def _handle_failed_request(
+        self,
+        client_i: int,
+        result: Any,
+        log: dict[str, Any],
+    ) -> None:
+        await self._load_balancer.mark_request_failure(
+            client_i=client_i,
+            should_cooldown=log.get("should_cooldown", False),
+            error_message=str(result),
+        )
+        get_logger().debug(
+            f"Request failed on GPU {client_i}, will retry on another server..."
+        )
+
+    def _record_success_metrics_and_db(
+        self,
+        start_time: float,
+        context: Optional[LLMContext],
+        dialog: list[ChatCompletionMessageParam],
+        result: Any,
+        log: dict[str, Any],
+    ) -> None:
+        if self._metrics_actor is None:
+            return
+
+        end_time = time.perf_counter()
+        metric_context = context or {}
+        self._metrics_actor.record_block_performance.remote(
+            duration=end_time - start_time,
+            actor="llm",
+            token_input=log["input_tokens"],
+            token_output=log["output_tokens"],
+            block_name=metric_context.get("block_name", "unknown"),
+            func_name=metric_context.get("func_name", "unknown"),
+            agent_id=metric_context.get("agent_id", "unknown"),
+        )
+
+        if self._db_actor is not None:
+            self._db_actor.insert_prompt_response_record.remote(
+                timestamp=time.time(),
+                agent_id=metric_context.get("agent_id", "unknown"),
+                prompt=dialog[-1]["content"] if dialog else "",
+                response=result,
+                block_name=metric_context.get("block_name", "unknown"),
+                func_name=metric_context.get("func_name", "unknown"),
+            )
+
+    def _maybe_serve_probe_result(
+        self,
+        context: Optional[LLMContext],
+        cache_hit_probe: bool,
+        probe_result: Optional[Any],
+        result: Any,
+    ) -> Optional[Any]:
+        if not (cache_hit_probe and probe_result is not None and context is not None):
+            return None
+
+        output_schema = context.get("prompt_output_schema", {})
+        cached_norm = self._normalize_for_compare(probe_result, output_schema)
+        live_norm = self._normalize_for_compare(result, output_schema)
+        right = cached_norm == live_norm
+
+        if self._metrics_actor is not None:
+            self._metrics_actor.record_cache_hit_validation.remote(
+                prompt_name=str(context["prompt_identity"][0]),
+                right=right,
+            )
+
+        if isinstance(probe_result, str):
+            return probe_result
+        return json.dumps(probe_result, ensure_ascii=True)
+
+    def _record_cache_miss(
+        self,
+        context: LLMContext,
+        prompt_identity: Optional[tuple[str, str, str]],
+        result: Any,
+    ) -> None:
+        if self._cache_actor is None or prompt_identity is None:
+            return
+
+        self._cache_actor.record.remote(
+            context["prompt_identity"],
+            context.get("prompt_inputs", {}),
+            context.get("prompt_input_schema", {}),
+            result,
+            context.get("prompt_output_schema", {}),
+        )
+        if self._metrics_actor is not None:
+            self._metrics_actor.record_cache_stats.remote(
+                prompt_name=str(context["prompt_identity"][0]),
+                hit=False,
+            )
+
     @overload
     async def atext_request(
         self,
@@ -276,41 +422,16 @@ class LLM:
         """
 
         # Probe semantic cache before contacting live providers.
-        _probe_result = None
-        _collection_id = None
-        _cache_hit_probe = False
-        if (
-            self._cache_actor is not None
-            and context is not None
-            and "prompt_identity" in context
-            and isinstance(tools, NotGiven)
-        ):
-            _collection_id = context["prompt_identity"]
-            t_probe = time.perf_counter()
-            try:
-                _probe_result = await self._cache_actor.query_and_maybe_serve.remote(
-                    context["prompt_identity"],
-                    context.get("prompt_inputs", {}),
-                    context.get("prompt_input_schema", {}),
-                    context.get("prompt_output_schema", {}),
-                )
-            except Exception as e:
-                get_logger().debug(f"Cache probe failed: {e}")
-                _probe_result = None
-
-            probe_latency = time.perf_counter() - t_probe
-            get_logger().debug(
-                f"Cache probe latency={probe_latency * 1000:.1f}ms "
-                f"hit={_probe_result is not None} collection={_collection_id}"
-            )
-
-            if _probe_result is not None:
-                _cache_hit_probe = True
-                if self._metrics_actor is not None:
-                    self._metrics_actor.record_cache_stats.remote(
-                        prompt_name=str(context["prompt_identity"][0]),
-                        hit=True,
-                    )
+        probe_result = None
+        prompt_identity = None
+        cache_hit_probe = False
+        if self._should_probe_cache(context, tools):
+            assert context is not None
+            (
+                probe_result,
+                prompt_identity,
+                cache_hit_probe,
+            ) = await self._probe_semantic_cache(context)
 
         # Infinite retry loop - never give up on the request
         while True:
@@ -338,87 +459,44 @@ class LLM:
                     tool_choice,
                     client_index=client_i,
                 )
-                
-                self._log_list.append(log)
-                self.prompt_tokens_used += log["input_tokens"]
-                self.completion_tokens_used += log["output_tokens"]
+
+                self._record_request_log(log)
 
                 # Check if request failed and should trigger cooldown
                 if not success:
-                    await self._load_balancer.mark_request_failure(
-                        client_i=client_i,
-                        should_cooldown=log.get("should_cooldown", False),
-                        error_message=str(result),
-                    )
-                    
+                    await self._handle_failed_request(client_i, result, log)
+
                     # Request failed - try another server (continue outer while loop)
-                    get_logger().debug(
-                        f"Request failed on GPU {client_i}, will retry on another server..."
-                    )
                     continue  # Go back to server selection and try again
 
                 # Request succeeded - reset consecutive failures
                 await self._load_balancer.mark_request_success(client_i)
 
-                end_time = time.perf_counter()
-                if self._metrics_actor is not None:
-                    if not context:
-                        context = {}
-                    self._metrics_actor.record_block_performance.remote(
-                        duration=end_time - start_time,
-                        actor="llm",
-                        token_input=log["input_tokens"],
-                        token_output=log["output_tokens"],
-                        block_name=context.get("block_name", "unknown"),
-                        func_name=context.get("func_name", "unknown"),
-                        agent_id=context.get("agent_id", "unknown"),
-                    )
+                self._record_success_metrics_and_db(
+                    start_time,
+                    context,
+                    dialog,
+                    result,
+                    log,
+                )
 
-                    if self._db_actor is not None:
-                        self._db_actor.insert_prompt_response_record.remote(
-                            timestamp=time.time(),
-                            agent_id=context.get("agent_id", "unknown"),
-                            prompt=dialog[-1]["content"] if dialog else "",
-                            response=result,
-                            block_name=context.get("block_name", "unknown"),
-                            func_name=context.get("func_name", "unknown"),
-                        )
-                
                 # If probe hit, validate cache correctness using this live model result.
-                if _cache_hit_probe and _probe_result is not None and context is not None:
-                    output_schema = context.get("prompt_output_schema", {})
-                    cached_norm = self._normalize_for_compare(_probe_result, output_schema)
-                    live_norm = self._normalize_for_compare(result, output_schema)
-                    right = cached_norm == live_norm
-
-                    if self._metrics_actor is not None:
-                        self._metrics_actor.record_cache_hit_validation.remote(
-                            prompt_name=str(context["prompt_identity"][0]),
-                            right=right,
-                        )
-
-                    if isinstance(_probe_result, str):
-                        return _probe_result
-                    return json.dumps(_probe_result, ensure_ascii=True)
+                cached_response = self._maybe_serve_probe_result(
+                    context,
+                    cache_hit_probe,
+                    probe_result,
+                    result,
+                )
+                if cached_response is not None:
+                    return cached_response
 
                 # Cache miss path: record sample and miss metric.
-                if self._cache_actor is not None and _collection_id is not None:
-                    self._cache_actor.record.remote(
-                        context["prompt_identity"],
-                        context.get("prompt_inputs", {}),
-                        context.get("prompt_input_schema", {}),
-                        result,
-                        context.get("prompt_output_schema", {}),
-                    )
-                    if self._metrics_actor is not None:
-                        self._metrics_actor.record_cache_stats.remote(
-                            prompt_name=str(context["prompt_identity"][0]),
-                            hit=False,
-                        )
+                if context is not None:
+                    self._record_cache_miss(context, prompt_identity, result)
 
                 # Success - return result
                 return result
-                
+
             except Exception as e:
                 # Unexpected error (e.g., Ray error) - log and retry on another server
                 get_logger().error(
