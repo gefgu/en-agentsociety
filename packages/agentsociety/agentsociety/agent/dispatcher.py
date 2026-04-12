@@ -8,15 +8,13 @@ from ..logger import get_logger
 from ..memory import Memory
 from .block import Block
 from .context import DotDict
-from .prompt import FormatPrompt
 from .toolbox import AgentToolbox
 
-DISPATCHER_PROMPT = """
-Based on the task information (which describes the needs of the user), select the most appropriate block to handle the task.
+DISPATCHER_PROMPT = """Based on the task information (which describes the needs of the user), select the most appropriate block to handle the task.
 Each block has its specific functionality as described in the function schema.
-        
+
 Task information:
-${context.current_intention}
+{current_intention}
 """
 
 
@@ -26,7 +24,7 @@ class BlockDispatcher:
     Attributes:
         toolbox: AgentToolbox
         blocks: Registry of available processing blocks (name -> Block mapping)
-        prompt: Formatted prompt template for LLM instructions
+        prompt_manager: PromptManager instance for building dispatcher dialog
     """
 
     def __init__(
@@ -39,21 +37,80 @@ class BlockDispatcher:
         """Initialize dispatcher with LLM interface.
 
         Args:
-            llm: Language model for block selection decisions
+            toolbox: Agent toolbox providing LLM access
+            agent_memory: Agent memory for reading agent state
+            selection_prompt: Prompt template; {current_intention} is substituted at dispatch time
+            use_cache: Whether to use the global dispatcher cache
         """
         self.toolbox = toolbox
         self.memory = agent_memory
         self.blocks: dict[str, Block] = {}
-        self.dispatcher_prompt = FormatPrompt(selection_prompt, memory=self.memory)
+        self.prompt_manager = Block._get_or_create_prompt_manager(None)
+        # Store the active template so register_dispatcher_prompt can override it.
+        # None means "use prompt_manager with the TOML-backed 'block_dispatcher' prompt".
+        self._custom_dispatch_template: str | None = (
+            None if selection_prompt == DISPATCHER_PROMPT else selection_prompt
+        )
         self.use_cache = use_cache
 
     def register_dispatcher_prompt(self, dispatcher_prompt: str) -> None:
-        """Register a dispatcher prompt.
+        """Register a custom dispatcher prompt template.
+
+        The template is formatted with Python str.format(), so use {current_intention}
+        as the placeholder for the agent's current intention text.  When the provided
+        string equals the default DISPATCHER_PROMPT constant the built-in TOML-backed
+        prompt is used instead, which is equivalent.
 
         Args:
-            dispatcher_prompt: Dispatcher prompt
+            dispatcher_prompt: Prompt template string with {current_intention} placeholder
         """
-        self.dispatcher_prompt = FormatPrompt(dispatcher_prompt, memory=self.memory)
+        self._custom_dispatch_template = (
+            None if dispatcher_prompt == DISPATCHER_PROMPT else dispatcher_prompt
+        )
+
+    def _build_dispatch_dialog(self, current_intention: str) -> list[dict[str, str]]:
+        """Build the LLM dialog for block selection from the active prompt template.
+
+        Uses the TOML-backed PromptManager when no custom template has been registered;
+        falls back to str.format() substitution on the custom template string otherwise.
+
+        Args:
+            current_intention: The agent's current intention text to embed in the prompt
+
+        Returns:
+            A list of chat message dicts ready for the LLM (role/content pairs)
+
+        @usedBy: BlockDispatcher.dispatch
+        """
+        if self._custom_dispatch_template is not None:
+            try:
+                content = self._custom_dispatch_template.format(
+                    current_intention=current_intention
+                )
+            except KeyError:
+                # Template uses unknown placeholders — emit as-is with intention appended.
+                get_logger().warning(
+                    "Custom dispatcher template has unrecognised placeholders; "
+                    "appending current_intention verbatim."
+                )
+                content = self._custom_dispatch_template + "\n" + current_intention
+            return [{"role": "user", "content": content}]
+
+        if self.prompt_manager is not None:
+            try:
+                return self.prompt_manager.format_prompt_to_dialog(
+                    "block_dispatcher",
+                    {"current_intention": current_intention},
+                )
+            except Exception as e:
+                get_logger().warning(
+                    f"PromptManager failed to build dispatcher dialog: {e}; "
+                    "falling back to inline template."
+                )
+
+        # Last-resort fallback: build the dialog inline without any dependency.
+        content = DISPATCHER_PROMPT.format(current_intention=current_intention)
+        return [{"role": "user", "content": content}]
 
     def register_blocks(self, blocks: list[Block]) -> None:
         """Register multiple processing blocks for dispatching.
@@ -125,7 +182,6 @@ class BlockDispatcher:
             get_logger().debug(f"Dispatching with context: {context}")
 
             function_schema = self._get_function_schema()
-            await self.dispatcher_prompt.format(context=context)
             agent_id = await self.memory.status.get("id")
             db_tool = self.toolbox.get_tool("db_actor")
             dispatcher_cache_tool = self.toolbox.get_tool("dispatcher_cache_actor")
@@ -179,9 +235,10 @@ class BlockDispatcher:
 
                 return self.blocks[selected_block]
 
-            # Call LLM with tools schema
+            # Build the dialog and call LLM with tools schema
+            dispatch_dialog = self._build_dispatch_dialog(ctx_intention)
             response = await self.toolbox.llm.atext_request(
-                self.dispatcher_prompt.to_dialog(),
+                dispatch_dialog,
                 tools=[function_schema],
                 tool_choice={"type": "function", "function": {"name": "select_block"}},
                 context={
@@ -311,5 +368,3 @@ class BlockDispatcher:
             )
         except Exception as e:
             get_logger().warning(f"Failed to log dispatcher activity: {e}")
-
-

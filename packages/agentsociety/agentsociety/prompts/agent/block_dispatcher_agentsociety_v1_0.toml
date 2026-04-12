@@ -1,0 +1,22 @@
+[metadata]
+name = "block_dispatcher"
+version = "1.0.0"
+origin = "agentsociety"
+description = "Select the most appropriate registered block to handle an agent's current intention"
+
+[inputs]
+required = [
+    "current_intention",
+]
+
+[inputs.current_intention]
+type = "text"
+description = "The agent's current intention describing the task to be dispatched."
+
+[prompt]
+input = """Based on the task information (which describes the needs of the user), select the most appropriate block to handle the task.
+Each block has its specific functionality as described in the function schema.
+
+Task information:
+{current_intention}
+"""

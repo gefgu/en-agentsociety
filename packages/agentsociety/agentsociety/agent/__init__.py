@@ -15,7 +15,6 @@ from .block import (
     BlockOutput,
 )
 from .dispatcher import BlockDispatcher
-from .prompt import FormatPrompt
 from .decorator import register_get, param_docs
 from .context import (
     AgentContext,
@@ -42,7 +41,6 @@ __all__ = [
     "Block",
     "BlockParams",
     "BlockOutput",
-    "FormatPrompt",
     "BlockDispatcher",
     "register_get",
     "param_docs",
