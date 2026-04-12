@@ -1,40 +1,67 @@
 # Qdrant-Backed LLM Semantic Cache (Ray Actor)
 > A Ray actor that intercepts eligible LLM calls, uses a multi-feature Qdrant championship algorithm to return cached responses when confidence is high, and collects prompt/response pairs as labeled training data.
 
+---
+
+## Implementation Status (as of 2026-04-12)
+
+All 10 original implementation steps are **complete** as of commit `6464b53` ("feat: codex implementation of qdrant cache system (to be improved)").
+
+**One significant design divergence from the original plan exists** — see "Shadow-Validation vs. Skip Mode" below. This divergence affects success criteria and is resolved by the new Step 11 below: adding a `skip_mode` config field that lets callers opt into real skip behavior without changing the existing default.
+
+**One structural decision was made after initial implementation** — see "Step 13: Move cache files to `llm/cache/` subfolder" below. The two flat files `llm/qdrant_cache_actor.py` and `llm/qdrant_cache_config.py` are being reorganised into a proper subpackage.
+
+**One new design decision (2026-04-12)** — see "Step 14: Include LLM model name in collection name" below. The Qdrant collection name must encode the LLM model so that cached results from one model are never served to a different model.
+
+---
+
 ## Purpose & Motivation
 
 The simulation runs hundreds of agents in parallel, each making dozens of LLM calls per tick. Many prompts are structurally near-identical across agents (same block, same situation, slightly different numeric state). The LLM call is the dominant cost — both latency and API spend.
 
 This feature builds a **semantic similarity cache** that:
 1. Embeds the text-type input fields declared in each prompt TOML separately.
-2. Uses the championship algorithm from the code-snippets file to select the best-performing feature vector and return cached labels when confidence is high.
+2. Uses the championship algorithm to select the best-performing feature vector and return cached labels when confidence is high.
 3. Falls back to the live LLM on cache misses, records the label, and periodically rebuilds the KNN model.
 4. Collects all prompt+label pairs as labeled training data for future fine-tuning.
 
-The cache only applies to prompts whose TOML declares `[outputs]` with all-categorical or all-numeric output fields. Prompts with free-text outputs (like status summaries) are excluded — they are cached only for dataset collection, not for response serving.
+The cache only applies to prompts whose TOML declares `[outputs]` with all-categorical or all-numeric output fields. Prompts with free-text outputs are excluded from response serving — they are recorded as dataset samples only.
+
+---
 
 ## Success Criteria
 
 - Cache actor starts and stops cleanly alongside other Ray actors in `InfrastructureManager`.
-- For eligible prompts, a cache hit short-circuits the live LLM call and returns the cached label.
+- **For eligible prompts, a cache hit short-circuits the live LLM call and returns the cached label without paying LLM cost.** Achieved when `skip_mode=True` (Step 11). Shadow-validation mode remains the default.
 - Probe latency is logged each call so its cost is observable.
 - Hit/miss counters are written to a JSON file on `close()` and emitted to Prometheus when monitoring is enabled.
 - All prompt TOML files have `[outputs]` sections so the cache can decide eligibility at load time.
 - Feature is opt-in: disabled by default, zero impact on existing runs unless `env.qdrant_cache.enabled: true` is set.
+- An end-to-end test in `tests/e2e/006_qdrant_cache.py` asserts that after 51+ near-identical prompts are submitted, at least one call returns a cached result (functional cache hit via `get_stats()`).
+- **Collections are model-scoped: a collection built with model A is never queried when the active LLM model is model B.** Verified by inspection of collection names in `stats.json` (Step 14).
+
+---
 
 ## Scope
 
 **In scope:**
-- New file `agentsociety/llm/qdrant_cache_actor.py` — Ray remote actor wrapping the championship cache logic, with one Qdrant collection per `(name, origin, version)` tuple.
-- New file `agentsociety/llm/qdrant_cache_config.py` — Pydantic config model for the cache.
-- Extend `LLMContext` TypedDict with two new optional fields: `prompt_identity` and `prompt_inputs`.
-- Extend `PromptManager` to expose output schema and pass `prompt_identity` + `prompt_inputs` to callers.
-- Modify `LLM.atext_request` to probe and record via the cache actor when context carries `prompt_identity`.
-- Wire-up in `InfrastructureManager` following the pattern established by `GlobalDispatcherCacheActor`.
-- Add cache config to `EnvConfig`.
-- Add `[outputs]` sections to all existing prompt TOML files (33 files).
-- Add cache hit/miss metrics to `PrometheusActor`.
-- Stats persistence: JSON file on `close()`, Prometheus gauges when monitoring is enabled.
+- `agentsociety/llm/cache/qdrant_cache.py` — pure Python cache system: `MultiFeatureQdrantChampionCache` class (KNN championship logic, Qdrant storage, no Ray dependency). **[DONE — currently at `llm/qdrant_cache_actor.py:22`; Step 13 moves it here]**
+- `agentsociety/llm/cache/ray_actor.py` — Ray actor wrapper: `QdrantCacheActor` (`@ray.remote` class wrapping `MultiFeatureQdrantChampionCache`). **[DONE — currently at `llm/qdrant_cache_actor.py:364`; Step 13 moves it here]**
+- `agentsociety/llm/cache/config.py` — Pydantic config: `QdrantCacheConfig`. **[DONE — currently at `llm/qdrant_cache_config.py`; Step 13 moves it here]**
+- `agentsociety/llm/cache/__init__.py` — re-exports for clean imports. **[NEW — Step 13 creates it]**
+- `LLMContext` TypedDict extended with: `prompt_identity`, `prompt_inputs`, `prompt_input_schema`, `prompt_output_schema`. **[DONE — note: plan specified 2 new fields; implementation added 4]**
+- `PromptManager` exposes output schema and identity. **[DONE]**
+- `LLM.atext_request` probes and records via the cache actor when context carries `prompt_identity`. **[DONE — currently in shadow-validation mode; skip mode gated by new `skip_mode` field]**
+- Wire-up in `InfrastructureManager`. **[DONE]**
+- Cache config in `EnvConfig`. **[DONE]**
+- `[outputs]` sections in all 33 eligible prompt TOML files. **[DONE]**
+- Cache hit/miss and hit-validation metrics in `PrometheusActor` / `MetricsTracker`. **[DONE]**
+- Stats persistence: JSON file on `close()`. **[DONE]**
+- `QdrantCacheActor` and `QdrantCacheConfig` exported from `agentsociety/llm/__init__.py`. **[DONE — exports will be preserved via `llm/cache/__init__.py` re-export chain after Step 13]**
+- **Step 11: `skip_mode: bool` field on `QdrantCacheConfig` and corresponding branch in `LLM._maybe_serve_probe_result()`. [PENDING]**
+- **Step 12: End-to-end test `tests/e2e/006_qdrant_cache.py` wired into `tests/run_e2e_tests.sh`. [PENDING]**
+- **Step 13: Reorganise `llm/qdrant_cache_actor.py` and `llm/qdrant_cache_config.py` into the `llm/cache/` subpackage. [PENDING]**
+- **Step 14: Include LLM model name in the Qdrant collection name. [PENDING]**
 
 **Out of scope:**
 - Multi-machine / distributed Qdrant (local path only).
@@ -42,600 +69,546 @@ The cache only applies to prompts whose TOML declares `[outputs]` with all-categ
 - A UI or dashboard for cache stats.
 - Disk eviction / capacity management (unlimited for now).
 - Changing the existing `prompt_responses` table in ClickHouse.
+- Automatic migration of existing on-disk collections to the new model-scoped naming scheme (users with pre-Step-14 caches get a fresh empty cache — acceptable, documented in Trade-Offs).
+
+---
 
 ## Constraints
 
 - `qdrant-client[fastembed]>=1.12.1` is already declared in `pyproject.toml`. No new package dependency required.
-- Dense embedding model: `BAAI/bge-small-en-v1.5` (384-dim via fastembed). This is the same library already used for sparse BM25 in `InfrastructureManager._init_embedding()`.
+- Dense embedding model: `BAAI/bge-small-en-v1.5` (384-dim via fastembed). Same library already used for sparse BM25 in `InfrastructureManager._init_embedding()`.
 - The actor must be a Ray remote actor (agents run in isolated Ray actors and cannot share Python objects).
 - The actor must not call back into the LLM (infinite-loop risk).
-- `LLMContext` uses `TypedDict(total=False)`, so adding fields is backward-compatible with zero caller changes for callers that don't set the new fields.
-- Probe is awaited, and its latency is logged. If the actor is unavailable (e.g., crashed), the call falls through to the live LLM silently.
-- Qdrant path defaults to `<data_dir>/qdrant/`, where `data_dir` is `EnvConfig.data_dir` (already in config at `configs/env.py:55`). Configurable via `env.qdrant_cache.path` override.
+- `LLMContext` uses `TypedDict(total=False)`, so adding fields is backward-compatible.
+- Qdrant path defaults to `<data_dir>/qdrant/`, where `data_dir` is `EnvConfig.data_dir` (`configs/env.py:56`). Configurable via `env.qdrant_cache.path` override.
+- Collection names must be unique per (prompt, model) pair. Qdrant collection names allow `[a-zA-Z0-9_-]` only; slashes and dots in model identifiers must be sanitised. The existing `_sanitize_collection_name()` helper (`qdrant_cache_actor.py:18`) already applies `re.sub(r"[^a-zA-Z0-9_-]", "_", name)` and is sufficient for this purpose.
+
+---
 
 ## Architecture & Integration Points
 
 ```
-PromptManager.format_prompt_to_dialog(name, state_dict)
-    → returns dialog, also computes:
-        prompt_identity = (name, origin, version)
-        prompt_inputs   = {field: value for text-type fields in state_dict}
+Block._make_llm_context(prompt_name, state_dict, ...)
+    → LLMContext with:
+        prompt_identity        = PromptManager.get_prompt_identity(prompt_name)
+        prompt_inputs          = {field: value for typed fields in state_dict}
+        prompt_input_schema    = PromptManager.get_input_schema(prompt_name)
+        prompt_output_schema   = PromptManager.get_output_schema(prompt_name)
 
-Block calls:
-    llm.atext_request(dialog, ..., context={
-        "block_name": ..., "func_name": ..., "agent_id": ...,
-        "prompt_identity": (name, origin, version),   ← new
-        "prompt_inputs": {"intention": "...", "plan": "..."},  ← new
-    })
+LLM.atext_request(dialog, ..., context=LLMContext):
+    _should_probe_cache() → True if cache_actor set, prompt_identity present, not a tool call
+    _probe_semantic_cache() → calls cache_actor.query_and_maybe_serve.remote(...)
 
-LLM.atext_request():
-    if tools != NOT_GIVEN → skip cache entirely
-    if cache_actor and context has prompt_identity:
-        t0 = time.perf_counter()
-        result = await cache_actor.query_and_maybe_serve.remote(
-            prompt_identity, prompt_inputs
-        )
-        log probe latency
-        if result is not None:
-            return result   ← cache hit, LLM call skipped
+    [skip_mode=False — default / shadow-validation]
+    live LLM call always happens
+    _maybe_serve_probe_result() → if probe hit AND live result matches, return cached value
 
-    → live LLM call (unchanged path)
-    → cache_actor.record.remote(prompt_identity, prompt_inputs, llm_response)
-         [fire-and-forget]
-    return llm_response
+    [skip_mode=True]
+    if probe hit → return cached value immediately (LLM skipped)
+    else → live LLM call, then _record_cache_miss()
 ```
 
-Integration point citations:
+Integration point citations (all confirmed present in code):
 
-- `agentsociety/llm/llm.py:33` — `LLMContext(TypedDict, total=False)` gains two fields: `prompt_identity: tuple[str, str, str]` and `prompt_inputs: dict[str, Any]`.
-- `agentsociety/llm/llm.py:104` — `LLM.__init__` gains `cache_actor: Optional[Any] = None`, stored as `self._cache_actor`.
-- `agentsociety/llm/llm.py:228` — `LLM.atext_request()` is the insertion point for both the probe (before `acquire_client`) and the record (fire-and-forget after `return result`).
-- `agentsociety/prompts/prompt_manager.py:387` — `PromptManager.format_prompt()` and `format_prompt_to_dialog()` gain new methods `get_prompt_identity(name)` and `get_text_input_fields(name)` to expose what callers need.
-- `agentsociety/simulation/infrastructuremanager.py:376` — `_init_dispatcher_cache_actor()` is the structural template for the new `_init_llm_cache_actor()`.
-- `agentsociety/simulation/infrastructuremanager.py:427` — `initialize_all()` is where `_init_llm_cache_actor()` is called, before `_init_core_components()`, so the handle is available when `LLM` is constructed.
-- `agentsociety/simulation/infrastructuremanager.py:389` — `_init_core_components()` constructs `LLM(...)`: gains `cache_actor=self._llm_cache_actor`.
-- `agentsociety/simulation/infrastructuremanager.py:435` — `close()` gains `await self._llm_cache_actor.close.remote()`.
-- `agentsociety/simulation/simulationengine.py:196` — `_finalize_initialization()` adds `llm_cache_tool` to `agent_toolbox` (same pattern as `dispatcher_cache_tool` at line 196).
-- `agentsociety/configs/env.py:43` — `EnvConfig` gains `qdrant_cache: QdrantCacheConfig`.
-- `agentsociety/performance/prometheusActor.py:15` — `PrometheusActor` gains a `record_cache_stats(prompt_name, hits, misses)` method.
-- All 33 prompt TOML files in `agentsociety/prompts/` gain `[outputs.*]` sections.
+- `agentsociety/llm/llm.py:33` — `LLMContext(TypedDict, total=False)` has `prompt_identity`, `prompt_inputs`, `prompt_input_schema`, `prompt_output_schema`.
+- `agentsociety/llm/llm.py:115` — `LLM.__init__` accepts `cache_actor: Optional[Any] = None`.
+- `agentsociety/llm/llm.py:197` — `_should_probe_cache()` helper.
+- `agentsociety/llm/llm.py:209` — `_probe_semantic_cache()` — awaited before the live LLM call.
+- `agentsociety/llm/llm.py:296` — `_maybe_serve_probe_result()` — shadow-validation comparison; returns cached value only when probe hit AND normalized outputs match live result. **Step 11 adds a skip-mode branch here (or just before the `while True:` loop at `llm.py:437`).**
+- `agentsociety/llm/llm.py:321` — `_record_cache_miss()` — fire-and-forget record to actor.
+- `agentsociety/llm/llm.py:424` — probe executed before `while True:` loop; `cache_hit_probe` set here.
+- `agentsociety/llm/llm.py:437` — `while True:` retry loop begins; **Step 11 inserts an early-return guard between line 434 and 437**.
+- `agentsociety/agent/block.py:174` — `Block._make_llm_context()` populates all four context keys using `PromptManager`.
+- `agentsociety/cityagent/societyagent.py:241` — `SocietyAgent._build_context()` does the same for agent-level calls.
+- `agentsociety/prompts/prompt_manager.py:156` — `get_prompt_identity(name)` → `(name, origin, version)`.
+- `agentsociety/prompts/prompt_manager.py:165` — `get_input_schema(name)` → `{field: {type, ...}}`.
+- `agentsociety/prompts/prompt_manager.py:176` — `get_typed_input_fields(name)`.
+- `agentsociety/prompts/prompt_manager.py:188` — `get_text_input_fields(name)`.
+- `agentsociety/prompts/prompt_manager.py:201` — `get_output_schema(name)` → `{field: {type, ...}}`.
+- `agentsociety/prompts/prompt_manager.py:208` — `is_cache_eligible(name)`.
+- `agentsociety/simulation/infrastructuremanager.py:56` — `self._llm_cache_actor`.
+- `agentsociety/simulation/infrastructuremanager.py:60` — `self._llm_cache_tool`.
+- `agentsociety/simulation/infrastructuremanager.py:109` — `llm_cache_tool` property.
+- `agentsociety/simulation/infrastructuremanager.py:398` — `_init_llm_cache_actor()`.
+- `agentsociety/simulation/infrastructuremanager.py:477` — called in `initialize_all()`.
+- `agentsociety/simulation/infrastructuremanager.py:439` — `LLM(...)` receives `cache_actor=self._llm_cache_actor`.
+- `agentsociety/simulation/infrastructuremanager.py:489` — `close()` awaits `_llm_cache_actor.close.remote()`.
+- `agentsociety/simulation/simulationengine.py:157` — `_llm_cache_tool` retrieved from infrastructure manager.
+- `agentsociety/simulation/simulationengine.py:203` — `llm_cache_tool` added to `agent_toolbox`.
+- `agentsociety/configs/env.py:79` — `EnvConfig.qdrant_cache: QdrantCacheConfig`.
+- `agentsociety/performance/prometheusActor.py:68` — `record_cache_stats(prompt_name, hit)`.
+- `agentsociety/performance/prometheusActor.py:72` — `record_cache_hit_validation(prompt_name, right)`.
+- `agentsociety/performance/MetricsTracker.py:19` — `cache_hits` Prometheus Counter.
+- `agentsociety/performance/MetricsTracker.py:25` — `cache_misses` Prometheus Counter.
+- `agentsociety/performance/MetricsTracker.py:31` — `cache_hit_right` / `cache_hit_wrong` Counters.
+- `agentsociety/llm/__init__.py:4` — `QdrantCacheActor` and `QdrantCacheConfig` exported (currently from flat files; after Step 13, re-exported through `llm/cache/__init__.py`).
 
-## Similar Patterns & Reuse
+### Collection naming (current vs. after Step 14)
 
-- **What it is**: `agentsociety/agent/dispatcher_cache_actor.py:8 — GlobalDispatcherCacheActor`
-  **What it does**: Stateful Ray actor with `check_cache()` / `update_cache()` / `close()` methods and in-memory stats. Wrapped in `CustomTool`, initialized in `InfrastructureManager`.
-  **How this feature uses it**: Identical actor boilerplate. The new `QdrantCacheActor` follows the same `@ray.remote class`, same `CustomTool` wrapper, same init/close in `InfrastructureManager`.
+The Qdrant collection name is constructed by `QdrantCacheActor._collection_name()` at `agentsociety/llm/qdrant_cache_actor.py:399–402` (this method moves to `llm/cache/ray_actor.py` after Step 13):
 
-- **What it is**: `docs/features/qdrant-llm-cache-code-snippets.md — MultiFeatureQdrantChampionCache`
-  **What it does**: Maintains one Qdrant collection with named vectors per text feature. Uses KNN (k=50) with cosine distance on each feature separately, runs macro-F1 scoring per feature to select a champion, computes a distance-quantile threshold, and returns cache-hit when `top_proba >= 0.95 AND furthest_neighbor_distance <= threshold`. Rebuilds every 1000 records.
-  **How this feature uses it**: The class is adapted for the Ray actor context: async-safe (actor serializes calls), one per-prompt-identity instance (not one global), uses `QdrantClient(path=...)` instead of `:memory:`.
+```python
+# CURRENT (qdrant_cache_actor.py:399)
+def _collection_name(self, prompt_identity: tuple[str, str, str]) -> str:
+    name, origin, version = prompt_identity
+    raw = f"{name}__{origin}__{version}"
+    return _sanitize_collection_name(raw)
+```
 
-- **What it is**: `agentsociety/simulation/infrastructuremanager.py:293 — _init_embedding()`
-  **What it does**: Loads `fastembed.SparseTextEmbedding("Qdrant/bm25")` with a timeout and cache directory.
-  **How this feature uses it**: The actor uses the same `cache_dir` convention (`home_dir/huggingface_cache`) and wraps model loading in a timeout guard.
+After Step 14, the method becomes model-aware. The model name is stored as `self._llm_model_name` (set in `QdrantCacheActor.__init__` from a new `llm_model_name: str` constructor parameter):
 
-- **What it is**: `agentsociety/llm/llm.py:104 — LLM.__init__` accepting optional actor handles
-  **What it does**: Accepts `metrics_actor` and `db_actor` as optional params, stores them, uses them for fire-and-forget side effects in `atext_request`.
-  **How this feature uses it**: `cache_actor` is added as a third optional param following this exact pattern.
+```python
+# AFTER Step 14
+def _collection_name(self, prompt_identity: tuple[str, str, str]) -> str:
+    name, origin, version = prompt_identity
+    raw = f"{name}__{origin}__{version}__{self._llm_model_name}"
+    return _sanitize_collection_name(raw)
+```
 
-- **What it is**: `agentsociety/prompts/prompt_manager.py:152 — PromptManager.get_required_fields()`
-  **What it does**: Returns `prompt_data["inputs"]["required"]` for a given prompt name.
-  **How this feature uses it**: Two new analogous methods are added: `get_prompt_identity(name)` returns `(name, origin, version)` and `get_text_input_fields(name)` returns the list of fields with `type = "text"` in `[inputs.*]`.
+`_sanitize_collection_name()` at `qdrant_cache_actor.py:18` replaces every character outside `[a-zA-Z0-9_-]` with `_`. A model string like `gpt-4o` becomes `gpt-4o` (already clean). A model string like `meta-llama/Llama-3-8b-instruct` becomes `meta-llama_Llama-3-8b-instruct` (slash replaced). No additional sanitisation logic is needed.
+
+Example collection names after Step 14:
+
+| Prompt name | Model | Collection name |
+|---|---|---|
+| `needs_evaluation` / `citysim` / `1.0` | `gpt-4o` | `needs_evaluation__citysim__1_0__gpt-4o` |
+| `needs_evaluation` / `citysim` / `1.0` | `meta-llama/Llama-3-8b-instruct` | `needs_evaluation__citysim__1_0__meta-llama_Llama-3-8b-instruct` |
+
+---
+
+## Key Design Divergence: Shadow-Validation Mode vs. Skip Mode
+
+### What the plan specified
+
+The original plan described a **skip mode**: if `query_and_maybe_serve()` returns a result, `atext_request` returns it immediately without calling the live LLM. This is how cost savings are achieved.
+
+```
+plan: probe → hit? → return cached value (LLM skipped)
+```
+
+### What was implemented
+
+The implementation uses a **shadow-validation mode**: the probe runs before the `while True:` loop, but the live LLM is **always called regardless of probe result**. Only after the live LLM succeeds is `_maybe_serve_probe_result()` (`llm.py:296`) invoked. It returns the cached value only if the cache probe hit AND the normalized cached output matches the live output.
+
+```
+actual: probe → [LLM always called] → hit AND match? → return cached value, else return live
+```
+
+This means:
+- **Zero LLM cost savings.** Every request still pays LLM latency and API cost.
+- **The probe adds latency on top of the LLM call** rather than replacing it.
+- The cache hit metric (`record_cache_stats(..., hit=True)`) fires when the probe hits, before the live result is available — meaning it records speculative hits, not actual serving events.
+- The `cache_hit_validation` metric (`record_cache_hit_validation`) does track actual correctness of probe hits.
+
+### Resolution: `skip_mode` config field (Step 11)
+
+Rather than changing the default behavior (which would be a breaking change for anyone relying on shadow-validation correctness logging), the resolution is to add `skip_mode: bool = False` to `QdrantCacheConfig`. When `skip_mode=True`, a cache hit short-circuits the LLM call entirely. When `skip_mode=False` (the default), the existing shadow-validation path is preserved.
+
+The `LLM` class receives the cache config (or just the `skip_mode` flag) at construction time so `atext_request` can branch accordingly.
+
+---
+
+## Similar Patterns & Reuse (implemented)
+
+- **`agentsociety/agent/dispatcher_cache_actor.py:8 — GlobalDispatcherCacheActor`** — Ray actor boilerplate used as template for `QdrantCacheActor`.
+- **`agentsociety/simulation/infrastructuremanager.py:376 — _init_dispatcher_cache_actor()`** — structural template for `_init_llm_cache_actor()`.
+- **`agentsociety/prompts/prompt_manager.py:152 — get_required_fields()`** — pattern used for the new `get_prompt_identity()`, `get_input_schema()`, `get_output_schema()`.
+
+---
 
 ## Implementation Strategy
 
-### Step 1 — Add `[outputs]` to all prompt TOML files
+### Steps 1–10: Complete
 
-**Before**: No TOML file has an `[outputs]` section (confirmed by grep). The `PromptManager` does not read outputs.
+All 10 steps from the original plan are complete in commit `6464b53`. Summary:
 
-**After**: 33 TOML files gain `[outputs]` sections. The cache uses `[outputs]` to decide eligibility: if all outputs are `categorical` or `float`/`integer`, the prompt is cache-eligible. If any output is `text`, the prompt is dataset-only (no response serving).
+| Step | Description | Status | Notes |
+|---|---|---|---|
+| 1 | `[outputs]` sections in all 33 TOML files | Done | 33 TOMLs have outputs; 1 (block_dispatcher) intentionally excluded |
+| 2 | `QdrantCacheConfig` + `EnvConfig.qdrant_cache` | Done | `configs/env.py:79` |
+| 3 | `QdrantCacheActor` in `llm/qdrant_cache_actor.py` | Done | 629 lines; includes `MultiFeatureQdrantChampionCache` |
+| 4 | `LLMContext` extended + `LLM.atext_request` probe/record | Done | Shadow-validation mode (see divergence above) |
+| 5 | `PromptManager` new methods | Done | 6 new methods added |
+| 6 | Block call sites pass `prompt_identity` etc. | Done | Central helper in `Block` and `SocietyAgent`; blocks use it |
+| 7 | `InfrastructureManager` wiring | Done | `_init_llm_cache_actor()` + init/close lifecycle |
+| 8 | `llm_cache_tool` added to agent toolbox | Done | `simulationengine.py:203` |
+| 9 | Prometheus metrics | Done | `MetricsTracker` has 4 new counters |
+| 10 | `__init__.py` exports | Done | `llm/__init__.py` exports both classes |
 
-Classification of existing prompts (all files to update listed with their cache eligibility):
+### Step 11: Add `skip_mode` to `QdrantCacheConfig` and wire into `LLM`
 
-**Cache-eligible (all outputs categorical or numeric):**
-- `mobility_place_analysis` — output: `place_type: categorical`
-- `mobility_place_type_selection` — output: `place_type: categorical`
-- `mobility_place_second_type_selection` — output: `place_type: categorical`
-- `mobility_radius_selection` — output: `radius: integer`
-- `mobility_transport_mode_selection` — output: `mode: categorical`
-- `needs_evaluation` — outputs: `hunger_satisfaction: float`, `energy_satisfaction: float`, `safety_satisfaction: float`, `social_satisfaction: float`
-- `needs_initialize` — same 4 float outputs
-- `needs_reflection` — same 4 float outputs (or `do_something: categorical`)
-- `needs_poi_observation` — outputs: `price: float`, `atmosphere: float`, `satisfaction: float`, `convenience: float`
-- `worktime_estimate` — output: `time: integer`
-- `other_time_estimate` — output: `time: integer`
-- `other_sleep_time_estimate` — output: `time: integer`
-- `social_time_estimate` — output: `time: integer`
-- `month_plan_observation` — outputs: `work: float`, `consumption: float`
-- `cognition_attitude_update` — output: `attitude: integer` (0-10)
-- `cognition_initialize_big5` — outputs: `openness: integer`, `conscientiousness: integer`, `extraversion: integer`, `agreeableness: integer`, `neuroticism: integer`
-- `societyagent_chat_response_decision` — output: `should_respond: categorical`
-- `societyagent_chat_belief_update` — outputs: `affinity: float`, `trust: float`, `familiarity: float`
+**What changes:**
 
-**Dataset-only (free-text output):**
-- `societyagent_status_summary` — output is a free-text sentence
-- `societyagent_environment_reflection` — output is free-text reflection
-- `cognition_emotion_update` — output: `conclusion: text` (plus numeric intensities; mixed — exclude from serving)
-- `cognition_thought_update` — output: `thought: text`
-- `month_plan_mental_health_assessment` — 20 categorical responses but response is a complex questionnaire object: classify as `text` output (dataset-only)
-- `month_plan_goal_creation` — output is a JSON array of goal strings: `text`
-- `social_message_generation` — output is a free-text message
-- `cognition_initialize_preferences` — output is a nested JSON with mixed types: treat as `text` (dataset-only for safety)
-- `cognition_initialize_hobbies` — output is a list of strings: `text`
-- `plan_guidance_selection` — output is `selected_option: text` with evaluation sub-dict
-- `plan_detailed_generation` — output is a list of plan steps: `text`
-- `daily_schedule_generation` — output is a list of blocks: `text`
-- `empty_block_filling` — output includes `candidates` list: `text`
-- `mobility_aoi_area_selection` — output includes reasoning string: treat as `text` (dataset-only)
-- `mobility_neighborhood_selection` — same: `text`
-
-Note: borderline cases (mixed categorical + text in one prompt) are conservatively classified as `text`/dataset-only.
-
-### Step 2 — Add `QdrantCacheConfig` Pydantic model and wire into `EnvConfig`
-
-**File**: `agentsociety/llm/qdrant_cache_config.py` (new) and `agentsociety/configs/env.py` (modified).
-
-**Before**: `EnvConfig` at `configs/env.py:43` has no cache fields. `data_dir` at `env.py:55` is `"./agentsociety_data/data"`.
-
-**After**: New standalone Pydantic model (kept in `agentsociety/llm/qdrant_cache_config.py` so the LLM layer can import it without circular deps):
-
+**Before — `agentsociety/llm/qdrant_cache_config.py` (current path; `llm/cache/config.py` after Step 13):**
 ```python
 class QdrantCacheConfig(BaseModel):
     enabled: bool = Field(default=False)
     path: Optional[str] = Field(default=None)
-    # If None, defaults to <data_dir>/qdrant/ at runtime
     probability_threshold: float = Field(default=0.95, ge=0.0, le=1.0)
     batch_size: int = Field(default=1000, ge=1)
     n_neighbors: int = Field(default=50, ge=1)
     distance_quantile: float = Field(default=0.95, ge=0.0, le=1.0)
     embedding_model: str = Field(default="BAAI/bge-small-en-v1.5")
     embedding_cache_dir: Optional[str] = Field(default=None)
-    # If None, defaults to <home_dir>/huggingface_cache at runtime
 ```
 
-`EnvConfig` gains: `qdrant_cache: QdrantCacheConfig = Field(default_factory=QdrantCacheConfig)`.
+**After — add one field:**
+```python
+    skip_mode: bool = Field(default=False)
+```
 
-The `enabled: false` default means zero config change is required for existing users.
+**Before — `agentsociety/llm/llm.py:115`:** `LLM.__init__` accepts `cache_actor: Optional[Any] = None` but does not accept a cache config object.
 
-### Step 3 — Implement `QdrantCacheActor` in `agentsociety/llm/qdrant_cache_actor.py`
+**After:** Pass `cache_skip_mode: bool = False` as a new constructor parameter (or pass the full `QdrantCacheConfig`). Store it as `self._cache_skip_mode`. The constructor call site is `agentsociety/simulation/infrastructuremanager.py:439`.
 
-**File**: New file.
+**Before — `agentsociety/llm/llm.py:424–437`:** After the probe, the code falls straight into `while True:` regardless of `cache_hit_probe`.
 
-The actor wraps one `MultiFeatureQdrantChampionCache` instance per `(prompt_name, origin, version)`. Each instance is created lazily on first access. The Qdrant client is shared: one `QdrantClient(path=qdrant_path)` for all instances, with collection names encoded as `f"{name}__{origin}__{version}"`.
+**After — insert between line 434 and 437:**
+```python
+# Skip mode: if probe hit, return immediately without calling LLM.
+if self._cache_skip_mode and cache_hit_probe and probe_result is not None:
+    if isinstance(probe_result, str):
+        return probe_result
+    return json.dumps(probe_result, ensure_ascii=True)
+```
 
-Key public methods:
+This is a 4-line insertion. The shadow-validation path in `_maybe_serve_probe_result()` (`llm.py:296`) is untouched; it remains active when `skip_mode=False`.
+
+**What calls it:** `InfrastructureManager._init_llm_cache_actor()` (`infrastructuremanager.py:398`) constructs the `LLM` instance at `infrastructuremanager.py:439`. It already has access to `self._config.env.qdrant_cache`, so passing `cache_skip_mode=self._config.env.qdrant_cache.skip_mode` is a one-word addition.
+
+### Step 12: End-to-end test `tests/e2e/006_qdrant_cache.py`
+
+See the Test Plan section below for the full specification. The test file is added to `tests/e2e/` and a corresponding run line is added to `tests/run_e2e_tests.sh`.
+
+### Step 13: Reorganise `llm/cache/` subpackage
+
+#### Motivation
+
+`llm/qdrant_cache_actor.py` (629 lines) contains two logically distinct classes — the pure-Python championship cache and the Ray actor wrapper — in one file. Splitting them by responsibility makes each easier to test, read, and extend. Placing both under `llm/cache/` keeps the cache implementation self-contained and avoids polluting the `llm/` namespace.
+
+#### Current file layout (before Step 13)
+
+```
+agentsociety/llm/
+    __init__.py                   # exports QdrantCacheActor, QdrantCacheConfig
+    llm.py
+    qdrant_cache_actor.py         # MultiFeatureQdrantChampionCache (line 22) + QdrantCacheActor (line 364)
+    qdrant_cache_config.py        # QdrantCacheConfig
+```
+
+#### Target file layout (after Step 13)
+
+```
+agentsociety/llm/
+    __init__.py                   # unchanged public API — re-exports via llm/cache/__init__.py
+    llm.py
+    cache/
+        __init__.py               # re-exports: QdrantCacheActor, QdrantCacheConfig, MultiFeatureQdrantChampionCache
+        qdrant_cache.py           # MultiFeatureQdrantChampionCache only (no ray import)
+        ray_actor.py              # QdrantCacheActor (@ray.remote wrapper)
+        config.py                 # QdrantCacheConfig (Pydantic model)
+```
+
+#### Class-to-file mapping
+
+| Class | Source line (current file) | Target file |
+|---|---|---|
+| `MultiFeatureQdrantChampionCache` | `llm/qdrant_cache_actor.py:22` | `llm/cache/qdrant_cache.py` |
+| `_sanitize_collection_name` (module-level helper) | `llm/qdrant_cache_actor.py:18` | `llm/cache/qdrant_cache.py` (used by both classes; lives alongside the class it primarily serves) |
+| `QdrantCacheActor` | `llm/qdrant_cache_actor.py:364` | `llm/cache/ray_actor.py` |
+| `QdrantCacheConfig` | `llm/qdrant_cache_config.py:6` | `llm/cache/config.py` |
+
+#### `llm/cache/__init__.py` content
 
 ```python
-@ray.remote
-class QdrantCacheActor:
-    def __init__(
-        self,
-        qdrant_path: str,
-        embedding_model: str,
-        embedding_cache_dir: str,
-        probability_threshold: float,
-        batch_size: int,
-        n_neighbors: int,
-        distance_quantile: float,
-    ): ...
+"""Qdrant-backed LLM semantic cache — public re-exports."""
 
-    def query_and_maybe_serve(
-        self,
-        prompt_identity: tuple[str, str, str],   # (name, origin, version)
-        prompt_inputs: dict[str, Any],            # {field_name: value} for text fields only
-        output_schema: dict[str, dict],           # {field_name: {type, categories?}} from [outputs]
-    ) -> Optional[Any]:
-        """
-        Returns the cached label if cache hit, else None.
-        Internally routes to the correct per-prompt cache instance.
-        Records hit/miss counters.
-        """
+from .config import QdrantCacheConfig
+from .qdrant_cache import MultiFeatureQdrantChampionCache
+from .ray_actor import QdrantCacheActor
 
-    def record(
-        self,
-        prompt_identity: tuple[str, str, str],
-        prompt_inputs: dict[str, Any],
-        llm_response: Any,
-    ) -> None:
-        """Record an LLM response (cache miss) for future training."""
-
-    def get_stats(self) -> dict[str, dict]:
-        """Returns {collection_name: {hits, misses, total, rebuild_count}} for all collections."""
-
-    def close(self) -> None:
-        """Write stats to JSON file. Flush Qdrant client."""
+__all__ = [
+    "MultiFeatureQdrantChampionCache",
+    "QdrantCacheActor",
+    "QdrantCacheConfig",
+]
 ```
 
-Internal design:
-- One `fastembed.TextEmbedding(embedding_model, cache_dir=embedding_cache_dir)` is loaded once in `__init__`.
-- `self._caches: dict[str, MultiFeatureQdrantChampionCache]` — keyed by `f"{name}__{origin}__{version}"`.
-- `self._hit_counts: dict[str, int]` and `self._miss_counts: dict[str, int]` — per collection.
-- Each `MultiFeatureQdrantChampionCache` is constructed with `feature_names` = list of text-type input field names for that prompt.
-- Before `query_and_maybe_serve`, embed each text field separately using `TextEmbedding` → gives `{field_name: np.ndarray}` — this is the `feature_row` passed to the cache.
-- Output schema determines how to extract the label from the LLM response JSON for `record()`.
-- On `close()`, write `{collection: {hits, misses, ...}}` to `<qdrant_path>/stats.json`.
+#### `llm/cache/ray_actor.py` import change
 
-Adaptation of `MultiFeatureQdrantChampionCache` from the snippets file:
-- Use `QdrantClient(path=qdrant_path)` instead of `QdrantClient(":memory:")`.
-- Collection name is `f"{name}__{origin}__{version}"` (already set at construction).
-- Payload key for labels is `"label"` generically (not `"place_type"`).
-- Label serialization: for categorical output, label = `str(value)`; for float outputs, label = `json.dumps({k: v for k, v in outputs.items()})` (treating multi-float outputs as a single JSON-encoded label key).
-- The `_flush_buffer` method is called inside `record()` when `len(self.buffer_rows) >= self.batch_size`.
-
-### Step 4 — Extend `LLMContext` and `LLM.atext_request`
-
-**File**: `agentsociety/llm/llm.py`.
-
-**Before** (`llm.py:33`):
-```python
-class LLMContext(TypedDict, total=False):
-    block_name: str
-    func_name: str
-    agent_id: str
-```
-
-**After**:
-```python
-class LLMContext(TypedDict, total=False):
-    block_name: str
-    func_name: str
-    agent_id: str
-    prompt_identity: tuple[str, str, str]   # (name, origin, version)
-    prompt_inputs: dict[str, Any]           # text-type field values for embedding
-    prompt_output_schema: dict[str, dict]   # [outputs] section from TOML
-```
-
-`total=False` means all fields remain optional — no existing callers break.
-
-**Before** (`llm.py:104`): `LLM.__init__` accepts `metrics_actor` and `db_actor`.
-
-**After**: Gains `cache_actor: Optional[Any] = None`, stored as `self._cache_actor`.
-
-**Before** (`llm.py:228`): `atext_request` has no cache interaction.
-
-**After**: Inside `atext_request`, just before the `while True:` loop:
-```python
-# --- Cache probe (only for non-tool calls with prompt_identity) ---
-_probe_result = None
-_collection_id = None
-if (
-    self._cache_actor is not None
-    and context is not None
-    and "prompt_identity" in context
-    and isinstance(tools, NotGiven)   # skip tool-calling requests
-):
-    _collection_id = context["prompt_identity"]
-    t_probe = time.perf_counter()
-    try:
-        _probe_result = await self._cache_actor.query_and_maybe_serve.remote(
-            context["prompt_identity"],
-            context.get("prompt_inputs", {}),
-            context.get("prompt_output_schema", {}),
-        )
-    except Exception as e:
-        get_logger().debug(f"Cache probe failed: {e}")
-        _probe_result = None
-    probe_latency = time.perf_counter() - t_probe
-    get_logger().debug(
-        f"Cache probe latency={probe_latency*1000:.1f}ms "
-        f"hit={_probe_result is not None} "
-        f"collection={_collection_id}"
-    )
-    if _probe_result is not None:
-        # Cache hit — emit metrics and return without calling LLM
-        if self._metrics_actor is not None and context:
-            self._metrics_actor.record_cache_stats.remote(
-                prompt_name=str(context["prompt_identity"][0]),
-                hit=True,
-            )
-        return _probe_result
-```
-
-After `return result` (successful LLM response, `llm.py:343`), add fire-and-forget record:
-```python
-if self._cache_actor is not None and _collection_id is not None:
-    self._cache_actor.record.remote(
-        context["prompt_identity"],
-        context.get("prompt_inputs", {}),
-        result,
-    )
-    if self._metrics_actor is not None:
-        self._metrics_actor.record_cache_stats.remote(
-            prompt_name=str(context["prompt_identity"][0]),
-            hit=False,
-        )
-```
-
-### Step 5 — Extend `PromptManager` to expose identity and text inputs
-
-**File**: `agentsociety/prompts/prompt_manager.py`.
-
-Add three new methods to `PromptManager`:
+`ray_actor.py` imports `MultiFeatureQdrantChampionCache` from the sibling module rather than from the same file:
 
 ```python
-def get_prompt_identity(self, prompt_name: str) -> tuple[str, str, str]:
-    """Returns (name, origin, version) from [metadata]."""
-    meta = self._loaded_prompts[prompt_name]["metadata"]
-    return (meta["name"], meta.get("origin", "unknown"), meta.get("version", "0.0.0"))
-
-def get_text_input_fields(self, prompt_name: str) -> list[str]:
-    """Returns names of input fields declared as type='text' in [inputs.*]."""
-    prompt_data = self._loaded_prompts.get(prompt_name, {})
-    inputs = {k: v for k, v in prompt_data.get("inputs", {}).items() if k != "required"}
-    return [k for k, v in inputs.items() if isinstance(v, dict) and v.get("type") == "text"]
-
-def get_output_schema(self, prompt_name: str) -> dict[str, dict]:
-    """Returns the [outputs] section dict, or {} if absent."""
-    return {
-        k: v
-        for k, v in self._loaded_prompts.get(prompt_name, {}).get("outputs", {}).items()
-    }
-
-def is_cache_eligible(self, prompt_name: str) -> bool:
-    """Returns True if all outputs are categorical or numeric (no text outputs)."""
-    schema = self.get_output_schema(prompt_name)
-    if not schema:
-        return False
-    return all(
-        v.get("type") in ("categorical", "float", "integer")
-        for v in schema.values()
-    )
+from .qdrant_cache import MultiFeatureQdrantChampionCache, _sanitize_collection_name
 ```
 
-### Step 6 — Update block call sites to pass `prompt_identity` and `prompt_inputs`
+The relative import to the logger (`from ..logger import get_logger`) becomes `from ...logger import get_logger` (one extra level up because the file moves into the `cache/` subdirectory).
 
-**Files**: All 8 block files plus `societyagent.py`. All calls to `self.llm.atext_request(dialog, ..., context={...})` where `dialog` was produced by `self.prompt_manager.format_prompt_to_dialog(prompt_name, state_dict)` need three additional context keys.
+#### `llm/cache/qdrant_cache.py` import change
 
-The pattern in each block is currently (example from `mobility_block.py:193`):
-```python
-dialog = self.prompt_manager.format_prompt_to_dialog(self.place_analysis_prompt_name, state_dict)
-response = await self.llm.atext_request(
-    dialog,
-    response_format={"type": "json_object"},
-    context={"block_name": self.name, "func_name": "Place Analysis", "agent_id": self.agent.id},
-)
-```
+Similarly, `from ..logger import get_logger` becomes `from ...logger import get_logger`.
 
-After the change, the context dict gains three keys extracted via new `PromptManager` methods:
-```python
-dialog = self.prompt_manager.format_prompt_to_dialog(self.place_analysis_prompt_name, state_dict)
-_pm = self.prompt_manager
-response = await self.llm.atext_request(
-    dialog,
-    response_format={"type": "json_object"},
-    context={
-        "block_name": self.name,
-        "func_name": "Place Analysis",
-        "agent_id": self.agent.id,
-        "prompt_identity": _pm.get_prompt_identity(self.place_analysis_prompt_name),
-        "prompt_inputs": {
-            k: state_dict[k]
-            for k in _pm.get_text_input_fields(self.place_analysis_prompt_name)
-            if k in state_dict
-        },
-        "prompt_output_schema": _pm.get_output_schema(self.place_analysis_prompt_name),
-    },
-)
-```
+#### `llm/__init__.py` — no public API change
 
-This pattern applies to every `atext_request` call site that goes through `PromptManager`. The full list of call sites (identified by grep at `agentsociety/cityagent/blocks/`):
+The existing exports in `agentsociety/llm/__init__.py` (lines 4–5) change their source module but the exported names stay identical:
 
-| File | Call sites using PromptManager |
-|---|---|
-| `cityagent/blocks/mobility_block.py` | 8 call sites (AOI selection, neighborhood selection, type selection ×2, radius, place analysis, transport mode, + others) |
-| `cityagent/blocks/needs_block.py` | 4 call sites (initialize, reflection, poi observation, evaluation) |
-| `cityagent/blocks/economy_block.py` | varies — grep shows `atext_request` calls |
-| `cityagent/blocks/cognition_block.py` | varies |
-| `cityagent/blocks/daily_schedule_block.py` | varies |
-| `cityagent/blocks/plan_block.py` | varies |
-| `cityagent/blocks/social_block.py` | varies |
-| `cityagent/blocks/other_block.py` | varies |
-| `cityagent/societyagent.py` | 4 call sites (status summary, environment reflection, chat belief update, chat response decision) |
-
-Call sites in `agent/dispatcher.py` (the block dispatcher) and `agent/agent.py` do NOT use `PromptManager` — they pass ad-hoc dialogs. Those call sites are left unchanged and will not have `prompt_identity` in context, so the cache silently skips them.
-
-### Step 7 — Wire into `InfrastructureManager`
-
-**File**: `agentsociety/simulation/infrastructuremanager.py`.
-
-**Before** (`infrastructuremanager.py:54`): No `_llm_cache_actor` or `_llm_cache_tool` attributes.
-
-**After**: Add to `__init__`:
-```python
-self._llm_cache_actor: Optional[Any] = None
-self._llm_cache_tool: Optional[CustomTool] = None
-```
-
-Add property accessors following the existing pattern (see `dispatcher_cache_tool` at `infrastructuremanager.py:102`).
-
-New method `_init_llm_cache_actor()`, modeled on `_init_dispatcher_cache_actor()` at `infrastructuremanager.py:376`:
-```python
-def _init_llm_cache_actor(self):
-    cfg = self._config.env.qdrant_cache
-    if not cfg.enabled:
-        get_logger().info("Qdrant LLM cache disabled by config, skipping.")
-        return
-    qdrant_path = cfg.path or os.path.join(self._config.env.data_dir, "qdrant")
-    embedding_cache_dir = cfg.embedding_cache_dir or os.path.join(
-        self._config.env.home_dir, "huggingface_cache"
-    )
-    os.makedirs(qdrant_path, exist_ok=True)
-    try:
-        from ..llm.qdrant_cache_actor import QdrantCacheActor
-        self._llm_cache_actor = QdrantCacheActor.remote(
-            qdrant_path=qdrant_path,
-            embedding_model=cfg.embedding_model,
-            embedding_cache_dir=embedding_cache_dir,
-            probability_threshold=cfg.probability_threshold,
-            batch_size=cfg.batch_size,
-            n_neighbors=cfg.n_neighbors,
-            distance_quantile=cfg.distance_quantile,
-        )
-        self._llm_cache_tool = CustomTool(
-            name="llm_cache_actor",
-            tool=self._llm_cache_actor,
-            description="Ray actor for Qdrant-backed LLM semantic cache",
-        )
-        get_logger().info(f"Qdrant LLM cache actor initialized at {qdrant_path}")
-    except Exception as e:
-        get_logger().warning(f"Failed to initialize LLM cache actor: {e}")
-```
-
-In `initialize_all()` at `infrastructuremanager.py:427`, add `self._init_llm_cache_actor()` before `await self._init_core_components()`.
-
-In `_init_core_components()` at `infrastructuremanager.py:389`, the `LLM` constructor call gains `cache_actor=self._llm_cache_actor`.
-
-In `close()` at `infrastructuremanager.py:435`:
-```python
-if self._llm_cache_actor is not None:
-    try:
-        await self._llm_cache_actor.close.remote()
-    except Exception as e:
-        get_logger().warning(f"Error closing LLM cache actor: {e}")
-```
-
-### Step 8 — Add `llm_cache_tool` to agent toolbox
-
-**File**: `agentsociety/simulation/simulationengine.py`.
-
-**Before** (`simulationengine.py:195`): `_finalize_initialization` adds `metrics_tool`, `db_tool`, and `dispatcher_cache_tool` to `agent_toolbox`.
-
-**After**: Add after the dispatcher cache:
-```python
-llm_cache_tool = self._infrastructure_manager.llm_cache_tool  # new property
-if llm_cache_tool is not None:
-    agent_toolbox.add_tool(llm_cache_tool)
-```
-
-This is not strictly required for the cache to work (agents don't need to call `get_stats()` themselves) but matches the established convention and allows future agent-level introspection.
-
-### Step 9 — Add cache metrics to `PrometheusActor`
-
-**File**: `agentsociety/performance/prometheusActor.py`.
-
-Add a new method that tracks cache hits and misses per prompt name using Prometheus counters:
-```python
-def record_cache_stats(self, prompt_name: str, hit: bool) -> None:
-    """Record a cache hit or miss for a given prompt."""
-    self.metricsTracker.record_cache_stats(prompt_name, hit)
-```
-
-The underlying `MetricsTracker` gains two `Counter` objects: `cache_hits_total` and `cache_misses_total`, labelled by `prompt_name`.
-
-### Step 10 — Export updates
-
-**File**: `agentsociety/llm/__init__.py`.
-
-Export `QdrantCacheActor` and `QdrantCacheConfig` for callers that need direct access:
+**Before:**
 ```python
 from .qdrant_cache_actor import QdrantCacheActor
 from .qdrant_cache_config import QdrantCacheConfig
 ```
 
+**After:**
+```python
+from .cache import QdrantCacheActor, QdrantCacheConfig
+```
+
+#### Files that import from the old paths — all changes required
+
+| File | Current import | Required change |
+|---|---|---|
+| `agentsociety/llm/__init__.py:4-5` | `from .qdrant_cache_actor import QdrantCacheActor` / `from .qdrant_cache_config import QdrantCacheConfig` | `from .cache import QdrantCacheActor, QdrantCacheConfig` |
+| `agentsociety/configs/env.py:6` | `from ..llm.qdrant_cache_config import QdrantCacheConfig` | `from ..llm.cache.config import QdrantCacheConfig` |
+| `agentsociety/simulation/infrastructuremanager.py:20` | `from ..llm import LLM, QdrantCacheActor` | No change — `QdrantCacheActor` is still exported from `..llm` |
+
+`infrastructuremanager.py` imports `QdrantCacheActor` through `agentsociety/llm/__init__.py`, not directly from the flat file, so it requires no import-path change. Only `configs/env.py` imports `QdrantCacheConfig` from the flat file path directly and must be updated.
+
+#### Old files to delete
+
+After Step 13 is complete and all imports are updated:
+- `agentsociety/llm/qdrant_cache_actor.py` — deleted
+- `agentsociety/llm/qdrant_cache_config.py` — deleted
+
+#### Step 11 interaction
+
+If Step 11 (adding `skip_mode`) is implemented before Step 13, the `skip_mode` field is added to `llm/qdrant_cache_config.py` and then that file is moved to `llm/cache/config.py` as part of Step 13 — no conflict. If Step 13 runs first, add `skip_mode` to the new `llm/cache/config.py`. Either order is safe.
+
+### Step 14: Include LLM model name in Qdrant collection name
+
+#### Problem
+
+The current collection name scheme (`<name>__<origin>__<version>`) is scoped only to the prompt identity. Two simulation runs that use different LLM models but the same prompt identity will share a single Qdrant collection. Cached responses from model A will be served to model B — incorrect, because different models produce different output distributions for the same input.
+
+#### What changes
+
+**File:** `agentsociety/llm/qdrant_cache_actor.py:399–402` (this method lives at `llm/cache/ray_actor.py:_collection_name()` after Step 13).
+
+**Before (current code at `qdrant_cache_actor.py:399`):**
+```python
+def _collection_name(self, prompt_identity: tuple[str, str, str]) -> str:
+    name, origin, version = prompt_identity
+    raw = f"{name}__{origin}__{version}"
+    return _sanitize_collection_name(raw)
+```
+
+**After:**
+```python
+def _collection_name(self, prompt_identity: tuple[str, str, str]) -> str:
+    name, origin, version = prompt_identity
+    raw = f"{name}__{origin}__{version}__{self._llm_model_name}"
+    return _sanitize_collection_name(raw)
+```
+
+#### Where `_llm_model_name` comes from
+
+The model name is available at `LLMConfig.model` (`agentsociety/llm/llm.py:80`). `LLM.__init__` receives `configs: List[LLMConfig]` (`llm.py:111`) and stores them as `self.configs` (`llm.py:132`). A round-robin load-balanced `LLM` instance may hold multiple configs, but in practice all configs in a single `LLM` instance represent the same model (they differ by API key / concurrency slot, not by model). The model name for collection naming is taken from `configs[0].model`.
+
+The `QdrantCacheActor.__init__` currently receives no model name (`qdrant_cache_actor.py:368–376`). A new `llm_model_name: str` parameter is added to its constructor. The actor stores it as `self._llm_model_name`.
+
+#### Sanitisation
+
+`_sanitize_collection_name()` at `qdrant_cache_actor.py:18` uses `re.sub(r"[^a-zA-Z0-9_-]", "_", name)`. This handles all problematic characters in model identifiers:
+
+| Character | Example source | Result |
+|---|---|---|
+| `/` | `meta-llama/Llama-3-8b-instruct` | replaced with `_` |
+| `.` | `gpt-4.5` | replaced with `_` |
+| `:` | hypothetical `provider:model` | replaced with `_` |
+| `-` | `gpt-4o` | kept as-is (allowed) |
+
+No additional sanitisation logic is needed.
+
+#### Constructor call site
+
+`QdrantCacheActor` is instantiated in `InfrastructureManager._init_llm_cache_actor()` at `agentsociety/simulation/infrastructuremanager.py:398`. The `InfrastructureManager` already holds the full LLM configs via `self._config` (the simulation config object). The model name is passed as:
+
+```python
+llm_model_name=self._config.llm[0].model
+```
+
+(or whichever attribute path resolves to the `LLMConfig.model` field for the primary LLM config in the infrastructure manager's config object — confirm the exact attribute path before implementing.)
+
+#### Migration note: existing on-disk collections
+
+Users who have run the cache before Step 14 will have collections named without the model suffix (e.g., `needs_evaluation__citysim__1_0`). After Step 14, the new name includes the model (e.g., `needs_evaluation__citysim__1_0__gpt-4o`). The old collection is not renamed or read — it is simply ignored. The new collection starts empty and warms up from scratch. This is an acceptable tradeoff: the cache is a performance optimisation, not a source of truth. Losing the warm state costs a few hundred requests until the new collection crosses the `n_neighbors` threshold. No data is corrupted.
+
+Users who want to preserve warm state manually can rename the old Qdrant collection directory, but this is not automated and not documented as a supported migration path.
+
+#### Step 13 interaction
+
+- If Step 14 is implemented before Step 13: add `llm_model_name: str` to `QdrantCacheActor.__init__` in `llm/qdrant_cache_actor.py:368`. The parameter and `self._llm_model_name` assignment move to `llm/cache/ray_actor.py` as part of Step 13 — no conflict.
+- If Step 13 runs first: add `llm_model_name: str` to `llm/cache/ray_actor.py:QdrantCacheActor.__init__` directly.
+
+Either order is safe.
+
+---
+
+### Notable implementation details that differ from the original plan
+
+1. **`LLMContext` gained 4 fields instead of 2.** Plan specified `prompt_identity` and `prompt_inputs`. Implementation also added `prompt_input_schema` and `prompt_output_schema`. These are passed to `query_and_maybe_serve()` and `record()`, allowing the actor to interpret field types without consulting TOML files directly.
+
+2. **`query_and_maybe_serve()` signature changed.** Plan: `(prompt_identity, prompt_inputs, output_schema)`. Actual: `(prompt_identity, prompt_inputs, input_schema, output_schema)`. The `input_schema` parameter was added to enable typed embedding (numeric fields get scalar encoding; text fields get dense embedding).
+
+3. **`record()` signature changed.** Plan: `(prompt_identity, prompt_inputs, llm_response)`. Actual: `(prompt_identity, prompt_inputs, input_schema, llm_response, output_schema)`.
+
+4. **Shadow-validation mode.** The live LLM is always called by default. Opt-in skip behavior is now provided by `skip_mode=True` (Step 11).
+
+5. **`cache_hit_validation` metric added.** Not in original plan. Records whether each probe hit that went through shadow-validation actually matched the live result. This is a useful correctness signal.
+
+6. **Numeric fields get scalar encoding, not text embedding.** `_encode_numeric_field()` (`qdrant_cache_actor.py:426`, moving to `llm/cache/ray_actor.py` after Step 13) encodes numeric inputs as a 1-D float array `[value]` rather than embedding the string. This uses Qdrant named vectors with size=1 for numeric features. This is a significant design detail absent from the original plan.
+
+---
+
 ## Trade-Offs
 
 | Gain | Cost / Risk |
 |---|---|
-| High-frequency prompts with stable patterns (mobility destination, needs satisfaction) get LLM calls skipped after sufficient history — major latency and cost reduction | Championship model rebuild is CPU-intensive (KNN training + threshold computation); rebuild every 1000 records may pause the actor for seconds in Python-land |
-| Per-prompt feature championship means the best signal (e.g., `intention` for mobility) is automatically selected | Dense embedding of multiple text fields per call adds ~2–5 ms per probe inside the actor; acceptable for the amortized savings when cache hits |
-| Probe result is awaited, so the hot path always knows the cache decision before calling the LLM | One Ray IPC round-trip before every eligible LLM call; at 1000 agents this is 1000 concurrent probes per tick — actor concurrency must be configured appropriately |
-| Stats written to JSON on close; Prometheus metrics track per-prompt hit rates in real time | In-memory counters lost on actor crash; JSON file is only written on clean shutdown |
-| Feature is opt-in with `enabled: false` default | The `[outputs]` TOML additions are mechanical but large — 33 files to touch, risk of errors during classification |
-| All text-output prompts are still recorded as dataset (but not served from cache) | Qdrant on-disk storage grows unboundedly; no eviction policy in this version |
+| Full architecture is in place; `skip_mode` is a small, isolated addition to `QdrantCacheConfig` and `llm.py` | Shadow-validation mode means zero cost savings until `skip_mode=True` is set |
+| Shadow-validation provides a correctness signal before committing to real skipping | Every request pays probe latency on top of LLM latency in default mode |
+| `skip_mode` is opt-in: existing users are unaffected | Users must consciously enable `skip_mode` to get cost savings — the default looks like it "works" but doesn't save money |
+| Per-prompt feature championship selects the best input signal automatically | Championship model rebuild is CPU-intensive; default `batch_size=1000` means rebuild deferred until 1000 samples per collection |
+| Cache correctness validated live via `cache_hit_validation` metric | Cache never serves a response until `n_neighbors=50` samples are accumulated per prompt; effectively no hits in short simulations |
+| `enabled: false` default — zero impact on existing runs | `[outputs]` sections added to 33 TOML files is a large mechanical diff; errors in type classification would cause wrong eligibility decisions |
+| Stats written to JSON on `close()` | In-memory counters lost on actor crash; JSON only written on clean shutdown |
+| `llm/cache/` subpackage separates pure-Python logic from Ray dependency | Step 13 is a pure rename/split with no logic changes, but requires updating 2 import sites (`llm/__init__.py`, `configs/env.py`) |
+| Model-scoped collection names prevent cross-model cache poisoning | Users with pre-Step-14 on-disk caches lose their warm state — the cache restarts cold. No data corruption, but the warmup cost is paid again. |
+| `_sanitize_collection_name()` already handles slashes and dots — no new helper needed | Collection names become slightly longer; Qdrant has no documented name length limit but very long model identifiers could produce unwieldy names (not a practical concern for known provider model strings) |
+
+---
 
 ## Rejected Approaches
 
-- **In-process cache (not a Ray actor)**: Agents run as isolated Ray remote actors. They cannot share a Python dict or an in-process Qdrant client. A Ray actor is the only viable shared-state mechanism. Rejected immediately.
+- **In-process cache (not a Ray actor)**: Agents run as isolated Ray remote actors. Cannot share a Python dict or an in-process Qdrant client. Rejected.
+- **Fire-and-forget probe (non-blocking)**: A non-blocking probe cannot short-circuit the LLM call. The probe must be awaited.
+- **Use `block_name`/`func_name` as collection key**: These strings are set inconsistently across blocks. Prompt identity `(name, origin, version)` from TOML metadata is the stable canonical key.
+- **Embed the full rendered dialog**: Conflates all features into one vector, making feature championship impossible.
+- **BM25 sparse embeddings**: Keyword overlap is a poor signal for numeric-heavy agent state strings. Dense embeddings are more robust.
+- **One `QdrantCacheActor` per agent**: Would multiply actor count by agent count; each instance would have too few samples to build a reliable model. Cross-agent learning is the point.
+- **Extend `PromptManager.format_prompt_to_dialog()` return type**: Would break all 30+ call sites. New opt-in methods are backward-compatible.
+- **Record dataset in existing ClickHouse `prompt_responses` table**: That table has no vector index and cannot support nearest-neighbor queries.
+- **`embed = true` marker in TOML input fields**: All `type = "text"` fields are automatically embedded. No explicit marker needed.
+- **Change `skip_mode` default to `True`**: The current shadow-validation mode provides a safety net — the LLM still runs and its result is returned even when the cache probe hits. Flipping the default silently to skip mode could serve incorrect cached results to users who never read the changelog. An opt-in flag is safer.
+- **Use `QdrantClient(":memory:")` for the e2e test**: The `QdrantCacheActor` constructor hard-codes `QdrantClient(path=...)`. Supporting in-memory mode would require a constructor change and a new config flag. A real on-disk client in a temp directory works today with no code changes.
+- **Keep `QdrantCacheConfig` in `configs/` rather than `llm/cache/`**: `QdrantCacheConfig` is already in `llm/qdrant_cache_config.py` (inside the `llm/` package), not in `configs/`. Moving it to `llm/cache/config.py` continues that convention and keeps the cache subpackage self-contained. `configs/env.py` already imports it from `llm/`; the import path change is minimal.
+- **Keep `MultiFeatureQdrantChampionCache` and `QdrantCacheActor` in the same file**: The single-file approach was the initial implementation choice for speed. At 629 lines with two logically independent classes (one with no Ray dependency), the file is already past the point where a split improves readability and testability with no risk.
+- **Pass the model name through `prompt_identity` as a 4th tuple element**: `prompt_identity` is a `(name, origin, version)` triple defined by `PromptManager.get_prompt_identity()` (`prompts/prompt_manager.py:156`). It is a prompt-level concept, not a model-level concept. Folding model identity into it conflates two independent axes. Keeping model name as a separate actor-level attribute is cleaner and avoids changing the `prompt_identity` contract at every call site.
+- **Use the full `LLMConfig` object (not just `model`) for collection scoping**: Provider + model together could theoretically distinguish fine-tuned variants hosted at the same endpoint. In practice, model name is the stable, human-readable discriminant. Provider differences rarely produce different output distributions for the same model name. Using only `model` keeps the collection name short and readable.
+- **Automatically rename existing collections on first startup**: Renaming requires reading all existing collection names, inferring which model they belong to, and renaming them — but the old name contains no model information, so inference is impossible without external metadata. Silent rename is not feasible. A clean restart is the correct behavior.
 
-- **Fire-and-forget probe (non-blocking)**: Answered in Q3 — the probe is awaited and its latency is logged. This is necessary to actually short-circuit the LLM call on a cache hit. Fire-and-forget probing would reduce latency overhead but would not allow skipping the LLM call, which is the point of the feature.
+---
 
-- **Use `block_name`/`func_name` as collection key instead of prompt identity**: Answered in Q1 — prompt identity `(name, origin, version)` is used. `block_name`/`func_name` strings are set inconsistently across blocks (e.g., `mobility_block.py:197` uses `"AOI Area Selection"` but `needs_block.py:609` uses `"evaluate_and_adjust_needs"`), while prompt TOML `name` fields are stable canonical identifiers. Version and origin allow per-variant caches when prompts diverge between citysim and agentsociety origins.
+## Assumptions
 
-- **Embed the full rendered dialog**: Answered in Q2 — embed each text-type `[inputs.*]` field separately from the raw `state_dict`, before template rendering. This is the `MultiFeatureQdrantChampionCache` design: separate named vectors per feature. Embedding the full rendered dialog conflates all features into one vector, making feature championship impossible.
+- The `LLM` constructor change (accepting `cache_skip_mode: bool`) is backward-compatible because it has a default of `False`.
+- The `InfrastructureManager` already has `self._config.env.qdrant_cache` available at the point where `LLM(...)` is constructed (`infrastructuremanager.py:439`), so no new dependency injection is needed.
+- LLM API credentials will be available in the test environment (live LLM is used in the e2e test).
+- The e2e test environment has network access to download the `BAAI/bge-small-en-v1.5` fastembed model on first run, or the model is already cached.
+- Step 13 is a pure mechanical refactor (rename + split + import update). No logic changes. All existing tests and example runs remain valid after Step 13 because `agentsociety/llm/__init__.py` continues to export `QdrantCacheActor` and `QdrantCacheConfig` under the same names.
+- All `LLMConfig` entries in a single `LLM` instance reference the same model name. If a heterogeneous multi-model `LLM` setup were introduced in future, the collection naming scheme would need revisiting. For now, `configs[0].model` is authoritative.
+- The `InfrastructureManager` has access to the primary `LLMConfig.model` value at the point where `QdrantCacheActor.remote(...)` is called. The exact config attribute path should be confirmed before Step 14 implementation — look at how `_init_llm_cache_actor()` (`infrastructuremanager.py:398`) accesses the simulation config object.
 
-- **Use BM25 sparse embeddings**: BM25 sparse vectors measure keyword overlap. A prompt for agent A (age 35) and agent B (age 36) differ only in a numeric substring — BM25 would score them very differently. Dense embeddings (`bge-small-en-v1.5`) capture semantic similarity more robustly. Also confirmed in Q8.
+---
 
-- **One `QdrantCacheActor` per agent**: Would multiply actor count by the number of agents (e.g., 1000 actors), each with too few training samples to build a reliable model. Cross-agent learning is the entire point — one global actor accumulates history across all agents for the same prompt. Rejected.
+## Test Plan
 
-- **Extend `PromptManager.format_prompt_to_dialog()` to return cache context inline**: Would require changing the return type signature, breaking all 30+ call sites. Instead, three new methods on `PromptManager` give callers opt-in access. Backward-compatible. Rejected the signature change.
+### Location and runner
 
-- **Record dataset in existing ClickHouse `prompt_responses` table**: That table is append-only with no vector index. It cannot do nearest-neighbor queries. The Qdrant collections serve a different purpose (similarity search + label voting). The two stores are complementary: ClickHouse for structured logs, Qdrant for the cache model. Rejected as a replacement.
+- File: `tests/e2e/006_qdrant_cache.py`
+- Runner: add `"$PYTHON_BIN" "006_qdrant_cache.py" "$@"` to `tests/run_e2e_tests.sh` alongside the existing `001_run_simplest_e2e.py` invocation.
 
-- **Add `embed = true` marker to TOML input fields**: Answered in Q10 — all `type = "text"` fields are automatically embedded. No explicit `embed = true` marker needed. Simpler and consistent with the TOML type system.
+### Environment
 
-## Assumptions & Open Questions
+- **Ray**: `ray.init()` called in test setup; `QdrantCacheActor.remote(...)` used directly. Same pattern as other e2e tests in `tests/e2e/utils.py`.
+- **Qdrant**: real `QdrantClient` writing to a `tempfile.mkdtemp()` directory. Directory cleaned up in teardown.
+- **LLM**: live LLM using credentials from the test environment. No mocking.
+- **n_neighbors**: default of 50 (no override). The test submits 51+ near-identical prompts to cross the threshold naturally.
 
-### Assumptions
+### Test scenario: functional cache hit
 
-- `fastembed.TextEmbedding("BAAI/bge-small-en-v1.5")` is available inside the `qdrant-client[fastembed]` package already declared at `pyproject.toml`. This is confirmed by the fastembed package documentation.
-- All agent LLM calls go through `LLM.atext_request` — there is no secondary call path.
-- The simulation runs on a single machine — the local Qdrant path is accessible to all Ray workers.
-- The actor's Python GIL serializes `query_and_maybe_serve` and `record` calls, preventing concurrent Qdrant writes from different agents from corrupting state.
-- `state_dict` fields passed to `format_prompt_to_dialog` are already resolved (not raw memory handles) and serializable to string for embedding.
-- The existing `prompt_responses` ClickHouse table continues to operate unchanged in parallel.
+**Setup:**
+- Start Ray (`ray.init()`).
+- Create a `QdrantCacheActor` via `.remote()` with `path=<tempdir>`, `n_neighbors=50`, `batch_size=50`, `probability_threshold=0.9`, default `embedding_model`, and `llm_model_name="gpt-4o"` (or the test environment's model name).
+- Prompt identity: any eligible prompt with a categorical or float output, e.g., `("needs_evaluation", "citysim", "1.0")`.
+- Input schema: one text field (e.g., `{"activity": {"type": "text"}}`).
+- Output schema: one categorical field (e.g., `{"hunger_satisfaction": {"type": "float"}}`).
 
-### Open Questions
+**Phase 1 — warm the cache (51 near-identical records):**
+- Call `actor.record.remote(prompt_identity, {"activity": "eating lunch at home"}, input_schema, "0.8", output_schema)` 51 times with minor lexical variation (e.g., "eating lunch at home", "having lunch at home", "lunch at home again", ...).
+- After 51 records, the actor's internal `batch_size` threshold is crossed; the KNN model rebuilds.
+- `ray.get(actor.get_stats.remote())` — assert that the collection for this prompt identity has `>= 51` total records.
+- Assert the collection name in `get_stats()` output contains `gpt-4o` (verifies model scoping is in effect).
 
-**Q1 (Qdrant persistence across runs):** The Qdrant on-disk path persists across simulation runs. Should the actor check if an existing collection from a previous run exists and continue accumulating, or always start fresh? Recommendation: continue accumulating (the model gets better with more data), but this means the champion model from a previous run is reused immediately, which could be confusing if the prompt changed. This should be revisited when versioning of prompt-identity tuples is tight.
+**Phase 2 — assert functional cache hit:**
+- Call `ray.get(actor.query_and_maybe_serve.remote(prompt_identity, {"activity": "eating lunch"}, input_schema, output_schema))`.
+- Assert the return value is not `None` (i.e., the cache returned a result rather than a miss).
+- Assert the returned value is parseable as a float in [0.0, 1.0].
 
-USER'S ANSWERS: Keep the same Qdrant database across runs that is keep updating and using it. Make the collection totally coupled to the prompt-identity tuples, so if I change it, I don't reuse a stale cache, but can re-use it later.
+**Phase 3 — stats integrity:**
+- Call `ray.get(actor.close.remote())`.
+- Assert `<tempdir>/stats.json` exists.
+- Parse the JSON and assert it contains a `"collections"` key with at least one entry whose `hits > 0`.
+- Assert all collection names in `stats.json` contain `gpt-4o`.
 
-**Q2 (Actor concurrency):** The default Ray actor processes one call at a time. With 1000+ agents probing and recording simultaneously, there will be queuing. Should the actor be decorated with `@ray.remote(max_concurrency=N)` to allow concurrent reads? Note: Qdrant itself is thread-safe for reads but not concurrent writes. Recommendation: use `max_concurrency=1` (default) initially and profile; the KNN training rebuild is the bigger concern.
+**Passing criteria:**
+The test passes if Phase 2 returns a non-None result (the cache hit is functional) and Phase 3 finds `hits > 0` in `stats.json`. This is the "functional" level from the original Q-E options.
 
-**Q3 (Label extraction for multi-output prompts):** For prompts with multiple float outputs (e.g., `needs_evaluation` with `hunger_satisfaction`, `energy_satisfaction`, `safety_satisfaction`, `social_satisfaction`), how should the label be encoded for the `MultiFeatureQdrantChampionCache`? The snippets file uses a single string label. Options:
-- Encode as JSON string: `'{"hunger_satisfaction": 0.8, "energy_satisfaction": 0.7, ...}'`
-- Train one cache instance per output field (more accuracy, more actor state)
-Recommendation: JSON-string encoding for now (simplest), but flagged as a known limitation.
+### What the test does NOT cover
 
-USER'S ANSWERS:
+- Skip-mode (`skip_mode=True`) LLM bypass — this requires constructing a full `LLM` instance with a live provider and asserting LLM actor call count. That is a separate, more invasive test that can be added once Step 11 is implemented and the functional test above is green.
+- Prometheus counters — `MetricsTracker` is not initialized in the e2e test; only `get_stats()` and `stats.json` are checked.
+- Multi-feature championship (only one text feature used in this test; championship is implicitly exercised but not explicitly asserted).
+- Cross-model isolation (verifying that a cache built with `llm_model_name="gpt-4o"` does NOT serve results when queried with `llm_model_name="gpt-3.5-turbo"`) — this is structurally enforced by the naming scheme and does not require a runtime test, but could be added as a unit test against `_collection_name()` directly.
 
-Use this format:
-[outputs.hunger_satisfaction]
-type = "float"
-description = "Updated hunger satisfaction level (0.0 to 1.0)."
-
-[outputs.energy_satisfaction]
-type = "float"
-description = "Updated energy satisfaction level (0.0 to 1.0)."
-
-[outputs.safety_satisfaction]
-type = "float"
-description = "Updated safety satisfaction level (0.0 to 1.0)."
-
-[outputs.social_satisfaction]
-type = "float"
-description = "Updated social satisfaction level (0.0 to 1.0)."
-
-
-**Q4 (Collision in collection names):** Collection name is `f"{name}__{origin}__{version}"`. Qdrant collection names must match `[a-zA-Z0-9_-]+`. If `name`, `origin`, or `version` contain characters outside this set, the name must be sanitized. The current TOML files use safe characters, but a sanitization step (`re.sub(r'[^a-zA-Z0-9_-]', '_', ...)`) should be applied defensively. USER's ANSWER: Use sanitization.
+---
 
 ## Code That Could Be Refactored *(informational)*
 
-- `agentsociety/simulation/infrastructuremanager.py:329-387` — `_init_metrics_actor()`, `_init_clickhouse_actor()`, `_init_dispatcher_cache_actor()` are structurally near-identical: create actor with `.remote()`, wrap in `CustomTool`, assign to `self._X_tool`. A generic `_init_actor(cls, name, description, enabled, *args, **kwargs)` helper would eliminate the repetition. Not a blocker for this feature.
-- `agentsociety/llm/llm.py:280-354` — The `while True:` loop in `atext_request` has grown complex. Adding probe/record logic inline will increase its line count further. A future refactor could extract `_do_probe()` and `_do_record()` as private async helpers. Note for post-implementation cleanup.
-- `agentsociety/cityagent/blocks/mobility_block.py` — The 8 `atext_request` call sites each repeat the same 3-line `context={}` dict construction. After Step 6, each will grow by 3 more lines. A helper method `self._make_llm_context(func_name, prompt_name, state_dict)` on the `Block` base class would centralize this. Not a blocker.
-- `agentsociety/prompts/prompt_manager.py:410` — `get_prompt_template()` and `format_prompt()` both look up `self._loaded_prompts[prompt_name]` with no shared helper. The new `get_prompt_identity()` and `get_text_input_fields()` methods add to this pattern. A private `_get_prompt_data(name)` helper with a clear error would clean this up.
+- `agentsociety/simulation/infrastructuremanager.py:329-440` — `_init_metrics_actor()`, `_init_clickhouse_actor()`, `_init_dispatcher_cache_actor()`, `_init_llm_cache_actor()` are structurally near-identical. A generic `_init_actor(...)` helper would eliminate the repetition.
+- `agentsociety/llm/llm.py` — `atext_request` body is long and has multiple named helper methods that break up the logic. The shadow-validation path in `_maybe_serve_probe_result()` (`llm.py:296`) will become simpler once `skip_mode=True` is used in production (the comparison logic can be dropped or made conditional).
+- `agentsociety/llm/qdrant_cache_actor.py:544` — `query_and_maybe_serve()` checks `_is_cache_eligible(output_schema)` after calling `_embed_typed_fields()` and constructing the cache. Eligibility check should happen first, before the expensive embedding step, to short-circuit ineligible prompts with zero work. (This note applies to the same method in `llm/cache/ray_actor.py` after Step 13.)
+
+---
 
 ## Proposed Next Steps
 
-1. **Add `[outputs]` sections to all 33 prompt TOML files** (Step 1) — purely mechanical, no code risk. Do this first so the TOML schema is complete before any code reads it. Classify each prompt carefully using the table above.
+1. **Step 13 — Create `llm/cache/` subpackage:**
+   - Create `agentsociety/llm/cache/` directory.
+   - Create `agentsociety/llm/cache/config.py`: move `QdrantCacheConfig` from `llm/qdrant_cache_config.py`. Update relative logger import: `from ...logger import get_logger` (no logger is actually used here; the pydantic model has no logger import, so this step is trivial — just move the class).
+   - Create `agentsociety/llm/cache/qdrant_cache.py`: move `_sanitize_collection_name` (line 18) and `MultiFeatureQdrantChampionCache` (line 22) from `llm/qdrant_cache_actor.py`. Update logger import to `from ...logger import get_logger`.
+   - Create `agentsociety/llm/cache/ray_actor.py`: move `QdrantCacheActor` (line 364) from `llm/qdrant_cache_actor.py`. Add `from .qdrant_cache import MultiFeatureQdrantChampionCache, _sanitize_collection_name` at the top. Update logger import to `from ...logger import get_logger`.
+   - Create `agentsociety/llm/cache/__init__.py` with re-exports of `QdrantCacheConfig`, `MultiFeatureQdrantChampionCache`, `QdrantCacheActor`.
+   - Update `agentsociety/llm/__init__.py:4-5`: replace `from .qdrant_cache_actor import QdrantCacheActor` and `from .qdrant_cache_config import QdrantCacheConfig` with `from .cache import QdrantCacheActor, QdrantCacheConfig`.
+   - Update `agentsociety/configs/env.py:6`: replace `from ..llm.qdrant_cache_config import QdrantCacheConfig` with `from ..llm.cache.config import QdrantCacheConfig`.
+   - Delete `agentsociety/llm/qdrant_cache_actor.py` and `agentsociety/llm/qdrant_cache_config.py`.
+   - Verify: `agentsociety/simulation/infrastructuremanager.py:20` (`from ..llm import LLM, QdrantCacheActor`) requires no change.
 
-2. **Implement `QdrantCacheConfig`** in `agentsociety/llm/qdrant_cache_config.py` and add the field to `EnvConfig` at `agentsociety/configs/env.py:43` (Step 2). Minimal change.
+2. **Step 14 — Add LLM model name to collection naming** (can run before or after Step 13):
+   - Add `llm_model_name: str` parameter to `QdrantCacheActor.__init__` (`qdrant_cache_actor.py:368`, or `llm/cache/ray_actor.py` if Step 13 ran first). Store as `self._llm_model_name`.
+   - Update `_collection_name()` (`qdrant_cache_actor.py:399`, or `llm/cache/ray_actor.py`) to append `__{self._llm_model_name}` to the raw name before sanitisation.
+   - In `InfrastructureManager._init_llm_cache_actor()` (`infrastructuremanager.py:398`), pass `llm_model_name=<primary_llm_config>.model` when calling `QdrantCacheActor.remote(...)`. Confirm the exact config attribute path by reading `infrastructuremanager.py:398–440` before implementing.
+   - Confirm the existing `_sanitize_collection_name()` helper (`qdrant_cache_actor.py:18`) is sufficient (it is — slashes and dots are already replaced with `_`).
+   - Document the migration note in operator-facing release notes: existing on-disk Qdrant caches will not be read after this change; the cache restarts cold.
 
-3. **Add three new methods to `PromptManager`** (`get_prompt_identity`, `get_text_input_fields`, `get_output_schema`, `is_cache_eligible`) at `agentsociety/prompts/prompt_manager.py` (Step 5). No side effects; can be tested in isolation.
+3. **Step 11 — Add `skip_mode` to `QdrantCacheConfig` and `LLM`** (can run before or after Steps 13/14):
+   - Add `skip_mode: bool = Field(default=False)` to `QdrantCacheConfig` (in `llm/cache/config.py` if Step 13 ran first, otherwise `llm/qdrant_cache_config.py`).
+   - Add `cache_skip_mode: bool = False` parameter to `LLM.__init__` (`llm.py:115`); store as `self._cache_skip_mode`.
+   - Insert the early-return guard between `llm.py:434` and `llm.py:437` (between probe result assignment and the `while True:` loop).
+   - Pass `cache_skip_mode=self._config.env.qdrant_cache.skip_mode` in the `LLM(...)` constructor call at `infrastructuremanager.py:439`.
 
-4. **Implement `QdrantCacheActor`** in `agentsociety/llm/qdrant_cache_actor.py` (Step 3). Adapt `MultiFeatureQdrantChampionCache` from the snippets file. Use `QdrantClient(path=...)`, per-prompt cache instances, dense embeddings.
+4. **Step 12 — Write `tests/e2e/006_qdrant_cache.py`** per the test plan above (including the `llm_model_name` constructor argument and the collection-name assertions added by Step 14).
 
-5. **Extend `LLMContext` and `LLM.atext_request`** (Step 4). Add the probe/record logic inside `atext_request`. Verify the skip condition for tool-calling requests (`isinstance(tools, NotGiven)`).
+5. **Wire into `tests/run_e2e_tests.sh`:** add `"$PYTHON_BIN" "006_qdrant_cache.py" "$@"` after the `001_run_simplest_e2e.py` line.
 
-6. **Update all block call sites** (Step 6) — 8 block files + `societyagent.py`. The change at each call site is mechanical: add three keys to the `context={}` dict.
+6. **Fix the eligibility check order** in `QdrantCacheActor.query_and_maybe_serve()` (line 544 in the current file; same method in `llm/cache/ray_actor.py` after Step 13): move `_is_cache_eligible(output_schema)` before the `_embed_typed_fields()` call to avoid unnecessary embedding work on ineligible prompts. (Low priority; correctness-neutral.)
 
-7. **Wire into `InfrastructureManager`** (Step 7) — add `_init_llm_cache_actor()`, update `initialize_all()`, update `_init_core_components()`, update `close()`.
-
-8. **Add `llm_cache_tool` to agent toolbox** in `simulationengine.py` (Step 8).
-
-9. **Add cache metrics** to `PrometheusActor` and `MetricsTracker` (Step 9).
-
-10. **Update `agentsociety/llm/__init__.py`** exports (Step 10).
-
-11. **Validate end-to-end**: Run a short simulation with `env.qdrant_cache.enabled: true`. Inspect Qdrant collection sizes, call `get_stats()` via Ray, verify JSON stats file written on shutdown, verify Prometheus metrics visible in Grafana.
+7. **End-to-end validation with a full simulation**: run a short simulation with `env.qdrant_cache.enabled: true`, `env.qdrant_cache.skip_mode: true`, and `env.qdrant_cache.n_neighbors: 10` (lower threshold for quick validation). Inspect Qdrant collection sizes via `get_stats()`. Verify collection names contain the model name. Verify `stats.json` is written on shutdown. Verify Prometheus metrics visible in Grafana.

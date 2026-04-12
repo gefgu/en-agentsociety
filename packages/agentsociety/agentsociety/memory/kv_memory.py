@@ -12,6 +12,9 @@ from ..utils.decorators import lock_decorator
 from ..vectorstore import VectorStore
 
 
+_MISSING = object()
+
+
 class KVMemory:
     def __init__(
         self,
@@ -113,7 +116,7 @@ class KVMemory:
     async def get(
         self,
         key: Any,
-        default_value: Optional[Any] = None,
+        default_value: Any = _MISSING,
     ) -> Any:
         """
         Retrieve a value from the memory.
@@ -130,11 +133,9 @@ class KVMemory:
         """
         if key in self._data:
             return deepcopy(self._data[key])
-        else:
-            if default_value is None:
-                raise KeyError(f"No attribute `{key}` in memories!")
-            else:
-                return default_value
+        if default_value is _MISSING:
+            raise KeyError(f"No attribute `{key}` in memories!")
+        return default_value
 
     @lock_decorator
     async def update(
