@@ -10,7 +10,7 @@ import time
 import yaml
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Any, Literal, Optional, Union, cast
+from typing import Any, Awaitable, Callable, Literal, Optional, Union, cast
 from ..database.database_actor import DatabaseActor
 from ..performance.prometheusActor import PrometheusActor
 from ..agent import CustomTool
@@ -24,6 +24,7 @@ from ..agent import (
 from ..configs import (
     AgentFilterConfig,
     Config,
+    WorkflowStepConfig,
     WorkflowType,
 )
 from .agentmanager import AgentManager
@@ -975,6 +976,130 @@ class SimulationEngine:
                 break
         return logs
 
+    async def _run_workflow_step(self, step: Any, logs: Logs) -> None:
+        for _ in range(step.steps):
+            log = await self.step(step.ticks_per_step)
+            logs.append(log)
+
+    async def _run_workflow_run(self, step: Any, logs: Logs) -> None:
+        days = int(step.days)
+        remain = step.days - days
+        for _ in range(days):
+            log = await self.run_one_day(step.ticks_per_step)
+            logs.append(log)
+        if remain > 0.001:
+            ticks_remain = int(remain * 24 * 60 * 60 / step.ticks_per_step)
+            for _ in range(ticks_remain):
+                log = await self.step(step.ticks_per_step)
+                logs.append(log)
+
+    def _require_step_field(
+        self,
+        step: WorkflowStepConfig,
+        field_name: str,
+        value: Any,
+    ) -> Any:
+        if value is None:
+            raise ValueError(
+                f"{field_name} is required for workflow step type: {step.type}"
+            )
+        return value
+
+    async def _resolve_workflow_target_agent_ids(
+        self,
+        step: WorkflowStepConfig,
+    ) -> list[int]:
+        target_agent = self._require_step_field(step, "target_agent", step.target_agent)
+        return await self._extract_target_agent_ids(target_agent)
+
+    async def _send_workflow_intervention(
+        self,
+        step: WorkflowStepConfig,
+        include_legacy_warning: bool,
+    ) -> None:
+        if include_legacy_warning:
+            get_logger().warning(
+                "MESSAGE_INTERVENE is not fully implemented yet, it can only influence the congnition of target agents"
+            )
+        target_agent_ids = await self._resolve_workflow_target_agent_ids(step)
+        intervene_message = self._require_step_field(
+            step,
+            "intervene_message",
+            step.intervene_message,
+        )
+        await self.send_intervention_message(intervene_message, target_agent_ids)
+
+    async def _run_workflow_interview(self, step: WorkflowStepConfig, _: Logs) -> None:
+        target_agent_ids = await self._resolve_workflow_target_agent_ids(step)
+        interview_message = self._require_step_field(
+            step,
+            "interview_message",
+            step.interview_message,
+        )
+        await self.send_interview_message(interview_message, target_agent_ids)
+
+    async def _run_workflow_survey(self, step: WorkflowStepConfig, _: Logs) -> None:
+        target_agent_ids = await self._resolve_workflow_target_agent_ids(step)
+        survey = self._require_step_field(step, "survey", step.survey)
+        await self.send_survey(survey, target_agent_ids)
+
+    async def _run_workflow_environment_intervene(self, step: WorkflowStepConfig, _: Logs) -> None:
+        key = self._require_step_field(step, "key", step.key)
+        value = self._require_step_field(step, "value", step.value)
+        await self.update_environment(key, value)
+
+    async def _run_workflow_update_state_intervene(self, step: WorkflowStepConfig, _: Logs) -> None:
+        target_agent_ids = await self._resolve_workflow_target_agent_ids(step)
+        key = self._require_step_field(step, "key", step.key)
+        value = self._require_step_field(step, "value", step.value)
+        await self.update(target_agent_ids, key, value)
+
+    async def _run_workflow_message_intervene(self, step: WorkflowStepConfig, _: Logs) -> None:
+        await self._send_workflow_intervention(step, include_legacy_warning=False)
+
+    async def _run_workflow_next_round(self, _: Any, __: Logs) -> None:
+        await self.next_round()
+
+    async def _run_workflow_delete_agent(self, step: WorkflowStepConfig, _: Logs) -> None:
+        target_agent_ids = await self._resolve_workflow_target_agent_ids(step)
+        await self.delete_agents(target_agent_ids)
+
+    async def _run_workflow_save_context(self, step: WorkflowStepConfig, _: Logs) -> None:
+        target_agent_ids = await self._resolve_workflow_target_agent_ids(step)
+        key = self._require_step_field(step, "key", step.key)
+        save_as = self._require_step_field(step, "save_as", step.save_as)
+        await self._gather_and_update_context(target_agent_ids, key, save_as)
+
+    async def _run_workflow_intervene(self, step: WorkflowStepConfig, _: Logs) -> None:
+        await self._send_workflow_intervention(step, include_legacy_warning=True)
+
+    async def _run_workflow_function(self, step: WorkflowStepConfig, _: Logs) -> None:
+        func = self._require_step_field(step, "func", step.func)
+        if isinstance(func, str) or not callable(func):
+            raise ValueError(
+                f"func must be a callable for workflow step type: {step.type}"
+            )
+        await func(self)
+
+    def _build_workflow_dispatcher(
+        self,
+        logs: Logs,
+    ) -> dict[WorkflowType, Callable[[Any], Awaitable[None]]]:
+        return {
+            WorkflowType.STEP: lambda step: self._run_workflow_step(step, logs),
+            WorkflowType.RUN: lambda step: self._run_workflow_run(step, logs),
+            WorkflowType.INTERVIEW: lambda step: self._run_workflow_interview(step, logs),
+            WorkflowType.SURVEY: lambda step: self._run_workflow_survey(step, logs),
+            WorkflowType.ENVIRONMENT_INTERVENE: lambda step: self._run_workflow_environment_intervene(step, logs),
+            WorkflowType.UPDATE_STATE_INTERVENE: lambda step: self._run_workflow_update_state_intervene(step, logs),
+            WorkflowType.MESSAGE_INTERVENE: lambda step: self._run_workflow_message_intervene(step, logs),
+            WorkflowType.NEXT_ROUND: lambda step: self._run_workflow_next_round(step, logs),
+            WorkflowType.DELETE_AGENT: lambda step: self._run_workflow_delete_agent(step, logs),
+            WorkflowType.SAVE_CONTEXT: lambda step: self._run_workflow_save_context(step, logs),
+            WorkflowType.INTERVENE: lambda step: self._run_workflow_intervene(step, logs),
+            WorkflowType.FUNCTION: lambda step: self._run_workflow_function(step, logs),
+        }
+
     async def run(self):
         """
         Run the simulation following the workflow in the config.
@@ -985,100 +1110,15 @@ class SimulationEngine:
             agent_time_log=[],
         )
         try:
+            workflow_dispatcher = self._build_workflow_dispatcher(logs)
             for step in self.config.exp.workflow:
                 get_logger().info(
                     f"Running workflow: type: {step.type} - description: {step.description}"
                 )
-                if step.type == WorkflowType.STEP:
-                    for _ in range(step.steps):
-                        log = await self.step(step.ticks_per_step)
-                        logs.append(log)
-                elif step.type == WorkflowType.RUN:
-                    days = int(step.days)
-                    remain = step.days - days
-                    for _ in range(days):
-                        log = await self.run_one_day(step.ticks_per_step)
-                        logs.append(log)
-                    if remain > 0.001:
-                        ticks_remain = int(remain * 24 * 60 * 60 / step.ticks_per_step)
-                        for _ in range(ticks_remain):
-                            log = await self.step(step.ticks_per_step)
-                            logs.append(log)
-                elif step.type == WorkflowType.INTERVIEW:
-                    target_agents = step.target_agent
-                    interview_message = step.interview_message
-                    assert interview_message is not None
-                    assert target_agents is not None
-                    target_agent_ids = await self._extract_target_agent_ids(
-                        target_agents
-                    )
-                    await self.send_interview_message(
-                        interview_message, target_agent_ids
-                    )
-                elif step.type == WorkflowType.SURVEY:
-                    assert step.target_agent is not None
-                    assert step.survey is not None
-                    target_agent_ids = await self._extract_target_agent_ids(
-                        step.target_agent
-                    )
-                    await self.send_survey(step.survey, target_agent_ids)
-                elif step.type == WorkflowType.ENVIRONMENT_INTERVENE:
-                    assert step.key is not None
-                    assert step.value is not None
-                    await self.update_environment(step.key, step.value)
-                elif step.type == WorkflowType.UPDATE_STATE_INTERVENE:
-                    assert step.key is not None
-                    assert step.value is not None
-                    assert step.target_agent is not None
-                    target_agent_ids = await self._extract_target_agent_ids(
-                        step.target_agent
-                    )
-                    await self.update(target_agent_ids, step.key, step.value)
-                elif step.type == WorkflowType.MESSAGE_INTERVENE:
-                    assert step.intervene_message is not None
-                    assert step.target_agent is not None
-                    target_agent_ids = await self._extract_target_agent_ids(
-                        step.target_agent
-                    )
-                    await self.send_intervention_message(
-                        step.intervene_message, target_agent_ids
-                    )
-                elif step.type == WorkflowType.NEXT_ROUND:
-                    await self.next_round()
-                elif step.type == WorkflowType.DELETE_AGENT:
-                    assert step.target_agent is not None
-                    target_agent_ids = await self._extract_target_agent_ids(
-                        step.target_agent
-                    )
-                    await self.delete_agents(target_agent_ids)
-                elif step.type == WorkflowType.SAVE_CONTEXT:
-                    assert step.target_agent is not None
-                    assert step.key is not None
-                    assert step.save_as is not None
-                    target_agent_ids = await self._extract_target_agent_ids(
-                        step.target_agent
-                    )
-                    await self._gather_and_update_context(
-                        target_agent_ids, step.key, step.save_as
-                    )
-                elif step.type == WorkflowType.INTERVENE:
-                    get_logger().warning(
-                        "MESSAGE_INTERVENE is not fully implemented yet, it can only influence the congnition of target agents"
-                    )
-                    assert step.target_agent is not None
-                    assert step.intervene_message is not None
-                    target_agent_ids = await self._extract_target_agent_ids(
-                        step.target_agent
-                    )
-                    await self.send_intervention_message(
-                        step.intervene_message, target_agent_ids
-                    )
-                elif step.type == WorkflowType.FUNCTION:
-                    assert step.func is not None
-                    assert not isinstance(step.func, str)
-                    await step.func(self)
-                else:
+                handler = workflow_dispatcher.get(step.type)
+                if handler is None:
                     raise ValueError(f"Unknown workflow type: {step.type}")
+                await handler(step)
                 self._save_context()
 
         except Exception as e:
