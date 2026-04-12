@@ -182,6 +182,49 @@ class MultiFeatureQdrantChampionCache:
             return None
         return float(np.quantile(np.asarray(furthest_distances, dtype=float), self.distance_quantile))
 
+    def _predict_single_label(
+        self,
+        sims: np.ndarray,
+        y_train: np.ndarray,
+        k: int,
+    ) -> str:
+        top_idx = np.argpartition(-sims, kth=k - 1)[:k]
+        vote_sum: dict[str, float] = defaultdict(float)
+        for i in top_idx:
+            label = str(y_train[i])
+            vote_sum[label] += float(max(sims[i], 1e-12))
+        return max(vote_sum.items(), key=lambda kv: kv[1])[0]
+
+    def _predict_labels(
+        self,
+        X_train_norm: np.ndarray,
+        y_train: np.ndarray,
+        X_val: np.ndarray,
+        k: int,
+    ) -> np.ndarray:
+        y_pred: list[str] = []
+        for q in X_val:
+            q_norm = q / max(float(np.linalg.norm(q)), 1e-12)
+            sims = X_train_norm @ q_norm
+            y_pred.append(self._predict_single_label(sims, y_train, k))
+        return np.asarray(y_pred, dtype=str)
+
+    def _macro_f1_score(self, y_true: np.ndarray, y_pred: np.ndarray) -> float:
+        y_true_str = y_true.astype(str)
+        labels = np.unique(np.concatenate([y_true_str, y_pred]))
+        f1_scores = []
+        for label in labels:
+            tp = np.sum((y_true_str == label) & (y_pred == label))
+            fp = np.sum((y_true_str != label) & (y_pred == label))
+            fn = np.sum((y_true_str == label) & (y_pred != label))
+            precision = tp / max(tp + fp, 1)
+            recall = tp / max(tp + fn, 1)
+            if precision + recall == 0:
+                f1_scores.append(0.0)
+            else:
+                f1_scores.append(float(2 * precision * recall / (precision + recall)))
+        return float(np.mean(f1_scores)) if f1_scores else 0.0
+
     def _score_feature(self, feature_name: str, X_all: np.ndarray, y_all: np.ndarray) -> dict[str, Any]:
         if len(y_all) < self.n_neighbors:
             return {
@@ -223,41 +266,15 @@ class MultiFeatureQdrantChampionCache:
         X_val = X_all[val_idx]
         y_val = y_all[val_idx]
 
-        y_pred = []
         k = max(1, min(self.n_neighbors, len(X_train)))
         X_train_norm = X_train / np.maximum(
             np.linalg.norm(X_train, axis=1, keepdims=True),
             1e-12,
         )
-
-        for q in X_val:
-            q_norm = q / max(float(np.linalg.norm(q)), 1e-12)
-            sims = X_train_norm @ q_norm
-            top_idx = np.argpartition(-sims, kth=k - 1)[:k]
-            vote_sum: dict[str, float] = defaultdict(float)
-            for i in top_idx:
-                label = str(y_train[i])
-                vote_sum[label] += float(max(sims[i], 1e-12))
-            pred_label = max(vote_sum.items(), key=lambda kv: kv[1])[0]
-            y_pred.append(pred_label)
-
-        y_pred_arr = np.asarray(y_pred, dtype=str)
+        y_pred_arr = self._predict_labels(X_train_norm, y_train, X_val, k)
 
         # Macro-F1 and accuracy implemented locally to avoid extra dependencies.
-        labels = np.unique(np.concatenate([y_val.astype(str), y_pred_arr]))
-        f1_scores = []
-        for label in labels:
-            tp = np.sum((y_val == label) & (y_pred_arr == label))
-            fp = np.sum((y_val != label) & (y_pred_arr == label))
-            fn = np.sum((y_val == label) & (y_pred_arr != label))
-            precision = tp / max(tp + fp, 1)
-            recall = tp / max(tp + fn, 1)
-            if precision + recall == 0:
-                f1_scores.append(0.0)
-            else:
-                f1_scores.append(float(2 * precision * recall / (precision + recall)))
-
-        macro_f1 = float(np.mean(f1_scores)) if f1_scores else 0.0
+        macro_f1 = self._macro_f1_score(y_val, y_pred_arr)
         accuracy = float(np.mean(y_val == y_pred_arr)) if len(y_val) else 0.0
 
         return {

@@ -239,6 +239,7 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
             "func_name": func_name,
             "agent_id": str(self.id),
             "prompt_identity": self.prompt_manager.get_prompt_identity(prompt_name),
+            "prompt_requires_free_text": self.prompt_manager.requires_free_text_generation(prompt_name),
             "prompt_inputs": {
                 key: state_dict[key]
                 for key in self.prompt_manager.get_typed_input_fields(prompt_name)

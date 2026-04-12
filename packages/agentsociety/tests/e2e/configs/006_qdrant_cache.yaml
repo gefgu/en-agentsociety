@@ -1,0 +1,54 @@
+llm:
+  - provider: vllm
+    base_url: "http://localhost:8080/v1/"
+    api_key: ""
+    model: "Qwen/Qwen2.5-32B-Instruct-AWQ"
+    concurrency: 16
+    timeout: 60
+
+env:
+  db:
+    enabled: true
+    db_type: sqlite
+  clickhouse:
+    # host and port are overwritten at runtime by the testcontainer
+    host: "localhost"
+    port: 8123
+    username: "test"
+    password: "test"
+    database: "testing"
+    auto_create_database: true
+  home_dir: "./data/home_data/"
+  data_dir: "./data/data"
+  monitoring_enabled: false
+  database_enabled: true
+  qdrant_cache:
+    enabled: true
+    # Shadow mode: cache is probed and trained, but live LLM output is still used.
+    skip_mode: false
+    path: "./data/data/qdrant"
+    batch_size: 16
+    n_neighbors: 5
+    distance_quantile: 0.95
+    probability_threshold: 0.95
+
+map:
+  file_path: "./data/home_data/studied_massy_osm_pois.pb"
+  neighborhood_file_path: null
+
+agents:
+  citizens:
+    - agent_class: citizen
+      number: 10
+
+exp:
+  name: "e2e_test_clickhouse"
+  workflow:
+    - type: step
+      steps: 100
+      ticks_per_step: 600
+  environment:
+    start_tick: 25200
+    workday: true
+
+logging_level: INFO

@@ -205,12 +205,23 @@ class PromptManager:
             return {}
         return {k: v for k, v in outputs.items() if isinstance(v, dict)}
 
-    def is_cache_eligible(self, prompt_name: str) -> bool:
+    def requires_free_text_generation(self, prompt_name: str) -> bool:
+        """Return True when prompt outputs require free-text generation.
+
+        Prompts are considered free-text if output schema is missing/empty or
+        any declared output type is not one of integer/float/categorical.
+        """
         schema = self.get_output_schema(prompt_name)
         if not schema:
-            return False
-        allowed = {"categorical", "float", "integer"}
-        return all(str(v.get("type", "")).lower() in allowed for v in schema.values())
+            return True
+        structured_types = {"categorical", "float", "integer"}
+        return any(
+            str(field.get("type", "")).lower() not in structured_types
+            for field in schema.values()
+        )
+
+    def is_cache_eligible(self, prompt_name: str) -> bool:
+        return not self.requires_free_text_generation(prompt_name)
 
     def has_prompt(self, prompt_name: str) -> bool:
         return prompt_name in self._loaded_prompts

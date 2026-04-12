@@ -420,6 +420,7 @@ class InfrastructureManager:
                 n_neighbors=cfg.n_neighbors,
                 distance_quantile=cfg.distance_quantile,
                 llm_model_name=self._config.llm[0].model,
+                exp_id=self._exp_id,
             )
             self._llm_cache_tool = CustomTool(
                 name="llm_cache_actor",

@@ -36,6 +36,7 @@ class LLMContext(TypedDict, total=False):
     func_name: str
     agent_id: str
     prompt_identity: tuple[str, str, str]
+    prompt_requires_free_text: bool
     prompt_inputs: dict[str, Any]
     prompt_input_schema: dict[str, dict[str, Any]]
     prompt_output_schema: dict[str, dict[str, Any]]
@@ -201,11 +202,34 @@ class LLM:
         context: Optional[LLMContext],
         tools: Union[List[ChatCompletionToolParam], NotGiven],
     ) -> bool:
+        if not self._is_context_cache_eligible(context):
+            return False
         return (
             self._cache_actor is not None
             and context is not None
             and "prompt_identity" in context
             and isinstance(tools, NotGiven)
+        )
+
+    def _is_cache_eligible_output_schema(
+        self,
+        output_schema: dict[str, dict[str, Any]],
+    ) -> bool:
+        if not output_schema:
+            return False
+        allowed = {"categorical", "float", "integer"}
+        return all(
+            str(field.get("type", "")).lower() in allowed
+            for field in output_schema.values()
+        )
+
+    def _is_context_cache_eligible(self, context: Optional[LLMContext]) -> bool:
+        if context is None:
+            return False
+        if context.get("prompt_requires_free_text", False):
+            return False
+        return self._is_cache_eligible_output_schema(
+            context.get("prompt_output_schema", {})
         )
 
     async def _probe_semantic_cache(
@@ -326,7 +350,11 @@ class LLM:
         prompt_identity: Optional[tuple[str, str, str]],
         result: Any,
     ) -> None:
-        if self._cache_actor is None or prompt_identity is None:
+        if (
+            self._cache_actor is None
+            or prompt_identity is None
+            or not self._is_context_cache_eligible(context)
+        ):
             return
 
         self._cache_actor.record.remote(

@@ -4,5 +4,7 @@ data/home_data/
 data*
 
 003_resume_single_agent_with_modal.yaml
+006_qdrant_cache_with_modal.yaml
+**/*modal.yaml
 
 *.log

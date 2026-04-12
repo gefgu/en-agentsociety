@@ -46,10 +46,12 @@ class QdrantCacheActor:
         n_neighbors: int,
         distance_quantile: float,
         llm_model_name: str,
+        exp_id: str,
     ):
         self._qdrant_path = qdrant_path
         os.makedirs(self._qdrant_path, exist_ok=True)
-        self._stats_path = os.path.join(self._qdrant_path, "stats.json")
+        self._exp_id = _sanitize_collection_name(exp_id)
+        self._stats_path = os.path.join(self._qdrant_path, f"stats_{self._exp_id}.json")
 
         self._embedding = TextEmbedding(
             model_name=embedding_model,
@@ -144,18 +146,12 @@ class QdrantCacheActor:
         return all(str(field.get("type", "")).lower() in allowed for field in output_schema.values())
 
     def _extract_label(self, llm_response: Any, output_schema: dict[str, dict[str, Any]]) -> Optional[str]:
-        if not output_schema:
+        if not self._is_cache_eligible(output_schema):
             return None
 
         parsed: Any = llm_response
         output_names = list(output_schema.keys())
         if isinstance(parsed, str):
-            # Plain-text prompts (no JSON response_format) should still be recorded as dataset labels.
-            if len(output_names) == 1:
-                only_key = output_names[0]
-                only_type = str(output_schema[only_key].get("type", "")).lower()
-                if only_type == "text":
-                    return parsed
             try:
                 parsed = json.loads(parsed)
             except Exception:
@@ -290,7 +286,7 @@ class QdrantCacheActor:
         """
         collection_name = self._collection_name(prompt_identity)
         schema = output_schema or self._schemas.get(collection_name, {})
-        if not prompt_inputs or not schema:
+        if not prompt_inputs or not schema or not self._is_cache_eligible(schema):
             return
 
         label = self._extract_label(llm_response, schema)
@@ -324,9 +320,9 @@ class QdrantCacheActor:
         return output
 
     def close(self) -> None:
-        """Flush pending records, rebuild models, and write stats.json.
+        """Flush pending records, rebuild models, and write exp-scoped stats JSON.
 
-        Side effect: Writes <qdrant_path>/stats.json; closes the QdrantClient.
+        Side effect: Writes <qdrant_path>/stats_<exp_id>.json; closes the QdrantClient.
         Called from: InfrastructureManager.close (simulation/infrastructuremanager.py).
         """
         # Flush pending buffers and persist stats.
@@ -336,6 +332,7 @@ class QdrantCacheActor:
 
         stats = {
             "timestamp": time.time(),
+            "exp_id": self._exp_id,
             "collections": self.get_stats(),
         }
         with open(self._stats_path, "w", encoding="utf-8") as f:
