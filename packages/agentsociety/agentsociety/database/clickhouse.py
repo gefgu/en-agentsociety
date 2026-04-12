@@ -1,7 +1,5 @@
-from __future__ import annotations
-
+from dataclasses import dataclass
 from typing import Any, Optional
-
 import ray
 
 try:
@@ -15,6 +13,30 @@ from .base_database import BaseSimulationDatabase, TableRecord
 
 ClickHouseClient = Any
 
+
+@dataclass
+class ClickHouseConfig:
+    """Connection and configuration parameters for ClickHouse."""
+    host: str = "localhost"
+    port: int = 8123
+    username: str = "default"
+    password: str = "clickhouse"
+    database: str = "fastsociety"
+    auto_create_database: bool = True
+
+    def get_client_kwargs(self, include_db: bool = True) -> dict[str, Any]:
+        """Returns kwargs ready to be unpacked into clickhouse_connect.get_client()"""
+        kwargs = {
+            "host": self.host,
+            "port": self.port,
+            "username": self.username,
+            "password": self.password,
+        }
+        if include_db:
+            kwargs["database"] = self.database
+        return kwargs
+
+
 class ClickHouseDatabase(BaseSimulationDatabase):
     """ClickHouse database manager for simulation telemetry and batch writes."""
 
@@ -22,22 +44,20 @@ class ClickHouseDatabase(BaseSimulationDatabase):
         self,
         exp_id: str,
         home_dir: str,
-        host: str = "localhost",
-        port: int = 8123,
-        username: str = "default",
-        password: str = "clickhouse",
-        database: str = "fastsociety",
+        config: Optional[ClickHouseConfig] = None,
         batch_size: int = 128,
         batch_timeout: float = 30.0,
-        auto_create_database: bool = True,
-        metrics_actor: Optional[ray.actor.ActorHandle[PrometheusActor]] = None,
+        metrics_actor: Optional[Any] = None,
     ):
-        self.host = host
-        self.port = port
-        self.username = username
-        self.password = password
-        self.database = database
-        self.auto_create_database = auto_create_database
+        self.config = config or ClickHouseConfig()
+
+        # Keep attribute aliases for compatibility with any external code paths.
+        self.host = self.config.host
+        self.port = self.config.port
+        self.username = self.config.username
+        self.password = self.config.password
+        self.database = self.config.database
+        self.auto_create_database = self.config.auto_create_database
         self.client: Optional[ClickHouseClient] = None
         super().__init__(
             exp_id=exp_id,
@@ -79,34 +99,27 @@ class ClickHouseDatabase(BaseSimulationDatabase):
             return
 
         try:
-            if self.auto_create_database:
+            if self.config.auto_create_database:
                 temp_client = None
                 try:
                     temp_client = clickhouse_connect.get_client(
-                        host=self.host,
-                        port=self.port,
-                        username=self.username,
-                        password=self.password,
+                        **self.config.get_client_kwargs(include_db=False)
                     )
                     temp_client.command(
-                        f"CREATE DATABASE IF NOT EXISTS {self.database}"
+                        f"CREATE DATABASE IF NOT EXISTS {self.config.database}"
                     )
                     get_logger().info(
-                        f"Database '{self.database}' ensured in ClickHouse server."
+                        f"Database '{self.config.database}' ensured in ClickHouse server."
                     )
                 except Exception as e:
                     get_logger().error(
-                        f"Failed to ensure database '{self.database}': {e}"
+                        f"Failed to ensure database '{self.config.database}': {e}"
                     )
                 finally:
                     if temp_client:
                         temp_client.close()
             self.client = clickhouse_connect.get_client(
-                host=self.host,
-                port=self.port,
-                username=self.username,
-                password=self.password,
-                database=self.database,
+                **self.config.get_client_kwargs(include_db=True)
             )
 
             get_logger().info("Connected to ClickHouse server.")

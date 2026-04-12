@@ -1,7 +1,7 @@
-from __future__ import annotations
-
 import json
 import re
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Optional
 
 try:
@@ -16,6 +16,16 @@ from ..performance.prometheusActor import PrometheusActor
 from .base_database import BaseSimulationDatabase, TableRecord
 
 
+@dataclass
+class DuckDBConfig:
+    """Connection and file settings for DuckDB."""
+
+    file_name_template: str = "{exp_id}.duckdb"
+
+    def resolve_db_file(self, db_path: Path, exp_id: str) -> Path:
+        return db_path / self.file_name_template.format(exp_id=exp_id)
+
+
 class DuckDBDatabase(BaseSimulationDatabase):
     """DuckDB database manager for simulation telemetry and batch writes."""
 
@@ -25,8 +35,10 @@ class DuckDBDatabase(BaseSimulationDatabase):
         home_dir: str,
         batch_size: int = 128,
         batch_timeout: float = 30.0,
-        metrics_actor: Optional[ray.actor.ActorHandle[PrometheusActor]] = None,
+        metrics_actor: Optional[Any] = None,
+        config: Optional[DuckDBConfig] = None,
     ):
+        self.config = config or DuckDBConfig()
         self.conn: Optional[Any] = None
         super().__init__(
             exp_id=exp_id,
@@ -37,7 +49,7 @@ class DuckDBDatabase(BaseSimulationDatabase):
             metrics_actor=metrics_actor,
         )
         self._insert_sql_by_table = self._build_insert_sql_by_table()
-        self.db_file = self.db_path / f"{self.exp_id}.duckdb"
+        self.db_file = self.config.resolve_db_file(self.db_path, self.exp_id)
         self._connect()
         self._create_tables()
 

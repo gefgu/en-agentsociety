@@ -1,14 +1,12 @@
-from __future__ import annotations
-
-from typing import List, Optional
+from typing import Any, List, Optional
 from datetime import datetime
 
 import ray
 
 from ..logger import get_logger
 from ..performance.prometheusActor import PrometheusActor
-from .clickhouse import ClickHouseDatabase
-from .duckdb import DuckDBDatabase
+from .clickhouse import ClickHouseConfig, ClickHouseDatabase
+from .duckdb import DuckDBConfig, DuckDBDatabase
 from .schema import (
     AdjustNeedsRecord,
     AgentKVSnapshotRecord,
@@ -35,28 +33,21 @@ class DatabaseActor:
         self,
         exp_id: str,
         home_dir: str,
-        host: str = "localhost",
-        port: int = 8123,
-        username: str = "default",
-        password: str = "clickhouse",
-        database: str = "fastsociety",
+        clickhouse_config: Optional[ClickHouseConfig] = None,
         batch_size: int = 128,
         batch_timeout: float = 30.0,
-        auto_create_database: bool = True,
-        metrics_actor: Optional[ray.actor.ActorHandle[PrometheusActor]] = None,
+        metrics_actor: Optional[Any] = None,
+        duckdb_config: Optional[DuckDBConfig] = None,
     ):
+        resolved_clickhouse_config = clickhouse_config or ClickHouseConfig()
+
         clickhouse_db = ClickHouseDatabase(
             exp_id=exp_id,
             home_dir=home_dir,
-            host=host,
-            port=port,
-            username=username,
-            password=password,
-            database=database,
             batch_size=batch_size,
             batch_timeout=batch_timeout,
-            auto_create_database=auto_create_database,
             metrics_actor=metrics_actor,
+            config=resolved_clickhouse_config,
         )
 
 
@@ -73,6 +64,7 @@ class DatabaseActor:
                 batch_size=batch_size,
                 batch_timeout=batch_timeout,
                 metrics_actor=metrics_actor,
+                config=duckdb_config,
             )
             if not self._db.is_available():
                 raise RuntimeError(
