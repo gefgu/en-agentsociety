@@ -50,14 +50,6 @@ class ClickHouseDatabase(BaseSimulationDatabase):
         metrics_actor: Optional[Any] = None,
     ):
         self.config = config or ClickHouseConfig()
-
-        # Keep attribute aliases for compatibility with any external code paths.
-        self.host = self.config.host
-        self.port = self.config.port
-        self.username = self.config.username
-        self.password = self.config.password
-        self.database = self.config.database
-        self.auto_create_database = self.config.auto_create_database
         self.client: Optional[ClickHouseClient] = None
         super().__init__(
             exp_id=exp_id,
