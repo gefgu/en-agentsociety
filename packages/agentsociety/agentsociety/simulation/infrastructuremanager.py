@@ -385,7 +385,10 @@ class InfrastructureManager:
     def _init_dispatcher_cache_actor(self):
         """Initialize a global dispatcher cache actor and corresponding toolbox tool."""
         try:
-            self._dispatcher_cache_actor = GlobalDispatcherCacheActor.remote()
+            self._dispatcher_cache_actor = GlobalDispatcherCacheActor.remote(
+                data_dir=self._config.env.data_dir,
+                llm_model_name=self._config.llm[0].model if self._config.llm else None,
+            )
             self._dispatcher_cache_tool = CustomTool(
                 name="dispatcher_cache_actor",
                 tool=self._dispatcher_cache_actor,
