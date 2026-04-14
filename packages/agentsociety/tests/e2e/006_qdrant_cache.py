@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 
 from utils import build_clickhouse_config, ensure_config_exists, run_society, run_with_ray, start_clickhouse_container
-from agentsociety.llm.cache.qdrant_cache import _sanitize_collection_name
+from agentsociety.llm.cache.ray_actor import _sanitize_collection_name
 
 DEFAULT_CONFIG = Path(__file__).parent / "configs/006_qdrant_cache.yaml"
 

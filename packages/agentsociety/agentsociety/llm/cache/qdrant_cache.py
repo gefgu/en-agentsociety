@@ -1,4 +1,3 @@
-import re
 import uuid
 from collections import defaultdict
 from typing import Any, Optional
@@ -9,11 +8,6 @@ from qdrant_client.http import models
 
 from ...logger import get_logger
 from .championship import QdrantCacheChampionship
-
-
-def _sanitize_collection_name(name: str) -> str:
-    """Replace characters outside [a-zA-Z0-9_-] with underscores for Qdrant collection names."""
-    return re.sub(r"[^a-zA-Z0-9_-]", "_", name)
 
 
 class MultiFeatureQdrantChampionCache:
@@ -64,7 +58,7 @@ class MultiFeatureQdrantChampionCache:
         self.random_state = random_state
 
         self.buffer_rows: list[dict[str, Any]] = []
-        self.master_rows: list[dict[str, Any]] = []
+        self._bootstrap_rebuild_needed = False
 
         self.championship = QdrantCacheChampionship(
             feature_names=self.feature_names,
@@ -118,59 +112,29 @@ class MultiFeatureQdrantChampionCache:
         self.collection_initialized = True
 
     def _load_existing_rows(self) -> None:
-        if self.master_rows:
-            return
+        # Startup bootstrap should avoid loading all vectors into RAM.
+        if self._has_enough_points_for_model():
+            self._bootstrap_rebuild_needed = True
 
-        points, offset = self.client.scroll(
+    def consume_bootstrap_rebuild_flag(self) -> bool:
+        needed = self._bootstrap_rebuild_needed
+        self._bootstrap_rebuild_needed = False
+        return needed
+
+    def _has_enough_points_for_model(self) -> bool:
+        points, _ = self.client.scroll(
             collection_name=self.collection_name,
-            with_payload=True,
-            with_vectors=True,
-            limit=1024,
+            limit=self.n_neighbors,
+            with_vectors=False,
+            with_payload=False,
         )
-        while True:
-            for p in points:
-                payload = p.payload or {}
-                label = payload.get("label")
-                vectors = p.vector or {}
-                if label is None or not isinstance(vectors, dict):
-                    continue
-
-                features: dict[str, np.ndarray] = {}
-                for feature in self.feature_names:
-                    vec = vectors.get(feature)
-                    if vec is None:
-                        break
-                    features[feature] = np.asarray(vec, dtype=float)
-                else:
-                    self.master_rows.append({"features": features, "label": str(label)})
-
-            if offset is None:
-                break
-            points, offset = self.client.scroll(
-                collection_name=self.collection_name,
-                with_payload=True,
-                with_vectors=True,
-                limit=1024,
-                offset=offset,
-            )
-
-        if len(self.master_rows) >= self.n_neighbors:
-            self._rebuild_model()
+        return len(points) >= self.n_neighbors
 
     def model_ready(self) -> bool:
         return (
             self.collection_initialized
             and self.championship.active_feature is not None
             and self.championship.max_neighbor_distance is not None
-            and len(self.master_rows) >= self.n_neighbors
-        )
-
-    def _labels(self) -> np.ndarray:
-        return np.asarray([str(r["label"]) for r in self.master_rows], dtype=str)
-
-    def _feature_matrix(self, feature_name: str) -> np.ndarray:
-        return np.vstack(
-            [np.asarray(r["features"][feature_name], dtype=float) for r in self.master_rows]
         )
 
     def _query_neighbors(self, feature_name: str, query_vec: np.ndarray, limit: int):
@@ -184,22 +148,23 @@ class MultiFeatureQdrantChampionCache:
         )
         return getattr(res, "points", [])
 
-    def _compute_threshold_for_feature(self, feature_name: str) -> Optional[float]:
-        if len(self.master_rows) < self.n_neighbors:
-            return None
+    def _compute_threshold_for_feature(
+        self, feature_name: str, tournament_matrix: np.ndarray
+    ) -> float:
+        # Use the tournament_matrix we already fetched to find distances
+        # Normalize
+        X = tournament_matrix
+        X_norm = X / np.maximum(np.linalg.norm(X, axis=1, keepdims=True), 1e-12)
 
-        furthest_distances = []
-        for r in self.master_rows:
-            q = np.asarray(r["features"][feature_name], dtype=float)
-            pts = self._query_neighbors(feature_name, q, self.n_neighbors)
-            if len(pts) < self.n_neighbors:
-                continue
-            furthest = float(1.0 - float(pts[-1].score))
-            furthest_distances.append(furthest)
+        # Cosine Similarity matrix (Self-similarity)
+        sims = X_norm @ X_norm.T
 
-        if not furthest_distances:
-            return None
-        return float(np.quantile(np.asarray(furthest_distances, dtype=float), self.distance_quantile))
+        # Get the n-th neighbor (index n_neighbors since index 0 is always 'self')
+        k = min(self.n_neighbors + 1, sims.shape[0])
+        # Partition to find top-k, take the k-th distance
+        dist = 1.0 - np.partition(sims, -k, axis=1)[:, -k]
+
+        return float(np.quantile(dist, self.distance_quantile))
 
     def _flush_buffer(self) -> None:
         if not self.buffer_rows:
@@ -215,22 +180,28 @@ class MultiFeatureQdrantChampionCache:
                 models.PointStruct(
                     id=str(uuid.uuid4()),
                     vector=vectors,
-                    payload={"label": str(r["label"])}
+                    payload={"label": str(r["label"])},
                 )
             )
 
         self.client.upsert(collection_name=self.collection_name, points=points)
-        self.master_rows.extend(self.buffer_rows)
         self.buffer_rows = []
 
     def _rebuild_model(self) -> None:
-        if len(self.master_rows) < self.n_neighbors:
+        # 1. Fetch the tournament data (The 'Tournament Set')
+        y_tournament, X_tournament_map = self._get_tournament_data(sample_size=5000)
+
+        if len(y_tournament) < self.n_neighbors:
             return
 
+        # 2. Pass a lambda to provide the matrix from our tournament set
         self.championship.rebuild(
-            labels=self._labels(),
-            feature_matrix_provider=self._feature_matrix,
-            threshold_provider=self._compute_threshold_for_feature,
+            labels=y_tournament,
+            feature_matrix_provider=lambda feat: X_tournament_map[feat],
+            # We still need a threshold based on the global distribution
+            threshold_provider=lambda feat: self._compute_threshold_for_feature(
+                feat, tournament_matrix=X_tournament_map[feat]
+            ),
         )
 
         get_logger().debug(
@@ -285,9 +256,30 @@ class MultiFeatureQdrantChampionCache:
             "selected_feature": active_feature,
         }
 
-    def record(self, feature_row: dict[str, np.ndarray], label: str) -> None:
+    def _get_tournament_data(self, sample_size: int = 5000):
+        """Fetches a random subset of data from Qdrant for scoring."""
+        # Use scroll or a random sampling query if your Qdrant version supports it
+        points, _ = self.client.scroll(
+            collection_name=self.collection_name,
+            limit=sample_size,
+            with_vectors=True,  # We fetch vectors ONLY now
+            with_payload=["label"],
+        )
+
+        labels = []
+        feature_matrices = {feat: [] for feat in self.feature_names}
+
+        for p in points:
+            labels.append(str(p.payload["label"]))
+            for feat in self.feature_names:
+                feature_matrices[feat].append(p.vector[feat])
+
+        return (np.array(labels), {f: np.array(v) for f, v in feature_matrices.items()})
+
+    def record(self, feature_row: dict[str, np.ndarray], label: str) -> bool:
         self._ensure_collection(feature_row)
         self.buffer_rows.append({"features": feature_row, "label": label})
         if len(self.buffer_rows) >= self.batch_size:
             self._flush_buffer()
-            self._rebuild_model()
+            return True
+        return False

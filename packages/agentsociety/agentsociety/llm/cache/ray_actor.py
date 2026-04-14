@@ -3,6 +3,7 @@ import os
 import time
 from collections import defaultdict
 from typing import Any, Optional
+import re
 
 import numpy as np
 import ray
@@ -10,7 +11,11 @@ from fastembed import TextEmbedding
 from qdrant_client import QdrantClient
 
 from ...logger import get_logger
-from .qdrant_cache import MultiFeatureQdrantChampionCache, _sanitize_collection_name
+from .qdrant_cache import MultiFeatureQdrantChampionCache
+
+def _sanitize_collection_name(name: str) -> str:
+    """Replace characters outside [a-zA-Z0-9_-] with underscores for Qdrant collection names."""
+    return re.sub(r"[^a-zA-Z0-9_-]", "_", name)
 
 
 @ray.remote
@@ -73,6 +78,7 @@ class QdrantCacheActor:
         self._miss_counts: dict[str, int] = defaultdict(int)
         self._shadow_hit_validation_counts: dict[str, int] = defaultdict(int)
         self._shadow_hit_right_counts: dict[str, int] = defaultdict(int)
+        self._pending_rebuilds: set[str] = set()
 
     def _collection_name(self, prompt_identity: tuple[str, str, str]) -> str:
         """Build a model-scoped Qdrant collection name from prompt identity.
@@ -220,7 +226,26 @@ class QdrantCacheActor:
         )
         self._caches[collection_name] = cache
         self._feature_names[collection_name] = feature_names
+        if cache.consume_bootstrap_rebuild_flag():
+            self._pending_rebuilds.add(collection_name)
         return cache
+
+    def _drain_one_rebuild(self) -> None:
+        if not self._pending_rebuilds:
+            return
+
+        collection_name = next(iter(self._pending_rebuilds))
+        self._pending_rebuilds.discard(collection_name)
+        cache = self._caches.get(collection_name)
+        if cache is None:
+            return
+
+        try:
+            cache._rebuild_model()
+        except Exception:
+            get_logger().exception(
+                f"Actor-side cache rebuild failed for {collection_name}"
+            )
 
     def query_and_maybe_serve(
         self,
@@ -239,6 +264,7 @@ class QdrantCacheActor:
 
         Called from: LLM._probe_semantic_cache (llm/llm.py).
         """
+        self._drain_one_rebuild()
         collection_name = self._collection_name(prompt_identity)
         self._schemas[collection_name] = output_schema or {}
 
@@ -265,6 +291,7 @@ class QdrantCacheActor:
             return None
 
         self._hit_counts[collection_name] += 1
+        self._drain_one_rebuild()
         return decoded
 
     def record(
@@ -286,6 +313,7 @@ class QdrantCacheActor:
         Called from: LLM._record_cache_miss (llm/llm.py).
         Side effect: Writes to Qdrant collection once the buffer fills to batch_size.
         """
+        self._drain_one_rebuild()
         collection_name = self._collection_name(prompt_identity)
         schema = output_schema or self._schemas.get(collection_name, {})
         if not prompt_inputs or not schema or not self._is_cache_eligible(schema):
@@ -297,7 +325,10 @@ class QdrantCacheActor:
 
         feature_row = self._embed_typed_fields(prompt_inputs, input_schema)
         cache = self._get_or_create_cache(collection_name, list(feature_row.keys()))
-        cache.record(feature_row, label)
+        rebuild_needed = cache.record(feature_row, label)
+        if rebuild_needed:
+            self._pending_rebuilds.add(collection_name)
+        self._drain_one_rebuild()
 
     def record_shadow_hit_validation(
         self,
