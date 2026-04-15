@@ -105,6 +105,16 @@ class PrometheusActor:
         """
         self.metricsTracker.record_cache_latency(cache_type, prompt_name, duration)
 
+    def record_embed_batch_size(self, size: int) -> None:
+        """Record the number of texts coalesced into one EmbedActor ONNX inference call.
+
+        Args:
+            size: Number of texts in the batch.
+
+        @usedBy: EmbedActor._batch_processor (llm/cache/embed_actor.py)
+        """
+        self.metricsTracker.record_embed_batch_size(size)
+
     def get_block_performance_stats(self):
         return self.blockPerformance.get_stats()
 

@@ -2,7 +2,7 @@
 
 from .llm import LLM, LLMConfig, LLMProviderType, RoutedLLMEntry
 from .routing_llm import RoutingLLM
-from .cache import QdrantCacheActor, QdrantCacheConfig
+from .cache import EmbedActor, QdrantCacheActor, QdrantCacheConfig
 
 __all__ = [
     "LLM",
@@ -10,6 +10,7 @@ __all__ = [
     "LLMProviderType",
     "RoutedLLMEntry",
     "RoutingLLM",
+    "EmbedActor",
     "QdrantCacheActor",
     "QdrantCacheConfig",
 ]

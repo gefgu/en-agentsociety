@@ -1,3 +1,4 @@
+import random
 import uuid
 from collections import defaultdict
 from typing import Any, Optional
@@ -21,10 +22,20 @@ class MultiFeatureQdrantChampionCache:
     :param collection_name: Name of the Qdrant collection to use or create.
     :param feature_names: Ordered list of named input feature vectors.
     :param probability_threshold: Minimum top-class probability to emit a hit.
-    :param batch_size: Buffer size before flushing to Qdrant and rebuilding.
+    :param batch_size: Number of miss records to buffer before calling
+        ``client.upsert`` and flushing to Qdrant. Controls I/O frequency.
     :param n_neighbors: Neighbour count for KNN voting and threshold estimation.
     :param distance_quantile: Quantile of furthest-neighbour distances used as
         the acceptance threshold during evaluation.
+    :param min_rebuild_threshold: Minimum buffer size that triggers a KNN model
+        rebuild. When the buffer reaches this size a rebuild is scheduled even
+        if ``batch_size`` has not been reached. Useful for small simulations
+        where the buffer rarely fills to ``batch_size``.
+        Note: the flush to Qdrant still happens at ``batch_size``; this knob
+        only controls when the championship model is rebuilt.
+    :param tournament_sample_size: Maximum number of Qdrant points fetched per
+        rebuild. Repeated rebuilds use a random scroll offset so different
+        slices are sampled over time.
     :param validation_size: Fraction of data held out when scoring features.
     :param random_state: Seed for reproducible train/val splits.
 
@@ -41,6 +52,8 @@ class MultiFeatureQdrantChampionCache:
         batch_size: int,
         n_neighbors: int,
         distance_quantile: float,
+        min_rebuild_threshold: int = 50,
+        tournament_sample_size: int = 2000,
         validation_size: float = 0.2,
         random_state: int = 42,
     ):
@@ -54,6 +67,8 @@ class MultiFeatureQdrantChampionCache:
         self.batch_size = batch_size
         self.n_neighbors = n_neighbors
         self.distance_quantile = distance_quantile
+        self.min_rebuild_threshold = min_rebuild_threshold
+        self.tournament_sample_size = tournament_sample_size
         self.validation_size = validation_size
         self.random_state = random_state
 
@@ -189,7 +204,9 @@ class MultiFeatureQdrantChampionCache:
 
     def _rebuild_model(self) -> None:
         # 1. Fetch the tournament data (The 'Tournament Set')
-        y_tournament, X_tournament_map = self._get_tournament_data(sample_size=5000)
+        y_tournament, X_tournament_map = self._get_tournament_data(
+            sample_size=self.tournament_sample_size
+        )
 
         if len(y_tournament) < self.n_neighbors:
             return
@@ -256,15 +273,32 @@ class MultiFeatureQdrantChampionCache:
             "selected_feature": active_feature,
         }
 
-    def _get_tournament_data(self, sample_size: int = 5000):
-        """Fetches a random subset of data from Qdrant for scoring."""
-        # Use scroll or a random sampling query if your Qdrant version supports it
+    def _get_tournament_data(self, sample_size: int = 2000):
+        """Fetch a capped, shuffled sample of points from Qdrant for KNN scoring.
+
+        Fetches up to ``sample_size`` points and shuffles the result so
+        repeated rebuild calls see different random subsets of the fetched
+        data. This avoids always scoring the same deterministic slice of the
+        collection while keeping the Qdrant fetch simple and predictable.
+
+        :param sample_size: Maximum number of points to retrieve.
+        :returns: Tuple of (labels array, feature_matrix_map) where
+            feature_matrix_map maps feature name to a (N, D) float array.
+
+        Called from: MultiFeatureQdrantChampionCache._rebuild_model.
+        """
         points, _ = self.client.scroll(
             collection_name=self.collection_name,
             limit=sample_size,
-            with_vectors=True,  # We fetch vectors ONLY now
+            with_vectors=True,
             with_payload=["label"],
         )
+
+        # Shuffle so repeated rebuilds (which may fetch the same leading points
+        # when the collection is larger than sample_size) use different random
+        # subsets for the train/validation split inside the championship.
+        points = list(points)
+        random.shuffle(points)
 
         labels = []
         feature_matrices = {feat: [] for feat in self.feature_names}
@@ -277,9 +311,28 @@ class MultiFeatureQdrantChampionCache:
         return (np.array(labels), {f: np.array(v) for f, v in feature_matrices.items()})
 
     def record(self, feature_row: dict[str, np.ndarray], label: str) -> bool:
+        """Buffer a feature row and label; signal when a rebuild should fire.
+
+        The Qdrant upsert flush happens at ``batch_size`` records.
+        A rebuild signal is emitted at ``min_rebuild_threshold`` records even
+        when ``batch_size`` has not been reached, so the championship model
+        activates sooner in small simulations.
+
+        :param feature_row: Dict of feature name to embedding/scalar vector.
+        :param label: String output label for this training sample.
+        :returns: True when a rebuild should be triggered, False otherwise.
+
+        Called from: QdrantCacheActor.record (llm/cache/ray_actor.py).
+        Side effect: May call client.upsert and clear buffer_rows.
+        """
         self._ensure_collection(feature_row)
         self.buffer_rows.append({"features": feature_row, "label": label})
-        if len(self.buffer_rows) >= self.batch_size:
+        buffer_len = len(self.buffer_rows)
+        if buffer_len >= self.batch_size:
             self._flush_buffer()
+            return True
+        # Trigger an early rebuild once the buffer crosses min_rebuild_threshold
+        # even if we haven't reached batch_size yet.
+        if buffer_len >= self.min_rebuild_threshold:
             return True
         return False

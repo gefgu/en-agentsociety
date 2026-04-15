@@ -66,6 +66,13 @@ class MetricsTracker:
             buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0],
         )
 
+        self.embed_batch_size = Histogram(
+            "embed_batch_size",
+            "Number of texts coalesced into a single EmbedActor ONNX inference call",
+            ["exp_id"],
+            buckets=[1, 2, 4, 8, 16, 32, 64, 128, 256],
+        )
+
     def record_llm_tokens_by_prompt(
         self,
         prompt_name: str,
@@ -121,6 +128,16 @@ class MetricsTracker:
             self.dispatcher_cache_hits.labels(exp_id=self.exp_id).inc()
         else:
             self.dispatcher_cache_misses.labels(exp_id=self.exp_id).inc()
+
+    def record_embed_batch_size(self, size: int) -> None:
+        """Record the number of texts in a single EmbedActor inference batch.
+
+        Args:
+            size: Number of texts that were coalesced into one ONNX call.
+
+        @usedBy: PrometheusActor.record_embed_batch_size
+        """
+        self.embed_batch_size.labels(exp_id=self.exp_id).observe(size)
 
     def record_cache_latency(
         self, cache_type: str, prompt_name: str, duration: float

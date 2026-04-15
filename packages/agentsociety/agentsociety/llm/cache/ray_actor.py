@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import time
@@ -7,7 +8,6 @@ import re
 
 import numpy as np
 import ray
-from fastembed import TextEmbedding
 from qdrant_client import QdrantClient
 
 from ...logger import get_logger
@@ -27,8 +27,8 @@ class QdrantCacheActor:
     cache. Stores statistics to a JSON file on close().
 
     :param qdrant_path: Directory where Qdrant persists collection data.
-    :param embedding_model: fastembed model name for dense text embeddings.
-    :param embedding_cache_dir: Directory where fastembed caches model weights.
+    :param embed_actor: EmbedActor Ray actor handle used for all text
+        embedding. QdrantCacheActor no longer holds a fastembed model.
     :param probability_threshold: Minimum top-class probability for a cache hit.
     :param batch_size: Number of records to buffer before flushing to Qdrant.
     :param n_neighbors: Neighbour count used for KNN voting and threshold calc.
@@ -36,6 +36,9 @@ class QdrantCacheActor:
         acceptance distance threshold.
     :param llm_model_name: Name of the LLM model (e.g. "gpt-4o"). Appended to
         Qdrant collection names so caches from different models never mix.
+    :param min_rebuild_threshold: Minimum buffer size that triggers a model
+        rebuild even when batch_size has not been reached.
+    :param tournament_sample_size: Maximum Qdrant points fetched per rebuild.
 
     Called from: InfrastructureManager._init_llm_cache_actor
         (simulation/infrastructuremanager.py).
@@ -44,8 +47,7 @@ class QdrantCacheActor:
     def __init__(
         self,
         qdrant_path: str,
-        embedding_model: str,
-        embedding_cache_dir: str,
+        embed_actor: Any,
         probability_threshold: float,
         batch_size: int,
         n_neighbors: int,
@@ -53,6 +55,8 @@ class QdrantCacheActor:
         llm_model_name: str,
         exp_id: str,
         metrics_actor=None,
+        min_rebuild_threshold: int = 50,
+        tournament_sample_size: int = 2000,
     ):
         self._qdrant_path = qdrant_path
         os.makedirs(self._qdrant_path, exist_ok=True)
@@ -60,11 +64,9 @@ class QdrantCacheActor:
         self._metrics_actor = metrics_actor
         self._stats_path = os.path.join(self._qdrant_path, f"stats_{self._exp_id}.json")
 
-        self._embedding = TextEmbedding(
-            model_name=embedding_model,
-            cache_dir=embedding_cache_dir,
-            threads=max(1, os.cpu_count() or 1),
-        )
+        # Embedding is now delegated to EmbedActor; this actor owns only the
+        # Qdrant client.
+        self._embed_actor = embed_actor
         self._client = QdrantClient(path=self._qdrant_path)
 
         self._probability_threshold = probability_threshold
@@ -72,15 +74,24 @@ class QdrantCacheActor:
         self._n_neighbors = n_neighbors
         self._distance_quantile = distance_quantile
         self._llm_model_name = llm_model_name
+        self._min_rebuild_threshold = min_rebuild_threshold
+        self._tournament_sample_size = tournament_sample_size
 
         self._caches: dict[str, MultiFeatureQdrantChampionCache] = {}
         self._feature_names: dict[str, list[str]] = {}
         self._schemas: dict[str, dict[str, dict[str, Any]]] = {}
+        # _hit_counts and _miss_counts are maintained in parallel with Prometheus
+        # counters (since the cache-metrics feature). They are used for the
+        # end-of-run JSON stats file; the Prometheus counters handle real-time
+        # observability. Both are intentionally kept in sync.
         self._hit_counts: dict[str, int] = defaultdict(int)
         self._miss_counts: dict[str, int] = defaultdict(int)
         self._shadow_hit_validation_counts: dict[str, int] = defaultdict(int)
         self._shadow_hit_right_counts: dict[str, int] = defaultdict(int)
         self._pending_rebuilds: set[str] = set()
+        # Lock prevents concurrent _rebuild_model calls (each potentially running
+        # in asyncio.to_thread) from racing on championship.active_feature.
+        self._rebuild_lock: asyncio.Lock = asyncio.Lock()
 
     def _collection_name(self, prompt_identity: tuple[str, str, str]) -> str:
         """Build a model-scoped Qdrant collection name from prompt identity.
@@ -131,12 +142,29 @@ class QdrantCacheActor:
         # Keep numeric fields as direct numeric features (no text embedding).
         return np.asarray([numeric], dtype=float)
 
-    def _embed_typed_fields(
+    async def _embed_typed_fields_via_actor(
         self,
         prompt_inputs: dict[str, Any],
         input_schema: dict[str, dict[str, Any]],
     ) -> dict[str, np.ndarray]:
+        """Build a feature row by embedding all text fields via EmbedActor.
+
+        Numeric fields (float/integer) are encoded locally without embedding.
+        All text fields for a single probe are gathered into one list and sent
+        to EmbedActor in a single remote call, allowing EmbedActor to coalesce
+        them with requests from other concurrent callers.
+
+        :param prompt_inputs: Dict of field name to raw value.
+        :param input_schema: Dict of field name to {type: ...} metadata.
+        :returns: Dict of field name to numpy embedding/scalar vector.
+
+        Called from: QdrantCacheActor.query_and_maybe_serve and
+            QdrantCacheActor.record (llm/cache/ray_actor.py).
+        """
         feature_row: dict[str, np.ndarray] = {}
+        text_keys: list[str] = []
+        text_values: list[str] = []
+
         for key in sorted(prompt_inputs.keys()):
             value = prompt_inputs[key]
             field_schema = input_schema.get(key, {}) if isinstance(input_schema, dict) else {}
@@ -144,9 +172,18 @@ class QdrantCacheActor:
             if declared_type.lower() in {"float", "integer"}:
                 feature_row[key] = self._encode_numeric_field(value, declared_type)
             else:
-                text = self._normalize_by_type(value, declared_type)
-                emb = next(self._embedding.embed([text]))
-                feature_row[key] = np.asarray(emb, dtype=float)
+                text_keys.append(key)
+                text_values.append(self._normalize_by_type(value, declared_type))
+
+        if text_keys:
+            # One remote call to EmbedActor batches all text fields for this
+            # probe, and EmbedActor coalesces across concurrent callers.
+            raw_vecs: list[list[float]] = await self._embed_actor.embed_batch.remote(
+                text_values
+            )
+            for key, vec in zip(text_keys, raw_vecs):
+                feature_row[key] = np.asarray(vec, dtype=float)
+
         return feature_row
 
     def _is_cache_eligible(self, output_schema: dict[str, dict[str, Any]]) -> bool:
@@ -225,6 +262,8 @@ class QdrantCacheActor:
             batch_size=self._batch_size,
             n_neighbors=self._n_neighbors,
             distance_quantile=self._distance_quantile,
+            min_rebuild_threshold=self._min_rebuild_threshold,
+            tournament_sample_size=self._tournament_sample_size,
         )
         self._caches[collection_name] = cache
         self._feature_names[collection_name] = feature_names
@@ -232,7 +271,18 @@ class QdrantCacheActor:
             self._pending_rebuilds.add(collection_name)
         return cache
 
-    def _drain_one_rebuild(self) -> None:
+    async def _drain_one_rebuild(self) -> None:
+        """Drain at most one pending rebuild from the queue.
+
+        Runs the KNN rebuild off the event loop via asyncio.to_thread so that
+        the actor remains responsive to new probe requests while the ONNX
+        tournament runs. An asyncio.Lock prevents overlapping rebuilds that
+        could race on championship.active_feature.
+
+        Called twice in query_and_maybe_serve (once at entry, once at exit on
+        a hit) to eagerly process the rebuild queue. The dual-drain is correct
+        because this method is idempotent when the pending set is empty.
+        """
         if not self._pending_rebuilds:
             return
 
@@ -242,14 +292,15 @@ class QdrantCacheActor:
         if cache is None:
             return
 
-        try:
-            cache._rebuild_model()
-        except Exception:
-            get_logger().exception(
-                f"Actor-side cache rebuild failed for {collection_name}"
-            )
+        async with self._rebuild_lock:
+            try:
+                await asyncio.to_thread(cache._rebuild_model)
+            except Exception:
+                get_logger().exception(
+                    f"Actor-side cache rebuild failed for {collection_name}"
+                )
 
-    def query_and_maybe_serve(
+    async def query_and_maybe_serve(
         self,
         prompt_identity: tuple[str, str, str],
         prompt_inputs: dict[str, Any],
@@ -266,7 +317,7 @@ class QdrantCacheActor:
 
         Called from: LLM._probe_semantic_cache (llm/llm.py).
         """
-        self._drain_one_rebuild()
+        await self._drain_one_rebuild()
         collection_name = self._collection_name(prompt_identity)
         self._schemas[collection_name] = output_schema or {}
 
@@ -274,7 +325,7 @@ class QdrantCacheActor:
             self._miss_counts[collection_name] += 1
             return None
 
-        feature_row = self._embed_typed_fields(prompt_inputs, input_schema)
+        feature_row = await self._embed_typed_fields_via_actor(prompt_inputs, input_schema)
         cache = self._get_or_create_cache(collection_name, list(feature_row.keys()))
 
         if not self._is_cache_eligible(output_schema):
@@ -293,10 +344,10 @@ class QdrantCacheActor:
             return None
 
         self._hit_counts[collection_name] += 1
-        self._drain_one_rebuild()
+        await self._drain_one_rebuild()
         return decoded
 
-    def record(
+    async def record(
         self,
         prompt_identity: tuple[str, str, str],
         prompt_inputs: dict[str, Any],
@@ -315,7 +366,7 @@ class QdrantCacheActor:
         Called from: LLM._record_cache_miss (llm/llm.py).
         Side effect: Writes to Qdrant collection once the buffer fills to batch_size.
         """
-        self._drain_one_rebuild()
+        await self._drain_one_rebuild()
         collection_name = self._collection_name(prompt_identity)
         schema = output_schema or self._schemas.get(collection_name, {})
         if not prompt_inputs or not schema or not self._is_cache_eligible(schema):
@@ -325,12 +376,12 @@ class QdrantCacheActor:
         if label is None:
             return
 
-        feature_row = self._embed_typed_fields(prompt_inputs, input_schema)
+        feature_row = await self._embed_typed_fields_via_actor(prompt_inputs, input_schema)
         cache = self._get_or_create_cache(collection_name, list(feature_row.keys()))
         rebuild_needed = cache.record(feature_row, label)
         if rebuild_needed:
             self._pending_rebuilds.add(collection_name)
-        self._drain_one_rebuild()
+        await self._drain_one_rebuild()
 
     def record_shadow_hit_validation(
         self,
@@ -387,16 +438,19 @@ class QdrantCacheActor:
             }
         return output
 
-    def close(self) -> None:
+    async def close(self) -> None:
         """Flush pending records, rebuild models, and write exp-scoped stats JSON.
+
+        Flush and rebuild are moved to asyncio.to_thread so that the actor
+        event loop is not blocked during potentially expensive Qdrant upserts
+        and KNN tournament computations at shutdown.
 
         Side effect: Writes <qdrant_path>/stats_<exp_id>.json; closes the QdrantClient.
         Called from: InfrastructureManager.close (simulation/infrastructuremanager.py).
         """
-        # Flush pending buffers and persist stats.
         for cache in self._caches.values():
-            cache._flush_buffer()
-            cache._rebuild_model()
+            await asyncio.to_thread(cache._flush_buffer)
+            await asyncio.to_thread(cache._rebuild_model)
 
         stats = {
             "timestamp": time.time(),

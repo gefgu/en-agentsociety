@@ -18,6 +18,7 @@ from ..database import ClickHouseConfig
 from ..database.database_actor import DatabaseActor
 from ..environment import EnvironmentStarter
 from ..llm import LLM, QdrantCacheActor, RoutingLLM
+from ..llm.cache import EmbedActor
 from ..logger import attach_otlp_handler, get_logger, set_exp_id
 from ..message import MessageInterceptor, Messager
 from ..performance.monitoring import start_monitoring, stop_monitoring
@@ -53,6 +54,7 @@ class InfrastructureManager:
         self._db_actor: Optional[DatabaseActor] = None
         self._messager: Optional[Messager] = None
         self._dispatcher_cache_actor: Optional[Any] = None
+        self._embed_actor: Optional[Any] = None
         self._llm_cache_actor: Optional[Any] = None
         self._metrics_tool: Optional[CustomTool] = None
         self._db_tool: Optional[CustomTool] = None
@@ -400,7 +402,12 @@ class InfrastructureManager:
             get_logger().warning(f"Failed to initialize global dispatcher cache actor: {e}")
 
     def _init_llm_cache_actor(self):
-        """Initialize Qdrant-backed LLM semantic cache actor and tool."""
+        """Initialize Qdrant-backed LLM semantic cache actor and tool.
+
+        Creates EmbedActor first (owns the fastembed model), then creates
+        QdrantCacheActor (owns the Qdrant client) and passes the EmbedActor
+        handle to it. Both actors are torn down in close().
+        """
         cfg = self._config.env.qdrant_cache
         if not cfg.enabled:
             get_logger().info("Qdrant LLM cache disabled by config, skipping.")
@@ -415,10 +422,16 @@ class InfrastructureManager:
         os.makedirs(qdrant_path, exist_ok=True)
 
         try:
-            self._llm_cache_actor = QdrantCacheActor.remote(
-                qdrant_path=qdrant_path,
+            self._embed_actor = EmbedActor.remote(
                 embedding_model=cfg.embedding_model,
                 embedding_cache_dir=embedding_cache_dir,
+                batch_timeout_ms=cfg.embed_batch_timeout_ms,
+                max_batch_size=cfg.embed_max_batch_size,
+                metrics_actor=self._metrics_actor,
+            )
+            self._llm_cache_actor = QdrantCacheActor.remote(
+                qdrant_path=qdrant_path,
+                embed_actor=self._embed_actor,
                 probability_threshold=cfg.probability_threshold,
                 batch_size=cfg.batch_size,
                 n_neighbors=cfg.n_neighbors,
@@ -426,6 +439,8 @@ class InfrastructureManager:
                 llm_model_name=self._config.llm[0].model,
                 exp_id=self._exp_id,
                 metrics_actor=self._metrics_actor,
+                min_rebuild_threshold=cfg.min_rebuild_threshold,
+                tournament_sample_size=cfg.tournament_sample_size,
             )
             self._llm_cache_tool = CustomTool(
                 name="llm_cache_actor",
@@ -511,6 +526,12 @@ class InfrastructureManager:
                 await self._llm_cache_actor.close.remote()
             except Exception as e:
                 get_logger().warning(f"Error closing LLM cache actor: {e}")
+
+        if self._embed_actor is not None:
+            try:
+                await self._embed_actor.close.remote()
+            except Exception as e:
+                get_logger().warning(f"Error closing embed actor: {e}")
 
         if self._db_actor is not None:
             try:
