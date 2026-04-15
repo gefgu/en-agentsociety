@@ -17,7 +17,7 @@ from ..configs import Config
 from ..database import ClickHouseConfig
 from ..database.database_actor import DatabaseActor
 from ..environment import EnvironmentStarter
-from ..llm import LLM, QdrantCacheActor
+from ..llm import LLM, QdrantCacheActor, RoutingLLM
 from ..logger import attach_otlp_handler, get_logger, set_exp_id
 from ..message import MessageInterceptor, Messager
 from ..performance.monitoring import start_monitoring, stop_monitoring
@@ -388,6 +388,7 @@ class InfrastructureManager:
             self._dispatcher_cache_actor = GlobalDispatcherCacheActor.remote(
                 data_dir=self._config.env.data_dir,
                 llm_model_name=self._config.llm[0].model if self._config.llm else None,
+                metrics_actor=self._metrics_actor,
             )
             self._dispatcher_cache_tool = CustomTool(
                 name="dispatcher_cache_actor",
@@ -444,6 +445,17 @@ class InfrastructureManager:
             cache_actor=self._llm_cache_actor,
             cache_skip_mode=self._config.env.qdrant_cache.skip_mode,
         )
+        if self._config.routing:
+            n_keys = sum(len(e.prompt_identities) for e in self._config.routing)
+            get_logger().info(f"LLM routing enabled for {n_keys} prompt key(s)")
+            self._llm = RoutingLLM(
+                base_llm=self._llm,
+                routing_entries=self._config.routing,
+                metrics_actor=self._metrics_actor,
+                db_actor=self._db_actor,
+                cache_actor=self._llm_cache_actor,
+                cache_skip_mode=self._config.env.qdrant_cache.skip_mode,
+            )
         get_logger().info("LLM initialized")
 
         get_logger().info("Initializing environment...")
@@ -459,6 +471,7 @@ class InfrastructureManager:
                 "simulator_log",
             ),
             self._config.env.home_dir,
+            sim_bin_name=self._config.env.sim_bin_name,
         )
         await self._environment.init()
         get_logger().info("Environment initialized")

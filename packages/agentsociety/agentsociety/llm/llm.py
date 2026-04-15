@@ -26,6 +26,7 @@ __all__ = [
     "LLM",
     "LLMConfig",
     "LLMProviderType",
+    "RoutedLLMEntry",
 ]
 
 MAX_TIMEOUT = 300
@@ -40,6 +41,7 @@ class LLMContext(TypedDict, total=False):
     prompt_inputs: dict[str, Any]
     prompt_input_schema: dict[str, dict[str, Any]]
     prompt_output_schema: dict[str, dict[str, Any]]
+    model_role: str  # "base" or "routed"; set by RoutingLLM before delegating
 
 
 class LLMProviderType(str, Enum):
@@ -96,6 +98,24 @@ class LLMConfig(BaseModel):
         if self.provider != LLMProviderType.VLLM and self.base_url is not None:
             raise ValueError("base_url is not supported for this provider")
         return self
+
+
+class RoutedLLMEntry(LLMConfig):
+    """LLM config entry that also declares which prompt identities it handles.
+
+    Subclasses LLMConfig so it inherits all provider/model/key validation.
+    Each entry in Config.routing is one of these.
+
+    @usedBy agentsociety/configs/__init__.py (Config.routing field)
+    @usedBy agentsociety/llm/routing_llm.py (RoutingLLM.__init__)
+    """
+
+    prompt_identities: list[str] = Field(..., min_length=1)
+    """Prompt identity names (prompt_identity[0]) that this LLM handles.
+
+    If two entries share the same key, the last one in the list wins
+    (plain dict assignment semantics in RoutingLLM).
+    """
 
 
 class LLM:
@@ -299,14 +319,28 @@ class LLM:
 
         end_time = time.perf_counter()
         metric_context = context or {}
+        model_role = metric_context.get("model_role", "base")
         self._metrics_actor.record_block_performance.remote(
             duration=end_time - start_time,
             actor="llm",
+            model_role=model_role,
             token_input=log["input_tokens"],
             token_output=log["output_tokens"],
             block_name=metric_context.get("block_name", "unknown"),
             func_name=metric_context.get("func_name", "unknown"),
             agent_id=metric_context.get("agent_id", "unknown"),
+        )
+
+        prompt_name = (
+            str(metric_context["prompt_identity"][0])
+            if "prompt_identity" in metric_context
+            else "unknown"
+        )
+        self._metrics_actor.record_llm_tokens_by_prompt.remote(
+            prompt_name=prompt_name,
+            token_input=log["input_tokens"],
+            token_output=log["output_tokens"],
+            model_role=model_role,
         )
 
         if self._db_actor is not None:

@@ -4,7 +4,7 @@ import uuid
 from pydantic import BaseModel, Field, field_serializer
 
 from ..environment import MapConfig
-from ..llm import LLMConfig
+from ..llm import LLMConfig, RoutedLLMEntry
 from .agent import AgentConfig, InstitutionAgentClass
 from .env import EnvConfig
 from .exp import (
@@ -67,6 +67,9 @@ class Config(BaseModel):
 
     llm: List[LLMConfig] = Field(..., min_length=1)
     """List of LLM configurations"""
+
+    routing: list[RoutedLLMEntry] = Field(default=[])
+    """Optional routing entries: each entry routes specific prompt identities to a dedicated LLM"""
 
     env: EnvConfig
     """Environment configuration"""
