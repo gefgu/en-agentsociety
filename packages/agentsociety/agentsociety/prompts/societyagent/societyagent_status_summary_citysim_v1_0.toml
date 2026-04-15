@@ -146,14 +146,15 @@ Current Status:
 - Emotion: {current_emotion}
 - Thought: {current_thought}
 
+"""
+output_guidance = """
 Please provide a natural, human-like description of what the agent is currently doing and feeling, considering their personality, current situation, and environment. Focus on the most relevant aspects that define their current state.
+
 
 Response format: 1-2 sentences describing the agent's current status from a first-person perspective.
 
 Example:
-I am working at the office, the work is not too busy, but I am a bit tired.
-"""
-output_guidance = "Return JSON only, without any extra text."
+I am working at the office, the work is not too busy, but I am a bit tired."""
 
 [outputs.summary]
 type = "text"

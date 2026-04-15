@@ -52,10 +52,12 @@ class QdrantCacheActor:
         distance_quantile: float,
         llm_model_name: str,
         exp_id: str,
+        metrics_actor=None,
     ):
         self._qdrant_path = qdrant_path
         os.makedirs(self._qdrant_path, exist_ok=True)
         self._exp_id = _sanitize_collection_name(exp_id)
+        self._metrics_actor = metrics_actor
         self._stats_path = os.path.join(self._qdrant_path, f"stats_{self._exp_id}.json")
 
         self._embedding = TextEmbedding(

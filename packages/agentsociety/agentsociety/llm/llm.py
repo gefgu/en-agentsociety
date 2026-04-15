@@ -278,10 +278,16 @@ class LLM:
         )
 
         cache_hit_probe = probe_result is not None
-        if cache_hit_probe and self._metrics_actor is not None:
+        if self._metrics_actor is not None:
+            prompt_name = str(context["prompt_identity"][0])
             self._metrics_actor.record_cache_stats.remote(
-                prompt_name=str(context["prompt_identity"][0]),
-                hit=True,
+                prompt_name=prompt_name,
+                hit=cache_hit_probe,
+            )
+            self._metrics_actor.record_cache_latency.remote(
+                cache_type="qdrant",
+                prompt_name=prompt_name,
+                duration=probe_latency,
             )
 
         return probe_result, prompt_identity, cache_hit_probe
@@ -407,11 +413,6 @@ class LLM:
             result,
             context.get("prompt_output_schema", {}),
         )
-        if self._metrics_actor is not None:
-            self._metrics_actor.record_cache_stats.remote(
-                prompt_name=str(context["prompt_identity"][0]),
-                hit=False,
-            )
 
     @overload
     async def atext_request(

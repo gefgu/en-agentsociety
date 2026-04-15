@@ -32,6 +32,7 @@ class PrometheusActor:
         agent_id: str,
         token_input: int,
         token_output: int,
+        model_role: str = "base",
     ) -> None:
         self.blockPerformance.record_performance(
             block_name,
@@ -41,6 +42,18 @@ class PrometheusActor:
             agent_id,
             token_input,
             token_output,
+            model_role=model_role,
+        )
+
+    def record_llm_tokens_by_prompt(
+        self,
+        prompt_name: str,
+        token_input: int,
+        token_output: int,
+        model_role: str = "base",
+    ) -> None:
+        self.metricsTracker.record_llm_tokens_by_prompt(
+            prompt_name, token_input, token_output, model_role
         )
 
     def record_routing(
@@ -73,6 +86,24 @@ class PrometheusActor:
     def record_cache_hit_validation(self, prompt_name: str, right: bool) -> None:
         """Record whether a cache hit matched the live model output."""
         self.metricsTracker.record_cache_hit_validation(prompt_name, right)
+
+    def record_dispatcher_cache_stats(self, hit: bool) -> None:
+        """Record a dispatcher cache hit or miss."""
+        self.metricsTracker.record_dispatcher_cache_stats(hit)
+
+    def record_cache_latency(
+        self, cache_type: str, prompt_name: str, duration: float
+    ) -> None:
+        """Record the wall-clock latency of a single cache lookup.
+
+        Args:
+            cache_type: ``"qdrant"`` or ``"dispatcher"``.
+            prompt_name: First element of ``prompt_identity`` for Qdrant; ``"dispatcher"`` for the dispatcher cache.
+            duration: Elapsed time in seconds.
+
+        @usedBy: LLM._probe_semantic_cache, GlobalDispatcherCacheActor.check_cache
+        """
+        self.metricsTracker.record_cache_latency(cache_type, prompt_name, duration)
 
     def get_block_performance_stats(self):
         return self.blockPerformance.get_stats()

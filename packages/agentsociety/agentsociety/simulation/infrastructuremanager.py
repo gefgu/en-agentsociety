@@ -425,6 +425,7 @@ class InfrastructureManager:
                 distance_quantile=cfg.distance_quantile,
                 llm_model_name=self._config.llm[0].model,
                 exp_id=self._exp_id,
+                metrics_actor=self._metrics_actor,
             )
             self._llm_cache_tool = CustomTool(
                 name="llm_cache_actor",

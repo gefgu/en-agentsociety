@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import time
 from typing import Optional
 
 import ray
@@ -43,10 +44,12 @@ class GlobalDispatcherCacheActor:
         agreement_threshold: float = 0.999,
         data_dir: Optional[str] = None,
         llm_model_name: Optional[str] = None,
+        metrics_actor=None,
     ):
         self.cache: dict[tuple[tuple[str, ...], str], dict] = {}
         self.min_sample_size = min_sample_size
         self.agreement_threshold = agreement_threshold
+        self._metrics_actor = metrics_actor
         if data_dir:
             safe_name = (llm_model_name or "unknown").replace("/", "_").replace(":", "_")
             self._json_path = os.path.join(data_dir, f"dispatcher_cache_{safe_name}.json")
@@ -69,15 +72,27 @@ class GlobalDispatcherCacheActor:
         return (tuple(sorted(possible_blocks)), ctx_intention)
 
     def check_cache(self, possible_blocks: list[str], ctx_intention: str) -> Optional[str]:
+        t_start = time.perf_counter()
         key = self._build_key(possible_blocks, ctx_intention)
+        result = None
+        hit = False
         if key in self.cache:
             value = self.cache[key]
             if (value["count"] >= self.min_sample_size) and (
                 value["agreement_rate"] >= self.agreement_threshold
             ):
                 value["cache_hit_count"] += 1
-                return value["most_common_block"]
-        return None
+                hit = True
+                result = value["most_common_block"]
+        duration = time.perf_counter() - t_start
+        if self._metrics_actor is not None:
+            self._metrics_actor.record_dispatcher_cache_stats.remote(hit)
+            self._metrics_actor.record_cache_latency.remote(
+                cache_type="dispatcher",
+                prompt_name="dispatcher",
+                duration=duration,
+            )
+        return result
 
     def update_cache(
         self, possible_blocks: list[str], ctx_intention: str, target_block: str

@@ -13,7 +13,7 @@ class BlockPerformance:
         self.calls = Counter(
             "performance_block_calls_total",
             "Number of calls to blocks",
-            ["exp_id", "block_name", "func_name", "agent_id", "actor"],
+            ["exp_id", "block_name", "func_name", "agent_id", "actor", "model_role"],
         )
         self.block_duration = Histogram(
             "performance_block_execution_duration_seconds",
@@ -23,7 +23,7 @@ class BlockPerformance:
         self.token_counter = Counter(
             "performance_tokens_total",
             "Number of tokens processed by LLMs",
-            ["exp_id", "direction", "actor", "block_name", "func_name", "agent_id"],
+            ["exp_id", "direction", "actor", "block_name", "func_name", "agent_id", "model_role"],
         )
 
     def record_performance(
@@ -35,6 +35,7 @@ class BlockPerformance:
         agent_id: str,
         token_input: int,
         token_output: int,
+        model_role: str = "base",
     ) -> None:
         timestamp = time.time()
         data_to_add = {
@@ -54,6 +55,7 @@ class BlockPerformance:
             func_name=func_name,
             actor=actor,
             agent_id=agent_id,
+            model_role=model_role,
         ).inc(1)
 
         self.block_duration.labels(
@@ -71,6 +73,7 @@ class BlockPerformance:
             block_name=block_name,
             func_name=func_name,
             agent_id=agent_id,
+            model_role=model_role,
         ).inc(token_input)
         self.token_counter.labels(
             exp_id=self.exp_id,
@@ -79,6 +82,7 @@ class BlockPerformance:
             block_name=block_name,
             func_name=func_name,
             agent_id=agent_id,
+            model_role=model_role,
         ).inc(token_output)
 
     def get_stats(self):
