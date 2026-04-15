@@ -79,6 +79,12 @@ class EnvConfig(BaseModel):
     qdrant_cache: QdrantCacheConfig = Field(default_factory=QdrantCacheConfig)
     """Qdrant-backed LLM semantic cache configuration."""
 
+    sim_bin_name: Optional[str] = Field(default=None)
+    """Custom simulator binary name inside home_dir. When set, this filename is used
+    instead of downloading the default agentsociety-sim-oss binary. The file must
+    already exist at home_dir/<sim_bin_name>. Leave None to use the default
+    download behavior. Example: 'agentsociety-sim-oss_mine'."""
+
 
     @property
     def fs_client(self) -> Union[S3Client, FileSystemClient]:

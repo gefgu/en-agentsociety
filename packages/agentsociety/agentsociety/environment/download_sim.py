@@ -1,10 +1,12 @@
 import os
 import platform
 import stat
+from typing import Optional
+
 import requests
 from ..logger import get_logger
 
-__all__ = ["download_binary"]
+__all__ = ["download_binary", "resolve_binary"]
 
 SIM_VERSION = "v0.2.2"
 BIN_SOURCES = {
@@ -50,4 +52,26 @@ def download_binary(home_dir: str) -> str:
         f.write(response.content)
     os.chmod(bin_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
     get_logger().info(msg=f"Downloaded {binary_name} to {bin_path}")
+    return bin_path
+
+
+def resolve_binary(home_dir: str, sim_bin_name: Optional[str] = None) -> str:
+    """Return the path to the simulator binary.
+
+    If *sim_bin_name* is given, the file ``home_dir/<sim_bin_name>`` must already
+    exist (it is never downloaded).  This lets tests use a locally-built binary
+    (e.g. ``agentsociety-sim-oss_mine``) without touching the file that
+    ``download_binary`` would normally manage.
+
+    If *sim_bin_name* is ``None``, falls back to the normal ``download_binary``
+    behavior (download from Huawei Cloud OBS if not already present).
+    """
+    if sim_bin_name is None:
+        return download_binary(home_dir)
+    bin_path = os.path.join(home_dir, sim_bin_name)
+    if not os.path.exists(bin_path):
+        raise FileNotFoundError(
+            f"Custom simulator binary not found: {bin_path}. "
+            f"Build agentsociety-sim-oss and copy it to that path as '{sim_bin_name}'."
+        )
     return bin_path

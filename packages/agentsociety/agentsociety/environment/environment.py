@@ -25,7 +25,7 @@ from .utils import find_free_ports
 from .utils.base64 import encode_to_base64
 from .utils.const import POI_CATG_DICT
 from .utils.protobuf import dict2pb
-from .download_sim import download_binary
+from .download_sim import resolve_binary
 
 __all__ = [
     "Environment",
@@ -575,6 +575,7 @@ class EnvironmentStarter(Environment):
         s3config: S3Config,
         log_dir: str,
         home_dir: str,
+        sim_bin_name: Optional[str] = None,
     ):
         """
         Environment config
@@ -584,7 +585,7 @@ class EnvironmentStarter(Environment):
             - `simulator_config` (SimulatorConfig): Simulator config
             - `environment_config` (EnvironmentConfig): Environment config
         """
-        self._sim_bin_path = download_binary(home_dir)
+        self._sim_bin_path = resolve_binary(home_dir, sim_bin_name)
         self._map_config = map_config
         self._environment_config = environment_config
         self._s3config = s3config
