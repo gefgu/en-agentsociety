@@ -55,8 +55,8 @@ class QdrantCacheActor:
         llm_model_name: str,
         exp_id: str,
         metrics_actor=None,
-        min_rebuild_threshold: int = 50,
-        tournament_sample_size: int = 2000,
+        min_rebuild_threshold: int = 1000,
+        tournament_sample_size: int = 5000,
     ):
         self._qdrant_path = qdrant_path
         os.makedirs(self._qdrant_path, exist_ok=True)
@@ -92,6 +92,21 @@ class QdrantCacheActor:
         # Lock prevents concurrent _rebuild_model calls (each potentially running
         # in asyncio.to_thread) from racing on championship.active_feature.
         self._rebuild_lock: asyncio.Lock = asyncio.Lock()
+
+    def _record_metrics_to_prometheus(self, prompt_name: str, hit: bool) -> None:
+        """Send cache hit/miss metrics to Prometheus via metrics_actor.
+
+        :param prompt_name: First element of prompt_identity.
+        :param hit: True for cache hit, False for cache miss.
+        """
+        if self._metrics_actor is not None:
+            try:
+                self._metrics_actor.record_cache_stats.remote(
+                    prompt_name=prompt_name,
+                    hit=hit,
+                )
+            except Exception:
+                pass  # Fail silently; missing metrics shouldn't crash the cache
 
     def _collection_name(self, prompt_identity: tuple[str, str, str]) -> str:
         """Build a model-scoped Qdrant collection name from prompt identity.
@@ -320,9 +335,11 @@ class QdrantCacheActor:
         await self._drain_one_rebuild()
         collection_name = self._collection_name(prompt_identity)
         self._schemas[collection_name] = output_schema or {}
+        prompt_name = str(prompt_identity[0])
 
         if not prompt_inputs:
             self._miss_counts[collection_name] += 1
+            self._record_metrics_to_prometheus(prompt_name, hit=False)
             return None
 
         feature_row = await self._embed_typed_fields_via_actor(prompt_inputs, input_schema)
@@ -330,20 +347,24 @@ class QdrantCacheActor:
 
         if not self._is_cache_eligible(output_schema):
             self._miss_counts[collection_name] += 1
+            self._record_metrics_to_prometheus(prompt_name, hit=False)
             return None
 
         evaluation = cache.evaluate(feature_row)
         if not evaluation.get("cache_hit", False):
             self._miss_counts[collection_name] += 1
+            self._record_metrics_to_prometheus(prompt_name, hit=False)
             return None
 
         label = str(evaluation.get("label", ""))
         decoded = self._decode_label_to_output(label, output_schema)
         if decoded is None:
             self._miss_counts[collection_name] += 1
+            self._record_metrics_to_prometheus(prompt_name, hit=False)
             return None
 
         self._hit_counts[collection_name] += 1
+        self._record_metrics_to_prometheus(prompt_name, hit=True)
         await self._drain_one_rebuild()
         return decoded
 

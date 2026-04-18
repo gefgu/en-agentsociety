@@ -186,28 +186,8 @@ This requires converting `MultiFeatureQdrantChampionCache._flush_buffer` and `_r
 
 **Before**: `agentsociety/llm/cache/qdrant_cache.py:259–277` — `_get_tournament_data(sample_size=5000)` scrolls Qdrant for up to 5000 points **with `with_vectors=True`**. At 384-dimensional float vectors, 5000 points = ~7.5 MB fetched per rebuild, per collection, regardless of how large the collection is. For a simulation with 10 prompts, this is 75 MB per rebuild cycle.
 
-**After**: Two changes:
-1. Reduce default `sample_size` to 2000 in `_get_tournament_data`. Expose it as a constructor parameter so it is configurable from `QdrantCacheConfig`.
-2. Use a random offset scroll instead of always starting at point 0, so repeated rebuilds see different samples from the collection when the collection is larger than `sample_size`. Qdrant's `scroll` API accepts an `offset` parameter.
-
-### Step 7 — Audit Fix D: document batch_size semantics and add min_rebuild_threshold
-
-**Before**: `agentsociety/llm/cache/config.py:12` — `batch_size: int = Field(default=1000, ge=1)`. This is the number of miss records to buffer before calling `client.upsert` and triggering a model rebuild. With 1000 agents running, 1000 misses accumulate quickly in the first few steps. But in small simulations (10-50 agents), the first rebuild may never trigger during a short run, meaning the model never becomes active.
-
-**After**:
-1. Add `min_rebuild_threshold: int = Field(default=50, ge=1)` to `QdrantCacheConfig`. When the buffer reaches this size, a rebuild is triggered even if `batch_size` is not reached. The buffer is still flushed to Qdrant at `batch_size` — `min_rebuild_threshold` only controls when the KNN model is rebuilt.
-2. In `MultiFeatureQdrantChampionCache.record`, check if `len(buffer_rows) >= min_rebuild_threshold` and, if so, return a `rebuild_needed=True` flag without waiting for `batch_size`.
-3. Add a docstring clarifying the two distinct roles of `batch_size` (upsert flush) and `min_rebuild_threshold` (model rebuild trigger).
-
-### Step 8 — Add `embed_batch_size` histogram metric
-
-**Before**: `agentsociety/performance/MetricsTracker.py` — no metric for embedding batch size.
-
-**After**:
-1. Add `embed_batch_size = Histogram("embed_batch_size", ..., ["exp_id"], buckets=[1, 2, 4, 8, 16, 32, 64, 128, 256])` to `MetricsTracker.__init__`.
-2. Add `record_embed_batch_size(size: int)` method to `MetricsTracker`.
-3. Add `record_embed_batch_size(size: int)` method to `PrometheusActor`.
-4. In `EmbedActor`, after each batch fires, call `metrics_actor.record_embed_batch_size.remote(len(batch))` fire-and-forget.
+**After**: One change:
+1. Use a random offset scroll instead of always starting at point 0, so repeated rebuilds see different samples from the collection when the collection is larger than `sample_size`. Qdrant's `scroll` API accepts an `offset` parameter.
 
 ## Audit: Other Performance and Correctness Issues Found
 
@@ -260,8 +240,8 @@ This is a correctness-neutral but performance-wasteful double embedding. A fix w
 - **Assumption**: Ray async actor methods are supported in the project's Ray version. Check `pyproject.toml` for the Ray version constraint.
 - **Assumption**: The embedding model (`BAAI/bge-small-en-v1.5`, dimension ~384) produces vectors small enough that batching 256 of them fits in Ray's message buffer (~100 MB default). 256 × 384 × 4 bytes ≈ 393 KB. Well within limits.
 - **Open question**: Should `EmbedActor` be co-located on the same node as `QdrantCacheActor`? By default, Ray may schedule them on different nodes in a multi-node cluster. Use `@ray.remote(scheduling_strategy=NodeAffinitySchedulingStrategy(...))` or place both in the same node group if cross-node RPC latency matters.
-- **Open question**: Should `embed_batch_timeout_ms=0` be a valid config value meaning "no timeout, only fire when `max_batch_size` is reached"? This would cause unbounded waiting in low-concurrency scenarios. Recommend keeping minimum of 1 ms in the Pydantic validator.
-- **Open question**: The `QdrantCacheConfig.batch_size` default of 1000 was chosen for large simulations. For small-scale testing, is it acceptable for the model to never rebuild? The proposed `min_rebuild_threshold=50` in Step 7 addresses this but the right default value depends on how many cache misses typically accumulate in a 10-step smoke test.
+- **Open question**: Should `embed_batch_timeout_ms=0` be a valid config value meaning "no timeout, only fire when `max_batch_size` is reached"? This would cause unbounded waiting in low-concurrency scenarios. Recommend keeping minimum of 1 ms in the Pydantic validator. ANSWER: KEEP MINIMUM OF 1ms.
+- **Open question**: The `QdrantCacheConfig.batch_size` default of 1000 was chosen for large simulations. For small-scale testing, is it acceptable for the model to never rebuild? The proposed `min_rebuild_threshold=50` in Step 7 addresses this but the right default value depends on how many cache misses typically accumulate in a 10-step smoke test. ANSWER: IGNORE THIS FOR NOW.
 
 ## Code That Could Be Refactored *(informational)*
 
@@ -273,7 +253,7 @@ This is a correctness-neutral but performance-wasteful double embedding. A fix w
 
 ## Proposed Next Steps
 
-1. **Step 1**: Add `embed_batch_timeout_ms` and `embed_max_batch_size` to `agentsociety/llm/cache/config.py`.
+1. **Step 1**: Add `embed_batch_timeout_ms` and `embed_max_batch_sisim_bin_nameze` to `agentsociety/llm/cache/config.py`.
 2. **Step 2**: Create `agentsociety/llm/cache/embed_actor.py` with `EmbedActor` (async, batch queue, `asyncio.to_thread` for ONNX).
 3. **Step 3**: Refactor `QdrantCacheActor.__init__` to accept `embed_actor` instead of `embedding_model`/`embedding_cache_dir`; make `query_and_maybe_serve` and `record` async; update `_embed_typed_fields` to call `EmbedActor`.
 4. **Step 4**: Wire `EmbedActor` construction and teardown in `agentsociety/simulation/infrastructuremanager.py:_init_llm_cache_actor` and `close`.

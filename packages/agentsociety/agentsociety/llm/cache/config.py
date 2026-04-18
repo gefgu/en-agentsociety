@@ -36,7 +36,7 @@ class QdrantCacheConfig(BaseModel):
         ),
     )
     min_rebuild_threshold: int = Field(
-        default=50,
+        default=1000,
         ge=1,
         description=(
             "Minimum number of buffered miss records that triggers a KNN model "
@@ -47,7 +47,7 @@ class QdrantCacheConfig(BaseModel):
         ),
     )
     tournament_sample_size: int = Field(
-        default=2000,
+        default=5000,
         ge=1,
         description=(
             "Maximum number of Qdrant points fetched per rebuild for the KNN "

@@ -280,10 +280,8 @@ class LLM:
         cache_hit_probe = probe_result is not None
         if self._metrics_actor is not None:
             prompt_name = str(context["prompt_identity"][0])
-            self._metrics_actor.record_cache_stats.remote(
-                prompt_name=prompt_name,
-                hit=cache_hit_probe,
-            )
+            # Cache hit/miss recording is now handled by QdrantCacheActor
+            # to avoid double-counting. Only record latency here.
             self._metrics_actor.record_cache_latency.remote(
                 cache_type="qdrant",
                 prompt_name=prompt_name,
