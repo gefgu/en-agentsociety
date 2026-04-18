@@ -103,40 +103,94 @@ def _create_async_engine_from_config(config: DatabaseConfig, sqlite_path: Path):
     return create_async_engine(dsn, pool_pre_ping=True)
 
 
+def _is_sqlite_corruption_error(error: Exception, config: DatabaseConfig) -> bool:
+    """
+    Detect if an exception is due to SQLite database corruption.
+
+    Returns True only for SQLite databases when the exception is an OperationalError
+    with a message indicating a non-database file.
+    """
+    if config.db_type != "sqlite":
+        return False
+
+    if not isinstance(error, OperationalError):
+        return False
+
+    error_msg = str(error).lower()
+    corruption_indicators = [
+        "file is not a database",
+        "not a database",
+        "unable to open database",
+    ]
+
+    return any(indicator in error_msg for indicator in corruption_indicators)
+
+
+def _rename_corrupt_sqlite(sqlite_path: Path) -> None:
+    """
+    Rename a corrupted SQLite database file to a timestamped backup.
+
+    Preserves the corrupt file for forensic inspection instead of deleting it.
+    """
+    timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
+    new_path = sqlite_path.parent / f"{sqlite_path.name}.corrupt.{timestamp}"
+    sqlite_path.rename(new_path)
+    get_logger().warning(f"Renamed corrupted SQLite file from {sqlite_path} to {new_path}")
+
+
 async def _create_tables(exp_id: str, config: DatabaseConfig, sqlite_path: Path):
-    """Create tables using SQLAlchemy"""
+    """Create tables using SQLAlchemy with corruption detection and retry logic"""
     engine = _create_async_engine_from_config(config, sqlite_path)
-    
+
+    async def _create_tables_impl(conn):
+        """Inner function containing table creation logic (reused in retry)"""
+        # Create experiment table if not exists
+        await conn.run_sync(Base.metadata.create_all, tables=[Experiment.__table__])
+
+        # Create other tables for specific experiment
+        table_functions = {
+            "agent_profile": agent_profile,
+            "agent_status": agent_status,
+            "agent_survey": agent_survey,
+            "agent_dialog": agent_dialog,
+            "global_prompt": global_prompt,
+            "pending_dialog": pending_dialog,
+            "pending_survey": pending_survey,
+            "metric": metric,
+            "task_result": task_result,
+        }
+
+        for table_type, table_func in table_functions.items():
+            table_name = f"{TABLE_PREFIX}{exp_id.replace('-', '_')}_{table_type}"
+            table_obj, _ = table_func(table_name)
+
+            # Drop existing table if exists
+            await conn.execute(text(f"DROP TABLE IF EXISTS {table_name}"))
+
+            # Create new table
+            await conn.run_sync(table_obj.create, checkfirst=True)
+
+            get_logger().debug(f"Created {config.db_type} table: {table_name}")
+
     try:
-        async with engine.begin() as conn:
-            # Create experiment table if not exists
-            await conn.run_sync(Base.metadata.create_all, tables=[Experiment.__table__])
-            
-            # Create other tables for specific experiment
-            table_functions = {
-                "agent_profile": agent_profile,
-                "agent_status": agent_status,
-                "agent_survey": agent_survey,
-                "agent_dialog": agent_dialog,
-                "global_prompt": global_prompt,
-                "pending_dialog": pending_dialog,
-                "pending_survey": pending_survey,
-                "metric": metric,
-                "task_result": task_result,
-            }
-            
-            for table_type, table_func in table_functions.items():
-                table_name = f"{TABLE_PREFIX}{exp_id.replace('-', '_')}_{table_type}"
-                table_obj, _ = table_func(table_name)
-                
-                # Drop existing table if exists
-                await conn.execute(text(f"DROP TABLE IF EXISTS {table_name}"))
-                
-                # Create new table
-                await conn.run_sync(table_obj.create, checkfirst=True)
-                
-                get_logger().debug(f"Created {config.db_type} table: {table_name}")
-                
+        try:
+            async with engine.begin() as conn:
+                await _create_tables_impl(conn)
+        except Exception as e:
+            if _is_sqlite_corruption_error(e, config):
+                get_logger().warning(f"Detected SQLite corruption, attempting recovery: {e}")
+                _rename_corrupt_sqlite(sqlite_path)
+
+                # Create a fresh engine for retry
+                retry_engine = _create_async_engine_from_config(config, sqlite_path)
+                try:
+                    async with retry_engine.begin() as conn:
+                        await _create_tables_impl(conn)
+                    get_logger().info("Successfully recovered from SQLite corruption")
+                finally:
+                    await retry_engine.dispose()
+            else:
+                raise
     finally:
         await engine.dispose()
 
@@ -210,6 +264,21 @@ class DatabaseWriter:
             return False
         err_msg = str(error).lower()
         return "database is locked" in err_msg or "database table is locked" in err_msg
+
+    def _is_sqlite_corruption_error(self, error: Exception, config: DatabaseConfig) -> bool:
+        if config.db_type != "sqlite":
+            return False
+        if not isinstance(error, OperationalError):
+            return False
+        err_msg = str(error).lower()
+        return any(s in err_msg for s in ["file is not a database", "not a database", "unable to open database"])
+
+    def _rename_corrupt_sqlite(self, sqlite_path: Path) -> None:
+        """Rename a corrupt SQLite database file to preserve it for forensic inspection."""
+        timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
+        new_path = sqlite_path.parent / f"{sqlite_path.name}.corrupt.{timestamp}"
+        sqlite_path.rename(new_path)
+        get_logger().warning(f"Renamed corrupt SQLite database: {sqlite_path} -> {new_path}")
 
     @property
     def exp_info_file(self):
