@@ -181,11 +181,48 @@ class InfrastructureManager:
             env_config.pop("logging_level", None)
             env_config.pop("monitoring_enabled", None)
             env_config.pop("data_dir", None)
+            env_config.pop("home_dir", None)
 
         normalized = InfrastructureManager._normalize_config_value(loaded)
         if isinstance(normalized, dict):
             return normalized
         return {}
+
+    @staticmethod
+    def _compute_config_diff(a: dict, b: dict, path: str = "") -> list[str]:
+        """Recursively compare two dicts and return a list of human-readable diff lines.
+
+        Args:
+            a: Source dictionary
+            b: Current dictionary
+            path: Current path prefix for nested keys (internal use)
+
+        Returns:
+            List of diff lines like "env.qdrant_cache.enabled: source=False, current=True"
+        """
+        diffs = []
+
+        # Get all keys from both dicts
+        all_keys = set(a.keys()) | set(b.keys())
+
+        for key in sorted(all_keys):
+            current_path = f"{path}.{key}" if path else key
+
+            value_a = a.get(key)
+            value_b = b.get(key)
+
+            # Both are dicts, recurse
+            if isinstance(value_a, dict) and isinstance(value_b, dict):
+                diffs.extend(InfrastructureManager._compute_config_diff(value_a, value_b, current_path))
+            # Both are lists, compare as-is
+            elif isinstance(value_a, list) and isinstance(value_b, list):
+                if value_a != value_b:
+                    diffs.append(f"{current_path}: source={value_a}, current={value_b}")
+            # Different types or different values
+            elif value_a != value_b:
+                diffs.append(f"{current_path}: source={value_a}, current={value_b}")
+
+        return diffs
 
     def _validate_resume_agent_count(
         self, agents: list[tuple[Any, ...]]
@@ -272,11 +309,23 @@ class InfrastructureManager:
 
         source_config = self._normalize_resume_config(resume_data.get("config", ""))
         current_config = self._normalize_resume_config(self._exp_info.config)
-        if source_config != current_config:
-            raise ValueError(
+
+        # Compute config differences
+        diff_lines = self._compute_config_diff(source_config, current_config)
+
+        if diff_lines:
+            # Format multi-line diff message
+            diff_message = (
                 "Configuration mismatch with resume experiment. "
-                "Current configuration fields must match the source experiment config."
+                "The following fields differ between source and current config:\n"
+                + "\n".join(f"  {line}" for line in diff_lines)
             )
+
+            # Handle based on configured action
+            if self._config.env.resume_config_mismatch_action == "error":
+                raise ValueError(diff_message)
+            elif self._config.env.resume_config_mismatch_action == "warn":
+                get_logger().warning(diff_message)
 
         self._resume_state = resume_data
         get_logger().info(
