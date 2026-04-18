@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -57,6 +57,8 @@ class EnvConfig(BaseModel):
     """Directory for storing data files"""
 
     exp_id: Optional[str] = Field(default=None)
+
+    resume_config_mismatch_action: Literal["error", "warn"] = "error"
 
     clickhouse: ClickHouseConfig = Field(
         default_factory=lambda: ClickHouseConfig.model_validate({})
