@@ -82,6 +82,49 @@ def start_clickhouse_container() -> Generator[tuple[str, int], None, None]:
         yield host, port
 
 
+def apply_duckdb_overrides(
+    config: Config,
+    exp_id: str | None = None,
+) -> Config:
+    """Force the DatabaseActor to use DuckDB by pointing ClickHouse at an unreachable address.
+
+    Also resolves data_dir to an absolute path so the DuckDB file is written to a
+    persistent location instead of Ray's temporary working-directory copy.
+    """
+    config.env.clickhouse.host = "127.0.0.1"
+    config.env.clickhouse.port = 1  # guaranteed unreachable
+    config.env.monitoring_enabled = False
+    # Ray actors run from a temp copy of working_dir; relative paths won't survive shutdown.
+    data_dir = Path(config.env.data_dir)
+    if not data_dir.is_absolute():
+        config.env.data_dir = str((PROJECT_ROOT / data_dir).resolve())
+    if exp_id is not None:
+        config.env.exp_id = exp_id
+    return config
+
+
+def build_duckdb_config(
+    config_path: Path,
+    exp_id: str | None = None,
+) -> Config:
+    config = load_default_config(config_path)
+    return apply_duckdb_overrides(config, exp_id=exp_id)
+
+
+def query_duckdb(db_file: Path, sql: str, params: list | None = None) -> list[dict]:
+    """Open a DuckDB file read-only and return rows as a list of dicts."""
+    import duckdb
+
+    conn = duckdb.connect(str(db_file), read_only=True)
+    try:
+        cursor = conn.execute(sql, params or [])
+        rows = cursor.fetchall()
+        cols = [d[0] for d in (cursor.description or [])]
+        return [dict(zip(cols, row)) for row in rows]
+    finally:
+        conn.close()
+
+
 def create_clickhouse_client(host: str, port: int) -> "Client":
     import clickhouse_connect
 
