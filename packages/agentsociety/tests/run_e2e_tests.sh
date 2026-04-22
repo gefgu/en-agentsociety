@@ -41,6 +41,7 @@ if [ -n "${PYTHON_BIN}" ]; then
 	# "$PYTHON_BIN" "002_run_e2e_with_clickhouse.py" "$@"
 	"${PYTHON_BIN}" "003_resume_agent_state.py" "--config" "$E2E_DIR/configs/003_resume_single_agent_with_local.yaml" "$@"
 	"${PYTHON_BIN}" "007_resume_with_duckdb.py" "--config" "$E2E_DIR/configs/007_resume_with_duckdb.yaml" "$@"
+	"${PYTHON_BIN}" "008_sqlite_corruption_recovery.py" "$@"
 	# "${PYTHON_BIN}" "003_resume_agent_state.py" "--config" "$E2E_DIR/configs/003_resume_10_agents_local.yaml" "$@"
 	# "${PYTHON_BIN}" "004_resume_moving_agent_state.py" "--config" "$E2E_DIR/configs/003_resume_10_agents_local.yaml" "--wait-for-movement-timeout-seconds" "9000" "$@"
 	# "${PYTHON_BIN}" "004_resume_moving_agent_state.py" "--config" "${E2E_DIR}/configs/003_resume_100_agents_local.yaml" "--wait-for-movement-timeout-seconds" "9000" "$@"

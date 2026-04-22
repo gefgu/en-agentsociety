@@ -8,3 +8,10 @@ data*
 **/*modal.yaml
 
 *.log
+
+*.duckdb
+
+data/*.duckdb
+
+data/data/*.duckdb
+data/data

@@ -264,6 +264,14 @@ class InfrastructureManager:
             )
             return
 
+        if available_total == 0:
+            get_logger().warning(
+                f"Resume source experiment '{self._resume_exp_id}' has no KV snapshots "
+                "(the source run crashed before completing any step). "
+                "All agent memory will be re-initialized from config."
+            )
+            return
+
         raise ValueError(
             f"Agent number mismatch for resume source experiment '{self._resume_exp_id}': "
             f"configured total={expected_total} (citizens={expected_citizens}), "

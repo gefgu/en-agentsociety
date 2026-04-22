@@ -6,7 +6,7 @@ import uuid
 
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select, update, text, and_, desc, asc, event
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, DatabaseError as SADatabaseError
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -107,13 +107,13 @@ def _is_sqlite_corruption_error(error: Exception, config: DatabaseConfig) -> boo
     """
     Detect if an exception is due to SQLite database corruption.
 
-    Returns True only for SQLite databases when the exception is an OperationalError
-    with a message indicating a non-database file.
+    Returns True only for SQLite databases when the exception is a DatabaseError
+    (or its subclass OperationalError) with a message indicating a non-database file.
     """
     if config.db_type != "sqlite":
         return False
 
-    if not isinstance(error, OperationalError):
+    if not isinstance(error, (OperationalError, SADatabaseError)):
         return False
 
     error_msg = str(error).lower()
@@ -268,10 +268,33 @@ class DatabaseWriter:
     def _is_sqlite_corruption_error(self, error: Exception, config: DatabaseConfig) -> bool:
         if config.db_type != "sqlite":
             return False
-        if not isinstance(error, OperationalError):
+        if not isinstance(error, (OperationalError, SADatabaseError)):
             return False
         err_msg = str(error).lower()
         return any(s in err_msg for s in ["file is not a database", "not a database", "unable to open database"])
+
+    async def _recover_sqlite_db(self) -> None:
+        """
+        Recover from a corrupt SQLite file mid-simulation.
+
+        Disposes the poisoned engine, renames the corrupt file to a timestamped
+        backup, creates a fresh database with all experiment tables, then rebinds
+        self._engine and self._async_session.
+
+        Caller must hold self._lock (all @lock_decorator write methods do).
+        Data written to the corrupt file before this call is unrecoverable.
+        """
+        get_logger().warning(
+            f"SQLite database at {self._sqlite_path} is corrupt. "
+            f"Renaming corrupt file and creating a fresh database. "
+            f"Data written before this point may be lost."
+        )
+        await self._engine.dispose()
+        _rename_corrupt_sqlite(self._sqlite_path)
+        await _create_tables(self.exp_id, self._config, self._sqlite_path)
+        self._engine = _create_async_engine_from_config(self._config, self._sqlite_path)
+        self._async_session = async_sessionmaker(self._engine, expire_on_commit=False)
+        get_logger().info(f"SQLite recovery complete. New database at {self._sqlite_path}.")
 
     def _rename_corrupt_sqlite(self, sqlite_path: Path) -> None:
         """Rename a corrupt SQLite database file to preserve it for forensic inspection."""
@@ -777,184 +800,220 @@ class DatabaseWriter:
     @lock_decorator
     async def write_dialogs(self, rows: list[StorageDialog]):
         table_obj = self._tables["agent_dialog"]["table"]
-        insert_func = self._get_insert_func()
-        
-        async with self._async_session() as session:
-            try:
-                # Batch insert data
-                data = []
-                for row in rows:
-                    data.append(
-                        {
-                            "id": row.id,
-                            "day": row.day,
-                            "t": row.t,
-                            "type": row.type,
-                            "speaker": row.speaker,
-                            "content": row.content,
-                            "created_at": row.created_at,
-                        }
-                    )
-                
-                stmt = insert_func(table_obj).values(data)
-                await session.execute(stmt)
-                await session.commit()
-                
-                get_logger().debug(f"Inserted {len(rows)} dialog records to {self._config.db_type}")
-                
-            except Exception as e:
-                await session.rollback()
-                get_logger().error(f"Error writing dialogs to {self._config.db_type}: {e}")
-                raise
+        data = [
+            {
+                "id": row.id,
+                "day": row.day,
+                "t": row.t,
+                "type": row.type,
+                "speaker": row.speaker,
+                "content": row.content,
+                "created_at": row.created_at,
+            }
+            for row in rows
+        ]
+        recovered = False
+        while True:
+            insert_func = self._get_insert_func()
+            async with self._async_session() as session:
+                try:
+                    stmt = insert_func(table_obj).values(data)
+                    await session.execute(stmt)
+                    await session.commit()
+                    get_logger().debug(f"Inserted {len(rows)} dialog records to {self._config.db_type}")
+                    return
+                except Exception as e:
+                    await session.rollback()
+                    if not recovered and self._is_sqlite_corruption_error(e, self._config):
+                        get_logger().warning("SQLite corruption detected; recovering and retrying write...")
+                        await self._recover_sqlite_db()
+                        recovered = True
+                        continue
+                    get_logger().error(f"Error writing dialogs to {self._config.db_type}: {e}")
+                    if recovered:
+                        get_logger().warning("Write still failed after recovery. Data lost for this batch.")
+                        return
+                    raise
 
     @lock_decorator
     async def write_statuses(self, rows: list[StorageStatus]):
         table_obj = self._tables["agent_status"]["table"]
-        insert_func = self._get_insert_func()
-        
-        async with self._async_session() as session:
-            try:
-                data = []
-                for row in rows:
-                    data.append(
-                        {
-                            "id": row.id,
-                            "day": row.day,
-                            "t": row.t,
-                            "lng": row.lng,
-                            "lat": row.lat,
-                            "parent_id": row.parent_id,
-                            "action": row.action,
-                            "status": row.status,
-                            "created_at": row.created_at,
-                        }
-                    )
-                
-                stmt = insert_func(table_obj).values(data)
-                await session.execute(stmt)
-                await session.commit()
-                
-                get_logger().debug(f"Inserted {len(rows)} status records to {self._config.db_type}")
-                
-            except Exception as e:
-                await session.rollback()
-                get_logger().error(f"Error writing statuses to {self._config.db_type}: {e}")
-                raise
+        data = [
+            {
+                "id": row.id,
+                "day": row.day,
+                "t": row.t,
+                "lng": row.lng,
+                "lat": row.lat,
+                "parent_id": row.parent_id,
+                "action": row.action,
+                "status": row.status,
+                "created_at": row.created_at,
+            }
+            for row in rows
+        ]
+        recovered = False
+        while True:
+            insert_func = self._get_insert_func()
+            async with self._async_session() as session:
+                try:
+                    stmt = insert_func(table_obj).values(data)
+                    await session.execute(stmt)
+                    await session.commit()
+                    get_logger().debug(f"Inserted {len(rows)} status records to {self._config.db_type}")
+                    return
+                except Exception as e:
+                    await session.rollback()
+                    if not recovered and self._is_sqlite_corruption_error(e, self._config):
+                        get_logger().warning("SQLite corruption detected; recovering and retrying write...")
+                        await self._recover_sqlite_db()
+                        recovered = True
+                        continue
+                    get_logger().error(f"Error writing statuses to {self._config.db_type}: {e}")
+                    if recovered:
+                        get_logger().warning("Write still failed after recovery. Data lost for this batch.")
+                        return
+                    raise
 
     @lock_decorator
     async def write_profiles(self, rows: list[StorageProfile]):
         table_obj = self._tables["agent_profile"]["table"]
-        insert_func = self._get_insert_func()
-        
-        async with self._async_session() as session:
-            try:
-                data = []
-                for row in rows:
-                    data.append(
-                        {
-                            "id": row.id,
-                            "name": row.name,
-                            "profile": row.profile,
-                        }
-                    )
-                
-                stmt = insert_func(table_obj).values(data)
-                await session.execute(stmt)
-                await session.commit()
-                
-                get_logger().debug(f"Inserted {len(rows)} profile records to {self._config.db_type}")
-                
-            except Exception as e:
-                await session.rollback()
-                get_logger().error(f"Error writing profiles to {self._config.db_type}: {e}")
-                raise
+        data = [
+            {
+                "id": row.id,
+                "name": row.name,
+                "profile": row.profile,
+            }
+            for row in rows
+        ]
+        recovered = False
+        while True:
+            insert_func = self._get_insert_func()
+            async with self._async_session() as session:
+                try:
+                    stmt = insert_func(table_obj).values(data)
+                    await session.execute(stmt)
+                    await session.commit()
+                    get_logger().debug(f"Inserted {len(rows)} profile records to {self._config.db_type}")
+                    return
+                except Exception as e:
+                    await session.rollback()
+                    if not recovered and self._is_sqlite_corruption_error(e, self._config):
+                        get_logger().warning("SQLite corruption detected; recovering and retrying write...")
+                        await self._recover_sqlite_db()
+                        recovered = True
+                        continue
+                    get_logger().error(f"Error writing profiles to {self._config.db_type}: {e}")
+                    if recovered:
+                        get_logger().warning("Write still failed after recovery. Data lost for this batch.")
+                        return
+                    raise
 
     @lock_decorator
     async def write_surveys(self, rows: list[StorageSurvey]):
         table_obj = self._tables["agent_survey"]["table"]
-        insert_func = self._get_insert_func()
-        
-        async with self._async_session() as session:
-            try:
-                data = []
-                for row in rows:
-                    data.append(
-                        {
-                            "id": row.id,
-                            "day": row.day,
-                            "t": row.t,
-                            "survey_id": row.survey_id,
-                            "result": row.result,
-                            "created_at": row.created_at,
-                        }
-                    )
-                
-                stmt = insert_func(table_obj).values(data)
-                await session.execute(stmt)
-                await session.commit()
-                
-                get_logger().debug(f"Inserted {len(rows)} survey records to {self._config.db_type}")
-                
-            except Exception as e:
-                await session.rollback()
-                get_logger().error(f"Error writing surveys to {self._config.db_type}: {e}")
-                raise
+        data = [
+            {
+                "id": row.id,
+                "day": row.day,
+                "t": row.t,
+                "survey_id": row.survey_id,
+                "result": row.result,
+                "created_at": row.created_at,
+            }
+            for row in rows
+        ]
+        recovered = False
+        while True:
+            insert_func = self._get_insert_func()
+            async with self._async_session() as session:
+                try:
+                    stmt = insert_func(table_obj).values(data)
+                    await session.execute(stmt)
+                    await session.commit()
+                    get_logger().debug(f"Inserted {len(rows)} survey records to {self._config.db_type}")
+                    return
+                except Exception as e:
+                    await session.rollback()
+                    if not recovered and self._is_sqlite_corruption_error(e, self._config):
+                        get_logger().warning("SQLite corruption detected; recovering and retrying write...")
+                        await self._recover_sqlite_db()
+                        recovered = True
+                        continue
+                    get_logger().error(f"Error writing surveys to {self._config.db_type}: {e}")
+                    if recovered:
+                        get_logger().warning("Write still failed after recovery. Data lost for this batch.")
+                        return
+                    raise
 
     @lock_decorator
     async def write_global_prompt(self, prompt_info: StorageGlobalPrompt):
         table_obj = self._tables["global_prompt"]["table"]
-        insert_func = self._get_insert_func()
-        
-        async with self._async_session() as session:
-            try:
-                data = {
-                    "day": prompt_info.day,
-                    "t": prompt_info.t,
-                    "prompt": prompt_info.prompt,
-                    "created_at": prompt_info.created_at,
-                }
-                
-                stmt = insert_func(table_obj).values([data])
-                await session.execute(stmt)
-                await session.commit()
-                
-                get_logger().debug(f"Inserted global prompt record to {self._config.db_type}")
-                
-            except Exception as e:
-                await session.rollback()
-                get_logger().error(f"Error writing global prompt to {self._config.db_type}: {e}")
-                raise
+        data = {
+            "day": prompt_info.day,
+            "t": prompt_info.t,
+            "prompt": prompt_info.prompt,
+            "created_at": prompt_info.created_at,
+        }
+        recovered = False
+        while True:
+            insert_func = self._get_insert_func()
+            async with self._async_session() as session:
+                try:
+                    stmt = insert_func(table_obj).values([data])
+                    await session.execute(stmt)
+                    await session.commit()
+                    get_logger().debug(f"Inserted global prompt record to {self._config.db_type}")
+                    return
+                except Exception as e:
+                    await session.rollback()
+                    if not recovered and self._is_sqlite_corruption_error(e, self._config):
+                        get_logger().warning("SQLite corruption detected; recovering and retrying write...")
+                        await self._recover_sqlite_db()
+                        recovered = True
+                        continue
+                    get_logger().error(f"Error writing global prompt to {self._config.db_type}: {e}")
+                    if recovered:
+                        get_logger().warning("Write still failed after recovery. Data lost for this batch.")
+                        return
+                    raise
 
     @lock_decorator
     async def write_task_result(self, rows: list[StorageTaskResult]):
         table_obj = self._tables["task_result"]["table"]
-        insert_func = self._get_insert_func()
-        
-        async with self._async_session() as session:
-            try:
-                data = []
-                for row in rows:
-                    data.append(
-                        {
-                            "id": row.id,
-                            "agent_id": row.agent_id,
-                            "context": row.context,
-                            "ground_truth": row.ground_truth,
-                            "result": row.result,
-                            "created_at": row.created_at,
-                        }
-                    )
-                
-                stmt = insert_func(table_obj).values(data)
-                await session.execute(stmt)
-                await session.commit()
-
-                get_logger().debug(f"Inserted {len(rows)} task result records to {self._config.db_type}")
-                
-            except Exception as e:
-                await session.rollback()
-                get_logger().error(f"Error writing task results to {self._config.db_type}: {e}")
-                raise
+        data = [
+            {
+                "id": row.id,
+                "agent_id": row.agent_id,
+                "context": row.context,
+                "ground_truth": row.ground_truth,
+                "result": row.result,
+                "created_at": row.created_at,
+            }
+            for row in rows
+        ]
+        recovered = False
+        while True:
+            insert_func = self._get_insert_func()
+            async with self._async_session() as session:
+                try:
+                    stmt = insert_func(table_obj).values(data)
+                    await session.execute(stmt)
+                    await session.commit()
+                    get_logger().debug(f"Inserted {len(rows)} task result records to {self._config.db_type}")
+                    return
+                except Exception as e:
+                    await session.rollback()
+                    if not recovered and self._is_sqlite_corruption_error(e, self._config):
+                        get_logger().warning("SQLite corruption detected; recovering and retrying write...")
+                        await self._recover_sqlite_db()
+                        recovered = True
+                        continue
+                    get_logger().error(f"Error writing task results to {self._config.db_type}: {e}")
+                    if recovered:
+                        get_logger().warning("Write still failed after recovery. Data lost for this batch.")
+                        return
+                    raise
 
     @lock_decorator
     async def log_metric(self, metrics: list[tuple[str, float, int]]):
@@ -967,99 +1026,116 @@ class DatabaseWriter:
         if len(metrics) == 0:
             return
         table_obj = self._tables["metric"]["table"]
-        insert_func = self._get_insert_func()
-        
-        async with self._async_session() as session:
-            try:
-                data = [
-                    {
-                        "key": key,
-                        "value": value,
-                        "step": step,
-                        "created_at": datetime.now(),
-                    }
-                    for key, value, step in metrics
-                ]
-                stmt = insert_func(table_obj).values(data)
-                await session.execute(stmt)
-                await session.commit()
-                
-                get_logger().debug(f"Batch inserted {len(metrics)} metric records to {self._config.db_type}")
-            except Exception as e:
-                await session.rollback()
-                get_logger().error(f"Error batch writing metrics to {self._config.db_type}: {e}")
-                raise
+        data = [
+            {
+                "key": key,
+                "value": value,
+                "step": step,
+                "created_at": datetime.now(),
+            }
+            for key, value, step in metrics
+        ]
+        recovered = False
+        while True:
+            insert_func = self._get_insert_func()
+            async with self._async_session() as session:
+                try:
+                    stmt = insert_func(table_obj).values(data)
+                    await session.execute(stmt)
+                    await session.commit()
+                    get_logger().debug(f"Batch inserted {len(metrics)} metric records to {self._config.db_type}")
+                    return
+                except Exception as e:
+                    await session.rollback()
+                    if not recovered and self._is_sqlite_corruption_error(e, self._config):
+                        get_logger().warning("SQLite corruption detected; recovering and retrying write...")
+                        await self._recover_sqlite_db()
+                        recovered = True
+                        continue
+                    get_logger().error(f"Error batch writing metrics to {self._config.db_type}: {e}")
+                    if recovered:
+                        get_logger().warning("Write still failed after recovery. Data lost for this batch.")
+                        return
+                    raise
 
     @lock_decorator
     async def update_exp_info(self, exp_info: StorageExpInfo):
-        insert_func = self._get_insert_func()
-
-        # save to local
+        # save to local (idempotent - outside retry loop)
         with open(self.exp_info_file, "w") as f:
             yaml.dump(exp_info.model_dump(), f)
 
-        async with self._async_session() as session:
-            try:
-                # Use SQLAlchemy upsert operation
-                stmt = insert_func(Experiment).values(
-                    tenant_id=exp_info.tenant_id,
-                    id=uuid.UUID(self.exp_id),
-                    name=exp_info.name,
-                    num_day=exp_info.num_day,
-                    status=exp_info.status,
-                    cur_day=exp_info.cur_day,
-                    cur_t=exp_info.cur_t,
-                    config=exp_info.config,
-                    error=exp_info.error,
-                    input_tokens=exp_info.input_tokens,
-                    output_tokens=exp_info.output_tokens,
-                    created_at=exp_info.created_at,
-                    updated_at=exp_info.updated_at,
-                )
-                
-                # Database-specific upsert operation
-                if self._config.db_type == "postgresql":
-                    stmt = stmt.on_conflict_do_update(
-                        index_elements=["tenant_id", "id"],
-                        set_=dict(
-                            name=stmt.excluded.name,
-                            num_day=stmt.excluded.num_day,
-                            status=stmt.excluded.status,
-                            cur_day=stmt.excluded.cur_day,
-                            cur_t=stmt.excluded.cur_t,
-                            config=stmt.excluded.config,
-                            error=stmt.excluded.error,
-                            input_tokens=stmt.excluded.input_tokens,
-                            output_tokens=stmt.excluded.output_tokens,
-                            updated_at=stmt.excluded.updated_at,
-                        ),
+        recovered = False
+        while True:
+            insert_func = self._get_insert_func()
+            async with self._async_session() as session:
+                try:
+                    # Use SQLAlchemy upsert operation
+                    stmt = insert_func(Experiment).values(
+                        tenant_id=exp_info.tenant_id,
+                        id=uuid.UUID(self.exp_id),
+                        name=exp_info.name,
+                        num_day=exp_info.num_day,
+                        status=exp_info.status,
+                        cur_day=exp_info.cur_day,
+                        cur_t=exp_info.cur_t,
+                        config=exp_info.config,
+                        error=exp_info.error,
+                        input_tokens=exp_info.input_tokens,
+                        output_tokens=exp_info.output_tokens,
+                        created_at=exp_info.created_at,
+                        updated_at=exp_info.updated_at,
                     )
-                elif self._config.db_type == "sqlite":
-                    stmt = stmt.on_conflict_do_update(
-                        index_elements=["tenant_id", "id"],
-                        set_=dict(
-                            name=stmt.excluded.name,
-                            num_day=stmt.excluded.num_day,
-                            status=stmt.excluded.status,
-                            cur_day=stmt.excluded.cur_day,
-                            cur_t=stmt.excluded.cur_t,
-                            config=stmt.excluded.config,
-                            error=stmt.excluded.error,
-                            input_tokens=stmt.excluded.input_tokens,
-                            output_tokens=stmt.excluded.output_tokens,
-                            updated_at=stmt.excluded.updated_at,
+
+                    # Database-specific upsert operation
+                    if self._config.db_type == "postgresql":
+                        stmt = stmt.on_conflict_do_update(
+                            index_elements=["tenant_id", "id"],
+                            set_=dict(
+                                name=stmt.excluded.name,
+                                num_day=stmt.excluded.num_day,
+                                status=stmt.excluded.status,
+                                cur_day=stmt.excluded.cur_day,
+                                cur_t=stmt.excluded.cur_t,
+                                config=stmt.excluded.config,
+                                error=stmt.excluded.error,
+                                input_tokens=stmt.excluded.input_tokens,
+                                output_tokens=stmt.excluded.output_tokens,
+                                updated_at=stmt.excluded.updated_at,
+                            ),
                         )
-                    )
-                
-                await session.execute(stmt)
-                await session.commit()
-                
-                get_logger().debug(f"Updated experiment info for {self.exp_id} in {self._config.db_type}")
-                
-            except Exception as e:
-                await session.rollback()
-                get_logger().error(f"Error updating experiment info in {self._config.db_type}: {e}")
-                raise
+                    elif self._config.db_type == "sqlite":
+                        stmt = stmt.on_conflict_do_update(
+                            index_elements=["tenant_id", "id"],
+                            set_=dict(
+                                name=stmt.excluded.name,
+                                num_day=stmt.excluded.num_day,
+                                status=stmt.excluded.status,
+                                cur_day=stmt.excluded.cur_day,
+                                cur_t=stmt.excluded.cur_t,
+                                config=stmt.excluded.config,
+                                error=stmt.excluded.error,
+                                input_tokens=stmt.excluded.input_tokens,
+                                output_tokens=stmt.excluded.output_tokens,
+                                updated_at=stmt.excluded.updated_at,
+                            )
+                        )
+
+                    await session.execute(stmt)
+                    await session.commit()
+                    get_logger().debug(f"Updated experiment info for {self.exp_id} in {self._config.db_type}")
+                    return
+                except Exception as e:
+                    await session.rollback()
+                    if not recovered and self._is_sqlite_corruption_error(e, self._config):
+                        get_logger().warning("SQLite corruption detected; recovering and retrying write...")
+                        await self._recover_sqlite_db()
+                        recovered = True
+                        continue
+                    get_logger().error(f"Error updating experiment info in {self._config.db_type}: {e}")
+                    if recovered:
+                        get_logger().warning("Write still failed after recovery. Data lost for this batch.")
+                        return
+                    raise
 
     @lock_decorator
     async def fetch_pending_dialogs(self):
