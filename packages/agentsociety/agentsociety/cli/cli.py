@@ -178,8 +178,9 @@ def check(config: str, config_base64: str, type: str):
         from sqlalchemy.exc import OperationalError
 
         try:
-            # Get the DSN for the database
-            sqlite_path = Path(c.env.home_dir) / "sqlite.db"
+            # Get the DSN for the database (use a fixed check path for SQLite;
+            # actual simulation databases are in sqlite/<exp_id>.db)
+            sqlite_path = Path(c.env.home_dir) / "sqlite" / "check.db"
             dsn = c.env.db.get_dsn(sqlite_path)
 
             # Convert async DSN to sync DSN for testing

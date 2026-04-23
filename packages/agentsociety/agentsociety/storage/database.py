@@ -203,13 +203,13 @@ class DatabaseWriter:
             - `tenant_id` (str): Tenant ID.
             - `exp_id` (str): Experiment ID.
             - `config` (DatabaseConfig): Database configuration.
-            - `home_dir` (str): Home directory. sqlite will be stored in home_dir/sqlite.db
+            - `home_dir` (str): Home directory. sqlite will be stored in home_dir/sqlite/<exp_id>.db
         """
         self.tenant_id = tenant_id
         self.exp_id = exp_id
         self._config = config
         self._lock = asyncio.Lock()
-        self._sqlite_path = Path(home_dir) / "sqlite.db"
+        self._sqlite_path = Path(home_dir) / "sqlite" / f"{exp_id}.db"
         self._engine = _create_async_engine_from_config(config, sqlite_path=self._sqlite_path)
         self._async_session = async_sessionmaker(self._engine, expire_on_commit=False)
         

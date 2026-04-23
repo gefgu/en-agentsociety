@@ -48,8 +48,8 @@ async def run_test(tmp_dir: Path) -> None:
     )
     await writer.init()
 
-    sqlite_path = tmp_dir / "sqlite.db"
-    assert sqlite_path.exists(), "sqlite.db not created by init()"
+    sqlite_path = tmp_dir / "sqlite" / f"{exp_id}.db"
+    assert sqlite_path.exists(), f"{sqlite_path.name} not created by init()"
 
     # Write some rows successfully.
     await writer.write_dialogs([_make_dialog(1, i) for i in range(5)])
@@ -60,19 +60,20 @@ async def run_test(tmp_dir: Path) -> None:
     # Flush the connection pool so the next write opens a fresh connection to the
     # corrupt file rather than reusing the existing (still-valid) pooled connection.
     await writer._engine.dispose()
-    logging.info("Corrupted sqlite.db and cleared connection pool.")
+    logging.info(f"Corrupted {sqlite_path.name} and cleared connection pool.")
 
     # This write should trigger detection, recovery, and retry — no exception.
     await writer.write_dialogs([_make_dialog(2, i) for i in range(5)])
     logging.info("Post-corruption write completed without exception.")
 
-    # A backup of the corrupt file should exist.
-    backups = list(tmp_dir.glob("sqlite.db.corrupt.*"))
-    assert backups, "Expected a .corrupt.* backup file but none found."
+    # A backup of the corrupt file should exist in the same directory.
+    sqlite_dir = tmp_dir / "sqlite"
+    backups = list(sqlite_dir.glob(f"{exp_id}.db.corrupt.*"))
+    assert backups, f"Expected a .corrupt.* backup file in {sqlite_dir} but none found."
     logging.info(f"Corrupt file backed up as: {backups[0].name}")
 
-    # The new sqlite.db should exist and be a valid database.
-    assert sqlite_path.exists(), "sqlite.db was not recreated after recovery."
+    # The database file should be recreated at the same path after recovery.
+    assert sqlite_path.exists(), f"{sqlite_path.name} was not recreated after recovery."
 
     # Subsequent writes must also succeed.
     await writer.write_dialogs([_make_dialog(3, i) for i in range(3)])
