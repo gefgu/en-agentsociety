@@ -1,0 +1,124 @@
+[metadata]
+name = "month_plan_mental_health_assessment"
+version = "1.0.0"
+origin = "citysim"
+description = "Monthly mental health assessment prompt conditioned on economic context"
+
+[inputs]
+
+[inputs.name]
+type = "text"
+description = "Name input value used by this prompt."
+
+[inputs.age]
+type = "integer"
+description = "Age input value used by this prompt."
+
+[inputs.city]
+type = "text"
+description = "City input value used by this prompt."
+
+[inputs.job]
+type = "text"
+description = "Job input value used by this prompt."
+
+[inputs.skill]
+type = "text"
+description = "Skill input value used by this prompt."
+
+[inputs.consumption_summary]
+type = "text"
+description = "Consumption summary input value used by this prompt."
+
+[inputs.tax_summary]
+type = "text"
+description = "Tax summary input value used by this prompt."
+
+[inputs.price]
+type = "text"
+description = "Price input value used by this prompt."
+
+[inputs.openness]
+type = "integer"
+description = "Big Five trait: Openness (1=Low, 2=Medium, 3=High)."
+
+[inputs.conscientiousness]
+type = "integer"
+description = "Big Five trait: Conscientiousness (1=Low, 2=Medium, 3=High)."
+
+[inputs.extraversion]
+type = "integer"
+description = "Big Five trait: Extraversion (1=Low, 2=Medium, 3=High)."
+
+[inputs.agreeableness]
+type = "integer"
+description = "Big Five trait: Agreeableness (1=Low, 2=Medium, 3=High)."
+
+[inputs.neuroticism]
+type = "integer"
+description = "Big Five trait: Neuroticism (1=Low, 2=Medium, 3=High)."
+
+[inputs.household]
+type = "text"
+description = "Household input value used by this prompt."
+
+[inputs.life_stage]
+type = "text"
+description = "Life stage input value used by this prompt."
+
+[inputs.wealth]
+type = "text"
+description = "Wealth input value used by this prompt."
+
+[inputs.interest_rate_pct]
+type = "float"
+description = "Current interest rate percentage context."
+
+[prompt]
+input = """You're {name}, a {age}-year-old individual living in {city}. As with all Americans, a portion of your monthly income is taxed by the federal government. This taxation system is tiered, income is taxed cumulatively within defined brackets, combined with a redistributive policy: after collection, the government evenly redistributes the tax revenue back to all citizens, irrespective of their earnings.
+
+In the previous month, you worked as a(an) {job}. If you continue working this month, your expected hourly income will be ${skill}.
+
+{consumption_summary}
+{tax_summary}
+Meanwhile, in the consumption market, the average price of essential goods is now at ${price}.
+
+Your personality traits are as follows: openness {openness}, conscientiousness {conscientiousness}, extraversion {extraversion}, agreeableness {agreeableness}, and neuroticism {neuroticism}. Your household type is {household} and your life stage is {life_stage}.
+
+Your current savings account balance is ${wealth}. Interest rates, as set by your bank, stand at {interest_rate_pct}%.
+
+Please fill in the following questionnaire:
+Indicate how often you have felt this way during the last week by choosing one of the following options:
+"Rarely" means Rarely or none of the time (less than 1 day),
+"Some" means Some or a little of the time (1-2 days),
+"Occasionally" means Occasionally or a moderate amount of the time (3-4 days),
+"Most" means Most or all of the time (5-7 days).
+Statement 1: I was bothered by things that usually don't bother me.
+Statement 2: I did not feel like eating; my appetite was poor.
+Statement 3: I felt that I could not shake off the blues even with help from my family or friends.
+Statement 4: I felt that I was just as good as other people.
+Statement 5: I had trouble keeping my mind on what I was doing.
+Statement 6: I felt depressed.
+Statement 7: I felt that everything I did was an effort.
+Statement 8: I felt hopeful about the future.
+Statement 9: I thought my life had been a failure.
+Statement 10: I felt fearful.
+Statement 11: My sleep was restless.
+Statement 12: I was happy.
+Statement 13: I talked less than usual.
+Statement 14: I felt lonely.
+Statement 15: People were unfriendly.
+Statement 16: I enjoyed life.
+Statement 17: I had crying spells.
+Statement 18: I felt sad.
+Statement 19: I felt that people disliked me.
+Statement 20: I could not get "going".
+
+Please response with json format with keys being numbers 1-20 and values being one of "Rarely", "Some", "Occasionally", "Most".
+Any other output words are NOT allowed.
+"""
+output_guidance = "Return JSON only, without any extra text."
+
+[outputs.assessment]
+type = "text"
+description = "Mental-health assessment response object as JSON."

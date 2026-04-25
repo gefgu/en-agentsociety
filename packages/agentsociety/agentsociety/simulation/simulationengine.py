@@ -16,6 +16,7 @@ from ..performance.prometheusActor import PrometheusActor
 from ..agent import CustomTool
 from fastembed import SparseTextEmbedding
 
+from ..agent.block import Block
 from ..agent import (
     Agent,
     AgentToolbox,
@@ -228,6 +229,9 @@ class SimulationEngine:
             assert self._environment is not None, "Environment is not initialized"
             assert self._messager is not None, "Messager is not initialized"
             assert self._embedding is not None, "Embedding is not initialized"
+
+            # Set simulation mode for prompt routing before any Block is constructed
+            Block.set_simulation_mode(self._config.simulation_mode)
 
             # Initialize agent manager and prepare agent list before loading resume state
             # so we can pass expected_agent_ids to the snapshot completeness check.

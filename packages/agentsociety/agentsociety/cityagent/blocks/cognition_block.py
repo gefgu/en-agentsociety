@@ -248,12 +248,12 @@ class CognitionBlock(Block):
             - attitude_update()
         Only executes when cross_day() detects a new day.
         """
-        # cognition update: thought and attitude
         if await self.cross_day():
             await self.thought_update()
             await self.attitude_update()
-            await self.memory.spatial.decay_beliefs()
-            await self.agent.daily_schedule_block.forward()
+            if self.agent.params.simulation_mode == "citysim":
+                await self.memory.spatial.decay_beliefs()
+                await self.agent.daily_schedule_block.forward()
 
     async def emotion_update(self, incident):
         """Update emotion intensities based on a specific incident.

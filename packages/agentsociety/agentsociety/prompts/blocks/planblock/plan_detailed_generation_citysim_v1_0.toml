@@ -1,0 +1,180 @@
+[metadata]
+name = "plan_detailed_generation"
+version = "1.0.0"
+origin = "citysim"
+description = "Generate detailed executable plan steps from selected guidance"
+
+[inputs]
+
+[inputs.weather]
+type = "text"
+description = "Weather input value used by this prompt."
+
+[inputs.temperature]
+type = "float"
+description = "Current temperature context value."
+
+[inputs.other_information]
+type = "text"
+description = "Other information input value used by this prompt."
+
+[inputs.plan_target]
+type = "text"
+description = "Plan target input value used by this prompt."
+
+[inputs.current_position]
+type = "text"
+description = "Current position input value used by this prompt."
+
+[inputs.current_time]
+type = "text"
+description = "Current simulation time (HH:MM)."
+
+[inputs.consumption_level]
+type = "text"
+description = "Consumption level input value used by this prompt."
+
+[inputs.occupation]
+type = "text"
+description = "Occupation input value used by this prompt."
+
+[inputs.age]
+type = "integer"
+description = "Age input value used by this prompt."
+
+[inputs.emotion_types]
+type = "text"
+description = "Emotion types input value used by this prompt."
+
+[inputs.current_thought]
+type = "text"
+description = "Current thought input value used by this prompt."
+
+[inputs.household]
+type = "text"
+description = "Household input value used by this prompt."
+
+[inputs.life_stage]
+type = "text"
+description = "Life stage input value used by this prompt."
+
+[inputs.hobbies]
+type = "text"
+description = "Hobbies input value used by this prompt."
+
+[inputs.goals]
+type = "text"
+description = "Goals input value used by this prompt."
+
+[inputs.openness]
+type = "integer"
+description = "Big Five trait: Openness (1=Low, 2=Medium, 3=High)."
+
+[inputs.conscientiousness]
+type = "integer"
+description = "Big Five trait: Conscientiousness (1=Low, 2=Medium, 3=High)."
+
+[inputs.extraversion]
+type = "integer"
+description = "Big Five trait: Extraversion (1=Low, 2=Medium, 3=High)."
+
+[inputs.agreeableness]
+type = "integer"
+description = "Big Five trait: Agreeableness (1=Low, 2=Medium, 3=High)."
+
+[inputs.neuroticism]
+type = "integer"
+description = "Big Five trait: Neuroticism (1=Low, 2=Medium, 3=High)."
+
+[inputs.chronotype]
+type = "text"
+description = "Chronotype input value used by this prompt."
+
+[inputs.work_ethic]
+type = "float"
+description = "Work-priority preference (0.0=Low work priority, 1.0=High work priority)."
+
+[inputs.social_frequency]
+type = "float"
+description = "Frequency of seeking social interaction (0.0 to 1.0)."
+
+[inputs.leisure_preference]
+type = "text"
+description = "Leisure preference input value used by this prompt."
+
+[inputs.max_plan_steps]
+type = "integer"
+description = "Maximum number of actionable steps allowed in the generated plan."
+
+[prompt]
+input = """As an intelligent agent's plan system, please help me generate specific execution steps based on the selected guidance plan.
+The Environment will influence the choice of steps.
+
+Current weather: {weather}
+Current temperature: {temperature}
+Other information:
+-------------------------
+{other_information}
+-------------------------
+
+Plan target: {plan_target}
+Current location: {current_position}
+Current time: {current_time}
+My income/consumption level: {consumption_level}
+My occupation: {occupation}
+My age: {age}
+My emotion: {emotion_types}
+My thought: {current_thought}
+Household type: {household}
+Life stage: {life_stage}
+Hobbies: {hobbies}
+Goals: {goals}
+
+Big Five Personality Traits (1=Low, 2=Medium, 3=High):
+- Openness: {openness}
+- Conscientiousness: {conscientiousness}
+- Extraversion: {extraversion}
+- Agreeableness: {agreeableness}
+- Neuroticism: {neuroticism}
+
+Behavioral Preferences:
+- Chronotype: {chronotype} (early_bird/standard/night_owl - affects timing preferences)
+- Work Ethic: {work_ethic} (0.0=Low work priority, 1.0=High work priority/workaholic)
+- Social Frequency: {social_frequency} (0.0=Prefers solitude, 1.0=Seeks frequent social interaction)
+- Leisure Preference: {leisure_preference} (outdoor/indoor/social/solitary)
+
+Notes:
+1. type can only be one of these four: mobility, social, economy, other
+   1.1 mobility: Decisions or behaviors related to large-scale spatial movement, such as location selection, going to a place, etc.
+   1.2 social: Decisions or behaviors related to social interaction, such as finding contacts, chatting with friends, etc.
+   1.3 economy: Decisions or behaviors related to shopping, work, etc.
+   1.4 other: Other types of decisions or behaviors, such as small-scale activities, learning, resting, entertainment, etc.
+2. steps should only include steps necessary to fulfill the target (limited to {max_plan_steps} steps)
+3. intention in each step should be concise and clear
+
+Please response in json format (Do not return any other text), example:
+{{
+    "plan": {{
+        "target": "Eat at home",
+        "steps": [
+            {{
+                "intention": "Return home from current location",
+                "type": "mobility"
+            }},
+            {{
+                "intention": "Cook food",
+                "type": "other"
+            }},
+            {{
+                "intention": "Have meal",
+                "type": "other"
+            }}
+        ]
+    }}
+}}
+"""
+output_guidance = "Return JSON only, without any extra text."
+
+[outputs.plan]
+type = "text"
+description = "JSON plan object containing target and executable steps."

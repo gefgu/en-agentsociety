@@ -1,0 +1,95 @@
+[metadata]
+name = "mobility_radius_selection"
+version = "1.0.0"
+origin = "citysim"
+description = "Determine mobility travel radius from current state"
+
+[inputs]
+
+[inputs.weather]
+type = "text"
+description = "Weather input value used by this prompt."
+
+[inputs.temperature]
+type = "float"
+description = "Current temperature context value."
+
+[inputs.current_emotion]
+type = "text"
+description = "Current emotion input value used by this prompt."
+
+[inputs.current_thought]
+type = "text"
+description = "Current thought input value used by this prompt."
+
+[inputs.household]
+type = "text"
+description = "Household input value used by this prompt."
+
+[inputs.life_stage]
+type = "text"
+description = "Life stage input value used by this prompt."
+
+[inputs.hobbies]
+type = "text"
+description = "Hobbies input value used by this prompt."
+
+[inputs.openness]
+type = "integer"
+description = "Big Five trait: Openness (1=Low, 2=Medium, 3=High)."
+
+[inputs.conscientiousness]
+type = "integer"
+description = "Big Five trait: Conscientiousness (1=Low, 2=Medium, 3=High)."
+
+[inputs.extraversion]
+type = "integer"
+description = "Big Five trait: Extraversion (1=Low, 2=Medium, 3=High)."
+
+[inputs.agreeableness]
+type = "integer"
+description = "Big Five trait: Agreeableness (1=Low, 2=Medium, 3=High)."
+
+[inputs.neuroticism]
+type = "integer"
+description = "Big Five trait: Neuroticism (1=Low, 2=Medium, 3=High)."
+
+[inputs.risk_tolerance]
+type = "float"
+description = "Risk tolerance for uncertain or unfamiliar options (0.0 to 1.0)."
+
+[inputs.other_information]
+type = "text"
+description = "Other information input value used by this prompt."
+
+[prompt]
+input = """As an intelligent decision system, please determine the maximum travel radius (in meters) based on the current emotional state.
+
+Current weather: {weather}
+Current temperature: {temperature}
+Your current emotion: {current_emotion}
+Your current thought: {current_thought}
+Household type: {household}
+Life stage: {life_stage}
+Hobbies: {hobbies}
+Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
+openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
+Your behavioral preferences:
+- Risk Tolerance: {risk_tolerance} (0.0=Risk-averse/prefers nearby, 1.0=Risk-seeking/willing to travel far)
+Other information:
+-------------------------
+{other_information}
+-------------------------
+
+Please analyze how these emotions and preferences would affect travel willingness and return only a single integer number between 3000-200000 representing the maximum travel radius in meters. A more positive emotional state and higher risk tolerance generally lead to greater willingness to travel further.
+
+Please response in json format (Do not return any other text), example:
+{{
+    "radius": 10000
+}}
+"""
+output_guidance = "Return JSON only, without any extra text."
+
+[outputs.radius]
+type = "integer"
+description = "Selected mobility search radius in meters."

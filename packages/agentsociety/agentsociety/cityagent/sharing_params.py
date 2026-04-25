@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import Field
 from ..agent import (
@@ -18,6 +18,11 @@ class SocietyAgentConfig(AgentParams):
 
     enable_cognition: bool = Field(
         default=True, description="Whether to enable cognition"
+    )
+
+    simulation_mode: Literal["agentsociety", "citysim"] = Field(
+        default="citysim",
+        description="Simulation mode: 'agentsociety' for upstream-compatible behavior, 'citysim' for extended CitySim features",
     )
 
     # Planned-Behavior

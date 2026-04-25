@@ -76,6 +76,9 @@ class DatabaseActor:
     def set_simulation_step(self, step: int):
         self._db.set_simulation_step(step)
 
+    def _current_simulation_step(self) -> int:
+        return getattr(self._db, "simulation_step", -1)
+
     def insert_adjust_needs_record(self, record: AdjustNeedsRecord) -> None:
         self._db.insert_record("NeedsBlock_adjust_needs", record)
 
@@ -99,7 +102,7 @@ class DatabaseActor:
 
         record: PromptResponseRecord = {
             "exp_id": "",
-            "simulation_step": -1,
+            "simulation_step": self._current_simulation_step(),
             "timestamp": timestamp,
             "agent_id": agent_id,
             "prompt": prompt_text,
@@ -117,7 +120,7 @@ class DatabaseActor:
     ):
         record: AgentLocationTypeRecord = {
             "exp_id": "",
-            "simulation_step": -1,
+            "simulation_step": self._current_simulation_step(),
             "timestamp": timestamp,
             "agent_id": agent_id,
             "location_type": location_type,
@@ -132,7 +135,7 @@ class DatabaseActor:
     ):
         record: AgentTransportTypeRecord = {
             "exp_id": "",
-            "simulation_step": -1,
+            "simulation_step": self._current_simulation_step(),
             "timestamp": timestamp,
             "agent_id": agent_id,
             "transport_type": transport_type,
@@ -152,7 +155,7 @@ class DatabaseActor:
         record: StepAgentStatusRecord = {
             "exp_id": "",
             "agent_id": agent_id,
-            "simulation_step": -1,
+            "simulation_step": self._current_simulation_step(),
             "timestamp": timestamp,
             "lat": lat,
             "lng": lng,
@@ -184,7 +187,7 @@ class DatabaseActor:
         record: BlockDispatcherRecord = {
             "exp_id": "",
             "agent_id": agent_id,
-            "simulation_step": -1,
+            "simulation_step": self._current_simulation_step(),
             "timestamp": timestamp,
             "target_block": target_block,
             "reason": reason,

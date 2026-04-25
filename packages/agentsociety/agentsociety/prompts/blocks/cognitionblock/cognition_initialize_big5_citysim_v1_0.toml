@@ -1,7 +1,7 @@
 [metadata]
 name = "cognition_initialize_big5"
 version = "1.0.0"
-origin = "agentsociety"
+origin = "citysim"
 description = "Initialize Big Five psychographic traits from profile"
 
 [inputs]

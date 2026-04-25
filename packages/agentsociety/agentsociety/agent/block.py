@@ -44,6 +44,7 @@ class Block:
     description: str = ""
     actions: dict[str, str] = {}
     _shared_prompt_manager: Optional[PromptManager] = None
+    _simulation_mode: str = "citysim"
     prompt_manager: Optional[PromptManager] = None
 
     def __init__(
@@ -186,17 +187,25 @@ class Block:
         }
     
     @classmethod
+    def set_simulation_mode(cls, mode: str) -> None:
+        """Set the simulation mode and reset PromptManager so it reinitializes with the correct origin."""
+        Block._simulation_mode = mode
+        Block._shared_prompt_manager = None
+
+    @classmethod
     def _get_or_create_prompt_manager(cls, simulation_prompt_config: Optional[dict]) -> Optional[PromptManager]:
-        # Keep one shared PromptManager for all Block subclasses.
         if Block._shared_prompt_manager is not None:
             cls._shared_prompt_manager = Block._shared_prompt_manager
             return cls._shared_prompt_manager
 
         try:
             prompts_dir = str(Path(__file__).resolve().parents[1] / "prompts")
+            active_config = simulation_prompt_config
+            if active_config is None:
+                active_config = cls._build_origin_config(prompts_dir, Block._simulation_mode)
             manager = PromptManager(
                 prompts_dir=prompts_dir,
-                active_config=simulation_prompt_config or {},
+                active_config=active_config,
             )
             Block._shared_prompt_manager = manager
             cls._shared_prompt_manager = manager
@@ -207,6 +216,47 @@ class Block:
             Block._shared_prompt_manager = None
             cls._shared_prompt_manager = None
         return cls._shared_prompt_manager
+
+    @staticmethod
+    def _build_origin_config(prompts_dir: str, mode: str) -> dict:
+        """Scan all TOMLs and build active_config that selects the correct origin for each prompt name."""
+        import os
+        try:
+            import tomllib
+        except ModuleNotFoundError:
+            import tomli as tomllib  # type: ignore
+
+        from ..prompts.prompt_manager import parse_version
+
+        candidates: dict[str, list[dict]] = {}
+        for root, _, files in os.walk(prompts_dir):
+            for f in files:
+                if not f.endswith(".toml"):
+                    continue
+                filepath = os.path.join(root, f)
+                try:
+                    with open(filepath, "rb") as fh:
+                        data = tomllib.load(fh)
+                    name = data.get("metadata", {}).get("name")
+                    origin = data.get("metadata", {}).get("origin", "unknown")
+                    version = data.get("metadata", {}).get("version", "0.0.0")
+                    if name:
+                        candidates.setdefault(name, []).append({
+                            "name": name, "origin": origin, "version": version,
+                        })
+                except Exception:
+                    pass
+
+        config: dict[str, dict[str, str]] = {}
+        for name, entries in candidates.items():
+            exact = [e for e in entries if e["origin"] == mode]
+            if exact:
+                best = max(exact, key=lambda e: parse_version(e["version"]))
+                config[name] = {"origin": mode, "version": best["version"]}
+            else:
+                best = max(entries, key=lambda e: parse_version(e["version"]))
+                config[name] = {"origin": best["origin"], "version": best["version"]}
+        return config
 
     async def before_forward(self):
         """

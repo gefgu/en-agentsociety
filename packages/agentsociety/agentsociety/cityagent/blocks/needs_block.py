@@ -269,7 +269,8 @@ class NeedsBlock(Block):
         if current_plan and (
             current_plan.get("completed") or current_plan.get("failed")
         ):
-            await self.update_poi_beliefs_from_plan(current_plan)
+            if self.agent.params.simulation_mode == "citysim":
+                await self.update_poi_beliefs_from_plan(current_plan)
 
             # Evaluate the execution process of the plan and adjust needs
             pre_need = await self.memory.status.get("current_need")

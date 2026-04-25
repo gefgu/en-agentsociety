@@ -1,4 +1,4 @@
-from typing import Any, Awaitable, Callable, List, Optional, Union
+from typing import Any, Awaitable, Callable, List, Literal, Optional, Union
 import uuid
 
 from pydantic import BaseModel, Field, field_serializer
@@ -82,6 +82,9 @@ class Config(BaseModel):
 
     exp: ExpConfig
     """Experiment configuration"""
+
+    simulation_mode: Literal["agentsociety", "citysim"] = Field("citysim")
+    """Simulation mode: 'agentsociety' for upstream-compatible behavior, 'citysim' for extended CitySim features"""
 
     logging_level: str = Field("INFO")
     """Logging level"""

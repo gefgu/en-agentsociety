@@ -43,8 +43,11 @@ class MoveBlock(Block):
         context["to_place"] = target_place_id
         context["destination_type"] = destination_type
         context["is_poi"] = is_poi
-        transport_result = await self.transport_mode_block.forward(context)
-        selected_mode = transport_result.get("transport_mode", "car")
+        if self.agent.params.simulation_mode == "citysim":
+            transport_result = await self.transport_mode_block.forward(context)
+            selected_mode = transport_result.get("transport_mode", "car")
+        else:
+            selected_mode = "car"
 
         node_id = await self.memory.stream.add(
             topic="mobility",

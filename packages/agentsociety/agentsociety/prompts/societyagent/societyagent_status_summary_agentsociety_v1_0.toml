@@ -1,0 +1,124 @@
+[metadata]
+name = "societyagent_status_summary"
+version = "1.0.0"
+origin = "agentsociety"
+description = "Generate a concise first-person summary of current agent status"
+
+[inputs]
+
+[inputs.name]
+type = "text"
+description = "Name input value used by this prompt."
+
+[inputs.age]
+type = "integer"
+description = "Age input value used by this prompt."
+
+[inputs.gender]
+type = "text"
+description = "Gender input value used by this prompt."
+
+[inputs.occupation]
+type = "text"
+description = "Occupation input value used by this prompt."
+
+[inputs.education]
+type = "text"
+description = "Education input value used by this prompt."
+
+[inputs.personality]
+type = "text"
+description = "Personality input value used by this prompt."
+
+[inputs.background_story]
+type = "text"
+description = "Background story input value used by this prompt."
+
+[inputs.household]
+type = "text"
+description = "Household input value used by this prompt."
+[inputs.current_time]
+type = "text"
+description = "Current simulation time (HH:MM)."
+
+[inputs.weather]
+type = "text"
+description = "Weather input value used by this prompt."
+
+[inputs.temperature]
+type = "float"
+description = "Current temperature context value."
+
+[inputs.current_location]
+type = "text"
+description = "Current location input value used by this prompt."
+
+[inputs.other_information]
+type = "text"
+description = "Other information input value used by this prompt."
+
+[inputs.current_need]
+type = "text"
+description = "Current need input value used by this prompt."
+
+[inputs.current_plan_target]
+type = "text"
+description = "Current plan target input value used by this prompt."
+
+[inputs.current_intention]
+type = "text"
+description = "Current intention input value used by this prompt."
+
+[inputs.current_emotion]
+type = "text"
+description = "Current emotion input value used by this prompt."
+
+[inputs.current_thought]
+type = "text"
+description = "Current thought input value used by this prompt."
+
+[prompt]
+input = """Based on the following information, provide a concise 1-2 sentence description of the agent's current status:
+
+Agent Profile:
+- Name: {name}
+- Age: {age}
+- Gender: {gender}
+- Occupation: {occupation}
+- Education: {education}
+- Personality: {personality}
+- Background: {background_story}
+- Household type: {household}
+- 
+  - Openness: {openness}
+  - Conscientiousness: {conscientiousness}
+  - Extraversion: {extraversion}
+  - Agreeableness: {agreeableness}
+  - Neuroticism: {neuroticism}
+
+Current Environment:
+- Time: {current_time}
+- Weather: {weather}
+- Temperature: {temperature}
+- Location: {current_location}
+- Other Information: {other_information}
+
+Current Status:
+- Current Need: {current_need}
+- Plan Target: {current_plan_target}
+- Current Intention: {current_intention}
+- Emotion: {current_emotion}
+- Thought: {current_thought}
+
+"""
+output_guidance = """
+Please provide a natural, human-like description of what the agent is currently doing and feeling, considering their personality, current situation, and environment. Focus on the most relevant aspects that define their current state.
+
+Response format: 1-2 sentences describing the agent's current status from a first-person perspective.
+
+Example:
+I am working at the office, the work is not too busy, but I am a bit tired."""
+
+[outputs.summary]
+type = "text"
+description = "Generated agent status summary text."

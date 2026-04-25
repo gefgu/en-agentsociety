@@ -399,8 +399,7 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         start_time = time.time()
         self.step_count += 1
 
-        if self.step_count == 0:
-            # initalize big5 
+        if self.step_count == 0 and self.params.simulation_mode == "citysim":
             await self.cognition_block.initialize_big5()
             await self.cognition_block.initialize_hobbies()
             await self.cognition_block.initialize_preferences()

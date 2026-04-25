@@ -25,31 +25,6 @@ description = "Thought input value used by this prompt."
 [inputs.household]
 type = "text"
 description = "Household input value used by this prompt."
-
-[inputs.life_stage]
-type = "text"
-description = "Life stage input value used by this prompt."
-
-[inputs.openness]
-type = "integer"
-description = "Big Five trait: Openness (1=Low, 2=Medium, 3=High)."
-
-[inputs.conscientiousness]
-type = "integer"
-description = "Big Five trait: Conscientiousness (1=Low, 2=Medium, 3=High)."
-
-[inputs.extraversion]
-type = "integer"
-description = "Big Five trait: Extraversion (1=Low, 2=Medium, 3=High)."
-
-[inputs.agreeableness]
-type = "integer"
-description = "Big Five trait: Agreeableness (1=Low, 2=Medium, 3=High)."
-
-[inputs.neuroticism]
-type = "integer"
-description = "Big Five trait: Neuroticism (1=Low, 2=Medium, 3=High)."
-
 [inputs.visit_history]
 type = "text"
 description = "Visit history input value used by this prompt."
@@ -67,7 +42,6 @@ Agent State:
 - Current Emotion: {emotion}
 - Current Thought: {thought}
 - Household: {household}
-- Life Stage: {life_stage}
 Your Big Five personality traits are: (1=Low, 2=Medium, 3=High)
 openness: {openness}, conscientiousness: {conscientiousness}, extraversion: {extraversion}, agreeableness: {agreeableness}, neuroticism: {neuroticism}.
 

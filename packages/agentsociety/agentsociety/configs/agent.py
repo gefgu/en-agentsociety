@@ -94,8 +94,9 @@ class AgentConfig(BaseModel):
     def serialize_memory_config_func(self, memory_config_func, info):
         if memory_config_func is None:
             return None
-        else:
-            return memory_config_func.__name__
+        # functools.partial wraps a function — use the wrapped function's name
+        func = getattr(memory_config_func, "func", memory_config_func)
+        return getattr(func, "__name__", repr(memory_config_func))
 
     @field_serializer("memory_distributions")
     def serialize_memory_distributions(self, memory_distributions, info):

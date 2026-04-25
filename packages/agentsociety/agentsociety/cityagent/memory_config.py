@@ -120,6 +120,7 @@ def get_life_stage_based_on_age(age: int) -> str:
 def memory_config_societyagent(
     distributions: dict[str, Distribution],
     class_config: Optional[list[MemoryAttribute]] = None,
+    simulation_mode: str = "citysim",
 ) -> MemoryConfig:
     """Generate memory configuration for society agents."""
 
@@ -651,6 +652,11 @@ def memory_config_societyagent(
 
     # Merge all attributes
     all_attributes = {**static_attributes, **dynamic_attributes, **event_attributes}
+
+    # Remove CitySim-only fields in agentsociety mode
+    if simulation_mode == "agentsociety":
+        for field in ("big5", "hobbies", "preferences", "life_stage", "goals"):
+            all_attributes.pop(field, None)
 
     # Add class-specific attributes if provided
     if class_config:

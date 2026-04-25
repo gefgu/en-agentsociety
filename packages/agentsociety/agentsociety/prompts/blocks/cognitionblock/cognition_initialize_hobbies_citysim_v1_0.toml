@@ -1,7 +1,7 @@
 [metadata]
 name = "cognition_initialize_hobbies"
 version = "1.0.0"
-origin = "agentsociety"
+origin = "citysim"
 description = "Initialize hobbies from profile and psychographic traits"
 
 [inputs]

@@ -1,4 +1,5 @@
 import copy
+from functools import partial
 from typing import Union, cast
 
 from ..configs.social_network import initialize_social_network_by_similarity
@@ -57,7 +58,7 @@ BLOCK_MAPPING = {
 
 
 def _fill_in_agent_class_and_memory_config(
-    self: AgentConfig, env_config: Config
+    self: AgentConfig, env_config: Config, simulation_mode: str = "citysim"
 ) -> AgentConfig:
     if isinstance(self.agent_class, str):
         if self.agent_class == "citizen":
@@ -69,8 +70,13 @@ def _fill_in_agent_class_and_memory_config(
                 self.agent_params = SocietyAgent.ParamsType.model_validate(
                     self.agent_params
                 )
+            else:
+                self.agent_params = SocietyAgent.ParamsType()
+            self.agent_params.simulation_mode = simulation_mode
             if self.memory_config_func is None:
-                self.memory_config_func = copy.deepcopy(memory_config_societyagent)
+                self.memory_config_func = partial(
+                    memory_config_societyagent, simulation_mode=simulation_mode
+                )
             distributions = cast(
                 dict[str, Union[Distribution, DistributionConfig]],
                 DEFAULT_DISTRIBUTIONS,
@@ -193,29 +199,30 @@ def default(config: Config) -> Config:
     # =====================
     # agent config
     # =====================
+    sim_mode = config.simulation_mode
     config.agents.citizens = [
-        _fill_in_agent_class_and_memory_config(agent_config, env_config=config.env)
+        _fill_in_agent_class_and_memory_config(agent_config, env_config=config.env, simulation_mode=sim_mode)
         for agent_config in config.agents.citizens
     ]
     config.agents.firms = [
-        _fill_in_agent_class_and_memory_config(agent_config, env_config=config.env)
+        _fill_in_agent_class_and_memory_config(agent_config, env_config=config.env, simulation_mode=sim_mode)
         for agent_config in config.agents.firms
     ]
     config.agents.governments = [
-        _fill_in_agent_class_and_memory_config(agent_config, env_config=config.env)
+        _fill_in_agent_class_and_memory_config(agent_config, env_config=config.env, simulation_mode=sim_mode)
         for agent_config in config.agents.governments
     ]
     config.agents.banks = [
-        _fill_in_agent_class_and_memory_config(agent_config, env_config=config.env)
+        _fill_in_agent_class_and_memory_config(agent_config, env_config=config.env, simulation_mode=sim_mode)
         for agent_config in config.agents.banks
     ]
     config.agents.nbs = [
-        _fill_in_agent_class_and_memory_config(agent_config, env_config=config.env)
+        _fill_in_agent_class_and_memory_config(agent_config, env_config=config.env, simulation_mode=sim_mode)
         for agent_config in config.agents.nbs
     ]
     if config.agents.supervisor is not None:
         config.agents.supervisor = _fill_in_agent_class_and_memory_config(
-            config.agents.supervisor, env_config=config.env
+            config.agents.supervisor, env_config=config.env, simulation_mode=sim_mode
         )
     # =====================
     # init functions

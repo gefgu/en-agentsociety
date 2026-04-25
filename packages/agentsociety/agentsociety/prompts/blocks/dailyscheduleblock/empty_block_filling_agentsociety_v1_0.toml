@@ -61,47 +61,6 @@ description = "Age input value used by this prompt."
 [inputs.household]
 type = "text"
 description = "Household input value used by this prompt."
-
-[inputs.life_stage]
-type = "text"
-description = "Life stage input value used by this prompt."
-
-[inputs.hobbies]
-type = "text"
-description = "Hobbies input value used by this prompt."
-
-[inputs.goals]
-type = "text"
-description = "Goals input value used by this prompt."
-
-[inputs.openness]
-type = "integer"
-description = "Big Five trait: Openness (1=Low, 2=Medium, 3=High)."
-
-[inputs.conscientiousness]
-type = "integer"
-description = "Big Five trait: Conscientiousness (1=Low, 2=Medium, 3=High)."
-
-[inputs.extraversion]
-type = "integer"
-description = "Big Five trait: Extraversion (1=Low, 2=Medium, 3=High)."
-
-[inputs.agreeableness]
-type = "integer"
-description = "Big Five trait: Agreeableness (1=Low, 2=Medium, 3=High)."
-
-[inputs.neuroticism]
-type = "integer"
-description = "Big Five trait: Neuroticism (1=Low, 2=Medium, 3=High)."
-
-[inputs.social_frequency]
-type = "float"
-description = "Frequency of seeking social interaction (0.0 to 1.0)."
-
-[inputs.leisure_preference]
-type = "text"
-description = "Leisure preference input value used by this prompt."
-
 [prompt]
 input = """You are an intelligent agent's value-driven activity planner. Fill this [EMPTY] time block with the best activity to satisfy your intrinsic desires.
 
@@ -126,20 +85,6 @@ Profile:
 - Occupation: {occupation}
 - Age: {age}
 - Household: {household}
-- Life stage: {life_stage}
-- Hobbies: {hobbies}
-- Goals: {goals}
-
-Big Five Personality Traits (1=Low, 2=Medium, 3=High):
-- Openness: {openness}
-- Conscientiousness: {conscientiousness}
-- Extraversion: {extraversion}
-- Agreeableness: {agreeableness}
-- Neuroticism: {neuroticism}
-
-Behavioral Preferences:
-- Social Frequency: {social_frequency}
-- Leisure Preference: {leisure_preference}
 
 Task:
 Generate and evaluate multiple candidate activities (2-4 options). Select the one that best satisfies your intrinsic desires according to Maslow's Hierarchy.
