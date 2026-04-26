@@ -1,6 +1,6 @@
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
-from ..prompts.prompt_manager import PromptManager
+from ..prompts.prompt_manager import PromptManager, PromptResult, ResponseMode
 from pydantic import BaseModel
 from ..logger import get_logger
 from ..environment import Environment
@@ -153,6 +153,46 @@ class Block:
     @property
     def environment(self) -> Environment:
         return self._toolbox.environment
+
+    async def execute_prompt(
+        self,
+        prompt_name: str,
+        context: dict[str, Any],
+        *,
+        func_name: str,
+        response_mode: ResponseMode = ResponseMode.JSON,
+        max_retries: int = 0,
+        validate: Optional[Callable[[Any], bool]] = None,
+        timeout: int = 300,
+        temperature: float = 1,
+        max_tokens: Optional[int] = None,
+        dialog_override: Optional[list[dict[str, str]]] = None,
+    ) -> PromptResult:
+        """Execute a prompt end-to-end via :meth:`PromptManager.execute_prompt`.
+
+        This is a convenience wrapper that fills in ``llm``, ``memory``,
+        ``block_name``, and ``agent_id`` from the block instance.
+        """
+        if self.prompt_manager is None:
+            raise RuntimeError("PromptManager is not initialized")
+        agent_ref = self._agent
+        agent_id = str(getattr(agent_ref, "id", getattr(self, "id", "unknown")))
+        return await self.prompt_manager.execute_prompt(
+            prompt_name=prompt_name,
+            llm=self.llm,
+            memory=self.memory,
+            context=context,
+            block_name=self.name,
+            func_name=func_name,
+            agent_id=agent_id,
+            response_mode=response_mode,
+            max_retries=max_retries,
+            validate=validate,
+            timeout=timeout,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            dialog_override=dialog_override,
+        )
 
     def build_llm_prompt_context(
         self,

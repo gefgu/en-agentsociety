@@ -1,7 +1,6 @@
 # Due to the current limitations of the simulator's support, only NoneBlock, MessageBlock, and FindPersonBlock are available in the Dispatcher.
 
 from typing import Any, Optional
-import json_repair
 
 from ...agent import (
     AgentToolbox,
@@ -9,11 +8,11 @@ from ...agent import (
     BlockParams,
     DotDict,
     BlockContext,
+    ResponseMode,
 )
 from ...logger import get_logger
 from ...memory import Memory
 from ...agent.dispatcher import BlockDispatcher
-from .utils import clean_json_response
 from ..sharing_params import SocietyAgentBlockOutput
 from pydantic import Field
 import numpy as np
@@ -43,50 +42,28 @@ class SocialNoneBlock(Block):
         """
         intention = str(context["current_step"].get("intention", "socialize"))
 
-        if self.prompt_manager is None:
-            raise RuntimeError("PromptManager is not initialized")
-
-        required_fields = self.prompt_manager.get_required_fields(
-            self.time_estimate_prompt_name
-        )
-        state_dict = await self.prompt_manager.build_agent_state(
-            required_fields=required_fields,
-            context={
+        result = await self.execute_prompt(
+            self.time_estimate_prompt_name,
+            {
                 "intention": intention,
                 "plan_context": context.get("plan_context", {}),
                 "current_step": context.get("current_step", {}),
             },
-            memory=self.memory,
+            func_name="forward",
         )
-        dialog = self.prompt_manager.format_prompt_to_dialog(
-            self.time_estimate_prompt_name, state_dict
-        )
-
-        result = await self.llm.atext_request(
-            dialog,
-            response_format={"type": "json_object"},
-            context=self.build_llm_prompt_context(
-                prompt_name=self.time_estimate_prompt_name,
-                state_dict=state_dict,
-                func_name="forward",
-            ),
-        )
-        result = clean_json_response(result)
-
-        try:
-            result: Any = json_repair.loads(result)
+        if result.success:
             node_id = await self.memory.stream.add(
                 topic="social", description=f"I want to: {intention}"
             )
             return {
                 "success": True,
                 "evaluation": f"Finished {intention}",
-                "consumed_time": result["time"],
+                "consumed_time": result.parsed.get("time", 5),
                 "node_id": node_id,
             }
-        except Exception as e:
+        else:
             get_logger().warning(
-                f"Error occurred while parsing the evaluation response: {e}, original result: {result}"
+                f"SocialNoneBlock LLM failed: {result.error}"
             )
             node_id = await self.memory.stream.add(
                 topic="social", description=f"I failed to execute {intention}"
@@ -272,36 +249,21 @@ class MessageBlock(Block):
             if not environment_info:
                 environment_info = "No environment information"
 
-            if self.prompt_manager is None:
-                raise RuntimeError("PromptManager is not initialized")
-
             message_context = await self._build_message_context(
                 context=context,
                 target=target,
                 environment_info=environment_info,
             )
-            required_fields = self.prompt_manager.get_required_fields(
-                self.message_prompt_name
-            )
-            state_dict = await self.prompt_manager.build_agent_state(
-                required_fields=required_fields,
-                context=message_context,
-                memory=self.memory,
-            )
-            dialog = self.prompt_manager.format_prompt_to_dialog(
-                self.message_prompt_name, state_dict
-            )
-
-            # Generate message
-            message = await self.llm.atext_request(
-                dialog,
+            msg_result = await self.execute_prompt(
+                self.message_prompt_name,
+                message_context,
+                func_name="forward",
+                response_mode=ResponseMode.PLAIN_TEXT,
                 timeout=300,
-                context=self.build_llm_prompt_context(
-                    prompt_name=self.message_prompt_name,
-                    state_dict=state_dict,
-                    func_name="forward",
-                ),
             )
+            if not msg_result.success:
+                raise RuntimeError(f"Message generation failed: {msg_result.error}")
+            message = msg_result.parsed
 
             # Update chat history with proper format
             chat_histories = await self.memory.status.get("chat_histories") or {}

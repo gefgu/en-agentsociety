@@ -3,13 +3,13 @@ import time
 
 from typing import Any, Optional
 
-import json_repair
-
 from ..agent import (
     AgentToolbox,
     Block,
     CitizenAgentBase,
     MemoryAttribute,
+    ResponseMode,
+    PromptResult,
 )
 from ..logger import get_logger
 from ..memory import Memory
@@ -194,6 +194,7 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
             agent_memory=self.memory,
             agent_context=self.context,
         )
+        self.needs_block.set_agent(self)
 
         self.plan_block = PlanBlock(
             agent=self,
@@ -249,21 +250,46 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
             "prompt_output_schema": self.prompt_manager.get_output_schema(prompt_name),
         }
 
-    async def status_summary(self):
-        """
-        Status summary
-        """
-        required_fields = self.prompt_manager.get_required_fields(
-            self.status_summary_prompt_name
+    async def _execute_prompt(
+        self,
+        prompt_name: str,
+        context: dict[str, Any],
+        *,
+        func_name: str,
+        response_mode: ResponseMode = ResponseMode.JSON,
+        max_retries: int = 0,
+        validate=None,
+        timeout: int = 300,
+        temperature: float = 1,
+        dialog_override=None,
+    ) -> PromptResult:
+        """Convenience wrapper around PromptManager.execute_prompt for SocietyAgent."""
+        return await self.prompt_manager.execute_prompt(
+            prompt_name=prompt_name,
+            llm=self.llm,
+            memory=self.memory,
+            context=context,
+            block_name="SocietyAgent",
+            func_name=func_name,
+            agent_id=str(self.id),
+            response_mode=response_mode,
+            max_retries=max_retries,
+            validate=validate,
+            timeout=timeout,
+            temperature=temperature,
+            dialog_override=dialog_override,
         )
+
+    async def status_summary(self):
+        """Status summary"""
         current_location = getattr(
             self.context,
             "current_location",
             getattr(self.context, "current_position", "Outside"),
         )
-        state_dict = await self.prompt_manager.build_agent_state(
-            required_fields=required_fields,
-            context={
+        result = await self._execute_prompt(
+            self.status_summary_prompt_name,
+            {
                 "current_time": self.context.current_time,
                 "weather": self.context.weather,
                 "temperature": self.context.temperature,
@@ -275,20 +301,10 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
                 "current_emotion": self.context.current_emotion,
                 "current_thought": self.context.current_thought,
             },
-            memory=self.memory,
+            func_name="status_summary",
+            response_mode=ResponseMode.PLAIN_TEXT,
         )
-        dialog = self.prompt_manager.format_prompt_to_dialog(
-            self.status_summary_prompt_name, state_dict
-        )
-        summary_text = await self.llm.atext_request(
-            dialog,
-            context=self._build_prompt_context(
-                prompt_name=self.status_summary_prompt_name,
-                state_dict=state_dict,
-                func_name="status_summary",
-            ),
-        )
-        await self.memory.status.update("status_summary", summary_text)
+        await self.memory.status.update("status_summary", result.raw_response)
 
     async def before_forward(self):
         """Before forward"""
@@ -372,26 +388,13 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         """Reflect to the environment"""
         aoi_info = await self.get_aoi_info()
         if aoi_info:
-            required_fields = self.prompt_manager.get_required_fields(
-                self.environment_reflection_prompt_name
+            result = await self._execute_prompt(
+                self.environment_reflection_prompt_name,
+                {"area_information": aoi_info},
+                func_name="reflect_to_environment",
+                response_mode=ResponseMode.PLAIN_TEXT,
             )
-            state_dict = await self.prompt_manager.build_agent_state(
-                required_fields=required_fields,
-                context={"area_information": aoi_info},
-                memory=self.memory,
-            )
-            dialog = self.prompt_manager.format_prompt_to_dialog(
-                self.environment_reflection_prompt_name, state_dict
-            )
-            reflection = await self.llm.atext_request(
-                dialog,
-                context=self._build_prompt_context(
-                    prompt_name=self.environment_reflection_prompt_name,
-                    state_dict=state_dict,
-                    func_name="reflect_to_environment",
-                ),
-            )
-            await self.save_agent_thought(reflection)
+            await self.save_agent_thought(result.raw_response)
 
     # Main workflow
     async def forward(self):
@@ -585,74 +588,44 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
                     )
                     recent_chat_history = "No chat history"
 
-                required_fields = self.prompt_manager.get_required_fields(
-                    self.chat_belief_update_prompt_name
-                )
-                state_dict = await self.prompt_manager.build_agent_state(
-                    required_fields=required_fields,
-                    context={
+                belief_result = await self._execute_prompt(
+                    self.chat_belief_update_prompt_name,
+                    {
                         "content": content,
                         "sender_id": sender_id,
                         "relationship_type": relationship_type,
                         "relationship_strength": relationship_strength,
                     },
-                    memory=self.memory,
+                    func_name="do_chat",
                 )
-                dialog = self.prompt_manager.format_prompt_to_dialog(
-                    self.chat_belief_update_prompt_name, state_dict
-                )
+                if belief_result.success:
+                    belief_update = belief_result.parsed
+                    if matched_relation is not None:
+                        matched_relation.affinity = belief_update.get("affinity", matched_relation.affinity)
+                        matched_relation.trust = belief_update.get("trust", matched_relation.trust)
+                        matched_relation.familiarity = belief_update.get("familiarity", matched_relation.familiarity)
+                    get_logger().debug(
+                        f"Agent {self.id}: Updated relationship with {sender_id}: {relationship_type}, "
+                        f"Affinity: {belief_update.get('affinity', 'n/a')}, Trust: {belief_update.get('trust', 'n/a')}, "
+                        f"Familiarity: {belief_update.get('familiarity', 'n/a')}"
+                    )
 
-                belief_update_response = await self.llm.atext_request(
-                    dialog=dialog,
-                    response_format={"type": "json_object"},
-                    context=self._build_prompt_context(
-                        prompt_name=self.chat_belief_update_prompt_name,
-                        state_dict=state_dict,
-                        func_name="do_chat",
-                    ),
-                )
-                belief_update = json_repair.loads(belief_update_response)  # type: ignore
-                if matched_relation is not None:
-                    matched_relation.affinity = belief_update.get("affinity", matched_relation.affinity)
-                    matched_relation.trust = belief_update.get("trust", matched_relation.trust)
-                    matched_relation.familiarity = belief_update.get("familiarity", matched_relation.familiarity)
-
-                get_logger().debug(
-                    f"Agent {self.id}: Updated relationship with {sender_id}: {relationship_type}, Affinity: {belief_update.get('affinity', 'n/a')}, Trust: {belief_update.get('trust', 'n/a')}, Familiarity: {belief_update.get('familiarity', 'n/a')}"
-                )
-
-
-
-                required_fields = self.prompt_manager.get_required_fields(
-                    self.chat_response_decision_prompt_name
-                )
-                state_dict = await self.prompt_manager.build_agent_state(
-                    required_fields=required_fields,
-                    context={
+                respond_result = await self._execute_prompt(
+                    self.chat_response_decision_prompt_name,
+                    {
                         "content": content,
                         "relationship_strength": relationship_strength,
                         "relationship_type": relationship_type,
                         "recent_chat_history": recent_chat_history,
                     },
-                    memory=self.memory,
+                    func_name="do_chat",
                 )
-                dialog = self.prompt_manager.format_prompt_to_dialog(
-                    self.chat_response_decision_prompt_name, state_dict
-                )
-
-                respond = await self.llm.atext_request(
-                    dialog=dialog,
-                    response_format={"type": "json_object"},
-                    context=self._build_prompt_context(
-                        prompt_name=self.chat_response_decision_prompt_name,
-                        state_dict=state_dict,
-                        func_name="do_chat",
-                    ),
-                )
-                should_respond = json_repair.loads(respond)["should_respond"]  # type: ignore
+                if not respond_result.success:
+                    return ""
+                should_respond = respond_result.parsed.get("should_respond", "NO")
                 if should_respond == "NO":
                     return ""
-                response_content = json_repair.loads(respond)["response_content"]  # type: ignore
+                response_content = respond_result.parsed.get("response_content")
                 if response_content:
                     # Update chat history with response
                     chat_histories[sender_id] += f"，me: {response_content}"
@@ -721,6 +694,9 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
             result = None
             if self.blocks and len(self.blocks) > 0:
                 selected_block = await self.dispatcher.dispatch(self.context)
+                # Fall back to otherblock for intentions that no block claimed
+                if selected_block is None and "otherblock" in self.dispatcher.blocks:
+                    selected_block = self.dispatcher.blocks["otherblock"]
                 if selected_block:
                     result = await selected_block.forward(self.context)
                     get_logger().debug(

@@ -218,6 +218,10 @@ class DuckDBDatabase(BaseSimulationDatabase):
 
     def _record_value(self, record: TableRecord, column_name: str) -> Any:
         value = super()._record_value(record, column_name)
+        if value is None:
+            get_logger().debug(
+                f"Column '{column_name}' is None before record_value processing"
+            )
         if column_name in {"possible_blocks", "hobbies"}:
             return json.dumps(value if value is not None else [])
         return value

@@ -1,12 +1,10 @@
 # /mnt/raid5/gustavo/citysim/packages/agentsociety/agentsociety/cityagent/blocks/daily_schedule_block.py
 
-from typing import Any, Optional
-import json_repair
+from typing import Optional
 
 from ...agent import AgentToolbox, Block, Agent
 from ...logger import get_logger
 from ...memory import Memory
-from .utils import clean_json_response
 
 
 class DailyScheduleBlock(Block):
@@ -41,73 +39,41 @@ class DailyScheduleBlock(Block):
         Returns:
             dict with structure: {"day": int, "blocks": [...], "generated_at": str}
         """
-        if self.prompt_manager is None:
-            raise RuntimeError("PromptManager is not initialized")
-
         _, current_time = self.environment.get_datetime(format_time=True)
 
-        required_fields = self.prompt_manager.get_required_fields(
-            self.daily_schedule_prompt_name
+        def validate_schedule(parsed):
+            if "blocks" not in parsed or not isinstance(parsed["blocks"], list):
+                return False
+            return all(
+                all(k in block for k in ["start_time", "duration", "activity"])
+                for block in parsed["blocks"]
+            )
+
+        get_logger().debug(
+            f"Agent {self.agent.id}: Requesting daily schedule generation for day {day}"
         )
-        state_dict = await self.prompt_manager.build_agent_state(
-            required_fields=required_fields,
-            context={
-                "day": day,
-                "current_time": current_time,
-            },
-            memory=self.memory,
-        )
-        dialog = self.prompt_manager.format_prompt_to_dialog(
-            self.daily_schedule_prompt_name, state_dict
+        result = await self.execute_prompt(
+            self.daily_schedule_prompt_name,
+            {"day": day, "current_time": current_time},
+            func_name="_generate_daily_schedule",
+            max_retries=2,
+            validate=validate_schedule,
         )
 
-        schedule = {}
-        retry = 3
-        while retry > 0:
-            try:
-                get_logger().debug(
-                    f"Agent {self.agent.id}: Requesting daily schedule generation for day {day}"
-                )
-                response = await self.llm.atext_request(
-                    dialog,
-                    response_format={"type": "json_object"},
-                    context=self.build_llm_prompt_context(
-                        prompt_name=self.daily_schedule_prompt_name,
-                        state_dict=state_dict,
-                        func_name="generate_daily_schedule",
-                    ),
-                )
+        if not result.success:
+            get_logger().warning(
+                f"Agent {self.agent.id}: Failed to generate daily schedule for day {day}: {result.error}"
+            )
+            return {}
 
-                result: Any = json_repair.loads(clean_json_response(response))
-                if "blocks" not in result or not isinstance(result["blocks"], list):
-                    raise ValueError("Invalid daily schedule format - missing blocks")
-
-                for block in result["blocks"]:
-                    if not all(
-                        k in block for k in ["start_time", "duration", "activity"]
-                    ):
-                        raise ValueError(
-                            "Each block must have start_time, duration, and activity"
-                        )
-
-                schedule = {
-                    "day": day,
-                    "blocks": result["blocks"],
-                    "generated_at": current_time,
-                }
-
-                get_logger().debug(
-                    f"Agent {self.agent.id}: Generated daily schedule for day {day} with {len(result['blocks'])} blocks"
-                )
-                retry = 0
-
-            except Exception as e:
-                get_logger().warning(
-                    f"Error parsing daily schedule response: {str(e)}, retry={retry}"
-                )
-                retry -= 1
-
-        return schedule
+        get_logger().debug(
+            f"Agent {self.agent.id}: Generated daily schedule for day {day} with {len(result.parsed['blocks'])} blocks"
+        )
+        return {
+            "day": day,
+            "blocks": result.parsed["blocks"],
+            "generated_at": current_time,
+        }
 
     async def _fill_empty_block(self, block: dict) -> Optional[dict]:
         """
@@ -151,50 +117,27 @@ class DailyScheduleBlock(Block):
 
         _, current_time = self.environment.get_datetime(format_time=True)
 
-        required_fields = self.prompt_manager.get_required_fields(
-            self.empty_block_prompt_name
-        )
-        state_dict = await self.prompt_manager.build_agent_state(
-            required_fields=required_fields,
-            context={
+        result = await self.execute_prompt(
+            self.empty_block_prompt_name,
+            {
                 "current_time": current_time,
                 "current_location": current_location,
                 "block_start_time": block.get("start_time", ""),
                 "block_duration": block.get("duration", 60),
                 "block_description": block.get("description", ""),
             },
-            memory=self.memory,
-        )
-        dialog = self.prompt_manager.format_prompt_to_dialog(
-            self.empty_block_prompt_name, state_dict
-        )
-
-        response = await self.llm.atext_request(
-            dialog,
-            response_format={"type": "json_object"},
-            context=self.build_llm_prompt_context(
-                prompt_name=self.empty_block_prompt_name,
-                state_dict=state_dict,
-                func_name="_fill_empty_block",
-            ),
+            func_name="_fill_empty_block",
+            max_retries=2,
+            validate=lambda p: isinstance(p, dict) and "selected" in p and "activity" in p.get("selected", {}),
         )
 
-        retry = 3
-        while retry > 0:
-            try:
-                result: Any = json_repair.loads(clean_json_response(response))
-                if "selected" not in result or "activity" not in result["selected"]:
-                    raise ValueError("Invalid empty block fill format")
+        if not result.success:
+            get_logger().warning(
+                f"Agent {self.agent.id}: Failed to fill empty block: {result.error}"
+            )
+            return None
 
-                return result["selected"]
-
-            except Exception as e:
-                get_logger().warning(
-                    f"Error parsing empty block fill response: {str(e)}, retry={retry}"
-                )
-                retry -= 1
-
-        return None
+        return result.parsed["selected"]
 
     async def get_current_scheduled_block(self) -> Optional[dict]:
         """

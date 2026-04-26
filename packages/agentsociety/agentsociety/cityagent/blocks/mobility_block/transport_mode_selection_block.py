@@ -1,12 +1,9 @@
 import math
 from enum import Enum
 
-import json_repair # type: ignore
-
 from ....agent import AgentToolbox, Block, DotDict
 from ....logger import get_logger
 from ....memory import Memory
-from ..utils import clean_json_response
 
 
 class TransportModeEnum(Enum):
@@ -86,12 +83,9 @@ class TransportModeSelectionBlock(Block):
         temperature = self.environment.environment.get("temperature", "Don't know")
         available_modes_list = self.transportation_modes
 
-        required_fields = self.prompt_manager.get_required_fields(
-            self.mode_selection_prompt_name
-        )
-        state_dict = await self.prompt_manager.build_agent_state(
-            required_fields=required_fields,
-            context={
+        result = await self.execute_prompt(
+            self.mode_selection_prompt_name,
+            {
                 "distance": distance,
                 "time": sim_time,
                 "month": month,
@@ -99,30 +93,14 @@ class TransportModeSelectionBlock(Block):
                 "temperature": temperature,
                 "available_modes": ", ".join(available_modes_list),
             },
-            memory=self.memory,
+            func_name="forward",
         )
-        dialog = self.prompt_manager.format_prompt_to_dialog(
-            self.mode_selection_prompt_name, state_dict
-        )
-
-        try:
-            response = await self.llm.atext_request(
-                dialog,
-                response_format={"type": "json_object"},
-                context=self.build_llm_prompt_context(
-                    prompt_name=self.mode_selection_prompt_name,
-                    state_dict=state_dict,
-                    func_name="forward",
-                ),
-            )
-            response = clean_json_response(response)
-            response = json_repair.loads(response)
-            selected_mode_str = response.get("mode", "car")
-            reason = response.get("reason", "No reason provided.")
-
-        except Exception as e:
+        if result.success:
+            selected_mode_str = result.parsed.get("mode", TransportModeEnum.CAR.value)
+            reason = result.parsed.get("reason", "No reason provided.")
+        else:
             get_logger().warning(
-                f"TransportModeSelectionBlock (Agent {self.agent.id}): Mode selection failed: {e}",
+                f"TransportModeSelectionBlock (Agent {self.agent.id}): Mode selection failed: {result.error}",
                 extra={"agent_id": self.agent.id},
             )
             selected_mode_str = TransportModeEnum.CAR.value

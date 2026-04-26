@@ -1,11 +1,8 @@
-from typing import Any, Optional
-from .utils import clean_json_response
-import json_repair
+from typing import Optional
 from pydantic import Field
 from ...logger import get_logger
 from ...memory import Memory
 from ...agent import AgentToolbox, Block, BlockParams, Agent
-from ...agent.agent_base import extract_json
 
 __all__ = ["CognitionBlock"]
 
@@ -76,110 +73,65 @@ class CognitionBlock(Block):
         return
 
     async def attitude_update(self):
-        """Update agent's attitudes toward specific topics based on daily experiences.
-
-        Workflow:
-        1. Fetch agent's profile and current emotional state from memory.
-        2. Retrieve relevant incidents using topic-based memory search.
-        3. Construct a structured prompt combining profile, incidents, and previous attitude.
-        4. Query LLM to generate updated attitude scores (0-10 scale).
-        5. Retry up to 10 times on LLM failures.
-        6. Persist updated attitudes to memory.
-
-        Raises:
-            Exception: If all LLM retries fail.
-        """
-        if self.prompt_manager is None:
-            raise RuntimeError("PromptManager is not initialized")
-
+        """Update agent's attitudes toward specific topics based on daily experiences."""
         attitude = await self.memory.status.get("attitude")
-        required_fields = self.prompt_manager.get_required_fields(self.attitude_prompt_name)
         for topic in attitude:
             incident_str = await self.memory.stream.search(
                 query=topic, top_k=self.params.top_k
             )
             emotion = await self.memory.status.get("emotion")
-            if incident_str:
-                incident_text = "Today, these incidents happened:" + incident_str
-            else:
-                incident_text = "No incidents happened today."
+            incident_text = (
+                "Today, these incidents happened:" + incident_str
+                if incident_str
+                else "No incidents happened today."
+            )
 
-            context = {
-                "topic": topic,
-                "previous_attitude": str(attitude[topic]),
-                "incident_text": incident_text,
-                "sadness": emotion["sadness"],
-                "joy": emotion["joy"],
-                "fear": emotion["fear"],
-                "disgust": emotion["disgust"],
-                "anger": emotion["anger"],
-                "surprise": emotion["surprise"],
-            }
-            state_dict = await self.prompt_manager.build_agent_state(
-                required_fields=required_fields,
-                context=context,
-                memory=self.memory,
+            result = await self.execute_prompt(
+                self.attitude_prompt_name,
+                {
+                    "topic": topic,
+                    "previous_attitude": str(attitude[topic]),
+                    "incident_text": incident_text,
+                    "sadness": emotion["sadness"],
+                    "joy": emotion["joy"],
+                    "fear": emotion["fear"],
+                    "disgust": emotion["disgust"],
+                    "anger": emotion["anger"],
+                    "surprise": emotion["surprise"],
+                },
+                func_name="attitude_update",
+                max_retries=9,
+                timeout=300,
+                validate=lambda p: "attitude" in p,
             )
-            dialog = self.prompt_manager.format_prompt_to_dialog(
-                self.attitude_prompt_name, state_dict
-            )
-            evaluation = True
-            response = {}
-            for retry in range(10):
-                try:
-                    _response = await self.llm.atext_request(
-                        dialog,
-                        timeout=300,
-                        response_format={"type": "json_object"},
-                        context=self.build_llm_prompt_context(
-                            prompt_name=self.attitude_prompt_name,
-                            state_dict=state_dict,
-                            func_name="attitude_update",
-                        ),
-                    )
-                    json_str = extract_json(_response)
-                    if json_str:
-                        response: Any = json_repair.loads(json_str)
-                        evaluation = False
-                        break
-                except Exception:
-                    pass
-            if evaluation:
-                raise Exception(f"Request for attitude:{topic} update failed")
-            attitude[topic] = response["attitude"]
+
+            if not result.success:
+                raise Exception(f"Request for attitude:{topic} update failed: {result.error}")
+
+            if "attitude" not in result.parsed:
+                get_logger().warning(
+                    f"LLM response missing 'attitude' key for topic '{topic}', keeping previous value."
+                )
+            attitude[topic] = result.parsed.get("attitude", attitude[topic])
         await self.memory.status.update("attitude", attitude)
 
     async def thought_update(self):
         """Generate daily reflections based on experiences and emotional state.
 
-        Workflow:
-        1. Build profile and emotion context from memory.
-        2. Retrieve today's incidents.
-        3. Construct a reflection prompt.
-        4. Query LLM to generate thought summary and emotional keyword.
-        5. Retry up to 10 times on LLM failures.
-        6. Update memory with new thought and log cognition.
-
         Returns:
             Generated thought string.
-
-        Raises:
-            Exception: If all LLM retries fail.
         """
-        if self.prompt_manager is None:
-            raise RuntimeError("PromptManager is not initialized")
-
-        required_fields = self.prompt_manager.get_required_fields(self.thought_prompt_name)
         incident_str = await self.memory.stream.search_today(top_k=20)
         emotion = await self.memory.status.get("emotion")
-        if incident_str:
-            incident_text = "Today, these incidents happened:\n" + incident_str
-        else:
-            incident_text = "No incidents happened today."
+        incident_text = (
+            "Today, these incidents happened:\n" + incident_str
+            if incident_str
+            else "No incidents happened today."
+        )
 
-        state_dict = await self.prompt_manager.build_agent_state(
-            required_fields=required_fields,
-            context={
+        result = await self.execute_prompt(
+            self.thought_prompt_name,
+            {
                 "incident_text": incident_text,
                 "sadness": emotion["sadness"],
                 "joy": emotion["joy"],
@@ -188,37 +140,18 @@ class CognitionBlock(Block):
                 "anger": emotion["anger"],
                 "surprise": emotion["surprise"],
             },
-            memory=self.memory,
-        )
-        dialog = self.prompt_manager.format_prompt_to_dialog(
-            self.thought_prompt_name, state_dict
+            func_name="thought_update",
+            max_retries=9,
+            timeout=300,
+            validate=lambda p: "thought" in p,
         )
 
-        evaluation = True
-        response = {}
-        for retry in range(10):
-            try:
-                _response = await self.llm.atext_request(
-                    dialog,
-                    timeout=300,
-                    response_format={"type": "json_object"},
-                    context=self.build_llm_prompt_context(
-                        prompt_name=self.thought_prompt_name,
-                        state_dict=state_dict,
-                        func_name="thought_update",
-                    ),
-                )
-                json_str = extract_json(_response)
-                if json_str:
-                    response: Any = json_repair.loads(json_str)
-                    evaluation = False
-                    break
-            except Exception:
-                pass
-        if evaluation:
-            raise Exception("Request for cognition update failed")
+        if not result.success:
+            raise Exception(f"Request for cognition update failed: {result.error}")
 
-        thought = str(response["thought"])
+        if "thought" not in result.parsed:
+            get_logger().warning("LLM response missing 'thought' key, using default.")
+        thought = str(result.parsed.get("thought", "Nothing in particular happened today."))
         await self.memory.status.update("thought", thought)
         await self.memory.stream.add(topic="cognition", description=thought)
 
@@ -263,24 +196,13 @@ class CognitionBlock(Block):
 
         Returns:
             Natural language conclusion about emotional state.
-
-        Raises:
-            Exception: If LLM requests fail after 10 retries.
-
-        Workflow:
-            1. Build emotion context from current state
-            2. Incorporate incident details into prompt
-            3. Query LLM for updated emotion scores and summary
-            4. Update memory with new emotional state
         """
-        if self.prompt_manager is None:
-            raise RuntimeError("PromptManager is not initialized")
-
-        required_fields = self.prompt_manager.get_required_fields(self.emotion_prompt_name)
+        _emotion_keys = {"sadness", "joy", "fear", "disgust", "anger", "surprise", "word", "conclusion"}
         emotion = await self.memory.status.get("emotion")
-        state_dict = await self.prompt_manager.build_agent_state(
-            required_fields=required_fields,
-            context={
+
+        result = await self.execute_prompt(
+            self.emotion_prompt_name,
+            {
                 "incident_text": incident,
                 "sadness": emotion["sadness"],
                 "joy": emotion["joy"],
@@ -289,65 +211,35 @@ class CognitionBlock(Block):
                 "anger": emotion["anger"],
                 "surprise": emotion["surprise"],
             },
-            memory=self.memory,
-        )
-        dialog = self.prompt_manager.format_prompt_to_dialog(
-            self.emotion_prompt_name, state_dict
+            func_name="emotion_update",
+            max_retries=9,
+            timeout=300,
+            validate=lambda p: _emotion_keys.issubset(p.keys()),
         )
 
-        evaluation = True
-        exceptions = []
-        response = {}
-        for retry in range(10):
-            try:
-                _response = await self.llm.atext_request(
-                    dialog,
-                    timeout=300,
-                    response_format={"type": "json_object"},
-                    context=self.build_llm_prompt_context(
-                        prompt_name=self.emotion_prompt_name,
-                        state_dict=state_dict,
-                        func_name="emotion_update",
-                    ),
-                )
-                json_str = extract_json(_response)
-                if json_str:
-                    response: Any = json_repair.loads(json_str)
-                    evaluation = False
-                    break
-            except Exception as e:
-                exceptions.append(e)
-                pass
-        if evaluation:
-            raise Exception("Request for cognition update failed, exceptions: " + str(exceptions))
+        if not result.success:
+            raise Exception(f"Request for cognition update failed: {result.error}")
 
+        parsed = result.parsed
+        missing = _emotion_keys - parsed.keys()
+        if missing:
+            get_logger().warning(f"LLM response missing emotion keys {missing}, using defaults.")
         await self.memory.status.update(
             "emotion",
             {
-                "sadness": int(response["sadness"]),
-                "joy": int(response["joy"]),
-                "fear": int(response["fear"]),
-                "disgust": int(response["disgust"]),
-                "anger": int(response["anger"]),
-                "surprise": int(response["surprise"]),
+                "sadness": int(parsed.get("sadness", emotion["sadness"])),
+                "joy": int(parsed.get("joy", emotion["joy"])),
+                "fear": int(parsed.get("fear", emotion["fear"])),
+                "disgust": int(parsed.get("disgust", emotion["disgust"])),
+                "anger": int(parsed.get("anger", emotion["anger"])),
+                "surprise": int(parsed.get("surprise", emotion["surprise"])),
             },
         )
-        await self.memory.status.update("emotion_types", str(response["word"]))
-        return response["conclusion"]
+        await self.memory.status.update("emotion_types", str(parsed.get("word", "neutral")))
+        return parsed.get("conclusion", "")
 
     async def initialize_big5(self):
-        """Initialize the agent's Big Five personality traits based on profile information.
-
-        Workflow:
-        1. Retrieve agent's profile details from memory.
-        2. Construct a prompt using the INITIAL_BIG5_PROMPT template.
-        3. Query LLM to generate Big Five trait scores (1-3 scale).
-        4. Retry up to 10 times on LLM failures.
-        5. Update memory with initialized personality traits.
-
-        Raises:
-            Exception: If all LLM retries fail.
-        """
+        """Initialize the agent's Big Five personality traits based on profile information."""
         if self.initialized_big5:
             return
 
@@ -363,49 +255,27 @@ class CognitionBlock(Block):
             self.initialized_big5 = True
             return
 
-        if self.prompt_manager is None:
-            raise RuntimeError("PromptManager is not initialized")
-
-        required_fields = self.prompt_manager.get_required_fields(self.big5_prompt_name)
-        state_dict = await self.prompt_manager.build_agent_state(
-            required_fields=required_fields,
-            context={},
-            memory=self.memory,
-        )
-        dialog = self.prompt_manager.format_prompt_to_dialog(
-            self.big5_prompt_name, state_dict
+        result = await self.execute_prompt(
+            self.big5_prompt_name,
+            {},
+            func_name="initialize_big5",
         )
 
-        response = await self.llm.atext_request(
-            dialog,
-            response_format={"type": "json_object"},
-            context=self.build_llm_prompt_context(
-                prompt_name=self.big5_prompt_name,
-                state_dict=state_dict,
-                func_name="initialize_big5",
-            ),
-        )
-        
-        response = clean_json_response(response)
-        response = json_repair.loads(response)
-        psychographic_traits = response["psychographic_traits"]
+        if result.success and "psychographic_traits" in result.parsed:
+            psychographic_traits = result.parsed["psychographic_traits"]
+        else:
+            get_logger().warning(
+                f"LLM response missing 'psychographic_traits', using defaults. Error: {result.error}"
+            )
+            psychographic_traits = {
+                "openness": 2, "conscientiousness": 2, "extraversion": 2,
+                "agreeableness": 2, "neuroticism": 2,
+            }
         await self.memory.status.update("big5", psychographic_traits)
         self.initialized_big5 = True
 
     async def initialize_hobbies(self):
-        """Initialize the agent's hobbies based on profile and psychographic information.
-
-        Workflow:
-        1. Retrieve agent's profile and Big Five traits from memory.
-        2. Construct a prompt using the INITIAL_HOBBIES_PROMPT template.
-        3. Query LLM to generate a list of suitable hobbies.
-        4. Retry up to 10 times on LLM failures.
-        5. Update memory with initialized hobbies.
-
-        Raises:
-            Exception: If all LLM retries fail.
-        """
-
+        """Initialize the agent's hobbies based on profile and psychographic information."""
         if self.initialized_hobbies:
             return
 
@@ -413,47 +283,24 @@ class CognitionBlock(Block):
         if len(current_hobbies) > 0:
             return
 
-        if self.prompt_manager is None:
-            raise RuntimeError("PromptManager is not initialized")
-
-        required_fields = self.prompt_manager.get_required_fields(self.hobbies_prompt_name)
-        state_dict = await self.prompt_manager.build_agent_state(
-            required_fields=required_fields,
-            context={},
-            memory=self.memory,
-        )
-        dialog = self.prompt_manager.format_prompt_to_dialog(
-            self.hobbies_prompt_name, state_dict
+        result = await self.execute_prompt(
+            self.hobbies_prompt_name,
+            {},
+            func_name="initialize_hobbies",
         )
 
-        response = await self.llm.atext_request(
-            dialog,
-            response_format={"type": "json_object"},
-            context=self.build_llm_prompt_context(
-                prompt_name=self.hobbies_prompt_name,
-                state_dict=state_dict,
-                func_name="initialize_hobbies",
-            ),
-        )
-        response = clean_json_response(response)
-        response = json_repair.loads(response)
-        hobbies = response["hobbies"]
+        if result.success and "hobbies" in result.parsed:
+            hobbies = result.parsed["hobbies"]
+        else:
+            get_logger().warning(
+                f"LLM response missing 'hobbies', keeping existing. Error: {result.error}"
+            )
+            hobbies = current_hobbies
         await self.memory.status.update("hobbies", hobbies)
         self.initialized_hobbies = True
 
     async def initialize_preferences(self):
-        """Initialize the agent's behavioral preferences based on profile and psychographic information.
-
-        Workflow:
-        1. Retrieve agent's profile and Big Five traits from memory.
-        2. Construct a prompt using the INITIAL_PREFERENCES_PROMPT template.
-        3. Query LLM to generate specific behavioral parameters.
-        4. Retry up to 10 times on LLM failures.
-        5. Update memory with initialized preferences.
-
-        Raises:
-            Exception: If all LLM retries fail.
-        """
+        """Initialize the agent's behavioral preferences based on profile and psychographic information."""
         if self.initialized_preferences:
             return
 
@@ -462,38 +309,24 @@ class CognitionBlock(Block):
             current_preferences.get("chronotype") != "standard" or
             current_preferences.get("risk_tolerance") != 0.5 or
             current_preferences.get("spending_tendency") != 0.5 or
-            current_preferences.get("social_frequency") != 0.5 or 
+            current_preferences.get("social_frequency") != 0.5 or
             current_preferences.get("work_ethic") != 0.5 or
             current_preferences.get("leisure_preference") != "indoor"
         ):
             return
 
-        if self.prompt_manager is None:
-            raise RuntimeError("PromptManager is not initialized")
-
-        required_fields = self.prompt_manager.get_required_fields(
-            self.preferences_prompt_name
-        )
-        state_dict = await self.prompt_manager.build_agent_state(
-            required_fields=required_fields,
-            context={},
-            memory=self.memory,
-        )
-        dialog = self.prompt_manager.format_prompt_to_dialog(
-            self.preferences_prompt_name, state_dict
+        result = await self.execute_prompt(
+            self.preferences_prompt_name,
+            {},
+            func_name="initialize_preferences",
         )
 
-        response = await self.llm.atext_request(
-            dialog,
-            response_format={"type": "json_object"},
-            context=self.build_llm_prompt_context(
-                prompt_name=self.preferences_prompt_name,
-                state_dict=state_dict,
-                func_name="initialize_preferences",
-            ),
-        )
-        response = clean_json_response(response)
-        response = json_repair.loads(response)
-        preferences = response["preferences"]
+        if result.success and "preferences" in result.parsed:
+            preferences = result.parsed["preferences"]
+        else:
+            get_logger().warning(
+                f"LLM response missing 'preferences', keeping existing. Error: {result.error}"
+            )
+            preferences = current_preferences
         await self.memory.status.update("preferences", preferences)
         self.initialized_preferences = True

@@ -5,7 +5,7 @@ from datetime import datetime
 import time
 import uuid
 from pathlib import Path
-from typing import Any, List, Optional, TypedDict, Union, cast
+from typing import Any, List, Optional, TypedDict
 
 from ..logger import get_logger
 from .schema import (
@@ -16,25 +16,14 @@ from .schema import (
 	AgentStreamSnapshotRecord,
 	AgentTransportTypeRecord,
 	BlockDispatcherRecord,
+	DatabaseRecordModel,
 	ExperimentInfoRecord,
 	PendingMessageSnapshotRecord,
 	PromptResponseRecord,
 	StepAgentStatusRecord,
 )
 
-TableRecord = Union[
-	AdjustNeedsRecord,
-	PromptResponseRecord,
-	AgentLocationTypeRecord,
-	AgentTransportTypeRecord,
-	StepAgentStatusRecord,
-	BlockDispatcherRecord,
-	ExperimentInfoRecord,
-	AgentKVSnapshotRecord,
-	AgentStreamSnapshotRecord,
-	AgentSpatialSnapshotRecord,
-	PendingMessageSnapshotRecord,
-]
+TableRecord = dict[str, Any]
 
 
 class TableBatchState(TypedDict):
@@ -67,7 +56,7 @@ class BaseSimulationDatabase(ABC):
 		self.batch_size = batch_size
 		self.batch_timeout = batch_timeout
 
-		self.table_schemas: dict[str, type] = {
+		self.table_schemas: dict[str, type[DatabaseRecordModel]] = {
 			"NeedsBlock_adjust_needs": AdjustNeedsRecord,
 			"prompt_responses": PromptResponseRecord,
 			"agent_location_type": AgentLocationTypeRecord,
@@ -82,11 +71,9 @@ class BaseSimulationDatabase(ABC):
 		}
 
 		self.table_columns: dict[str, List[str]] = {
-			table_name: list(schema.__annotations__.keys())
+			table_name: schema.column_names()
 			for table_name, schema in self.table_schemas.items()
 		}
-		# This column is persisted in both backends but inferred from database state.
-		self.table_columns["NeedsBlock_adjust_needs"].insert(1, "simulation_step")
 
 		self.table_batches: dict[str, TableBatchState] = {
 			table_name: {
@@ -165,10 +152,25 @@ class BaseSimulationDatabase(ABC):
 		self.simulation_step = step
 
 	def _record_value(self, record: TableRecord, column_name: str) -> Any:
-		raw_record = cast(dict[str, Any], record)
-		if column_name == "simulation_step" and "simulation_step" not in raw_record:
+		if column_name == "simulation_step" and column_name not in record:
 			return self.simulation_step
-		return raw_record[column_name]
+
+		# Check if column exists in the record
+		if column_name not in record:
+			get_logger().warning(
+				f"Missing column '{column_name}' in record. "
+				f"Available keys: {list(record.keys())}. "
+				f"Record type: {type(record).__name__ if hasattr(record, '__class__') else 'unknown'}. "
+				f"Returning None as default."
+			)
+			return None
+
+		value = record[column_name]
+		if value is None:
+			get_logger().debug(
+				f"Column '{column_name}' has None value in record"
+			)
+		return value
 
 	def _flush_table_batch(self, table_name: str) -> None:
 		if not self._is_connected():
@@ -229,103 +231,41 @@ class BaseSimulationDatabase(ABC):
 		):
 			self._flush_table_batch(table_name)
 
-	@staticmethod
-	def _normalize_timestamp(value: Any) -> datetime:
-		if isinstance(value, (int, float)):
-			return datetime.fromtimestamp(value)
-		if isinstance(value, datetime):
-			return value
-		return datetime.now()
-
-	@staticmethod
-	def _normalize_agent_id(value: Any) -> int:
-		if isinstance(value, int):
-			return value
-		try:
-			return int(value)
-		except (TypeError, ValueError):
-			return -1
-
 	def _normalize_record(
 		self,
 		table_name: str,
 		record: dict[str, Any],
 	) -> Optional[TableRecord]:
 		schema = self.table_schemas.get(table_name)
-		column_names = self.table_columns.get(table_name)
-		if schema is None or column_names is None:
+		if schema is None:
 			get_logger().error(f"Unknown table '{table_name}'. Cannot normalize record.")
 			return None
 
-		normalized = dict(record)
-
-		if "exp_id" in column_names:
+		normalized: dict[str, Any] = dict(record)
+		model_fields = set(schema.model_fields.keys())
+		if "exp_id" in model_fields:
 			normalized["exp_id"] = self.exp_id
-		if "simulation_step" in column_names and "simulation_step" not in normalized:
+		if "simulation_step" in model_fields and "simulation_step" not in normalized:
 			normalized["simulation_step"] = self.simulation_step
-		if "timestamp" in column_names:
-			normalized["timestamp"] = self._normalize_timestamp(
-				normalized.get("timestamp")
-			)
-		if "agent_id" in column_names:
-			normalized["agent_id"] = self._normalize_agent_id(normalized.get("agent_id"))
 
-		if table_name == "experiment_info":
-			try:
-				normalized["id"] = str(uuid.UUID(str(normalized["id"])))
-			except Exception:
-				get_logger().error("Invalid experiment_info record id; expected UUID string.")
-				return None
-
-			normalized["created_at"] = self._normalize_timestamp(
-				normalized.get("created_at")
-			)
-			normalized["updated_at"] = self._normalize_timestamp(
-				normalized.get("updated_at")
-			)
-			normalized["last_mobility_safe_step"] = normalized.get(
-				"last_mobility_safe_step", -1
-			)
-			normalized["prev_mobility_safe_step"] = normalized.get(
-				"prev_mobility_safe_step", -1
-			)
-			normalized["economy_checkpoint_path"] = normalized.get(
-				"economy_checkpoint_path", ""
-			)
-
-		required_keys = set(getattr(schema, "__required_keys__", set()))
-		missing_required = [key for key in required_keys if key not in normalized]
-		if missing_required:
-			get_logger().error(
-				f"Cannot insert into '{table_name}': missing required keys {missing_required}."
-			)
-			return None
-
-		unknown_keys = sorted(set(normalized.keys()) - set(column_names))
+		unknown_keys = sorted(set(normalized.keys()) - model_fields)
 		if unknown_keys:
 			get_logger().warning(
 				f"Dropping unknown keys for '{table_name}': {unknown_keys}"
 			)
-
-		filtered_record = {
-			column_name: normalized[column_name]
-			for column_name in column_names
-			if column_name in normalized
-		}
-		missing_columns = [
-			column_name
-			for column_name in column_names
-			if column_name not in filtered_record
-		]
-		if missing_columns:
+		try:
+			normalized_model = schema.model_validate(normalized)
+		except Exception as e:
 			get_logger().error(
-				f"Cannot insert into '{table_name}': missing table columns {missing_columns}."
+				f"Cannot insert into '{table_name}': record validation failed: {e}"
 			)
 			return None
 
-		return cast(TableRecord, filtered_record)
+		return normalized_model.as_record()
 
-	def insert_record(self, table_name: str, record: dict[str, Any]) -> None:
+	def insert_record(
+		self, table_name: str, record: dict[str, Any] | DatabaseRecordModel
+	) -> None:
 		if not self._is_connected():
 			get_logger().error(
 				f"{self.backend_name} backend is not connected. Cannot insert record."
@@ -333,14 +273,19 @@ class BaseSimulationDatabase(ABC):
 			return
 
 		try:
-			normalized_record = self._normalize_record(table_name, record)
+			record_data = record.as_record() if isinstance(record, DatabaseRecordModel) else record
+			normalized_record = self._normalize_record(table_name, record_data)
 			if normalized_record is None:
 				return
 			self._queue_record(table_name, normalized_record)
 		except Exception as e:
 			get_logger().error(f"Failed to insert record into '{table_name}': {e}")
 
-	def insert_records(self, table_name: str, records: List[dict[str, Any]]) -> None:
+	def insert_records(
+		self,
+		table_name: str,
+		records: List[dict[str, Any] | DatabaseRecordModel],
+	) -> None:
 		if not self._is_connected():
 			return
 
@@ -381,9 +326,13 @@ class BaseSimulationDatabase(ABC):
 		return self._query_rows(query, parameters)
 
 	def fetch_resume_data(
-		self, source_exp_id: str, rollback_depth: int = 10, expected_agent_ids: set[int] = set()
+		self,
+		source_exp_id: str,
+		rollback_depth: int = 10,
+		expected_agent_ids: Optional[set[int]] = None,
 	) -> Optional[dict[str, Any]]:
 		"""Fetch config, latest step, and latest static attributes for a source experiment."""
+		resolved_expected_agent_ids = expected_agent_ids or set()
 		if not self._is_connected():
 			get_logger().error(
 				f"{self.backend_name} backend is not connected. Cannot fetch resume data."
@@ -446,7 +395,7 @@ class BaseSimulationDatabase(ABC):
 				source_uuid=source_uuid,
 				resume_step=resume_step,
 				rollback_depth=rollback_depth,
-				expected_agent_ids=expected_agent_ids,
+				expected_agent_ids=resolved_expected_agent_ids,
 			)
 
 		return {
@@ -605,7 +554,7 @@ class BaseSimulationDatabase(ABC):
 				return
 
 			base = rows[0]
-			new_record: ExperimentInfoRecord = {
+			new_record = {
 				"tenant_id": base["tenant_id"],
 				"id": str(base["id"]),
 				"name": base["name"],

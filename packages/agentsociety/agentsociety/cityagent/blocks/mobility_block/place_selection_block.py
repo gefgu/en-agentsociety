@@ -1,13 +1,11 @@
 import math
 import random
 
-import json_repair # type: ignore
 import numpy as np # type: ignore
 
 from ....agent import AgentToolbox, Block, DotDict
 from ....logger import get_logger
 from ....memory import Memory
-from ..utils import clean_json_response
 
 
 class PlaceSelectionBlock(Block):
@@ -88,39 +86,36 @@ class PlaceSelectionBlock(Block):
     async def select_candidate_areas(self, context: DotDict, center, radius):
         """
         Stage 0: Select candidate AOI areas before POI selection.
-        
+
         Returns:
             List of selected AOI IDs to filter POIs, or None if selection fails
         """
         aoi_candidates = []  # Initialize at the start
         try:
-            if self.prompt_manager is None:
-                raise RuntimeError("PromptManager is not initialized")
-
             # Get all AOIs within radius
             all_aois = self.environment.map.get_all_aois()
-            
+
             # Filter by distance and calculate scores
             for aoi in all_aois:
                 aoi_pos = aoi.get("position", {})
                 aoi_center = (aoi_pos.get("x", 0), aoi_pos.get("y", 0))
-                
+
                 # Calculate distance
                 distance = math.sqrt(
                     (center[0] - aoi_center[0]) ** 2 + (center[1] - aoi_center[1]) ** 2
                 )
-                
+
                 if distance > self.max_area_distance:
                     continue
-                
+
                 # Calculate popularity
                 popularity = self._calculate_aoi_popularity(aoi)
-                
+
                 # Combined score: 40% distance (inverted), 60% popularity
                 # Normalize distance to 0-100 (closer = higher score)
                 distance_score = max(0, 100 - (distance / self.max_area_distance * 100))
                 combined_score = (0.4 * distance_score) + (0.6 * popularity * 100)
-                
+
                 aoi_candidates.append({
                     "id": aoi.get("id"),
                     "distance": distance,
@@ -128,66 +123,51 @@ class PlaceSelectionBlock(Block):
                     "score": combined_score,
                     "poi_count": len(aoi.get("poi_ids", [])),
                 })
-            
+
             if not aoi_candidates:
                 get_logger().warning(
                     f"PlaceSelectionBlock: No AOIs found within {self.max_area_distance}m",
                     extra={"agent_id": self.agent.id},
                 )
                 return None
-            
+
             # Sort by combined score and take top N
             aoi_candidates.sort(key=lambda x: x["score"], reverse=True)
             top_candidates = aoi_candidates[:self.max_areas_to_consider]
-            
+
             # Format for LLM
             ranked_areas_str = "\n".join([
                 f"- AOI {aoi['id']}: {aoi['distance']:.0f}m away, {aoi['poi_count']} POIs, popularity={aoi['popularity']:.1f}, score={aoi['score']:.1f}"
                 for aoi in top_candidates
             ])
-            
+
             # Get visit history
             visit_history = await self.get_recent_visit_history()
-            
-            required_fields = self.prompt_manager.get_required_fields(
-                self.area_selection_prompt_name
-            )
-            state_dict = await self.prompt_manager.build_agent_state(
-                required_fields=required_fields,
-                context={
+
+            result = await self.execute_prompt(
+                self.area_selection_prompt_name,
+                {
                     "plan": context.get("plan_context", {}).get("plan", "No plan"),
                     "intention": context.get("current_step", {}).get("intention", "Unknown"),
                     "visit_history": visit_history,
                     "ranked_areas": ranked_areas_str,
                 },
-                memory=self.memory,
-            )
-            dialog = self.prompt_manager.format_prompt_to_dialog(
-                self.area_selection_prompt_name, state_dict
+                func_name="select_candidate_areas",
             )
 
-            # LLM selection
-            response = await self.llm.atext_request(
-                dialog,
-                response_format={"type": "json_object"},
-                context=self.build_llm_prompt_context(
-                    prompt_name=self.area_selection_prompt_name,
-                    state_dict=state_dict,
-                    func_name="AOI Area Selection",
-                ),
-            )
-            
-            result = json_repair.loads(clean_json_response(response))
-            selected_ids = result.get("selected_area_ids", [])
-            reasoning = result.get("reasoning", "No reasoning provided")
-            
+            if not result.success:
+                raise RuntimeError(f"Area selection LLM failed: {result.error}")
+
+            selected_ids = result.parsed.get("selected_area_ids", [])
+            reasoning = result.parsed.get("reasoning", "No reasoning provided")
+
             get_logger().info(
                 f"PlaceSelectionBlock: Selected {len(selected_ids)} areas: {selected_ids}. Reasoning: {reasoning}",
                 extra={"agent_id": self.agent.id},
             )
-            
+
             return selected_ids
-            
+
         except Exception as e:
             get_logger().warning(
                 f"PlaceSelectionBlock: Area selection failed: {e}, using top scored areas",
@@ -207,9 +187,6 @@ class PlaceSelectionBlock(Block):
             and POI->Neighborhood mapping; or None if selection fails.
         """
         try:
-            if self.prompt_manager is None:
-                raise RuntimeError("PromptManager is not initialized")
-
             all_neighborhoods = self.environment.map.get_all_neighborhoods()
             if not all_neighborhoods:
                 return None
@@ -257,36 +234,22 @@ class PlaceSelectionBlock(Block):
             )
 
             visit_history = await self.get_recent_visit_history()
-            required_fields = self.prompt_manager.get_required_fields(
-                self.neighborhood_selection_prompt_name
-            )
-            state_dict = await self.prompt_manager.build_agent_state(
-                required_fields=required_fields,
-                context={
+            result = await self.execute_prompt(
+                self.neighborhood_selection_prompt_name,
+                {
                     "plan": context.get("plan_context", {}).get("plan", "No plan"),
                     "intention": context.get("current_step", {}).get("intention", "Unknown"),
                     "visit_history": visit_history,
                     "candidate_neighborhoods": candidate_neighborhoods,
                 },
-                memory=self.memory,
-            )
-            dialog = self.prompt_manager.format_prompt_to_dialog(
-                self.neighborhood_selection_prompt_name, state_dict
+                func_name="select_candidate_neighborhoods",
             )
 
-            response = await self.llm.atext_request(
-                dialog,
-                response_format={"type": "json_object"},
-                context=self.build_llm_prompt_context(
-                    prompt_name=self.neighborhood_selection_prompt_name,
-                    state_dict=state_dict,
-                    func_name="Neighborhood Selection",
-                ),
-            )
+            if not result.success:
+                raise RuntimeError(f"Neighborhood selection LLM failed: {result.error}")
 
-            result = json_repair.loads(clean_json_response(response))
-            selected_ids = result.get("selected_neighborhood_ids", [])
-            reasoning = result.get("reasoning", "No reasoning provided")
+            selected_ids = result.parsed.get("selected_neighborhood_ids", [])
+            reasoning = result.parsed.get("reasoning", "No reasoning provided")
 
             get_logger().info(
                 f"PlaceSelectionBlock: Selected {len(selected_ids)} neighborhoods: {selected_ids}. Reasoning: {reasoning}",
@@ -414,107 +377,86 @@ class PlaceSelectionBlock(Block):
 
     async def forward(self, context: DotDict):
         """Execute the destination selection workflow"""
-        if self.prompt_manager is None:
-            raise RuntimeError("PromptManager is not initialized")
 
         # Stage 1: Select primary POI category
         poi_cate = self.environment.get_poi_cate()
-        type_required_fields = self.prompt_manager.get_required_fields(
-            self.type_selection_prompt_name
-        )
-        type_state = await self.prompt_manager.build_agent_state(
-            required_fields=type_required_fields,
-            context={
-                "plan": context["plan_context"]["plan"],
-                "intention": context["current_step"]["intention"],
-                "poi_category": list(poi_cate.keys()),
-                "other_info": self.environment.environment.get("other_information", "None"),
-            },
-            memory=self.memory,
-        )
-        type_dialog = self.prompt_manager.format_prompt_to_dialog(
-            self.type_selection_prompt_name, type_state
-        )
         try:
-            # LLM-based category selection
-            levelOneType = await self.llm.atext_request(
-                type_dialog,
-                response_format={"type": "json_object"},
-                context=self.build_llm_prompt_context(
-                    prompt_name=self.type_selection_prompt_name,
-                    state_dict=type_state,
-                    func_name="Level 1 Type Selection",
-                ),
+            type_result = await self.execute_prompt(
+                self.type_selection_prompt_name,
+                {
+                    "plan": context["plan_context"]["plan"],
+                    "intention": context["current_step"]["intention"],
+                    "poi_category": list(poi_cate.keys()),
+                    "other_info": self.environment.environment.get("other_information", "None"),
+                },
+                func_name="forward",
             )
-            levelOneType = json_repair.loads(clean_json_response(levelOneType))["place_type"]  # type: ignore
+            if not type_result.success:
+                raise RuntimeError(f"Level 1 type selection failed: {type_result.error}")
+            _parsed = type_result.parsed
+            # Accept "place_type", "type", or "category" as the key
+            levelOneType = (_parsed.get("place_type") or _parsed.get("type") or _parsed.get("category") or "")
+            if levelOneType not in poi_cate:
+                # Case-insensitive / normalised match against valid keys
+                _norm = levelOneType.lower().replace(" ", "_").replace("-", "_")
+                levelOneType = next(
+                    (k for k in poi_cate if k.lower().replace(" ", "_").replace("-", "_") == _norm),
+                    None,
+                ) or next(
+                    (k for k in poi_cate if _norm in k.lower() or k.lower() in _norm),
+                    random.choice(list(poi_cate.keys())),
+                )
             sub_category = poi_cate[levelOneType]
         except Exception as e:
-            get_logger().warning(f"MobilityBlock: Level 1 selection failed: {e}")
+            get_logger().debug(f"MobilityBlock: Level 1 selection failed: {e}")
             levelOneType = random.choice(list(poi_cate.keys()))
             sub_category = poi_cate[levelOneType]
 
         # Stage 2: Select sub-category
         try:
-            second_type_required_fields = self.prompt_manager.get_required_fields(
-                self.second_type_selection_prompt_name
-            )
-            second_type_state = await self.prompt_manager.build_agent_state(
-                required_fields=second_type_required_fields,
-                context={
+            second_type_result = await self.execute_prompt(
+                self.second_type_selection_prompt_name,
+                {
                     "plan": context["plan_context"]["plan"],
                     "intention": context["current_step"]["intention"],
                     "poi_category": sub_category,
                     "other_info": self.environment.environment.get("other_information", "None"),
                 },
-                memory=self.memory,
+                func_name="forward",
             )
-            second_type_dialog = self.prompt_manager.format_prompt_to_dialog(
-                self.second_type_selection_prompt_name, second_type_state
-            )
-            levelTwoType = await self.llm.atext_request(
-                second_type_dialog,
-                response_format={"type": "json_object"},
-                context=self.build_llm_prompt_context(
-                    prompt_name=self.second_type_selection_prompt_name,
-                    state_dict=second_type_state,
-                    func_name="Level 2 Type Selection",
-                ),
-            )
-            levelTwoType = json_repair.loads(clean_json_response(levelTwoType))["place_type"]  # type: ignore
+            if not second_type_result.success:
+                raise RuntimeError(f"Level 2 type selection failed: {second_type_result.error}")
+            _parsed2 = second_type_result.parsed
+            levelTwoType = (_parsed2.get("place_type") or _parsed2.get("type") or _parsed2.get("category") or "")
+            if levelTwoType not in sub_category:
+                _norm2 = levelTwoType.lower().replace(" ", "_").replace("-", "_")
+                levelTwoType = next(
+                    (v for v in sub_category if v.lower().replace(" ", "_").replace("-", "_") == _norm2),
+                    None,
+                ) or next(
+                    (v for v in sub_category if _norm2 in v.lower() or v.lower() in _norm2),
+                    random.choice(sub_category),
+                )
         except Exception as e:
-            get_logger().warning(f"MobilityBlock: Level 2 selection failed: {e}")
+            get_logger().debug(f"MobilityBlock: Level 2 selection failed: {e}")
             levelTwoType = random.choice(sub_category)
 
         # Get travel radius from LLM
         try:
-            radius_required_fields = self.prompt_manager.get_required_fields(
-                self.radius_prompt_name
-            )
-            radius_state = await self.prompt_manager.build_agent_state(
-                required_fields=radius_required_fields,
-                context={
+            radius_result = await self.execute_prompt(
+                self.radius_prompt_name,
+                {
                     "weather": self.environment.environment.get("weather", "unknown"),
                     "temperature": self.environment.environment.get("temperature", "unknown"),
                     "current_emotion": context.get("current_emotion", "unknown"),
                     "current_thought": context.get("current_thought", ""),
                     "other_information": self.environment.environment.get("other_information", "None"),
                 },
-                memory=self.memory,
+                func_name="forward",
             )
-            radius_dialog = self.prompt_manager.format_prompt_to_dialog(
-                self.radius_prompt_name, radius_state
-            )
-            radius = await self.llm.atext_request(
-                radius_dialog,
-                response_format={"type": "json_object"},
-                context=self.build_llm_prompt_context(
-                    prompt_name=self.radius_prompt_name,
-                    state_dict=radius_state,
-                    func_name="Radius Selection",
-                ),
-            )
-            radius = int(json_repair.loads(clean_json_response(radius))["radius"])  # type: ignore
-
+            if not radius_result.success:
+                raise RuntimeError(f"Radius selection failed: {radius_result.error}")
+            radius = int(radius_result.parsed.get("radius", 10000))
         except Exception as e:
             get_logger().warning(f"MobilityBlock: Radius selection failed: {e}")
             radius = 10000  # Default 10km
@@ -533,54 +475,55 @@ class PlaceSelectionBlock(Block):
         selected_area_ids = None
         used_neighborhood_filter = False
 
-        neighborhood_selection_result = await self.select_candidate_neighborhoods(
-            context, pois
-        )
-        if neighborhood_selection_result:
-            selected_neighborhood_ids, poi_to_neighborhood = (
-                neighborhood_selection_result
+        if self.agent.params.simulation_mode == "citysim":
+            neighborhood_selection_result = await self.select_candidate_neighborhoods(
+                context, pois
             )
-            filtered_pois = []
-            for poi_tuple in pois:
-                poi_data = poi_tuple[0]
-                poi_id = poi_data.get("id")
-                if (
-                    poi_id in poi_to_neighborhood
-                    and poi_to_neighborhood[poi_id] in selected_neighborhood_ids
-                ):
-                    filtered_pois.append(poi_tuple)
-
-            if filtered_pois:
-                get_logger().info(
-                    f"PlaceSelectionBlock: Filtered {len(pois)} POIs to {len(filtered_pois)} POIs in selected neighborhoods",
-                    extra={"agent_id": self.agent.id},
+            if neighborhood_selection_result:
+                selected_neighborhood_ids, poi_to_neighborhood = (
+                    neighborhood_selection_result
                 )
-                pois = filtered_pois
-                used_neighborhood_filter = True
-            else:
-                get_logger().warning(
-                    "PlaceSelectionBlock: Neighborhood filter returned no POIs, falling back to AOI filtering",
-                    extra={"agent_id": self.agent.id},
-                )
-
-        # Fallback to AOI filtering if neighborhood selection is unavailable/empty
-        if not used_neighborhood_filter:
-            selected_area_ids = await self.select_candidate_areas(context, center, radius)
-
-            # Filter POIs by selected areas (if area selection succeeded)
-            if selected_area_ids:
                 filtered_pois = []
                 for poi_tuple in pois:
                     poi_data = poi_tuple[0]
-                    poi_aoi_id = poi_data.get("aoi_id")
-                    if poi_aoi_id in selected_area_ids:
+                    poi_id = poi_data.get("id")
+                    if (
+                        poi_id in poi_to_neighborhood
+                        and poi_to_neighborhood[poi_id] in selected_neighborhood_ids
+                    ):
                         filtered_pois.append(poi_tuple)
 
-                get_logger().info(
-                    f"PlaceSelectionBlock: Filtered {len(pois)} POIs to {len(filtered_pois)} POIs in selected areas",
-                    extra={"agent_id": self.agent.id},
-                )
-                pois = filtered_pois
+                if filtered_pois:
+                    get_logger().info(
+                        f"PlaceSelectionBlock: Filtered {len(pois)} POIs to {len(filtered_pois)} POIs in selected neighborhoods",
+                        extra={"agent_id": self.agent.id},
+                    )
+                    pois = filtered_pois
+                    used_neighborhood_filter = True
+                else:
+                    get_logger().warning(
+                        "PlaceSelectionBlock: Neighborhood filter returned no POIs, falling back to AOI filtering",
+                        extra={"agent_id": self.agent.id},
+                    )
+
+            # Fallback to AOI filtering if neighborhood selection is unavailable/empty
+            if not used_neighborhood_filter:
+                selected_area_ids = await self.select_candidate_areas(context, center, radius)
+
+                # Filter POIs by selected areas (if area selection succeeded)
+                if selected_area_ids:
+                    filtered_pois = []
+                    for poi_tuple in pois:
+                        poi_data = poi_tuple[0]
+                        poi_aoi_id = poi_data.get("aoi_id")
+                        if poi_aoi_id in selected_area_ids:
+                            filtered_pois.append(poi_tuple)
+
+                    get_logger().info(
+                        f"PlaceSelectionBlock: Filtered {len(pois)} POIs to {len(filtered_pois)} POIs in selected areas",
+                        extra={"agent_id": self.agent.id},
+                    )
+                    pois = filtered_pois
 
         poi_type = "unknown"
         if pois and len(pois) > 0:

@@ -2,7 +2,6 @@ import numbers
 import random
 from typing import Any, Optional
 
-import json_repair
 import numpy as np
 from pydantic import Field
 
@@ -13,12 +12,12 @@ from ...agent import (
     BlockDispatcher,
     DotDict,
     BlockContext,
+    ResponseMode,
 )
 from ...logger import get_logger
 from ...memory import Memory
 from ..sharing_params import SocietyAgentBlockOutput
-from .utils import clean_json_response, prettify_document
-from .utils import extract_dict_from_string
+from .utils import prettify_document
 
 def softmax(x, gamma=1.0):
     """Compute softmax values with temperature scaling.
@@ -67,85 +66,37 @@ class WorkBlock(Block):
         self.prompt_name = "worktime_estimate"
 
     async def forward(self, context: DotDict):
-        """Process work task and track time expenditure.
-
-        Workflow:
-            1. Format prompt with work context
-            2. Request time estimation from LLM
-            3. Record work experience in memory
-            4. Fallback to random time on parsing failures
-
-        Returns:
-            Execution result with time consumption details
-        """
-        if self.prompt_manager is None:
-            raise RuntimeError("PromptManager is not initialized")
-
-        required_fields = self.prompt_manager.get_required_fields(self.prompt_name)
-        state_dict = await self.prompt_manager.build_agent_state(
-            required_fields, context, self.memory
+        """Process work task and track time expenditure."""
+        result = await self.execute_prompt(
+            self.prompt_name,
+            dict(context),
+            func_name="forward",
         )
-        final_prompt = self.prompt_manager.format_prompt_to_dialog(
-            self.prompt_name, state_dict
-        )
-        result = await self.llm.atext_request(
-            final_prompt,
-            response_format={"type": "json_object"},
-            context=self.build_llm_prompt_context(
-                prompt_name=self.prompt_name,
-                state_dict=state_dict,
-                func_name="forward",
-            ),
-        )
-        result = clean_json_response(result)
-        try:
-            result: Any = json_repair.loads(result)
-            time = result["time"]
-            day, start_time = self.environment.get_datetime(format_time=True)
-            await self.memory.status.update(
-                "working_experience",
-                [
-                    f"Start from {start_time}, worked {time} minutes on {context['current_step']['intention']}"
-                ],
-                mode="merge",
-            )
-            work_hour_finish = await self.memory.status.get("work_hour_finish")
-            work_hour_finish += float(time / 60)
-            node_id = await self.memory.stream.add(
-                topic="economy",
-                description=f"I worked {time} minutes on {context['current_step']['intention']}",
-            )
-            await self.memory.status.update("work_hour_finish", work_hour_finish)
-            return {
-                "success": True,
-                "evaluation": f'work: {context["current_step"]["intention"]}',
-                "consumed_time": time,
-                "node_id": node_id,
-            }
-        except Exception as e:
-            get_logger().warning(f"Error in parsing: {str(e)}, raw: {result}")
+        if result.success:
+            time = result.parsed.get("time", random.randint(1, 3) * 60)
+        else:
+            get_logger().warning(f"WorkBlock: LLM failed: {result.error}")
             time = random.randint(1, 3) * 60
-            day, start_time = self.environment.get_datetime(format_time=True)
-            await self.memory.status.update(
-                "working_experience",
-                [
-                    f"Start from {start_time}, worked {time} minutes on {context['current_step']['intention']}"
-                ],
-                mode="merge",
-            )
-            work_hour_finish = await self.memory.status.get("work_hour_finish")
-            node_id = await self.memory.stream.add(
-                topic="economy",
-                description=f"I worked {time} minutes on {context['current_step']['intention']}",
-            )
-            work_hour_finish += float(time / 60)
-            await self.memory.status.update("work_hour_finish", work_hour_finish)
-            return {
-                "success": True,
-                "evaluation": f'work: {context["current_step"]["intention"]}',
-                "consumed_time": time,
-                "node_id": node_id,
-            }
+
+        day, start_time = self.environment.get_datetime(format_time=True)
+        await self.memory.status.update(
+            "working_experience",
+            [f"Start from {start_time}, worked {time} minutes on {context['current_step']['intention']}"],
+            mode="merge",
+        )
+        work_hour_finish = await self.memory.status.get("work_hour_finish")
+        work_hour_finish += float(time / 60)
+        node_id = await self.memory.stream.add(
+            topic="economy",
+            description=f"I worked {time} minutes on {context['current_step']['intention']}",
+        )
+        await self.memory.status.update("work_hour_finish", work_hour_finish)
+        return {
+            "success": True,
+            "evaluation": f'work: {context["current_step"]["intention"]}',
+            "consumed_time": time,
+            "node_id": node_id,
+        }
 
 
 class ConsumptionBlock(Block):
@@ -424,17 +375,9 @@ class MonthEconomyPlanBlock(Block):
         if self.prompt_manager is None:
             raise RuntimeError("PromptManager is not initialized")
         return prettify_document(self.prompt_manager.format_prompt(prompt_name, state_dict))
-    
-    async def forward(self):
-        """Execute monthly planning workflow.
 
-        Workflow:
-            1. Collect economic indicators
-            2. Generate LLM prompts for work/consumption propensity
-            3. Update agent's economic status
-            4. Periodically conduct mental health assessments
-            5. Handle UBI policy evaluations
-        """
+    async def forward(self):
+        """Execute monthly planning workflow."""
         if await self.month_trigger():
             agent_id = await self.memory.status.get("id")
             firms_id = await self.environment.economy_client.get_firm_ids()
@@ -503,32 +446,32 @@ class MonthEconomyPlanBlock(Block):
                     mode="merge",
                 )
                 dialog_queue = await self.memory.status.get("dialog_queue")
-                content = await self.llm.atext_request(
-                    list(dialog_queue),
+                result = await self.execute_prompt(
+                    self.month_plan_prompt_name,
+                    obs_context,
+                    func_name="forward",
+                    response_mode=ResponseMode.EXTRACT_DICT,
+                    dialog_override=list(dialog_queue),
                     timeout=300,
-                    context=self.build_llm_prompt_context(
-                        prompt_name=self.month_plan_prompt_name,
-                        state_dict=obs_state,
-                        func_name="forward",
-                    ),
                 )
-                await self.memory.status.update(
-                    "dialog_queue",
-                    [{"role": "assistant", "content": content}],
-                    mode="merge",
-                )
-                propensity_dict = extract_dict_from_string(content)[0]
-                work_propensity, consumption_propensity = (
-                    propensity_dict["work"],
-                    propensity_dict["consumption"],
-                )
-                if isinstance(work_propensity, numbers.Number) and isinstance(
-                    consumption_propensity, numbers.Number
-                ):
-                    await self.memory.status.update("work_propensity", work_propensity)
+                if result.success:
                     await self.memory.status.update(
-                        "consumption_propensity", consumption_propensity
+                        "dialog_queue",
+                        [{"role": "assistant", "content": result.raw_response}],
+                        mode="merge",
                     )
+                    propensity_dict = result.parsed
+                    work_propensity = propensity_dict.get("work")
+                    consumption_propensity = propensity_dict.get("consumption")
+                    if isinstance(work_propensity, numbers.Number) and isinstance(
+                        consumption_propensity, numbers.Number
+                    ):
+                        await self.memory.status.update("work_propensity", work_propensity)
+                        await self.memory.status.update(
+                            "consumption_propensity", consumption_propensity
+                        )
+                    else:
+                        self.llm_error += 1
                 else:
                     self.llm_error += 1
             except Exception:
@@ -540,7 +483,6 @@ class MonthEconomyPlanBlock(Block):
                 "consumption_propensity"
             )
             work_hours = work_propensity * self.num_labor_hours
-            # income = await self.economy_client.get(agent_id, 'income')
             income = work_hours * work_skill
 
             wealth = await self.environment.economy_client.get(agent_id, "currency")
@@ -563,38 +505,38 @@ class MonthEconomyPlanBlock(Block):
             await self.environment.economy_client.update(agent_id, "currency", wealth)
 
             if self.forward_times % 3 == 0:
+                mental_context = dict(obs_context)
+                mental_context["wealth"] = f"{wealth:.2f}"
                 mental_required_fields = self.prompt_manager.get_required_fields(
                     self.mental_health_prompt_name
                 )
-                mental_context = dict(obs_context)
-                mental_context["wealth"] = f"{wealth:.2f}"
                 mental_state = await self.prompt_manager.build_agent_state(
                     mental_required_fields, mental_context, self.memory
                 )
-                obs_prompt = self._format_prompt(
-                    self.mental_health_prompt_name, mental_state
-                )
-                content = await self.llm.atext_request(
-                    [{"role": "user", "content": obs_prompt}],
+                mental_prompt = self._format_prompt(self.mental_health_prompt_name, mental_state)
+                mental_result = await self.execute_prompt(
+                    self.mental_health_prompt_name,
+                    mental_context,
+                    func_name="forward",
+                    response_mode=ResponseMode.EXTRACT_DICT,
+                    dialog_override=[{"role": "user", "content": mental_prompt}],
                     timeout=300,
-                    context=self.build_llm_prompt_context(
-                        prompt_name=self.mental_health_prompt_name,
-                        state_dict=mental_state,
-                        func_name="forward",
-                    ),
                 )
-                inverse_score_items = [3, 8, 12, 16]
-                category2score = {"rarely": 0, "some": 1, "occasionally": 2, "most": 3}
-                try:
-                    content = extract_dict_from_string(content)[0]
-                    for k in content:
-                        if k in inverse_score_items:
-                            content[k] = 3 - category2score[content[k].lower()]
-                        else:
-                            content[k] = category2score[content[k].lower()]
-                    depression = sum(list(content.values()))
-                    await self.memory.status.update("depression", depression)
-                except Exception:
+                if mental_result.success:
+                    inverse_score_items = [3, 8, 12, 16]
+                    category2score = {"rarely": 0, "some": 1, "occasionally": 2, "most": 3}
+                    try:
+                        content = mental_result.parsed
+                        for k in content:
+                            if k in inverse_score_items:
+                                content[k] = 3 - category2score[content[k].lower()]
+                            else:
+                                content[k] = category2score[content[k].lower()]
+                        depression = sum(list(content.values()))
+                        await self.memory.status.update("depression", depression)
+                    except Exception:
+                        self.llm_error += 1
+                else:
                     self.llm_error += 1
 
             # Goal Creation
@@ -636,24 +578,20 @@ class MonthEconomyPlanBlock(Block):
             goals_state = await self.prompt_manager.build_agent_state(
                 goals_required_fields, goals_context, self.memory
             )
-            GOALS_PROMPT = self._format_prompt(
-                self.goal_creation_prompt_name, goals_state
-            )
-            content = await self.llm.atext_request(
-                [{"role": "user", "content": GOALS_PROMPT}],
+            goals_prompt = self._format_prompt(self.goal_creation_prompt_name, goals_state)
+            goals_result = await self.execute_prompt(
+                self.goal_creation_prompt_name,
+                goals_context,
+                func_name="forward_goal_creation",
+                dialog_override=[{"role": "user", "content": goals_prompt}],
                 timeout=300,
-                context=self.build_llm_prompt_context(
-                    prompt_name=self.goal_creation_prompt_name,
-                    state_dict=goals_state,
-                    func_name="forward_goal_creation",
-                ),
             )
 
-            try:
-                goals = json_repair.loads(content)
-            except Exception as e:
+            if goals_result.success:
+                goals = goals_result.parsed
+            else:
                 get_logger().warning(
-                    f"Error in parsing goals: {str(e)}, raw: {content}"
+                    f"MonthEconomyPlanBlock: Goal creation failed: {goals_result.error}"
                 )
                 goals = []
 

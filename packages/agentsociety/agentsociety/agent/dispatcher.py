@@ -247,17 +247,22 @@ class BlockDispatcher:
                     "agent_id": str(agent_id),
                 },
             )
-            function_args: Any = json_repair.loads(
-                response.choices[0].message.tool_calls[0].function.arguments
-            )
+            # Try structured tool_calls first; fall back to plain content (some LLMs)
+            try:
+                raw_args = response.choices[0].message.tool_calls[0].function.arguments
+            except (AttributeError, IndexError, TypeError):
+                # No tool_calls — try to extract block_name from plain text content
+                raw_args = response.choices[0].message.content or "{}"
+
+            function_args: Any = json_repair.loads(raw_args)
 
             get_logger().debug(f"LLM response for block dispatching: {function_args}")
             if isinstance(function_args, list):
-                function_args = function_args[1][0]  # Mistral
+                function_args = function_args[1][0]  # Mistral nested list format
             if isinstance(function_args, str):
-                get_logger().debug(
-                    f"Function arguments is a string, attempting to parse: {response}"
-                )
+                function_args = json_repair.loads(function_args)
+            if not isinstance(function_args, dict):
+                function_args = {}
 
             if "arguments" in function_args and isinstance(
                 function_args["arguments"], dict
@@ -265,6 +270,14 @@ class BlockDispatcher:
                 function_args = function_args["arguments"]
 
             selected_block = function_args.get("block_name")
+            # Normalise: block names are registered lowercased; LLM may use other casing
+            if selected_block is not None and selected_block != "no_suitable_block":
+                if selected_block not in self.blocks:
+                    normalised = selected_block.lower().replace("-", "").replace("_", "").replace(" ", "")
+                    for key in self.blocks:
+                        if key.lower().replace("-", "").replace("_", "") == normalised:
+                            selected_block = key
+                            break
 
             reason = function_args.get("reason", "No reason provided")
 
@@ -338,6 +351,18 @@ class BlockDispatcher:
             except (ValueError, AttributeError):
                 return 0
 
+        def _safe_extract_plan_target(value: Any) -> str:
+            """Safely extracts plan_target, handling None and list values."""
+            if value is None:
+                get_logger().warning("plan_target is None in context")
+                return ""
+            if isinstance(value, list):
+                if len(value) == 0:
+                    get_logger().warning("plan_target is empty list in context")
+                    return ""
+                return str(value[0])
+            return str(value)
+
         try:
             possible_blocks = function_schema["function"]["parameters"]["properties"][
                 "block_name"
@@ -345,8 +370,16 @@ class BlockDispatcher:
             raw_temp_str = context.get("temperature", "0")
             temp_value = _parse_temperature(raw_temp_str)
             plan_target = context.get("plan_target", "")
-            if isinstance(plan_target, list):
-                plan_target = plan_target[0] if len(plan_target) > 0 else ""
+            plan_target = _safe_extract_plan_target(plan_target)
+
+            # Log all extracted context values for debugging
+            get_logger().debug(
+                f"Dispatcher logging for agent_id={agent_id}: "
+                f"target_block={selected_block}, "
+                f"ctx_time={context.get('current_time', '')}, "
+                f"ctx_plan_target={plan_target}, "
+                f"ctx_intention={context.get('current_intention', '')}"
+            )
 
             db_tool.get_tool().insert_block_dispatcher_record.remote(
                 agent_id=agent_id,
@@ -354,17 +387,20 @@ class BlockDispatcher:
                 target_block=selected_block,
                 reason=reason,
                 possible_blocks=possible_blocks,
-                ctx_time=context.get("current_time", ""),
-                ctx_need=context.get("current_need", ""),
-                ctx_intention=context.get("current_intention", ""),
-                ctx_emotion=context.get("current_emotion", ""),
-                ctx_thought=context.get("current_thought", ""),
-                ctx_location=context.get("current_location", ""),
-                ctx_area_info=context.get("area_information", ""),
-                ctx_weather=context.get("weather", ""),
+                ctx_time=str(context.get("current_time", "")),
+                ctx_need=str(context.get("current_need", "")),
+                ctx_intention=str(context.get("current_intention", "")),
+                ctx_emotion=str(context.get("current_emotion", "")),
+                ctx_thought=str(context.get("current_thought", "")),
+                ctx_location=str(context.get("current_location", "")),
+                ctx_area_info=str(context.get("area_information", "")),
+                ctx_weather=str(context.get("weather", "")),
                 ctx_temperature=temp_value,
-                ctx_other_info=context.get("other_information", ""),
-                ctx_plan_target=context.get("plan_target", ""),
+                ctx_other_info=str(context.get("other_information", "")),
+                ctx_plan_target=plan_target,
             )
         except Exception as e:
-            get_logger().warning(f"Failed to log dispatcher activity: {e}")
+            get_logger().warning(
+                f"Failed to log dispatcher activity: {e}. "
+                f"Context keys available: {list(context.keys()) if isinstance(context, dict) else 'N/A'}"
+            )

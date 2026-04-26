@@ -1,13 +1,11 @@
 import time
 from typing import TYPE_CHECKING
 
-import json_repair # type: ignore
 from pycityproto.city.trip.v2.trip_pb2 import TripMode # type: ignore
 
 from ....agent import AgentToolbox, Block, DotDict
 from ....logger import get_logger
 from ....memory import Memory
-from ..utils import clean_json_response
 
 if TYPE_CHECKING:
     from .place_selection_block import PlaceSelectionBlock
@@ -130,9 +128,6 @@ class MoveBlock(Block):
         return result
 
     async def forward(self, context: DotDict):
-        if self.prompt_manager is None:
-            raise RuntimeError("PromptManager is not initialized")
-
         poi_id = None
         place_selection_result = None  # Store PlaceSelectionBlock result for later merging
 
@@ -141,39 +136,21 @@ class MoveBlock(Block):
         places = ["home", "workplace"] + known_places + ["other"]
 
         # 1. LLM Decision
-        required_fields = self.prompt_manager.get_required_fields(
-            self.place_analysis_prompt_name
-        )
-        state_dict = await self.prompt_manager.build_agent_state(
-            required_fields=required_fields,
-            context={
+        analysis_result = await self.execute_prompt(
+            self.place_analysis_prompt_name,
+            {
                 "plan": context["plan_context"]["plan"],
                 "intention": context["current_step"]["intention"],
                 "place_list": places,
                 "other_info": self.environment.environment.get("other_information", "None"),
             },
-            memory=self.memory,
+            func_name="forward",
         )
-        dialog = self.prompt_manager.format_prompt_to_dialog(
-            self.place_analysis_prompt_name, state_dict
-        )
-
-        response = await self.llm.atext_request(
-            dialog,
-            response_format={"type": "json_object"},
-            context=self.build_llm_prompt_context(
-                prompt_name=self.place_analysis_prompt_name,
-                state_dict=state_dict,
-                func_name="Place Analysis",
-            ),
-        )
-
-        try:
-            response = clean_json_response(response)
-            response_type = json_repair.loads(response)["place_type"]  # type: ignore
-        except Exception:
+        if analysis_result.success:
+            response_type = analysis_result.parsed.get("place_type", "home")
+        else:
             get_logger().warning(
-                f"MobilityBlock: Place Analysis: wrong type of place, raw response: {response}",
+                f"MobilityBlock: Place Analysis failed: {analysis_result.error}",
                 extra={"agent_id": self.agent.id},
             )
             response_type = "home"

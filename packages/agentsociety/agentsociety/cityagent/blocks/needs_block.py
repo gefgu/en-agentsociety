@@ -1,11 +1,9 @@
 from typing import Any
 import time
-import json_repair
 
 from ...agent import AgentToolbox, Block, DotDict
 from ...logger import get_logger
 from ...memory import Memory
-from .utils import clean_json_response
 
 
 class NeedsBlock(Block):
@@ -77,6 +75,29 @@ class NeedsBlock(Block):
         self.id = id
         self._last_tick_time = 0
 
+    def _ensure_float(self, value, field_name: str) -> float:
+        if value is None:
+            get_logger().warning(f"{field_name} is None, using default 0.5")
+            return 0.5
+        if isinstance(value, str):
+            try:
+                get_logger().warning(
+                    f"{field_name} came back as string '{value}' from memory, converting to float"
+                )
+                return float(value)
+            except (ValueError, TypeError):
+                get_logger().warning(
+                    f"Failed to convert {field_name}='{value}' to float, using default 0.5"
+                )
+                return 0.5
+        if isinstance(value, (int, float)):
+            return float(value)
+        get_logger().warning(
+            f"{field_name} has unexpected type {type(value)}, using default 0.5"
+        )
+        return 0.5
+
+
     async def reset(self):
         """Reset the needs block."""
         self._need_to_do = None
@@ -105,55 +126,40 @@ class NeedsBlock(Block):
                 self.need_work = False
 
         if not self.initialized:
-            if self.prompt_manager is None:
-                raise RuntimeError("PromptManager is not initialized")
             _, current_time = self.environment.get_datetime(format_time=True)
 
-            required_fields = self.prompt_manager.get_required_fields(
-                self.initial_prompt_name
+            satisfaction_keys = (
+                "hunger_satisfaction", "energy_satisfaction",
+                "safety_satisfaction", "social_satisfaction",
             )
-            state_dict = await self.prompt_manager.build_agent_state(
-                required_fields=required_fields,
-                context={
-                    "current_time": current_time,
-                },
-                memory=self.memory,
+
+            def _has_satisfaction_keys(parsed: Any) -> bool:
+                if not isinstance(parsed, dict):
+                    return False
+                # Check if keys are at top level (after coerce_output flattening)
+                if all(k in parsed for k in satisfaction_keys):
+                    return True
+                # Or check if they're nested under current_satisfaction (raw LLM response)
+                sat = parsed.get("current_satisfaction")
+                if isinstance(sat, dict):
+                    return all(k in sat for k in satisfaction_keys)
+                return False
+
+            result = await self.execute_prompt(
+                self.initial_prompt_name,
+                {"current_time": current_time},
+                func_name="initialize",
+                max_retries=2,
+                validate=_has_satisfaction_keys,
             )
-            dialog = self.prompt_manager.format_prompt_to_dialog(
-                self.initial_prompt_name, state_dict
-            )
-            response = await self.llm.atext_request(
-                dialog,
-                response_format={"type": "json_object"},
-                context=self.build_llm_prompt_context(
-                    prompt_name=self.initial_prompt_name,
-                    state_dict=state_dict,
-                    func_name="initialize",
-                    block_name="NeedsBlock",
-                ),
-            )
-            response = clean_json_response(response)
-            retry = 3
-            while retry > 0:
-                try:
-                    satisfaction: Any = json_repair.loads(response)
-                    satisfactions = satisfaction["current_satisfaction"]
-                    await self.memory.status.update(
-                        "hunger_satisfaction", satisfactions["hunger_satisfaction"]
-                    )
-                    await self.memory.status.update(
-                        "energy_satisfaction", satisfactions["energy_satisfaction"]
-                    )
-                    await self.memory.status.update(
-                        "safety_satisfaction", satisfactions["safety_satisfaction"]
-                    )
-                    await self.memory.status.update(
-                        "social_satisfaction", satisfactions["social_satisfaction"]
-                    )
-                    break
-                except Exception as e:
-                    get_logger().warning(f"Initial response error: {e}")
-                    retry -= 1
+            if result.success:
+                sat = result.parsed.get("current_satisfaction", result.parsed)
+                await self.memory.status.update("hunger_satisfaction", float(sat.get("hunger_satisfaction", 0.9)))
+                await self.memory.status.update("energy_satisfaction", float(sat.get("energy_satisfaction", 0.9)))
+                await self.memory.status.update("safety_satisfaction", float(sat.get("safety_satisfaction", 0.4)))
+                await self.memory.status.update("social_satisfaction", float(sat.get("social_satisfaction", 0.6)))
+            else:
+                get_logger().warning(f"NeedsBlock.initialize failed: {result.error}")
 
             current_plan = await self.memory.status.get("current_plan", False)
             if current_plan:
@@ -179,51 +185,25 @@ class NeedsBlock(Block):
             else "None"
         )
 
-        if self.prompt_manager is None:
-            raise RuntimeError("PromptManager is not initialized")
-
-        required_fields = self.prompt_manager.get_required_fields(
-            self.reflection_prompt_name
+        result = await self.execute_prompt(
+            self.reflection_prompt_name,
+            {"intervention_message": intervention, "current_action": action_message},
+            func_name="reflect_to_intervention",
         )
-        state_dict = await self.prompt_manager.build_agent_state(
-            required_fields=required_fields,
-            context={
-                "intervention_message": intervention,
-                "current_action": action_message,
-            },
-            memory=self.memory,
-        )
-        dialog = self.prompt_manager.format_prompt_to_dialog(
-            self.reflection_prompt_name, state_dict
-        )
-        response = await self.llm.atext_request(
-            dialog,
-            response_format={"type": "json_object"},
-            context=self.build_llm_prompt_context(
-                prompt_name=self.reflection_prompt_name,
-                state_dict=state_dict,
-                func_name="reflect_to_intervention",
-                block_name="NeedsBlock",
-            ),
-        )
-        try:
-            reflection: Any = json_repair.loads(clean_json_response(response))
-            if "do_something" in reflection:
-                self._need_to_do = reflection["description"]
-            else:
-                # update satisfaction
-                for need_type, new_value in reflection.items():
-                    if need_type in [
-                        "hunger_satisfaction",
-                        "energy_satisfaction",
-                        "safety_satisfaction",
-                        "social_satisfaction",
-                    ]:
-                        await self.memory.status.update(need_type, new_value)
-        except Exception as e:
-            get_logger().warning(f"Error processing reflection response: {str(e)}")
-            get_logger().warning(f"Original response: {response}")
+        if not result.success:
+            get_logger().warning(f"NeedsBlock.reflect_to_intervention failed: {result.error}")
             return None
+        reflection = result.parsed
+        if "do_something" in reflection:
+            self._need_to_do = reflection.get("description")
+        else:
+            satisfaction_keys = {
+                "hunger_satisfaction", "energy_satisfaction",
+                "safety_satisfaction", "social_satisfaction",
+            }
+            for need_type, new_value in reflection.items():
+                if need_type in satisfaction_keys:
+                    await self.memory.status.update(need_type, new_value)
 
     async def time_decay(self):
         """
@@ -241,11 +221,23 @@ class NeedsBlock(Block):
             time_diff = (tick_now - self.last_evaluation_time) / 3600
             self.last_evaluation_time = tick_now
 
-        # acquire current satisfaction
         hunger_satisfaction = await self.memory.status.get("hunger_satisfaction")
         energy_satisfaction = await self.memory.status.get("energy_satisfaction")
         safety_satisfaction = await self.memory.status.get("safety_satisfaction")
         social_satisfaction = await self.memory.status.get("social_satisfaction")
+
+        hunger_satisfaction = self._ensure_float(
+            hunger_satisfaction, "hunger_satisfaction"
+        )
+        energy_satisfaction = self._ensure_float(
+            energy_satisfaction, "energy_satisfaction"
+        )
+        safety_satisfaction = self._ensure_float(
+            safety_satisfaction, "safety_satisfaction"
+        )
+        social_satisfaction = self._ensure_float(
+            social_satisfaction, "social_satisfaction"
+        )
 
         # calculates hunger and fatigue decay based on elapsed time
         hungry_decay = self.alpha_H * time_diff
@@ -345,60 +337,31 @@ class NeedsBlock(Block):
 
         observation = f"Based on my recent experience of {intention} at {location_category} (ID: {location_id}), I have the following details: {details}."
 
-        if self.prompt_manager is None:
-            raise RuntimeError("PromptManager is not initialized")
-
-        required_fields = self.prompt_manager.get_required_fields(
-            self.poi_belief_update_prompt_name
-        )
-        state_dict = await self.prompt_manager.build_agent_state(
-            required_fields=required_fields,
-            context={
+        result = await self.execute_prompt(
+            self.poi_belief_update_prompt_name,
+            {
                 "observation": observation,
                 "poi_name": location_id,
                 "poi_category": location_category,
             },
-            memory=self.memory,
+            func_name="update_location_belief",
+            max_retries=2,
+            validate=lambda p: isinstance(p, dict) and any(
+                k in p for k in ("price", "atmosphere", "satisfaction", "convenience")
+            ),
         )
-        dialog = self.prompt_manager.format_prompt_to_dialog(
-            self.poi_belief_update_prompt_name, state_dict
-        )
-
-        retry = 3
-        while retry > 0:
-            try:
-                response = await self.llm.atext_request(
-                    dialog,
-                    response_format={"type": "json_object"},
-                    context=self.build_llm_prompt_context(
-                        prompt_name=self.poi_belief_update_prompt_name,
-                        state_dict=state_dict,
-                        func_name="update_location_belief",
-                        block_name="NeedsBlock",
-                    ),
-                )
-                belief_update: Any = json_repair.loads(clean_json_response(response))
-                new_price = belief_update.get("price", 0.5)
-                new_atmosphere = belief_update.get("atmosphere", 0.5)
-                new_satisfaction = belief_update.get("satisfaction", 0.5)
-                new_convenience = belief_update.get("convenience", 0.5)
-                await self.memory.spatial.update_belief_location(
-                    location_id,
-                    new_price,
-                    new_atmosphere,
-                    new_satisfaction,
-                    new_convenience,
-                )
-                get_logger().info(
-                    f"Belief updated for location {location_id} with data: {belief_update}"
-                )
-                break
-            except Exception as e:
-                get_logger().warning(
-                    f"Error updating beliefs from plan evaluation: {str(e)}"
-                )
-                get_logger().warning(f"Original response: {response}")
-                retry -= 1
+        if result.success:
+            b = result.parsed
+            await self.memory.spatial.update_belief_location(
+                location_id,
+                b.get("price", 0.5),
+                b.get("atmosphere", 0.5),
+                b.get("satisfaction", 0.5),
+                b.get("convenience", 0.5),
+            )
+            get_logger().info(f"Belief updated for location {location_id} with data: {b}")
+        else:
+            get_logger().warning(f"NeedsBlock.update_location_belief failed: {result.error}")
 
     async def determine_current_need(self):
         """
@@ -409,10 +372,25 @@ class NeedsBlock(Block):
         - Ongoing plan interruptions
         """
         cognition = None
+
+        # Get satisfaction values and ensure they are floats (may come as strings from DB)
         hunger_satisfaction = await self.memory.status.get("hunger_satisfaction")
         energy_satisfaction = await self.memory.status.get("energy_satisfaction")
         safety_satisfaction = await self.memory.status.get("safety_satisfaction")
         social_satisfaction = await self.memory.status.get("social_satisfaction")
+
+        hunger_satisfaction = self._ensure_float(
+            hunger_satisfaction, "hunger_satisfaction"
+        )
+        energy_satisfaction = self._ensure_float(
+            energy_satisfaction, "energy_satisfaction"
+        )
+        safety_satisfaction = self._ensure_float(
+            safety_satisfaction, "safety_satisfaction"
+        )
+        social_satisfaction = self._ensure_float(
+            social_satisfaction, "social_satisfaction"
+        )
 
         # If needs adjustment is required, update current need
         # The adjustment scheme is to adjust the need if the current need is empty, or a higher priority need appears
@@ -561,10 +539,8 @@ class NeedsBlock(Block):
         - Processes LLM response and updates satisfaction values
         - Implements retry logic for invalid responses
         """
-        metrics_tool = self.toolbox.get_tool("metrics_actor")
         db_tool = self.toolbox.get_tool("db_actor")
 
-        # Retrieve the executed plan and evaluation results
         evaluation_results = []
         for step in completed_plan["steps"]:
             if "evaluation" in step["evaluation"]:
@@ -572,94 +548,60 @@ class NeedsBlock(Block):
             else:
                 eva_ = "Plan failed or skipped, not completed"
             evaluation_results.append(f"- {step['intention']} ({step['type']}): {eva_}")
-        evaluation_results = "\n".join(evaluation_results)
+        evaluation_results_str = "\n".join(evaluation_results)
 
-        # Use LLM for evaluation
         current_need = await self.memory.status.get("current_need")
-        current_hunger = await self.memory.status.get("hunger_satisfaction")
-        current_energy = await self.memory.status.get("energy_satisfaction")
-        current_safety = await self.memory.status.get("safety_satisfaction")
-        current_social = await self.memory.status.get("social_satisfaction")
+        current_hunger = self._ensure_float(await self.memory.status.get("hunger_satisfaction"), "hunger_satisfaction")
+        current_energy = self._ensure_float(await self.memory.status.get("energy_satisfaction"), "energy_satisfaction")
+        current_safety = self._ensure_float(await self.memory.status.get("safety_satisfaction"), "safety_satisfaction")
+        current_social = self._ensure_float(await self.memory.status.get("social_satisfaction"), "social_satisfaction")
 
-        if self.prompt_manager is None:
-            raise RuntimeError("PromptManager is not initialized")
+        satisfaction_keys = {
+            "hunger_satisfaction", "energy_satisfaction",
+            "safety_satisfaction", "social_satisfaction",
+        }
 
-        required_fields = self.prompt_manager.get_required_fields(
-            self.evaluation_prompt_name
-        )
-        state_dict = await self.prompt_manager.build_agent_state(
-            required_fields=required_fields,
-            context={
+        result = await self.execute_prompt(
+            self.evaluation_prompt_name,
+            {
                 "current_need": current_need,
                 "plan_target": completed_plan["target"],
-                "evaluation_results": evaluation_results,
+                "evaluation_results": evaluation_results_str,
                 "hunger_satisfaction": current_hunger,
                 "energy_satisfaction": current_energy,
                 "safety_satisfaction": current_safety,
                 "social_satisfaction": current_social,
             },
-            memory=self.memory,
+            func_name="evaluate_and_adjust_needs",
+            max_retries=2,
+            validate=lambda p: isinstance(p, dict) and any(k in p for k in satisfaction_keys),
         )
-        dialog = self.prompt_manager.format_prompt_to_dialog(
-            self.evaluation_prompt_name, state_dict
-        )
+        if not result.success:
+            get_logger().warning(f"NeedsBlock.evaluate_and_adjust_needs failed: {result.error}")
+            return
 
-        retry = 3
-        while retry > 0:
+        new_satisfaction = result.parsed
+        for need_type, new_value in new_satisfaction.items():
+            if need_type in satisfaction_keys:
+                await self.memory.status.update(need_type, new_value)
 
-            response = await self.llm.atext_request(
-                dialog,
-                response_format={"type": "json_object"},
-                context=self.build_llm_prompt_context(
-                    prompt_name=self.evaluation_prompt_name,
-                    state_dict=state_dict,
-                    func_name="evaluate_and_adjust_needs",
-                    block_name="NeedsBlock",
-                ),
-            )
-
-            try:
-                new_satisfaction: Any = json_repair.loads(clean_json_response(response))  # type: ignore
-                # Update values of all needs
-                for need_type, new_value in new_satisfaction.items():
-                    if need_type in [
-                        "hunger_satisfaction",
-                        "energy_satisfaction",
-                        "safety_satisfaction",
-                        "social_satisfaction",
-                    ]:
-                        await self.memory.status.update(need_type, new_value)
-
-                if db_tool:
-                    record = {
-                        "agent_id": self.id,
-                        "prompt": dialog[0]["content"],
-                        "current_need": current_need,
-                        "current_hunger": current_hunger,
-                        "current_energy": current_energy,
-                        "current_safety": current_safety,
-                        "current_social": current_social,
-                        "new_hunger": new_satisfaction.get(
-                            "hunger_satisfaction", current_hunger
-                        ),
-                        "new_energy": new_satisfaction.get(
-                            "energy_satisfaction", current_energy
-                        ),
-                        "new_safety": new_satisfaction.get(
-                            "safety_satisfaction", current_safety
-                        ),
-                        "new_social": new_satisfaction.get(
-                            "social_satisfaction", current_social
-                        ),
-                        "timestamp": int(time.time()),
-                        "actor": "llm",
-                    }
-                    db_tool.get_tool().insert_adjust_needs_record.remote(record)
-                return
-            except Exception as e:
-                get_logger().warning(f"Error processing evaluation response: {str(e)}")
-                get_logger().warning(f"Original response: {response}")
-                retry -= 1
+        if db_tool:
+            record = {
+                "agent_id": self.id,
+                "prompt": result.state_dict,
+                "current_need": current_need,
+                "current_hunger": current_hunger,
+                "current_energy": current_energy,
+                "current_safety": current_safety,
+                "current_social": current_social,
+                "new_hunger": new_satisfaction.get("hunger_satisfaction", current_hunger),
+                "new_energy": new_satisfaction.get("energy_satisfaction", current_energy),
+                "new_safety": new_satisfaction.get("safety_satisfaction", current_safety),
+                "new_social": new_satisfaction.get("social_satisfaction", current_social),
+                "timestamp": int(time.time()),
+                "actor": "llm",
+            }
+            db_tool.get_tool().insert_adjust_needs_record.remote(record)
 
     async def update_need_fulfillment(self):
         """Only called in new days"""

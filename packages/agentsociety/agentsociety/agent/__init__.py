@@ -13,6 +13,8 @@ from .block import (
     Block,
     BlockParams,
     BlockOutput,
+    PromptResult,
+    ResponseMode,
 )
 from .dispatcher import BlockDispatcher
 from .decorator import register_get, param_docs
@@ -50,4 +52,6 @@ __all__ = [
     "DotDict",
     "auto_deepcopy_dotdict",
     "IndividualAgentBase",
+    "PromptResult",
+    "ResponseMode",
 ]

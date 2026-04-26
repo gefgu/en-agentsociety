@@ -36,7 +36,7 @@ class PromptMemoryHandler:
 
     @staticmethod
     def normalize(value: Any) -> Any:
-        return ", ".join(value) if isinstance(value, list) else value
+        return ", ".join(str(v) for v in value) if isinstance(value, list) else value
 
     async def _get_current_plan(self, memory: Any) -> dict[str, Any]:
         loaded = await memory.status.get("current_plan", {})

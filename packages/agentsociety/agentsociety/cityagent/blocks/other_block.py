@@ -1,8 +1,6 @@
 import random
 from typing import Any, Optional
 
-import json_repair
-
 from ...agent import (
     AgentToolbox,
     Block,
@@ -13,7 +11,6 @@ from ...agent import (
 from ...logger import get_logger
 from ...memory import Memory
 from ...agent.dispatcher import BlockDispatcher
-from .utils import clean_json_response
 from ..sharing_params import SocietyAgentBlockOutput
 
 
@@ -49,47 +46,21 @@ class SleepBlock(Block):
         Returns:
             Dictionary with execution status, evaluation, time consumed, and node ID.
         """
-        if self.prompt_manager is None:
-            raise RuntimeError("PromptManager is not initialized")
-
-        required_fields = self.prompt_manager.get_required_fields(self.prompt_name)
-        state_dict = await self.prompt_manager.build_agent_state(
-            required_fields=required_fields,
-            context=dict(context),
-            memory=self.memory,
-        )
-        dialog = self.prompt_manager.format_prompt_to_dialog(
-            self.prompt_name, state_dict
-        )
-        result = await self.llm.atext_request(
-            dialog,
-            response_format={"type": "json_object"},
-            context=self.build_llm_prompt_context(
-                prompt_name=self.prompt_name,
-                state_dict=state_dict,
-                func_name="forward",
-            ),
-        )
-        result = clean_json_response(result)
         node_id = await self.memory.stream.add(topic="other", description="I slept")
-        try:
-            result: Any = json_repair.loads(result)
-            return {
-                "success": True,
-                "evaluation": f'Sleep: {context["current_step"]["intention"]}',
-                "consumed_time": int(result["time"]),
-                "node_id": node_id,
-            }
-        except Exception as e:
-            get_logger().warning(
-                f"An error occurred while evaluating the response at parse time: {str(e)}, original result: {result}"
-            )
-            return {
-                "success": True,
-                "evaluation": f'Sleep: {context["current_step"]["intention"]}',
-                "consumed_time": random.randint(1, 8) * 60,
-                "node_id": node_id,
-            }
+        result = await self.execute_prompt(
+            self.prompt_name, dict(context), func_name="forward",
+        )
+        if result.success:
+            consumed_time = int(result.parsed.get("time", random.randint(1, 8) * 60))
+        else:
+            get_logger().warning(f"SleepBlock LLM failed: {result.error}")
+            consumed_time = random.randint(1, 8) * 60
+        return {
+            "success": True,
+            "evaluation": f'Sleep: {context["current_step"]["intention"]}',
+            "consumed_time": consumed_time,
+            "node_id": node_id,
+        }
 
 
 class OtherNoneBlock(Block):
@@ -112,50 +83,23 @@ class OtherNoneBlock(Block):
         self.prompt_name = "other_time_estimate"
 
     async def forward(self, context: DotDict):
-        if self.prompt_manager is None:
-            raise RuntimeError("PromptManager is not initialized")
-
-        required_fields = self.prompt_manager.get_required_fields(self.prompt_name)
-        state_dict = await self.prompt_manager.build_agent_state(
-            required_fields=required_fields,
-            context=dict(context),
-            memory=self.memory,
-        )
-        dialog = self.prompt_manager.format_prompt_to_dialog(
-            self.prompt_name, state_dict
-        )
-        result = await self.llm.atext_request(
-            dialog,
-            response_format={"type": "json_object"},
-            context=self.build_llm_prompt_context(
-                prompt_name=self.prompt_name,
-                state_dict=state_dict,
-                func_name="forward",
-            ),
-        )
-        result = clean_json_response(result)
         node_id = await self.memory.stream.add(
             topic="other", description=f"I {context['current_step']['intention']}"
         )
-
-        try:
-            result: Any = json_repair.loads(result)
-            return {
-                "success": True,
-                "evaluation": f'Finished executing {context["current_step"]["intention"]}',
-                "consumed_time": int(result["time"]),
-                "node_id": node_id,
-            }
-        except Exception as e:
-            get_logger().warning(
-                f"An error occurred while evaluating the response at parse time: {str(e)}, original result: {result}"
-            )
-            return {
-                "success": True,
-                "evaluation": f'Finished executing {context["current_step"]["intention"]}',
-                "consumed_time": random.randint(1, 180),
-                "node_id": node_id,
-            }
+        result = await self.execute_prompt(
+            self.prompt_name, dict(context), func_name="forward",
+        )
+        if result.success:
+            consumed_time = int(result.parsed.get("time", random.randint(1, 180)))
+        else:
+            get_logger().warning(f"OtherNoneBlock LLM failed: {result.error}")
+            consumed_time = random.randint(1, 180)
+        return {
+            "success": True,
+            "evaluation": f'Finished executing {context["current_step"]["intention"]}',
+            "consumed_time": consumed_time,
+            "node_id": node_id,
+        }
 
 
 class OtherBlockParams(BlockParams):
