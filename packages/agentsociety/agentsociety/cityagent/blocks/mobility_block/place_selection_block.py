@@ -279,7 +279,7 @@ class PlaceSelectionBlock(Block):
             with selection probabilities based on gravity model
         """
 
-        get_logger().info(
+        get_logger().debug(
             f"Gravity Model: Starting with {len(pois)} POIs.",
             extra={"agent_id": self.agent.id},
         )

@@ -83,5 +83,5 @@ DO NOT INCLUDE ANY COMMENTS IN YOUR RESPONSE.
 output_guidance = "Return JSON only, without any extra text."
 
 [outputs.current_satisfaction]
-type = "text"
+type = "object"
 description = "JSON object containing initialized satisfaction values."

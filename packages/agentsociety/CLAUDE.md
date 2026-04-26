@@ -108,11 +108,18 @@ All config lives in `configs/__init__.py`. Workflow steps are defined as a list 
 
 ### Testing
 
-Always run tests using the shell script, never with `python` directly:
+**Unit tests** (fast, no LLM or Ray required):
+```bash
+# From packages/agentsociety/
+sh tests/run_unit_tests.sh
+```
 
+Unit tests live in `tests/unit/` and use pytest. They cover `PromptManager` parsing, coercion, and retry logic with mocked LLMs. Run them when changing `agentsociety/prompts/prompt_manager.py` or any TOML prompt schema.
+
+**End-to-end tests** (requires LLM API key + city infrastructure):
 ```bash
 # From packages/agentsociety/
 sh tests/run_e2e_tests.sh
 ```
 
-The script handles Python interpreter selection, Ray environment variables, and working directory setup. Running individual test files with `python` directly will fail due to missing environment setup.
+Both scripts handle Python interpreter selection and working directory setup. Never run test files with `python` directly — the shell scripts set up the required environment.

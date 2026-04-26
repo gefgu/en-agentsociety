@@ -183,7 +183,7 @@ class MoveBlock(Block):
             # Handle "other" places
             next_place = context.get("next_place", None)
             # 2a. If not provided, try Place Selection Block
-            if next_place is None:
+            if next_place is None and self._simulation_mode != "agentsociety":
                 get_logger().info(
                     f"MobilityBlock (Agent {self.agent.id}): No next_place provided, calling PlaceSelectionBlock",
                     extra={"agent_id": self.agent.id},

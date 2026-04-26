@@ -416,7 +416,12 @@ class PromptManager:
                 elif field_type == "integer":
                     result[field_name] = int(float(value)) if value is not None else 0
                 elif field_type in ("text", "categorical"):
-                    result[field_name] = str(value) if value is not None else ""
+                    if isinstance(value, (dict, list)):
+                        pass  # complex objects must not be stringified — pass through unchanged
+                    else:
+                        result[field_name] = str(value) if value is not None else ""
+                elif field_type == "object":
+                    pass  # explicit passthrough, no coercion
             except (ValueError, TypeError):
                 get_logger().warning(
                     f"coerce_output: cannot convert field '{field_name}' "

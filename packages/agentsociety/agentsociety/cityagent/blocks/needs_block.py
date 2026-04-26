@@ -136,14 +136,24 @@ class NeedsBlock(Block):
             def _has_satisfaction_keys(parsed: Any) -> bool:
                 if not isinstance(parsed, dict):
                     return False
-                # Check if keys are at top level (after coerce_output flattening)
-                if all(k in parsed for k in satisfaction_keys):
+                # Accept if at least 1 key is present at top level (partial responses are ok)
+                if any(k in parsed for k in satisfaction_keys):
                     return True
-                # Or check if they're nested under current_satisfaction (raw LLM response)
-                sat = parsed.get("current_satisfaction")
-                if isinstance(sat, dict):
-                    return all(k in sat for k in satisfaction_keys)
+                # Search any nested dict — handles typos like "current_satisfation"
+                # and partial responses (missing 1-2 keys)
+                for v in parsed.values():
+                    if isinstance(v, dict) and any(k in v for k in satisfaction_keys):
+                        return True
                 return False
+
+            def _find_satisfaction_dict(parsed: dict) -> dict:
+                """Return the dict holding the 4 keys (top-level or any nested dict)."""
+                if all(k in parsed for k in satisfaction_keys):
+                    return parsed
+                for v in parsed.values():
+                    if isinstance(v, dict) and all(k in v for k in satisfaction_keys):
+                        return v
+                return parsed
 
             result = await self.execute_prompt(
                 self.initial_prompt_name,
@@ -153,7 +163,7 @@ class NeedsBlock(Block):
                 validate=_has_satisfaction_keys,
             )
             if result.success:
-                sat = result.parsed.get("current_satisfaction", result.parsed)
+                sat = _find_satisfaction_dict(result.parsed)
                 await self.memory.status.update("hunger_satisfaction", float(sat.get("hunger_satisfaction", 0.9)))
                 await self.memory.status.update("energy_satisfaction", float(sat.get("energy_satisfaction", 0.9)))
                 await self.memory.status.update("safety_satisfaction", float(sat.get("safety_satisfaction", 0.4)))
