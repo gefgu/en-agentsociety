@@ -705,56 +705,59 @@ class InstitutionAgentBase(Agent):
             get_logger().warning(
                 f"Institution agent {self.id} has no aoi_id in memory; skipping position initialization."
             )
-        _type = None
         _status = self.status
-        _id = await _status.get("id")
-        _type = await _status.get("type")
-        nominal_gdp = await _status.get("nominal_gdp", [])
-        real_gdp = await _status.get("real_gdp", [])
-        unemployment = await _status.get("unemployment", [])
-        wages = await _status.get("wages", [])
-        prices = await _status.get("prices", [])
-        inventory = await _status.get("inventory", 0)
-        price = await _status.get("price", 0)
-        currency = await _status.get("currency", 0.0)
-        interest_rate = await _status.get("interest_rate", 0.0)
-        bracket_cutoffs = await _status.get("bracket_cutoffs", [])
-        bracket_rates = await _status.get("bracket_rates", [])
-        consumption_currency = await _status.get("consumption_currency", [])
-        consumption_propensity = await _status.get("consumption_propensity", [])
-        income_currency = await _status.get("income_currency", [])
-        depression = await _status.get("depression", [])
-        locus_control = await _status.get("locus_control", [])
-        working_hours = await _status.get("working_hours", [])
-        employees = await _status.get("employees", [])
-        citizens = await _status.get("citizens", [])
-        demand = await _status.get("demand", 0)
-        sales = await _status.get("sales", 0)
+        status_values = await _status.get_many(
+            {
+                "id": None,
+                "type": None,
+                "nominal_gdp": [],
+                "real_gdp": [],
+                "unemployment": [],
+                "wages": [],
+                "prices": [],
+                "inventory": 0,
+                "price": 0,
+                "currency": 0.0,
+                "interest_rate": 0.0,
+                "bracket_cutoffs": [],
+                "bracket_rates": [],
+                "consumption_currency": [],
+                "consumption_propensity": [],
+                "income_currency": [],
+                "depression": [],
+                "locus_control": [],
+                "working_hours": [],
+                "employees": [],
+                "citizens": [],
+                "demand": 0,
+                "sales": 0,
+            }
+        )
         await self.environment.economy_client.add_orgs(
             {
-                "id": _id,
-                "type": _type,
-                "nominal_gdp": nominal_gdp,
-                "real_gdp": real_gdp,
-                "unemployment": unemployment,
-                "wages": wages,
-                "prices": prices,
-                "inventory": inventory,
-                "price": price,
-                "currency": currency,
-                "interest_rate": interest_rate,
-                "bracket_cutoffs": bracket_cutoffs,
-                "bracket_rates": bracket_rates,
-                "consumption_currency": consumption_currency,
-                "consumption_propensity": consumption_propensity,
-                "income_currency": income_currency,
-                "depression": depression,
-                "locus_control": locus_control,
-                "working_hours": working_hours,
-                "employees": employees,
-                "citizens": citizens,
-                "demand": demand,
-                "sales": sales,
+                "id": status_values["id"],
+                "type": status_values["type"],
+                "nominal_gdp": status_values["nominal_gdp"],
+                "real_gdp": status_values["real_gdp"],
+                "unemployment": status_values["unemployment"],
+                "wages": status_values["wages"],
+                "prices": status_values["prices"],
+                "inventory": status_values["inventory"],
+                "price": status_values["price"],
+                "currency": status_values["currency"],
+                "interest_rate": status_values["interest_rate"],
+                "bracket_cutoffs": status_values["bracket_cutoffs"],
+                "bracket_rates": status_values["bracket_rates"],
+                "consumption_currency": status_values["consumption_currency"],
+                "consumption_propensity": status_values["consumption_propensity"],
+                "income_currency": status_values["income_currency"],
+                "depression": status_values["depression"],
+                "locus_control": status_values["locus_control"],
+                "working_hours": status_values["working_hours"],
+                "employees": status_values["employees"],
+                "citizens": status_values["citizens"],
+                "demand": status_values["demand"],
+                "sales": status_values["sales"],
             }
         )
 

@@ -164,10 +164,22 @@ class NeedsBlock(Block):
             )
             if result.success:
                 sat = _find_satisfaction_dict(result.parsed)
-                await self.memory.status.update("hunger_satisfaction", float(sat.get("hunger_satisfaction", 0.9)))
-                await self.memory.status.update("energy_satisfaction", float(sat.get("energy_satisfaction", 0.9)))
-                await self.memory.status.update("safety_satisfaction", float(sat.get("safety_satisfaction", 0.4)))
-                await self.memory.status.update("social_satisfaction", float(sat.get("social_satisfaction", 0.6)))
+                await self.memory.status.update_many(
+                    {
+                        "hunger_satisfaction": float(
+                            sat.get("hunger_satisfaction", 0.9)
+                        ),
+                        "energy_satisfaction": float(
+                            sat.get("energy_satisfaction", 0.9)
+                        ),
+                        "safety_satisfaction": float(
+                            sat.get("safety_satisfaction", 0.4)
+                        ),
+                        "social_satisfaction": float(
+                            sat.get("social_satisfaction", 0.6)
+                        ),
+                    }
+                )
             else:
                 get_logger().warning(f"NeedsBlock.initialize failed: {result.error}")
 
@@ -175,9 +187,13 @@ class NeedsBlock(Block):
             if current_plan:
                 history = await self.memory.status.get("plan_history")
                 history.append(current_plan)
-                await self.memory.status.update("plan_history", history)
-                await self.memory.status.update("current_plan", None)
-                await self.memory.status.update("execution_context", {})
+                await self.memory.status.update_many(
+                    {
+                        "plan_history": history,
+                        "current_plan": None,
+                        "execution_context": {},
+                    }
+                )
             self.initialized = True
 
     async def reflect_to_intervention(self, intervention: str):
@@ -211,9 +227,13 @@ class NeedsBlock(Block):
                 "hunger_satisfaction", "energy_satisfaction",
                 "safety_satisfaction", "social_satisfaction",
             }
-            for need_type, new_value in reflection.items():
-                if need_type in satisfaction_keys:
-                    await self.memory.status.update(need_type, new_value)
+            updates = {
+                need_type: new_value
+                for need_type, new_value in reflection.items()
+                if need_type in satisfaction_keys
+            }
+            if updates:
+                await self.memory.status.update_many(updates)
 
     async def time_decay(self):
         """
@@ -231,10 +251,18 @@ class NeedsBlock(Block):
             time_diff = (tick_now - self.last_evaluation_time) / 3600
             self.last_evaluation_time = tick_now
 
-        hunger_satisfaction = await self.memory.status.get("hunger_satisfaction")
-        energy_satisfaction = await self.memory.status.get("energy_satisfaction")
-        safety_satisfaction = await self.memory.status.get("safety_satisfaction")
-        social_satisfaction = await self.memory.status.get("social_satisfaction")
+        satisfaction = await self.memory.status.get_many(
+            {
+                "hunger_satisfaction": None,
+                "energy_satisfaction": None,
+                "safety_satisfaction": None,
+                "social_satisfaction": None,
+            }
+        )
+        hunger_satisfaction = satisfaction["hunger_satisfaction"]
+        energy_satisfaction = satisfaction["energy_satisfaction"]
+        safety_satisfaction = satisfaction["safety_satisfaction"]
+        social_satisfaction = satisfaction["social_satisfaction"]
 
         hunger_satisfaction = self._ensure_float(
             hunger_satisfaction, "hunger_satisfaction"
@@ -260,10 +288,14 @@ class NeedsBlock(Block):
         social_satisfaction = max(0, social_satisfaction - social_decay)
 
         # update satisfaction
-        await self.memory.status.update("hunger_satisfaction", hunger_satisfaction)
-        await self.memory.status.update("energy_satisfaction", energy_satisfaction)
-        await self.memory.status.update("safety_satisfaction", safety_satisfaction)
-        await self.memory.status.update("social_satisfaction", social_satisfaction)
+        await self.memory.status.update_many(
+            {
+                "hunger_satisfaction": hunger_satisfaction,
+                "energy_satisfaction": energy_satisfaction,
+                "safety_satisfaction": safety_satisfaction,
+                "social_satisfaction": social_satisfaction,
+            }
+        )
 
     async def update_when_plan_completed(self):
         # Check if there is any ongoing plan
@@ -275,15 +307,25 @@ class NeedsBlock(Block):
                 await self.update_poi_beliefs_from_plan(current_plan)
 
             # Evaluate the execution process of the plan and adjust needs
-            pre_need = await self.memory.status.get("current_need")
+            status_values = await self.memory.status.get_many(
+                {
+                    "current_need": None,
+                    "plan_history": None,
+                }
+            )
+            pre_need = status_values["current_need"]
             # evaluate plan execution and adjust needs
             await self.evaluate_and_adjust_needs(current_plan)
             # add completed plan to history
-            history = await self.memory.status.get("plan_history")
+            history = status_values["plan_history"]
             history.append(current_plan)
-            await self.memory.status.update("plan_history", history)
-            await self.memory.status.update("current_plan", None)
-            await self.memory.status.update("execution_context", {})
+            await self.memory.status.update_many(
+                {
+                    "plan_history": history,
+                    "current_plan": None,
+                    "execution_context": {},
+                }
+            )
             if pre_need == self._need_to_do:
                 self._need_to_do = None
                 self._need_to_do_checked = False
@@ -384,10 +426,20 @@ class NeedsBlock(Block):
         cognition = None
 
         # Get satisfaction values and ensure they are floats (may come as strings from DB)
-        hunger_satisfaction = await self.memory.status.get("hunger_satisfaction")
-        energy_satisfaction = await self.memory.status.get("energy_satisfaction")
-        safety_satisfaction = await self.memory.status.get("safety_satisfaction")
-        social_satisfaction = await self.memory.status.get("social_satisfaction")
+        status_values = await self.memory.status.get_many(
+            {
+                "hunger_satisfaction": None,
+                "energy_satisfaction": None,
+                "safety_satisfaction": None,
+                "social_satisfaction": None,
+                "current_plan": None,
+                "current_need": None,
+            }
+        )
+        hunger_satisfaction = status_values["hunger_satisfaction"]
+        energy_satisfaction = status_values["energy_satisfaction"]
+        safety_satisfaction = status_values["safety_satisfaction"]
+        social_satisfaction = status_values["social_satisfaction"]
 
         hunger_satisfaction = self._ensure_float(
             hunger_satisfaction, "hunger_satisfaction"
@@ -404,8 +456,8 @@ class NeedsBlock(Block):
 
         # If needs adjustment is required, update current need
         # The adjustment scheme is to adjust the need if the current need is empty, or a higher priority need appears
-        current_plan = await self.memory.status.get("current_plan")
-        current_need = await self.memory.status.get("current_need")
+        current_plan = status_values["current_plan"]
+        current_need = status_values["current_need"]
 
         # When there's no plan, get all satisfaction values and check each need against its threshold based on priority
         if not current_plan:
@@ -513,11 +565,15 @@ class NeedsBlock(Block):
                     description=f"I need to change my plan because the need of [{new_need}] is more important than [{current_need}]",
                 )
                 cognition = f"I need to change my plan because the need of [{new_need}] is more important than [{current_need}]"
-                await self.memory.status.update("current_need", new_need)
                 self.context.current_intention = new_need
-                await self.memory.status.update("plan_history", history)
-                await self.memory.status.update("current_plan", None)
-                await self.memory.status.update("execution_context", {})
+                await self.memory.status.update_many(
+                    {
+                        "current_need": new_need,
+                        "plan_history": history,
+                        "current_plan": None,
+                        "execution_context": {},
+                    }
+                )
 
         date, t = self.environment.get_datetime()
 
@@ -560,11 +616,28 @@ class NeedsBlock(Block):
             evaluation_results.append(f"- {step['intention']} ({step['type']}): {eva_}")
         evaluation_results_str = "\n".join(evaluation_results)
 
-        current_need = await self.memory.status.get("current_need")
-        current_hunger = self._ensure_float(await self.memory.status.get("hunger_satisfaction"), "hunger_satisfaction")
-        current_energy = self._ensure_float(await self.memory.status.get("energy_satisfaction"), "energy_satisfaction")
-        current_safety = self._ensure_float(await self.memory.status.get("safety_satisfaction"), "safety_satisfaction")
-        current_social = self._ensure_float(await self.memory.status.get("social_satisfaction"), "social_satisfaction")
+        status_values = await self.memory.status.get_many(
+            {
+                "current_need": None,
+                "hunger_satisfaction": None,
+                "energy_satisfaction": None,
+                "safety_satisfaction": None,
+                "social_satisfaction": None,
+            }
+        )
+        current_need = status_values["current_need"]
+        current_hunger = self._ensure_float(
+            status_values["hunger_satisfaction"], "hunger_satisfaction"
+        )
+        current_energy = self._ensure_float(
+            status_values["energy_satisfaction"], "energy_satisfaction"
+        )
+        current_safety = self._ensure_float(
+            status_values["safety_satisfaction"], "safety_satisfaction"
+        )
+        current_social = self._ensure_float(
+            status_values["social_satisfaction"], "social_satisfaction"
+        )
 
         satisfaction_keys = {
             "hunger_satisfaction", "energy_satisfaction",
@@ -591,9 +664,13 @@ class NeedsBlock(Block):
             return
 
         new_satisfaction = result.parsed
-        for need_type, new_value in new_satisfaction.items():
-            if need_type in satisfaction_keys:
-                await self.memory.status.update(need_type, new_value)
+        updates = {
+            need_type: new_value
+            for need_type, new_value in new_satisfaction.items()
+            if need_type in satisfaction_keys
+        }
+        if updates:
+            await self.memory.status.update_many(updates)
 
         if db_tool:
             record = {
@@ -616,15 +693,25 @@ class NeedsBlock(Block):
     async def update_need_fulfillment(self):
         """Only called in new days"""
         day, t = self.environment.get_datetime()
-        current_fulfillment = await self.memory.status.get("need_fulfillment", 0)
-        mean_need_fulfillment = await self.memory.status.get("mean_need_fulfillment", 0)
+        status_values = await self.memory.status.get_many(
+            {
+                "need_fulfillment": 0,
+                "mean_need_fulfillment": 0,
+            }
+        )
+        current_fulfillment = status_values["need_fulfillment"]
+        mean_need_fulfillment = status_values["mean_need_fulfillment"]
 
         new_mean_fulfillment = (mean_need_fulfillment * day + current_fulfillment) / (
             day + 1
         )
 
-        await self.memory.status.update("mean_need_fulfillment", new_mean_fulfillment)
-        await self.memory.status.update("need_fulfillment", 0)
+        await self.memory.status.update_many(
+            {
+                "mean_need_fulfillment": new_mean_fulfillment,
+                "need_fulfillment": 0,
+            }
+        )
 
     async def forward(self):
         """

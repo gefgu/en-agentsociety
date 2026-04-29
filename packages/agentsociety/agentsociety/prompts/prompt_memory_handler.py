@@ -18,13 +18,15 @@ class PromptMemoryHandler:
         return await memory.status.get("location_knowledge", {})
 
     async def _get_persona_parts(self, memory: Any) -> dict[str, Any]:
-        return {
-            "name": await memory.status.get("name", "unknown"),
-            "age": await memory.status.get("age", "unknown"),
-            "gender": await memory.status.get("gender", "unknown"),
-            "occupation": await memory.status.get("occupation", "unknown"),
-            "personality": await memory.status.get("personality", "unknown"),
-        }
+        return await memory.status.get_many(
+            {
+                "name": "unknown",
+                "age": "unknown",
+                "gender": "unknown",
+                "occupation": "unknown",
+                "personality": "unknown",
+            }
+        )
 
     async def _get_big5(self, memory: Any) -> dict[str, Any]:
         loaded = await memory.status.get("big5", {})
@@ -78,10 +80,18 @@ class PromptMemoryHandler:
         return plan_cache.get("target", "unknown")
 
     async def resolve_location(self, _: str, memory: Any) -> Any:
-        position_now = await self._get_position_now(memory)
-        home_location = await self._get_home_location(memory)
-        work_location = await self._get_work_location(memory)
-        location_knowledge = await self._get_location_knowledge(memory)
+        location_parts = await memory.status.get_many(
+            {
+                "position": {},
+                "home": {},
+                "work": {},
+                "location_knowledge": {},
+            }
+        )
+        position_now = location_parts["position"]
+        home_location = location_parts["home"]
+        work_location = location_parts["work"]
+        location_knowledge = location_parts["location_knowledge"]
 
         current_location = "Outside"
         if (

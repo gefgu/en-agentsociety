@@ -43,6 +43,8 @@ def mock_memory():
     memory = MagicMock()
     memory.status = MagicMock()
     memory.status.get = AsyncMock(return_value=None)
+    memory.status.get_many = AsyncMock(side_effect=lambda keys: dict(keys))
+    memory.status.update_many = AsyncMock(return_value=None)
     memory.profile = MagicMock()
     memory.profile.get = AsyncMock(return_value=None)
     memory.stream = MagicMock()

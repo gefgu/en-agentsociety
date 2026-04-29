@@ -315,18 +315,28 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         now_time = self.environment.get_datetime(format_time=True)
         self.context.current_time = now_time[1]
 
+        status_values = await self.memory.status.get_many(
+            {
+                "emotion_types": None,
+                "thought": None,
+                "position": None,
+                "home": None,
+                "work": None,
+            }
+        )
+
         # Current Emotion
-        emotion_types = await self.memory.status.get("emotion_types")
+        emotion_types = status_values["emotion_types"]
         self.context.current_emotion = emotion_types
 
         # Current Thought
-        thought = await self.memory.status.get("thought")
+        thought = status_values["thought"]
         self.context.current_thought = thought
 
         # Current Location
-        position_now = await self.memory.status.get("position")
-        home_location = await self.memory.status.get("home")
-        work_location = await self.memory.status.get("work")
+        position_now = status_values["position"]
+        home_location = status_values["home"]
+        work_location = status_values["work"]
         current_location = "Outside"
         if (
             "aoi_position" in position_now
@@ -364,12 +374,14 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         # reset position to home
         await self.reset_position()
 
-        # reset needs
-        await self.memory.status.update("current_need", "none")
-
-        # reset plans and actions
-        await self.memory.status.update("current_plan", {})
-        await self.memory.status.update("execution_context", {})
+        # reset needs, plans and actions
+        await self.memory.status.update_many(
+            {
+                "current_need": "none",
+                "current_plan": {},
+                "execution_context": {},
+            }
+        )
 
         # reset initial flag
         await self.needs_block.reset()
@@ -684,7 +696,14 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
     async def step_execution(self):
         """Execute the current step in the active plan based on step type."""
         assert self.environment is not None
-        current_plan = await self.memory.status.get("current_plan")
+        status_values = await self.memory.status.get_many(
+            {
+                "current_plan": None,
+                "execution_context": None,
+                "position": None,
+            }
+        )
+        current_plan = status_values["current_plan"]
         if (
             current_plan is None
             or not current_plan
@@ -696,14 +715,14 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         # If step_index is out of bounds, the plan is complete
         if step_index >= len(steps):
             return
-        execution_context = await self.memory.status.get("execution_context")
+        execution_context = status_values["execution_context"]
         current_step = steps[step_index]
         # check current_step is valid (not empty)
         if current_step:
             self.context.current_step = current_step
             self.context.current_intention = current_step["intention"]
             self.context.plan_context = execution_context
-            position = await self.memory.status.get("position")
+            position = status_values["position"]
             if "aoi_position" in position:
                 current_step["position"] = position["aoi_position"]["aoi_id"]
             current_step["start_time"] = self.environment.get_tick()
@@ -765,5 +784,9 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
 
             # Update current_step, plan, and execution_context information
             current_plan["steps"][step_index] = current_step
-            await self.memory.status.update("current_plan", current_plan)
-            await self.memory.status.update("execution_context", execution_context)
+            await self.memory.status.update_many(
+                {
+                    "current_plan": current_plan,
+                    "execution_context": execution_context,
+                }
+            )

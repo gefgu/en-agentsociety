@@ -61,10 +61,19 @@ class PlanBlock(Block):
             Optional[tuple[dict, str]]: Selected option with TPB evaluation scores and reasoning. None if no guidance option is selected by bad response from LLM.
         """
         cognition = None
-        position_now = await self.memory.status.get("position")
-        home_location = await self.memory.status.get("home")
-        work_location = await self.memory.status.get("work")
-        location_knowledge = await self.memory.status.get("location_knowledge")
+        status_values = await self.memory.status.get_many(
+            {
+                "position": None,
+                "home": None,
+                "work": None,
+                "location_knowledge": None,
+                "consumption": None,
+            }
+        )
+        position_now = status_values["position"]
+        home_location = status_values["home"]
+        work_location = status_values["work"]
+        location_knowledge = status_values["location_knowledge"]
         known_locations = [item["id"] for item in location_knowledge.values()]
         id_to_name = {
             info["id"]: f"{name}({info['description']})"
@@ -119,7 +128,7 @@ class PlanBlock(Block):
                 "options": options,
                 "current_location": current_location,
                 "current_time": current_time,
-                "consumption_level": await self.memory.status.get("consumption"),
+                "consumption_level": status_values["consumption"],
             },
             func_name="select_guidance",
             max_retries=2,
@@ -248,8 +257,12 @@ Overall Target: {plan['target']}
 Execution Steps: \n{formated_steps}
         """
         _, plan["start_time"] = self.environment.get_datetime(format_time=True)
-        await self.memory.status.update("current_plan", plan)
-        await self.memory.status.update("execution_context", {"plan": formated_plan})
+        await self.memory.status.update_many(
+            {
+                "current_plan": plan,
+                "execution_context": {"plan": formated_plan},
+            }
+        )
         await self.memory.stream.add(
             topic="cognition",
             description=cognition,

@@ -112,6 +112,66 @@ class KVMemory:
             and self._memory_config.attributes[key].whether_embedding
         )
 
+    async def _refresh_embedding(self, key: Any, value: Any) -> None:
+        if not self.should_embed(key):
+            return
+
+        semantic_text = self._generate_semantic_text(key, value)
+
+        if key in self._key_to_doc_id and self._key_to_doc_id[key]:
+            await self._vectorstore.delete_documents(
+                to_delete_ids=[self._key_to_doc_id[key]],
+            )
+
+        doc_ids = await self._vectorstore.add_documents(
+            documents=[semantic_text],
+            extra_tags={
+                "key": key,
+            },
+        )
+        self._key_to_doc_id[key] = doc_ids[0]
+
+    async def _update_unlocked(
+        self,
+        key: Any,
+        value: Any,
+        mode: Union[Literal["replace"], Literal["merge"]] = "replace",
+    ) -> None:
+        if mode not in ("replace", "merge"):
+            raise ValueError(f"Invalid update mode `{mode}`!")
+
+        # If key doesn't exist, add it directly
+        if key not in self._data:
+            self._data[key] = value
+            await self._refresh_embedding(key, value)
+            return
+
+        # Update existing key
+        if mode == "replace":
+            # Replace the value directly
+            self._data[key] = value
+        else:
+            # Get current value
+            original_value = self._data[key]
+
+            # Merge based on the type of original value
+            if isinstance(original_value, set):
+                original_value.update(set(value))
+            elif isinstance(original_value, dict):
+                original_value.update(dict(value))
+            elif isinstance(original_value, list):
+                original_value.extend(list(value))
+            elif isinstance(original_value, deque):
+                original_value.extend(deque(value))
+            else:
+                # Fall back to replace if merge is not supported
+                get_logger().debug(
+                    f"Type of {type(original_value)} does not support mode `merge`, using `replace` instead!"
+                )
+                self._data[key] = value
+
+        await self._refresh_embedding(key, self._data[key])
+
     @lock_decorator
     async def get(
         self,
@@ -138,6 +198,32 @@ class KVMemory:
         return default_value
 
     @lock_decorator
+    async def get_many(self, keys: dict[Any, Any]) -> dict[Any, Any]:
+        """
+        Retrieve multiple values from the memory in one locked operation.
+
+        - **Args**:
+            - `keys` (dict[Any, Any]): Mapping of key to default value. Use
+              `_MISSING` as the default to raise when a key is absent.
+
+        - **Returns**:
+            - `dict[Any, Any]`: Mapping of each requested key to the retrieved
+              value or its provided default.
+
+        - **Raises**:
+            - `KeyError`: If any key is not found and its default is `_MISSING`.
+        """
+        result = {}
+        for key, default_value in keys.items():
+            if key in self._data:
+                result[key] = deepcopy(self._data[key])
+            elif default_value is _MISSING:
+                raise KeyError(f"No attribute `{key}` in memories!")
+            else:
+                result[key] = deepcopy(default_value)
+        return result
+
+    @lock_decorator
     async def update(
         self,
         key: Any,
@@ -156,87 +242,30 @@ class KVMemory:
             - `ValueError`: If an invalid update mode is provided.
             - `KeyError`: If the key is not found in any of the memory sections.
         """
-        # If key doesn't exist, add it directly
-        if key not in self._data:
-            self._data[key] = value
-            # Check if we should embed this field
-            if self.should_embed(key):
-                semantic_text = self._generate_semantic_text(key, value)
-                # Add embedding for new key
-                doc_ids = await self._vectorstore.add_documents(
-                    documents=[semantic_text],
-                    extra_tags={
-                        "key": key,
-                    },
-                )
-                self._key_to_doc_id[key] = doc_ids[0]
-            return
+        await self._update_unlocked(key, value, mode=mode)
 
-        # Update existing key
-        if mode == "replace":
-            # Replace the value directly
-            self._data[key] = value
+    @lock_decorator
+    async def update_many(
+        self,
+        values: dict[Any, Any],
+        mode: Union[Literal["replace"], Literal["merge"]] = "replace",
+    ) -> None:
+        """
+        Update multiple values in the memory in one locked operation.
 
-            # Update embeddings if needed
-            if self.should_embed(key):
-                semantic_text = self._generate_semantic_text(key, value)
+        - **Args**:
+            - `values` (dict[Any, Any]): Mapping of key to new value.
+            - `mode` (Union[Literal["replace"], Literal["merge"]], optional):
+              Update mode applied to every key. Defaults to "replace".
 
-                # Delete old embedding if it exists
-                if key in self._key_to_doc_id and self._key_to_doc_id[key]:
-                    await self._vectorstore.delete_documents(
-                        to_delete_ids=[self._key_to_doc_id[key]],
-                    )
-
-                # Add new embedding
-                doc_ids = await self._vectorstore.add_documents(
-                    documents=[semantic_text],
-                    extra_tags={
-                        "key": key,
-                    },
-                )
-                self._key_to_doc_id[key] = doc_ids[0]
-
-        elif mode == "merge":
-            # Get current value
-            original_value = self._data[key]
-
-            # Merge based on the type of original value
-            if isinstance(original_value, set):
-                original_value.update(set(value))
-            elif isinstance(original_value, dict):
-                original_value.update(dict(value))
-            elif isinstance(original_value, list):
-                original_value.extend(list(value))
-            elif isinstance(original_value, deque):
-                original_value.extend(deque(value))
-            else:
-                # Fall back to replace if merge is not supported
-                get_logger().debug(
-                    f"Type of {type(original_value)} does not support mode `merge`, using `replace` instead!"
-                )
-                self._data[key] = value
-
-            # Update embeddings if needed
-            if self.should_embed(key):
-                semantic_text = self._generate_semantic_text(key, self._data[key])
-
-                # Delete old embedding if it exists
-                if key in self._key_to_doc_id and self._key_to_doc_id[key]:
-                    await self._vectorstore.delete_documents(
-                        to_delete_ids=[self._key_to_doc_id[key]],
-                    )
-
-                # Add new embedding
-                doc_ids = await self._vectorstore.add_documents(
-                    documents=[semantic_text],
-                    extra_tags={
-                        "key": key,
-                    },
-                )
-                self._key_to_doc_id[key] = doc_ids[0]
-        else:
-            # Invalid mode
+        - **Raises**:
+            - `ValueError`: If an invalid update mode is provided.
+        """
+        if mode not in ("replace", "merge"):
             raise ValueError(f"Invalid update mode `{mode}`!")
+
+        for key, value in values.items():
+            await self._update_unlocked(key, value, mode=mode)
 
     @lock_decorator
     async def export(self, keys: list[str]) -> dict[str, Any]:

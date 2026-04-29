@@ -16,18 +16,21 @@ from ..database.database_actor import DatabaseActor
 from ..logger import get_logger
 from ..performance.prometheusActor import PrometheusActor
 from ..storage import DatabaseWriter
-from ..storage.type import StorageExpInfo, StorageGlobalPrompt, StorageStatus
+from ..storage.type import StorageExpInfo, StorageGlobalPrompt
 
 RecorderEventType = Literal[
-    "status",
-    "metrics",
-    "exp_info",
+    "dialog",
+    "survey",
     "global_prompt",
+    "exp_info",
     "clickhouse_status",
     "kv_snapshot",
     "stream_snapshot",
     "spatial_snapshot",
     "message_snapshot",
+    "profile",
+    "metric",
+    "task_result",
     "flush",
     "stop",
 ]
@@ -75,11 +78,11 @@ class DataRecorder:
         self._worker_task = asyncio.create_task(self._process_queue())
         get_logger().info("DataRecorder background worker started")
 
-    async def enqueue_status(self, rows: list[StorageStatus]) -> None:
-        await self._enqueue(RecorderEvent(event_type="status", payload=rows))
+    async def enqueue_dialog(self, rows: list[Any]) -> None:
+        await self._enqueue(RecorderEvent(event_type="dialog", payload=rows))
 
-    async def enqueue_metrics(self, metrics: list[tuple[str, float, int]]) -> None:
-        await self._enqueue(RecorderEvent(event_type="metrics", payload=metrics))
+    async def enqueue_survey(self, rows: list[Any]) -> None:
+        await self._enqueue(RecorderEvent(event_type="survey", payload=rows))
 
     async def enqueue_exp_info(self, exp_info: StorageExpInfo) -> None:
         await self._enqueue(RecorderEvent(event_type="exp_info", payload=exp_info))
@@ -102,11 +105,24 @@ class DataRecorder:
     async def enqueue_message_snapshot(self, records: list[dict[str, Any]]) -> None:
         await self._enqueue(RecorderEvent(event_type="message_snapshot", payload=records))
 
+    async def enqueue_profiles(self, records: list[dict[str, Any]]) -> None:
+        await self._enqueue(RecorderEvent(event_type="profile", payload=records))
+
+    async def enqueue_metrics(self, metrics: list[tuple[str, float, int]]) -> None:
+        """Route metrics to ClickHouse/DuckDB."""
+        records = [
+            {"key": key, "value": value, "step": step, "created_at": datetime.now(timezone.utc)}
+            for key, value, step in metrics
+        ]
+        await self._enqueue(RecorderEvent(event_type="metric", payload=records))
+
+    async def enqueue_task_results(self, records: list[dict[str, Any]]) -> None:
+        await self._enqueue(RecorderEvent(event_type="task_result", payload=records))
+
     async def save_exp_info(self, exp_info: StorageExpInfo) -> None:
         """Persist experiment info through recorder queue."""
         exp_info.updated_at = datetime.now(timezone.utc)
         if self._worker_task is None or self._worker_task.done():
-            # Allow early/error-path persistence before the background worker is started.
             await self._process_event_once(
                 RecorderEvent(event_type="exp_info", payload=exp_info)
             )
@@ -124,12 +140,9 @@ class DataRecorder:
         await self.enqueue_global_prompt(prompt_info)
 
     async def save_statuses(self, day: int, t: int, agents: dict[int, Any], environment: Any) -> None:
-        """Build and persist agent statuses and ClickHouse status rows."""
-        if self._database_writer is None and self._db_actor is None:
+        """Build and persist ClickHouse status rows (SQLite no longer stores statuses)."""
+        if self._db_actor is None:
             return
-
-        created_at = datetime.now(timezone.utc)
-        statuses: list[StorageStatus] = []
 
         for agent in agents.values():
             if isinstance(agent, CitizenAgentBase):
@@ -156,55 +169,36 @@ class DataRecorder:
                     action = "Planning"
 
                 status_summary = await agent.status.get("status_summary", "Nothing")
-                statuses.append(
-                    StorageStatus(
-                        id=agent.id,
-                        day=day,
-                        t=t,
-                        lng=lng,
-                        lat=lat,
-                        parent_id=parent_id,
-                        action=action,
-                        status=status_summary,
-                        created_at=created_at,
-                    )
-                )
 
-                if self._db_actor is not None:
-                    await self.enqueue_clickhouse_status(
-                        {
-                            "agent_id": agent.id,
-                            "lng": lng,
-                            "lat": lat,
-                            "parent_id": parent_id,
-                            "action": action,
-                            "status": status_summary,
-                            "timestamp": time.time(),
-                        }
-                    )
+                await self.enqueue_clickhouse_status(
+                    {
+                        "agent_id": agent.id,
+                        "lng": lng,
+                        "lat": lat,
+                        "parent_id": parent_id,
+                        "action": action,
+                        "status": status_summary,
+                        "timestamp": time.time(),
+                    }
+                )
 
             elif isinstance(
                 agent, (FirmAgentBase, BankAgentBase, NBSAgentBase, GovernmentAgentBase)
             ):
                 status_summary = await agent.status.get("status_summary", "Nothing")
-                statuses.append(
-                    StorageStatus(
-                        id=agent.id,
-                        day=day,
-                        t=t,
-                        lng=None,
-                        lat=None,
-                        parent_id=None,
-                        action="",
-                        status=status_summary,
-                        created_at=created_at,
-                    )
+                await self.enqueue_clickhouse_status(
+                    {
+                        "agent_id": agent.id,
+                        "lng": None,
+                        "lat": None,
+                        "parent_id": None,
+                        "action": "",
+                        "status": status_summary,
+                        "timestamp": time.time(),
+                    }
                 )
             else:
                 raise ValueError(f"Unknown agent type: {type(agent)}")
-
-        if self._database_writer is not None:
-            await self.enqueue_status(statuses)
 
     async def record_block_performance_metrics(self, step: int) -> None:
         """Capture block performance from Prometheus actor and persist metrics."""
@@ -214,7 +208,7 @@ class DataRecorder:
 
         try:
             perf_stats = await self._metrics_actor.get_block_performance_stats.remote()
-            if not perf_stats or self._database_writer is None:
+            if not perf_stats:
                 return
 
             metric_tuples: list[tuple[str, float, int]] = []
@@ -240,7 +234,7 @@ class DataRecorder:
 
         try:
             perf_stats = await self._metrics_actor.get_routing_stats.remote()
-            if not perf_stats or self._database_writer is None:
+            if not perf_stats:
                 return
 
             metric_tuples: list[tuple[str, float, int]] = []
@@ -257,19 +251,16 @@ class DataRecorder:
             get_logger().warning(f"Error retrieving routing performance stats: {str(e)}")
 
     async def record_simulation_step_duration(self, duration: float, step: int) -> None:
-        """Persist step duration metrics to DB and Prometheus actor."""
-        if self._database_writer is not None:
-            await self.enqueue_metrics(
-                [("simulation.step_duration_seconds", duration, step)]
-            )
-
+        """Persist step duration metrics to ClickHouse/DuckDB and Prometheus actor."""
+        await self.enqueue_metrics(
+            [("simulation.step_duration_seconds", duration, step)]
+        )
         if self._metrics_actor is not None:
             self._metrics_actor.record_simulation_step_duration.remote(duration)
 
     async def record_environment_metrics(self, metrics: list[tuple[str, float, int]]) -> None:
         """Persist environment metrics through recorder queue."""
-        if self._database_writer is not None:
-            await self.enqueue_metrics(metrics)
+        await self.enqueue_metrics(metrics)
 
     async def flush(self, step: Optional[int] = None) -> None:
         loop = asyncio.get_running_loop()
@@ -345,11 +336,7 @@ class DataRecorder:
             ("datarecorder.queue.size", float(self._queue.qsize()), step),
         ]
 
-        if self._database_writer is not None:
-            try:
-                await self._database_writer.log_metric(counter_metrics)
-            except Exception as e:
-                get_logger().warning(f"Failed to persist DataRecorder counters: {e}")
+        await self.enqueue_metrics(counter_metrics)
 
         if self._metrics_actor is not None:
             try:
@@ -369,16 +356,22 @@ class DataRecorder:
                 get_logger().warning(f"Failed to emit DataRecorder counters to Prometheus actor: {e}")
 
     async def _process_event_once(self, event: RecorderEvent) -> None:
-        if event.event_type == "status":
+        if event.event_type == "dialog":
             rows = event.payload
             if self._database_writer is not None and rows:
-                await self._database_writer.write_statuses(rows)
+                await self._database_writer.write_dialogs(rows)
             return
 
-        if event.event_type == "metrics":
-            metrics = event.payload
-            if self._database_writer is not None and metrics:
-                await self._database_writer.log_metric(metrics)
+        if event.event_type == "survey":
+            rows = event.payload
+            if self._database_writer is not None and rows:
+                await self._database_writer.write_surveys(rows)
+            return
+
+        if event.event_type == "global_prompt":
+            prompt_info = event.payload
+            if self._database_writer is not None:
+                await self._database_writer.write_global_prompt(prompt_info)
             return
 
         if event.event_type == "exp_info":
@@ -405,25 +398,34 @@ class DataRecorder:
                 )
             return
 
-        if event.event_type == "global_prompt":
-            prompt_info = event.payload
-            if self._database_writer is not None:
-                await self._database_writer.write_global_prompt(prompt_info)
-            return
-
         if event.event_type == "clickhouse_status":
             if self._db_actor is None:
                 return
             record = event.payload
             self._db_actor.insert_step_agent_status_record.remote(
                 agent_id=record["agent_id"],
-                lng=record["lng"],
-                lat=record["lat"],
-                parent_id=record["parent_id"],
-                action=record["action"],
+                lng=record["lng"] or 0.0,
+                lat=record["lat"] or 0.0,
+                parent_id=record["parent_id"] or -1,
+                action=record["action"] or "",
                 status=record["status"],
                 timestamp=record["timestamp"],
             )
+            return
+
+        if event.event_type == "profile":
+            if self._db_actor is not None:
+                self._db_actor.insert_agent_profile_batch.remote(event.payload)
+            return
+
+        if event.event_type == "metric":
+            if self._db_actor is not None and event.payload:
+                self._db_actor.insert_metric_batch.remote(event.payload)
+            return
+
+        if event.event_type == "task_result":
+            if self._db_actor is not None and event.payload:
+                self._db_actor.insert_task_result_batch.remote(event.payload)
             return
 
         if event.event_type == "kv_snapshot":
