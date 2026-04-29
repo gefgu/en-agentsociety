@@ -24,6 +24,8 @@ from ..llm import LLM
 from ..logger import get_logger, set_logger_level
 from ..memory import Memory
 from ..message import MessageInterceptor
+from ..database.database_actor import DatabaseActor
+from ..database.schema import TaskResultRecord
 from ..storage import DatabaseWriter
 from ..storage.type import (
     StorageExpInfo,
@@ -68,6 +70,7 @@ class IndividualEngine:
         self._environment: Optional[EnvironmentStarter] = None
         self._message_interceptor: Optional[MessageInterceptor] = None
         self._database_writer: Optional[DatabaseWriter] = None
+        self._db_actor: Optional[DatabaseActor] = None
         self._embedding: Optional[SparseTextEmbedding] = None
         self._id2agent: dict[int, IndividualAgentBase] = {}
         yaml_config = yaml.dump(
@@ -151,6 +154,30 @@ class IndividualEngine:
             get_logger().info("-----Database writer initialized")
             # save to local
             await self._database_writer.update_exp_info(self._exp_info)
+
+        if self._config.env.database_enabled:
+            get_logger().info("-----Initializing database actor (ClickHouse/DuckDB)...")
+            try:
+                from ..database.clickhouse import ClickHouseConfig as DBClickHouseConfig
+                clickhouse_cfg = self._config.env.clickhouse
+                self._db_actor = DatabaseActor.remote(
+                    exp_id=self.exp_id,
+                    home_dir=self._config.env.data_dir,
+                    clickhouse_config=DBClickHouseConfig(
+                        host=clickhouse_cfg.host,
+                        port=clickhouse_cfg.port,
+                        username=clickhouse_cfg.username,
+                        password=clickhouse_cfg.password,
+                        database=clickhouse_cfg.database,
+                        auto_create_database=clickhouse_cfg.auto_create_database,
+                    ),
+                    batch_size=clickhouse_cfg.batch_size,
+                    batch_timeout=clickhouse_cfg.batch_timeout,
+                )
+                get_logger().info("-----Database actor initialized")
+            except Exception as e:
+                get_logger().warning(f"Failed to initialize database actor: {e}")
+                self._db_actor = None
 
         try:
             # ====================
@@ -443,7 +470,12 @@ class IndividualEngine:
 
                 # Collect only new task results for this round
                 task_results = self._task_loader.get_task_results()  # type: ignore
-                await self._database_writer.write_task_result(task_results)  # type: ignore
+                if task_results and self._db_actor is not None:
+                    records = [
+                        TaskResultRecord(exp_id=self.exp_id, **r)
+                        for r in task_results
+                    ]
+                    self._db_actor.insert_task_result_batch.remote(records)
 
                 # End of round progress
                 completed_after = self._task_loader.get_completed_count()  # type: ignore

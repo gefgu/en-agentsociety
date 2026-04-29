@@ -291,6 +291,30 @@ class PendingMessageSnapshotRecord(DatabaseRecordModel):
     extra_json: str | None = None
 
 
+class AgentProfileRecord(DatabaseRecordModel):
+    exp_id: str = ""
+    agent_id: int = -1
+    name: str = ""
+    profile: str = ""
+
+
+class MetricRecord(DatabaseRecordModel):
+    exp_id: str = ""
+    key: str = ""
+    value: float = 0.0
+    step: int = -1
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+class TaskResultRecord(DatabaseRecordModel):
+    exp_id: str = ""
+    agent_id: int = -1
+    context: str = ""
+    ground_truth: str = ""
+    result: str = ""
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
 class ExperimentInfoRecord(DatabaseRecordModel):
     """Schema for a row in experiment_info with checkpoint fields."""
 

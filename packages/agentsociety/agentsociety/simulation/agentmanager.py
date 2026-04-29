@@ -28,7 +28,6 @@ from ..logger import get_logger
 from ..llm import LLM
 from ..memory import Memory
 from ..storage import DatabaseWriter
-from ..storage.type import StorageProfile
 from .utils import init_agent_class, evaluate_filter
 
 __all__ = ["AgentManager"]
@@ -565,44 +564,42 @@ class AgentManager:
         tasks = [agent.init() for agent in self._id2agent.values()]
         await asyncio.gather(*tasks)
 
-        # Export and save profiles
+        # Export and save profiles to ClickHouse/DuckDB
         get_logger().info("Exporting agent profiles...")
-        profiles = []
-        for agent in self._id2agent.values():
-            profile = await agent.status.export(
-                [
-                    "name",
-                    "gender",
-                    "age",
-                    "education",
-                    "occupation",
-                    "marriage_status",
-                    "persona",
-                    "openness",
-                    "conscientiousness",
-                    "extraversion",
-                    "agreeableness",
-                    "neuroticism",
-                    "background_story",
-                ]
-            )
-            profile["id"] = agent.id
-            profiles.append(
-                StorageProfile(
-                    id=agent.id,
-                    name=profile.get("name", ""),
-                    profile=json.dumps(
+        if self._db_actor is not None:
+            profile_records = []
+            for agent in self._id2agent.values():
+                profile = await agent.status.export(
+                    [
+                        "name",
+                        "gender",
+                        "age",
+                        "education",
+                        "occupation",
+                        "marriage_status",
+                        "persona",
+                        "openness",
+                        "conscientiousness",
+                        "extraversion",
+                        "agreeableness",
+                        "neuroticism",
+                        "background_story",
+                    ]
+                )
+                profile_records.append({
+                    "exp_id": self._exp_id,
+                    "agent_id": agent.id,
+                    "name": profile.get("name", ""),
+                    "profile": json.dumps(
                         {
                             k: v
                             for k, v in profile.items()
-                            if k not in {"id", "name", "social_network"}
+                            if k not in {"name", "social_network"}
                         },
                         ensure_ascii=False,
                     ),
-                )
-            )
-        if self._database_writer is not None:
-            await self._database_writer.write_profiles(profiles)  # type:ignore
+                })
+            self._db_actor.insert_agent_profile_batch.remote(profile_records)
 
         # Initialize embeddings
         get_logger().info("Initializing agent embeddings...")

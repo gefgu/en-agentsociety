@@ -1,27 +1,19 @@
 from collections import defaultdict
-import csv
-import io
 import json
 import logging
 import uuid
 import zipfile
+import io
 from typing import List, cast, Dict, Tuple
 
 import yaml
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import ApiResponseWrapper
-from ..models.agent import (
-    agent_dialog,
-    agent_profile,
-    agent_status,
-    agent_survey,
-    global_prompt,
-)
 from ..models.experiment import ApiExperiment, ApiTime, Experiment, ExperimentStatus
-from ..models.metric import ApiMetric, metric
+from ..models.metric import ApiMetric
 from .const import DEMO_USER_ID
 from .timezone import ensure_timezone_aware
 
@@ -68,7 +60,6 @@ async def list_experiments(
         results = await db.execute(stmt)
         db_experiments = [row[0] for row in results.all() if len(row) > 0]
 
-        # 处理时区
         for experiment in db_experiments:
             experiment.created_at = ensure_timezone_aware(experiment.created_at)
             experiment.updated_at = ensure_timezone_aware(experiment.updated_at)
@@ -97,7 +88,6 @@ async def get_experiment_by_id(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Experiment not found"
             )
         exp = row[0]
-        # 处理时区
         exp.created_at = ensure_timezone_aware(exp.created_at)
         exp.updated_at = ensure_timezone_aware(exp.updated_at)
         return ApiResponseWrapper(data=exp)
@@ -108,7 +98,7 @@ async def get_experiment_status_timeline_by_id(
     request: Request,
     exp_id: uuid.UUID,
 ) -> ApiResponseWrapper[List[ApiTime]]:
-    """Get experiment status timeline by ID"""
+    """Get experiment status timeline by ID (from ClickHouse/DuckDB)"""
 
     tenant_id = await request.app.state.get_tenant_id(request)
     async with request.app.state.get_db() as db:
@@ -123,31 +113,16 @@ async def get_experiment_status_timeline_by_id(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Experiment not found"
             )
         experiment: Experiment = row[0]
-        # Check if the experiment has started
         if ExperimentStatus(experiment.status) == ExperimentStatus.NOT_STARTED:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Experiment has not started yet",
             )
 
-        # Get timeline from agent status table
-        table_name = experiment.agent_status_tablename
-
-        # the table_name is safe to use in the query
-        # it is generated from the experiment id
-        query = text(
-            f"""
-            SELECT day, t 
-            FROM {table_name} 
-            GROUP BY day, t 
-            ORDER BY day, t
-        """
-        )
-
-        results = (await db.execute(query)).all()
-        timeline = [ApiTime(day=int(row[0]), t=float(row[1])) for row in results]
-
-        return ApiResponseWrapper(data=timeline)
+    analytics_db = request.app.state.analytics_db
+    rows = await analytics_db.query_timeline(str(exp_id))
+    timeline = [ApiTime(day=int(row["day"]), t=float(row["t"])) for row in rows]
+    return ApiResponseWrapper(data=timeline)
 
 
 @router.delete("/experiments/{exp_id}", status_code=status.HTTP_200_OK)
@@ -171,7 +146,6 @@ async def delete_experiment_by_id(
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
         try:
-            # Start transaction
             async with db.begin():
                 stmt = select(Experiment).where(
                     Experiment.tenant_id == tenant_id, Experiment.id == exp_id
@@ -185,36 +159,34 @@ async def delete_experiment_by_id(
                     )
                 experiment: Experiment = row[0]
 
-                # Get all table names that need to be deleted
-                table_names = [
-                    experiment.agent_profile_tablename,
-                    experiment.agent_status_tablename,
-                    experiment.agent_dialog_tablename,
-                    experiment.agent_survey_tablename,
-                    experiment.global_prompt_tablename,
-                    experiment.pending_dialog_tablename,
-                    experiment.pending_survey_tablename,
-                    experiment.metric_tablename,
-                ]
-
-                # Delete related tables
-                for table_name in table_names:
-                    try:
-                        query = text(f"DROP TABLE IF EXISTS {table_name}")
-                        await db.execute(query)
-                    except Exception as e:
-                        logging.error(f"Error dropping table {table_name}: {str(e)}")
-                        # Continue execution without interruption
-
-                # Delete experiment record
+                # Delete the management DB record
                 await db.delete(experiment)
 
-            # Transaction will be committed automatically
+            # Best-effort: delete per-experiment SQLite file
+            import asyncio as _asyncio
+            from pathlib import Path as _Path
+            import os as _os
 
-            return ApiResponseWrapper(
-                data={"message": "Experiment deleted successfully"}
-            )
+            env = request.app.state.env
+            sqlite_path = _Path(env.home_dir) / "sqlite" / f"{exp_id}.db"
+            if sqlite_path.exists():
+                try:
+                    await _asyncio.to_thread(_os.remove, sqlite_path)
+                except Exception as e:
+                    logging.warning(f"Could not delete per-experiment SQLite {sqlite_path}: {e}")
 
+            # Best-effort: delete DuckDB file
+            duckdb_path = _Path(env.data_dir) / "duckdb" / f"{exp_id}.duckdb"
+            if duckdb_path.exists():
+                try:
+                    await _asyncio.to_thread(_os.remove, duckdb_path)
+                except Exception as e:
+                    logging.warning(f"Could not delete DuckDB file {duckdb_path}: {e}")
+
+            return ApiResponseWrapper(data={"message": "Experiment deleted successfully"})
+
+        except HTTPException:
+            raise
         except Exception as e:
             logging.error(f"Error deleting experiment: {str(e)}")
             raise HTTPException(
@@ -225,67 +197,30 @@ async def delete_experiment_by_id(
 
 async def get_experiment_metrics_by_id(
     request: Request,
-    db: AsyncSession,
     exp_id: uuid.UUID,
 ) -> Tuple[bool, Dict[str, List[ApiMetric]]]:
-    """Get metrics for an experiment by ID
-
-    Args:
-        request: FastAPI request
-        db: Database session
-        exp_id: Experiment ID
-
-    Returns:
-        Tuple containing:
-        - bool: Whether metrics were found
-        - Dict[str, List[ApiMetric]]: Metrics data aggregated by key
-    """
-
-    experiment = await _find_started_experiment_by_id(request, db, exp_id)
-
-    # Get metrics from the metric table
-    table_name = experiment.metric_tablename
-    
-    # Execute query to get metrics data
-    query = text(
-        f"""
-        SELECT key, value, step
-        FROM {table_name}
-        ORDER BY step
-        """
-    )
-    results = await db.execute(query)
-    rows = results.all()
+    """Get metrics for an experiment from ClickHouse/DuckDB."""
+    analytics_db = request.app.state.analytics_db
+    rows = await analytics_db.query_metrics(str(exp_id))
 
     if not rows:
         return False, {}
 
-    # Aggregate metrics by key
     metrics_by_key: Dict[str, List[ApiMetric]] = defaultdict(list)
     for row in rows:
         api_metric = ApiMetric(
-            key=row[0],
-            value=float(row[1]),
-            step=int(row[2]),
+            key=str(row["key"]),
+            value=float(row["value"]),
+            step=int(row["step"]),
         )
-        metrics_by_key[row[0]].append(api_metric)
+        metrics_by_key[str(row["key"])].append(api_metric)
 
     return True, metrics_by_key
 
 
-def serialize_metrics(
-    metrics_by_key: Dict[str, List[ApiMetric]],
-) -> Dict[str, List[dict]]:
-    """Serialize metrics data for JSON output
-
-    Args:
-        metrics_by_key: Metrics data aggregated by key
-
-    Returns:
-        Dict with serialized metrics data
-    """
+def serialize_metrics(metrics_by_key: Dict[str, List[ApiMetric]]) -> Dict[str, List[dict]]:
     return {
-        key: [metric.model_dump() for metric in metrics]
+        key: [m.model_dump() for m in metrics]
         for key, metrics in metrics_by_key.items()
     }
 
@@ -295,13 +230,11 @@ async def get_experiment_metrics(
     request: Request,
     exp_id: uuid.UUID,
 ) -> ApiResponseWrapper[Dict[str, List[ApiMetric]]]:
-    """Get all metrics for an experiment, aggregated by metric key"""
+    """Get all metrics for an experiment, aggregated by metric key (from ClickHouse/DuckDB)"""
 
     tenant_id = await request.app.state.get_tenant_id(request)
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
-
-        # First verify the experiment exists
         stmt = select(Experiment).where(
             Experiment.tenant_id == tenant_id, Experiment.id == exp_id
         )
@@ -312,8 +245,8 @@ async def get_experiment_metrics(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Experiment not found"
             )
 
-        _, metrics_by_key = await get_experiment_metrics_by_id(request, db, exp_id)
-        return ApiResponseWrapper(data=metrics_by_key)
+    _, metrics_by_key = await get_experiment_metrics_by_id(request, exp_id)
+    return ApiResponseWrapper(data=metrics_by_key)
 
 
 @router.post("/experiments/{exp_id}/export")
@@ -326,8 +259,6 @@ async def export_experiment_data(
     tenant_id = await request.app.state.get_tenant_id(request)
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
-
-        # Get experiment info
         stmt = select(Experiment).where(
             Experiment.tenant_id == tenant_id, Experiment.id == exp_id
         )
@@ -339,64 +270,63 @@ async def export_experiment_data(
             )
         experiment: Experiment = row
 
-        # Create in-memory zip file
-        zip_buffer = io.BytesIO()
-        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-            # Export experiment info as YAML
-            exp_dict = experiment.to_dict()
-            yaml_content = yaml.dump(exp_dict, allow_unicode=True)
-            zip_file.writestr("experiment.yaml", yaml_content)
+    analytics_db = request.app.state.analytics_db
+    per_exp_sqlite = request.app.state.per_exp_sqlite
+    exp_id_str = str(exp_id)
 
-            # Export metrics data as JSON
-            found, metrics_by_key = await get_experiment_metrics_by_id(request, db, exp_id)
-            if found:
-                serialized_metrics = serialize_metrics(metrics_by_key)
-                metrics_json = json.dumps(serialized_metrics, indent=2)
-                zip_file.writestr("metrics.json", metrics_json)
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        # Export experiment info as YAML
+        exp_dict = experiment.to_dict()
+        yaml_content = yaml.dump(exp_dict, allow_unicode=True)
+        zip_file.writestr("experiment.yaml", yaml_content)
 
-            # Export artifacts data
-            fs_client = request.app.state.env.fs_client
-            artifacts_path = f"exps/{tenant_id}/{exp_id}/artifacts.json"
-            artifacts_data = fs_client.download(artifacts_path)
-            if artifacts_data:
-                zip_file.writestr("artifacts.json", artifacts_data)
+        # Export metrics from ClickHouse/DuckDB
+        found, metrics_by_key = await get_experiment_metrics_by_id(request, exp_id)
+        if found:
+            serialized_metrics = serialize_metrics(metrics_by_key)
+            zip_file.writestr("metrics.json", json.dumps(serialized_metrics, indent=2))
 
-            # get all tables
-            tables = {
-                "agent_profile": agent_profile(experiment.agent_profile_tablename),
-                "agent_status": agent_status(experiment.agent_status_tablename),
-                "agent_survey": agent_survey(experiment.agent_survey_tablename),
-                "agent_dialog": agent_dialog(experiment.agent_dialog_tablename),
-                "global_prompt": global_prompt(experiment.global_prompt_tablename),
-                "metric": metric(experiment.metric_tablename),
-            }
+        # Export artifacts
+        fs_client = request.app.state.env.fs_client
+        artifacts_path = f"exps/{tenant_id}/{exp_id}/artifacts.json"
+        artifacts_data = fs_client.download(artifacts_path)
+        if artifacts_data:
+            zip_file.writestr("artifacts.json", artifacts_data)
 
-            for table_name, (db_table, columns) in tables.items():
-                query = select(db_table)
-                results = await db.execute(query)
-                rows = results.all()
+        # Export agent profiles from ClickHouse/DuckDB as JSON
+        profiles = await analytics_db.query_agent_profiles(exp_id_str)
+        if profiles:
+            zip_file.writestr("agent_profiles.json", json.dumps(profiles, indent=2, default=str))
 
-                if rows:
-                    # create csv file
-                    output = io.StringIO()
-                    writer = csv.writer(output)
-                    # write header
-                    writer.writerow([col for col in columns])
-                    # write data
-                    writer.writerows(rows)
+        # Export dialogs from per-experiment SQLite
+        dialog_rows = await per_exp_sqlite._run_async_all_dialogs(exp_id_str)
+        if dialog_rows:
+            import csv as _csv
+            output = io.StringIO()
+            writer = _csv.DictWriter(output, fieldnames=list(dialog_rows[0].keys()))
+            writer.writeheader()
+            writer.writerows(dialog_rows)
+            zip_file.writestr("agent_dialog.csv", output.getvalue())
 
-                    zip_file.writestr(f"{table_name}.csv", output.getvalue())
-                    output.close()
+        # Export surveys from per-experiment SQLite
+        survey_rows = await per_exp_sqlite._run_async_all_surveys(exp_id_str)
+        if survey_rows:
+            import csv as _csv
+            output = io.StringIO()
+            writer = _csv.DictWriter(output, fieldnames=list(survey_rows[0].keys()))
+            writer.writeheader()
+            writer.writerows(survey_rows)
+            zip_file.writestr("agent_survey.csv", output.getvalue())
 
-        # prepare response
-        zip_buffer.seek(0)
-        return StreamingResponse(
-            iter([zip_buffer.getvalue()]),
-            media_type="application/zip",
-            headers={
-                "Content-Disposition": f"attachment; filename=experiment_{exp_id}_export.zip"
-            },
-        )
+    zip_buffer.seek(0)
+    return StreamingResponse(
+        iter([zip_buffer.getvalue()]),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f"attachment; filename=experiment_{exp_id}_export.zip"
+        },
+    )
 
 
 @router.post("/experiments/{exp_id}/artifacts")
@@ -409,8 +339,6 @@ async def export_experiment_artifacts(
     tenant_id = await request.app.state.get_tenant_id(request)
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
-
-        # Get experiment info
         stmt = select(Experiment).where(
             Experiment.tenant_id == tenant_id, Experiment.id == exp_id
         )
@@ -421,20 +349,19 @@ async def export_experiment_artifacts(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Experiment not found"
             )
 
-        # Get artifacts from S3
-        fs_client = request.app.state.env.fs_client
-        artifacts_path = f"exps/{tenant_id}/{exp_id}/artifacts.json"
-        artifacts_data = fs_client.download(artifacts_path)
+    fs_client = request.app.state.env.fs_client
+    artifacts_path = f"exps/{tenant_id}/{exp_id}/artifacts.json"
+    artifacts_data = fs_client.download(artifacts_path)
 
-        if not artifacts_data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Artifacts not found"
-            )
-
-        return StreamingResponse(
-            iter([artifacts_data]),
-            media_type="application/json",
-            headers={
-                "Content-Disposition": f"attachment; filename=experiment_{exp_id}_artifacts.json"
-            },
+    if not artifacts_data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Artifacts not found"
         )
+
+    return StreamingResponse(
+        iter([artifacts_data]),
+        media_type="application/json",
+        headers={
+            "Content-Disposition": f"attachment; filename=experiment_{exp_id}_artifacts.json"
+        },
+    )

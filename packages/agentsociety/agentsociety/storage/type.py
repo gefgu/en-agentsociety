@@ -9,11 +9,9 @@ __all__ = [
     "StorageDialogType",
     "StorageDialog",
     "StorageGlobalPrompt",
-    "StorageProfile",
-    "StorageStatus",
+    "StorageExpInfo",
     "StoragePendingDialog",
     "StoragePendingSurvey",
-    "StorageTaskResult",
 ]
 
 
@@ -67,29 +65,13 @@ class StorageGlobalPrompt(BaseModel):
     created_at: datetime
 
 
-class StorageProfile(BaseModel):
-    id: int
-    name: str
-    profile: str
-
-
-class StorageStatus(BaseModel):
-    id: int
-    day: int
-    t: float
-    lng: Optional[float]
-    lat: Optional[float]
-    parent_id: Optional[int]
-    action: str
-    status: str
-    created_at: datetime
-
-
 class StoragePendingDialog(BaseModel):
     """Pending dialog storage type"""
 
     id: int
     """Pending dialog ID"""
+    experiment_id: Optional[str] = None
+    """Experiment ID"""
     agent_id: int
     """Agent ID"""
     day: int
@@ -109,6 +91,8 @@ class StoragePendingSurvey(BaseModel):
 
     id: int
     """Pending survey ID"""
+    experiment_id: Optional[str] = None
+    """Experiment ID"""
     agent_id: int
     """Agent ID"""
     day: int
@@ -123,17 +107,3 @@ class StoragePendingSurvey(BaseModel):
     """Created time"""
     processed: bool
     """Whether the survey has been processed"""
-
-
-class StorageTaskResult(BaseModel):
-    id: int
-    """Task ID"""
-    agent_id: int
-    """Agent ID"""
-    context: dict
-    """Context"""
-    ground_truth: dict
-    """Ground truth"""
-    result: dict
-    """Result"""
-    created_at: datetime

@@ -18,69 +18,35 @@ from sqlalchemy.orm import Mapped, mapped_column
 from ._base import TABLE_PREFIX, Base
 
 __all__ = [
-    "agent_profile",
-    "agent_status",
     "agent_survey",
     "agent_dialog",
     "global_prompt",
     "pending_dialog",
     "pending_survey",
-    "metric",
-    "task_result",
 ]
 
 
-def agent_profile(table_name: str):
-    """Create agent profile table"""
-    metadata = MetaData()
-    return Table(
-        table_name,
-        metadata,
-        Column("id", Integer),
-        Column("name", String),
-        Column("profile", JSON),
-    ), ["id", "name", "profile"]
-
-
-def agent_status(table_name: str):
-    """Create agent status table"""
-    metadata = MetaData()
-    return Table(
-        table_name,
-        metadata,
-        Column("id", Integer),
-        Column("day", Integer),
-        Column("t", Float),
-        Column("lng", Float, nullable=True),
-        Column("lat", Float, nullable=True),
-        Column("parent_id", Integer),
-        Column("action", String),
-        Column("status", JSON),
-        Column("created_at", TIMESTAMP(timezone=True)),
-    ), ["id", "day", "t", "lng", "lat", "parent_id", "action", "status", "created_at"]
-
-
 def agent_survey(table_name: str):
-    """Create agent survey table"""
     metadata = MetaData()
     return Table(
         table_name,
         metadata,
+        Column("experiment_id", String, nullable=True),
         Column("id", Integer),
         Column("day", Integer),
         Column("t", Float),
         Column("survey_id", UUID),
         Column("result", JSON),
         Column("created_at", TIMESTAMP(timezone=True)),
-    ), ["id", "day", "t", "survey_id", "result", "created_at"]
+    ), ["experiment_id", "id", "day", "t", "survey_id", "result", "created_at"]
 
 
 def agent_dialog(table_name: str):
-    """Create agent dialog table"""
     metadata = MetaData()
     return Table(
         table_name,
         metadata,
+        Column("experiment_id", String, nullable=True),
         Column("id", Integer),
         Column("day", Integer),
         Column("t", Float),
@@ -88,45 +54,45 @@ def agent_dialog(table_name: str):
         Column("speaker", String),
         Column("content", String),
         Column("created_at", TIMESTAMP(timezone=True)),
-    ), ["id", "day", "t", "type", "speaker", "content", "created_at"]
+    ), ["experiment_id", "id", "day", "t", "type", "speaker", "content", "created_at"]
 
 
 def global_prompt(table_name: str):
-    """Create global prompt table"""
     metadata = MetaData()
     return Table(
         table_name,
         metadata,
+        Column("experiment_id", String, nullable=True),
         Column("day", Integer),
         Column("t", Float),
         Column("prompt", String),
         Column("created_at", TIMESTAMP(timezone=True)),
-    ), ["day", "t", "prompt", "created_at"]
+    ), ["experiment_id", "day", "t", "prompt", "created_at"]
 
 
 def pending_dialog(table_name: str):
-    """Create pending dialog table"""
     metadata = MetaData()
     return Table(
         table_name,
         metadata,
         Column("id", Integer, primary_key=True, autoincrement=True),
+        Column("experiment_id", String, nullable=True),
         Column("agent_id", Integer),
         Column("day", Integer),
         Column("t", Float),
         Column("content", String),
         Column("created_at", TIMESTAMP(timezone=True)),
         Column("processed", Boolean, default=False),
-    ), ["id", "agent_id", "day", "t", "content", "created_at", "processed"]
+    ), ["id", "experiment_id", "agent_id", "day", "t", "content", "created_at", "processed"]
 
 
 def pending_survey(table_name: str):
-    """Create pending survey table"""
     metadata = MetaData()
     return Table(
         table_name,
         metadata,
         Column("id", Integer, primary_key=True, autoincrement=True),
+        Column("experiment_id", String, nullable=True),
         Column("agent_id", Integer),
         Column("day", Integer),
         Column("t", Float),
@@ -134,40 +100,32 @@ def pending_survey(table_name: str):
         Column("data", JSON),
         Column("created_at", TIMESTAMP(timezone=True)),
         Column("processed", Boolean, default=False),
-    ), ["id", "agent_id", "day", "t", "survey_id", "data", "created_at", "processed"]
+    ), ["id", "experiment_id", "agent_id", "day", "t", "survey_id", "data", "created_at", "processed"]
 
 
-def task_result(table_name: str):
-    """Create task result table"""
+def experiment_info(table_name: str):
     metadata = MetaData()
     return Table(
         table_name,
         metadata,
-        Column("id", Integer, primary_key=True, autoincrement=True),
-        Column("agent_id", Integer),
-        Column("context", JSON),
-        Column("ground_truth", JSON),
-        Column("result", JSON),
+        Column("experiment_id", String, primary_key=True),
+        Column("tenant_id", String),
+        Column("name", String),
+        Column("num_day", Integer),
+        Column("status", Integer),
+        Column("cur_day", Integer),
+        Column("cur_t", Float),
+        Column("config", String),
+        Column("error", String),
+        Column("input_tokens", Integer, default=0),
+        Column("output_tokens", Integer, default=0),
         Column("created_at", TIMESTAMP(timezone=True)),
-    ), ["id", "agent_id", "context", "ground_truth", "result", "created_at"]
-
-
-def metric(table_name: str):
-    """Create metric table"""
-    metadata = MetaData()
-    return Table(
-        table_name,
-        metadata,
-        Column("id", Integer, primary_key=True, autoincrement=True),
-        Column("key", String),
-        Column("value", Float),
-        Column("step", Integer),
-        Column("created_at", TIMESTAMP(timezone=True)),
-    ), ["id", "key", "value", "step", "created_at"]
+        Column("updated_at", TIMESTAMP(timezone=True)),
+    ), ["experiment_id", "tenant_id", "name", "num_day", "status", "cur_day", "cur_t", "config", "error", "input_tokens", "output_tokens", "created_at", "updated_at"]
 
 
 class Experiment(Base):
-    """Experiment model"""
+    """Experiment model (kept for web API management tables backward compatibility)"""
 
     __tablename__ = f"{TABLE_PREFIX}experiment"
 
@@ -188,49 +146,24 @@ class Experiment(Base):
     )
 
     @property
-    def agent_profile_tablename(self):
-        """Get agent profile table name"""
-        return f"{TABLE_PREFIX}{str(self.id).replace('-', '_')}_agent_profile"
-
-    @property
-    def agent_status_tablename(self):
-        """Get agent status table name"""
-        return f"{TABLE_PREFIX}{str(self.id).replace('-', '_')}_agent_status"
-
-    @property
     def agent_dialog_tablename(self):
-        """Get agent dialog table name"""
-        return f"{TABLE_PREFIX}{str(self.id).replace('-', '_')}_agent_dialog"
+        return "dialog"
 
     @property
     def agent_survey_tablename(self):
-        """Get agent survey table name"""
-        return f"{TABLE_PREFIX}{str(self.id).replace('-', '_')}_agent_survey"
+        return "survey"
 
     @property
     def global_prompt_tablename(self):
-        """Get global prompt table name"""
-        return f"{TABLE_PREFIX}{str(self.id).replace('-', '_')}_global_prompt"
+        return "global_prompt"
 
     @property
     def pending_dialog_tablename(self):
-        """Get pending dialog table name"""
-        return f"{TABLE_PREFIX}{str(self.id).replace('-', '_')}_pending_dialog"
+        return "pending_dialog"
 
     @property
     def pending_survey_tablename(self):
-        """Get pending survey table name"""
-        return f"{TABLE_PREFIX}{str(self.id).replace('-', '_')}_pending_survey"
-    
-    @property
-    def task_result_tablename(self):
-        """Get task result table name"""
-        return f"{TABLE_PREFIX}{str(self.id).replace('-', '_')}_task_result"
-
-    @property
-    def metric_tablename(self):
-        """Get metric table name"""
-        return f"{TABLE_PREFIX}{str(self.id).replace('-', '_')}_metric"
+        return "pending_survey"
 
     def to_dict(self):
         return {

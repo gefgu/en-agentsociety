@@ -1,8 +1,6 @@
 from pydantic import BaseModel
 
-from ...storage import metric
-
-__all__ = ["metric", "ApiMetric"]
+__all__ = ["ApiMetric"]
 
 # API Models
 

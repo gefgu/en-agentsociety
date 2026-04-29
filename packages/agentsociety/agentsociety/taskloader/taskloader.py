@@ -359,49 +359,43 @@ class TaskLoader:
 
     def get_task_results(self):
         """
-        Extracts newly completed tasks and converts them to StorageTaskResult format.
-        
+        Extracts newly completed tasks and converts them to TaskResultRecord format.
+
         - **Description**:
             Retrieves only the newly completed tasks (not previously collected)
-            and converts them to StorageTaskResult format for storage.
+            and converts them to TaskResultRecord dicts for storage in ClickHouse/DuckDB.
             Uses the assigned_agent_id from each task to determine the agent.
-        
-        - **Args**:
-            - `agent_id` (int): The ID of the agent that executed the tasks
-        
+
         - **Returns**:
-            - `List[StorageTaskResult]`: List of new task results in storage format
+            - `List[dict]`: List of new task result dicts compatible with TaskResultRecord
         """
-        from ..storage.type import StorageTaskResult
-        
+        import json as _json
+
         completed_tasks = self.get_tasks_by_status(TaskStatus.COMPLETED)
         task_results = []
-        
+
         for task in completed_tasks:
             # Skip if this task has already been collected
             if task.task_id in self._collected_task_ids:
                 continue
-                
+
             # Skip if task doesn't have an assigned agent
             if task.assigned_agent_id is None:
                 get_logger().warning(f"Task {task.task_id} completed but has no assigned agent")
                 continue
-                
-            # Convert task data to StorageTaskResult format
-            task_result = StorageTaskResult(
-                id=task.task_id,
-                agent_id=task.assigned_agent_id,
-                context=task.get_task_context(),
-                ground_truth=task.ground_truth if task.ground_truth else {},
-                result=task.result if task.result else {},
-                created_at=datetime.now()
-            )
-            task_results.append(task_result)
-            
+
+            task_results.append({
+                "agent_id": task.assigned_agent_id,
+                "context": _json.dumps(task.get_task_context()) if not isinstance(task.get_task_context(), str) else task.get_task_context(),
+                "ground_truth": _json.dumps(task.ground_truth) if task.ground_truth and not isinstance(task.ground_truth, str) else (task.ground_truth or "{}"),
+                "result": _json.dumps(task.result) if task.result and not isinstance(task.result, str) else (task.result or "{}"),
+                "created_at": datetime.now(),
+            })
+
             # Mark this task as collected
             if task.task_id:
                 self._collected_task_ids.add(task.task_id)
-        
+
         return task_results
     
     def get_uncollected_completed_count(self) -> int:

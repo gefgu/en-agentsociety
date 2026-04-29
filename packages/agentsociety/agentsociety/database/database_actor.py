@@ -10,14 +10,17 @@ from .schema import (
     AdjustNeedsRecord,
     AgentKVSnapshotRecord,
     AgentLocationTypeRecord,
+    AgentProfileRecord,
     AgentSpatialSnapshotRecord,
     AgentStreamSnapshotRecord,
     AgentTransportTypeRecord,
     BlockDispatcherRecord,
     ExperimentInfoRecord,
+    MetricRecord,
     PendingMessageSnapshotRecord,
     PromptResponseRecord,
     StepAgentStatusRecord,
+    TaskResultRecord,
 )
 
 
@@ -247,6 +250,24 @@ class DatabaseActor:
     ) -> None:
         normalized = self._to_model_list(records, PendingMessageSnapshotRecord)
         self._db.insert_records("pending_messages_snapshot", normalized)
+
+    def insert_agent_profile_batch(
+        self, records: list[AgentProfileRecord | dict[str, Any]]
+    ) -> None:
+        normalized = self._to_model_list(records, AgentProfileRecord)
+        self._db.insert_records("agent_profile", normalized)
+
+    def insert_metric_batch(
+        self, records: list[MetricRecord | dict[str, Any]]
+    ) -> None:
+        normalized = self._to_model_list(records, MetricRecord)
+        self._db.insert_records("metric", normalized)
+
+    def insert_task_result_batch(
+        self, records: list[TaskResultRecord | dict[str, Any]]
+    ) -> None:
+        normalized = self._to_model_list(records, TaskResultRecord)
+        self._db.insert_records("task_result", normalized)
 
     def update_experiment_info_checkpoint(
         self,

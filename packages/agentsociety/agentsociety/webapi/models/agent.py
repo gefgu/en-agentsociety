@@ -6,8 +6,6 @@ from pydantic import BaseModel, AwareDatetime
 
 from ...storage import (
     agent_dialog,
-    agent_profile,
-    agent_status,
     agent_survey,
     global_prompt,
     pending_dialog,
@@ -16,8 +14,6 @@ from ...storage import (
 
 __all__ = [
     "agent_dialog",
-    "agent_profile",
-    "agent_status",
     "agent_survey",
     "global_prompt",
     "pending_dialog",

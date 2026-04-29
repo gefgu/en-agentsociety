@@ -16,13 +16,6 @@ from ..models.agent import (
     ApiAgentStatus,
     ApiAgentSurvey,
     ApiGlobalPrompt,
-    agent_dialog,
-    agent_profile,
-    agent_status,
-    agent_survey,
-    global_prompt,
-    pending_dialog,
-    pending_survey,
 )
 from ..models.experiment import Experiment, ExperimentStatus
 from ..models.survey import Survey
@@ -45,103 +38,105 @@ async def get_agent_dialog_by_exp_id_and_agent_id(
     # Check whether the experiment is started
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
-        experiment = await _find_started_experiment_by_id(request, db, exp_id)
+        await _find_started_experiment_by_id(request, db, exp_id)
 
-        # Generate table name dynamically
-        table_name = experiment.agent_dialog_tablename
-        table, columns = agent_dialog(table_name)
-        stmt = (
-            select(table).where(table.c.id == agent_id).order_by(table.c.day, table.c.t)
-        )
-        rows = (await db.execute(stmt)).all()
-        dialogs: List[ApiAgentDialog] = []
-        for row in rows:
-            dialog = {columns[i]: row[i] for i in range(len(columns))}
-            if "created_at" in dialog:
-                dialog["created_at"] = ensure_timezone_aware(dialog["created_at"])
-            dialogs.append(ApiAgentDialog(**dialog))
+    per_exp_sqlite = request.app.state.per_exp_sqlite
+    exp_id_str = str(exp_id)
 
-        # Get pending dialogs
-        table_name = experiment.pending_dialog_tablename
-        pending_table, pending_columns = pending_dialog(table_name)
-        pending_stmt = (
-            select(pending_table)
-            .where(pending_table.c.agent_id == agent_id)
-            .where(pending_table.c.processed == False)
-            .order_by(pending_table.c.created_at)
-        )
-        pending_rows = (await db.execute(pending_stmt)).all()
-        for row in pending_rows:
-            dialog = {pending_columns[i]: row[i] for i in range(len(pending_columns))}
+    # Get completed dialogs from per-experiment SQLite
+    raw_dialogs = await per_exp_sqlite.query_dialogs(exp_id_str, agent_id)
+    dialogs: List[ApiAgentDialog] = []
+    for row in raw_dialogs:
+        dialogs.append(ApiAgentDialog(
+            id=row.get("id", agent_id),
+            day=row["day"],
+            t=row["t"],
+            type=AgentDialogType(row["type"]),
+            speaker=row["speaker"],
+            content=row["content"],
+            created_at=ensure_timezone_aware(row["created_at"]),
+        ))
 
-            dialogs.append(ApiAgentDialog(
-                id=agent_id,
-                day=dialog["day"],
-                t=dialog["t"],
-                type=AgentDialogType.User,
-                speaker="user",
-                content=dialog["content"],
-                created_at=ensure_timezone_aware(dialog["created_at"]),
-            ))
-        dialogs.sort(key=lambda x: (x.day, x.t))
+    # Get pending (user-sent) dialogs from per-experiment SQLite
+    raw_pending = await per_exp_sqlite.query_pending_dialogs(exp_id_str, agent_id)
+    for row in raw_pending:
+        dialogs.append(ApiAgentDialog(
+            id=agent_id,
+            day=row["day"],
+            t=row["t"],
+            type=AgentDialogType.User,
+            speaker="user",
+            content=row["content"],
+            created_at=ensure_timezone_aware(row["created_at"]),
+        ))
 
-        return ApiResponseWrapper(data=dialogs)
+    dialogs.sort(key=lambda x: (x.day, x.t))
+    return ApiResponseWrapper(data=dialogs)
 
 
-@router.get(
-    "/experiments/{exp_id}/agents/-/profile",
-)
+@router.get("/experiments/{exp_id}/agents/-/profile")
 async def list_agent_profile_by_exp_id(
     request: Request,
     exp_id: uuid.UUID,
 ) -> ApiResponseWrapper[List[ApiAgentProfile]]:
-    """List agent profile by experiment ID"""
+    """List agent profiles by experiment ID (from ClickHouse/DuckDB)"""
 
     async with request.app.state.get_db() as db:
-        experiment = await _find_started_experiment_by_id(request, db, exp_id)
+        await _find_started_experiment_by_id(request, db, exp_id)
 
-        table_name = experiment.agent_profile_tablename
-        table, columns = agent_profile(table_name)
-        stmt = select(table)
-        rows = (await db.execute(stmt)).all()
-        profiles: List[ApiAgentProfile] = []
-        for row in rows:
-            profile = {columns[i]: row[i] for i in range(len(columns))}
-            if "profile" in profile and isinstance(profile["profile"], str):
-                profile["profile"] = json.loads(profile["profile"])
-            profiles.append(ApiAgentProfile(**profile))
+    analytics_db = request.app.state.analytics_db
+    rows = await analytics_db.query_agent_profiles(str(exp_id))
 
-        return ApiResponseWrapper(data=profiles)
+    profiles: List[ApiAgentProfile] = []
+    for row in rows:
+        profile_val = row.get("profile", "{}")
+        if isinstance(profile_val, str):
+            try:
+                profile_val = json.loads(profile_val)
+            except Exception:
+                pass
+        profiles.append(ApiAgentProfile(
+            id=row["agent_id"],
+            name=row.get("name", ""),
+            profile=profile_val,
+        ))
+
+    return ApiResponseWrapper(data=profiles)
 
 
-@router.get(
-    "/experiments/{exp_id}/agents/{agent_id}/profile",
-)
+@router.get("/experiments/{exp_id}/agents/{agent_id}/profile")
 async def get_agent_profile_by_exp_id_and_agent_id(
     request: Request,
     exp_id: uuid.UUID,
     agent_id: int,
 ) -> ApiResponseWrapper[ApiAgentProfile]:
-    """Get agent profile by experiment ID and agent ID"""
+    """Get agent profile by experiment ID and agent ID (from ClickHouse/DuckDB)"""
 
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
-        experiment = await _find_started_experiment_by_id(request, db, exp_id)
+        await _find_started_experiment_by_id(request, db, exp_id)
 
-        table_name = experiment.agent_profile_tablename
-        table, columns = agent_profile(table_name)
-        stmt = select(table).where(table.c.id == agent_id).limit(1)
-        row = (await db.execute(stmt)).first()
-        if row is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Agent profile not found"
-            )
-        profile = {columns[i]: row[i] for i in range(len(columns))}
-        if "profile" in profile and isinstance(profile["profile"], str):
-            profile["profile"] = json.loads(profile["profile"])
-        profile = ApiAgentProfile(**profile)
+    analytics_db = request.app.state.analytics_db
+    rows = await analytics_db.query_agent_profiles(str(exp_id), agent_id)
 
-        return ApiResponseWrapper(data=profile)
+    if not rows:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Agent profile not found"
+        )
+
+    row = rows[0]
+    profile_val = row.get("profile", "{}")
+    if isinstance(profile_val, str):
+        try:
+            profile_val = json.loads(profile_val)
+        except Exception:
+            pass
+
+    return ApiResponseWrapper(data=ApiAgentProfile(
+        id=row["agent_id"],
+        name=row.get("name", ""),
+        profile=profile_val,
+    ))
 
 
 @router.get("/experiments/{exp_id}/agents/-/status")
@@ -151,34 +146,40 @@ async def list_agent_status_by_day_and_t(
     day: Optional[int] = Query(None, description="the day for getting agent status"),
     t: Optional[float] = Query(None, description="the time for getting agent status"),
 ) -> ApiResponseWrapper[List[ApiAgentStatus]]:
-    """List agent status by experiment ID, day and time"""
+    """List agent status by experiment ID, day and time (from ClickHouse/DuckDB)"""
 
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
         experiment = await _find_started_experiment_by_id(request, db, exp_id)
-
         if day is None:
             day = experiment.cur_day
         if t is None:
             t = experiment.cur_t
 
-        table_name = experiment.agent_status_tablename
-        table, columns = agent_status(table_name)
-        stmt = select(table).where(table.c.day == day).where(table.c.t == t)
-        rows = (await db.execute(stmt)).all()
-        statuses: List[ApiAgentStatus] = []
-        for row in rows:
-            s = {columns[i]: row[i] for i in range(len(columns))}
-            if "status" in s and isinstance(s["status"], str):
-                try:
-                    s["status"] = json.loads(s["status"])
-                except Exception:
-                    pass
-            if "created_at" in s:
-                s["created_at"] = ensure_timezone_aware(s["created_at"])
-            statuses.append(ApiAgentStatus(**s))
+    analytics_db = request.app.state.analytics_db
+    rows = await analytics_db.query_agent_statuses(str(exp_id), day=day, t=t)
 
-        return ApiResponseWrapper(data=statuses)
+    statuses: List[ApiAgentStatus] = []
+    for row in rows:
+        status_val = row.get("status", "{}")
+        if isinstance(status_val, str):
+            try:
+                status_val = json.loads(status_val)
+            except Exception:
+                pass
+        statuses.append(ApiAgentStatus(
+            id=row["agent_id"],
+            day=int(row["day"]),
+            t=float(row["t"]),
+            lng=row.get("lng"),
+            lat=row.get("lat"),
+            parent_id=row.get("parent_id"),
+            action=row.get("action", ""),
+            status=status_val,
+            created_at=ensure_timezone_aware(row.get("created_at", datetime.now(timezone.utc))),
+        ))
+
+    return ApiResponseWrapper(data=statuses)
 
 
 @router.get("/experiments/{exp_id}/agents/{agent_id}/status")
@@ -187,31 +188,36 @@ async def get_agent_status_by_exp_id_and_agent_id(
     exp_id: uuid.UUID,
     agent_id: int,
 ) -> ApiResponseWrapper[List[ApiAgentStatus]]:
-    """Get agent status by experiment ID and agent ID"""
+    """Get agent status by experiment ID and agent ID (from ClickHouse/DuckDB)"""
 
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
-        experiment = await _find_started_experiment_by_id(request, db, exp_id)
+        await _find_started_experiment_by_id(request, db, exp_id)
 
-        table_name = experiment.agent_status_tablename
-        table, columns = agent_status(table_name)
-        stmt = (
-            select(table).where(table.c.id == agent_id).order_by(table.c.day, table.c.t)
-        )
-        rows = (await db.execute(stmt)).all()
-        statuses: List[ApiAgentStatus] = []
-        for row in rows:
-            s = {columns[i]: row[i] for i in range(len(columns))}
-            if "status" in s and isinstance(s["status"], str):
-                try:
-                    s["status"] = json.loads(s["status"])
-                except Exception:
-                    pass
-            if "created_at" in s:
-                s["created_at"] = ensure_timezone_aware(s["created_at"])
-            statuses.append(ApiAgentStatus(**s))
+    analytics_db = request.app.state.analytics_db
+    rows = await analytics_db.query_agent_statuses(str(exp_id), agent_id=agent_id)
 
-        return ApiResponseWrapper(data=statuses)
+    statuses: List[ApiAgentStatus] = []
+    for row in rows:
+        status_val = row.get("status", "{}")
+        if isinstance(status_val, str):
+            try:
+                status_val = json.loads(status_val)
+            except Exception:
+                pass
+        statuses.append(ApiAgentStatus(
+            id=row["agent_id"],
+            day=int(row["day"]),
+            t=float(row["t"]),
+            lng=row.get("lng"),
+            lat=row.get("lat"),
+            parent_id=row.get("parent_id"),
+            action=row.get("action", ""),
+            status=status_val,
+            created_at=ensure_timezone_aware(row.get("created_at", datetime.now(timezone.utc))),
+        ))
+
+    return ApiResponseWrapper(data=statuses)
 
 
 @router.get("/experiments/{exp_id}/agents/{agent_id}/survey")
@@ -224,47 +230,42 @@ async def get_agent_survey_by_exp_id_and_agent_id(
 
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
-        experiment = await _find_started_experiment_by_id(request, db, exp_id)
+        await _find_started_experiment_by_id(request, db, exp_id)
 
-        table_name = experiment.agent_survey_tablename
-        table, columns = agent_survey(table_name)
-        stmt = (
-            select(table).where(table.c.id == agent_id).order_by(table.c.day, table.c.t)
-        )
-        rows = (await db.execute(stmt)).all()
-        surveys: List[ApiAgentSurvey] = []
-        for row in rows:
-            survey = {columns[i]: row[i] for i in range(len(columns))}
-            if "data" in survey and isinstance(survey["data"], str):
-                survey["data"] = json.loads(survey["data"])
-            if "created_at" in survey:
-                survey["created_at"] = ensure_timezone_aware(survey["created_at"])
-            surveys.append(ApiAgentSurvey(**survey))
+    per_exp_sqlite = request.app.state.per_exp_sqlite
+    exp_id_str = str(exp_id)
 
-        # Get pending surveys
+    raw_surveys = await per_exp_sqlite.query_surveys(exp_id_str, agent_id)
+    surveys: List[ApiAgentSurvey] = []
+    for row in raw_surveys:
+        result_val = row.get("result")
+        if isinstance(result_val, str):
+            try:
+                result_val = json.loads(result_val)
+            except Exception:
+                pass
+        surveys.append(ApiAgentSurvey(
+            id=row.get("id", agent_id),
+            day=row["day"],
+            t=row["t"],
+            survey_id=row["survey_id"],
+            result=result_val,
+            created_at=ensure_timezone_aware(row["created_at"]),
+        ))
 
-        table_name = experiment.pending_survey_tablename
-        pending_table, pending_columns = pending_survey(table_name)
-        pending_stmt = (
-            select(pending_table)
-            .where(pending_table.c.agent_id == agent_id)
-            .where(pending_table.c.processed == False)
-            .order_by(pending_table.c.created_at)
-        )
-        pending_rows = (await db.execute(pending_stmt)).all()
-        for row in pending_rows:
-            survey = {pending_columns[i]: row[i] for i in range(len(pending_columns))}
-            surveys.append(ApiAgentSurvey(
-                id=agent_id,
-                day=survey["day"],
-                t=survey["t"],
-                survey_id=survey["survey_id"],
-                result=None,
-                created_at=ensure_timezone_aware(survey["created_at"]),
-            ))
-        surveys.sort(key=lambda x: (x.day, x.t))
+    raw_pending = await per_exp_sqlite.query_pending_surveys(exp_id_str, agent_id)
+    for row in raw_pending:
+        surveys.append(ApiAgentSurvey(
+            id=agent_id,
+            day=row["day"],
+            t=row["t"],
+            survey_id=row["survey_id"],
+            result=None,
+            created_at=ensure_timezone_aware(row["created_at"]),
+        ))
 
-        return ApiResponseWrapper(data=surveys)
+    surveys.sort(key=lambda x: (x.day, x.t))
+    return ApiResponseWrapper(data=surveys)
 
 
 @router.get("/experiments/{exp_id}/prompt")
@@ -279,24 +280,23 @@ async def get_global_prompt_by_day_t(
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
         experiment = await _find_started_experiment_by_id(request, db, exp_id)
-
         if day is None:
             day = experiment.cur_day
         if t is None:
             t = experiment.cur_t
 
-        table_name = experiment.global_prompt_tablename
-        table, columns = global_prompt(table_name)
-        stmt = select(table).where(table.c.day == day).where(table.c.t == t)
-        row = (await db.execute(stmt)).first()
-        if row is None:
-            return ApiResponseWrapper(data=None)
-        prompt_data = {columns[i]: row[i] for i in range(len(columns))}
-        if "created_at" in prompt_data:
-            prompt_data["created_at"] = ensure_timezone_aware(prompt_data["created_at"])
-        prompt = ApiGlobalPrompt(**prompt_data)
+    per_exp_sqlite = request.app.state.per_exp_sqlite
+    row = await per_exp_sqlite.query_global_prompt(str(exp_id), day, t)
 
-        return ApiResponseWrapper(data=prompt)
+    if row is None:
+        return ApiResponseWrapper(data=None)
+
+    return ApiResponseWrapper(data=ApiGlobalPrompt(
+        day=row["day"],
+        t=row["t"],
+        prompt=row["prompt"],
+        created_at=ensure_timezone_aware(row["created_at"]),
+    ))
 
 
 class AgentChatMessage(BaseModel):
@@ -314,10 +314,8 @@ async def post_agent_dialog(
 ) -> ApiResponseWrapper[None]:
     """Send dialog to agent by experiment ID and agent ID"""
 
-    # Get tenant_id from request
     tenant_id = await request.app.state.get_tenant_id(request)
 
-    # Check whether the experiment is started and belongs to the tenant
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
         stmt = select(Experiment).where(
@@ -330,27 +328,23 @@ async def post_agent_dialog(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Experiment not found or you don't have permission to access it",
             )
-
         if ExperimentStatus(experiment.status) != ExperimentStatus.RUNNING:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Experiment not running"
             )
 
-        # Store the dialog request in pending_dialog table
-        table_name = experiment.pending_dialog_tablename
-        table, _ = pending_dialog(table_name)
-        stmt = table.insert().values(
-            agent_id=agent_id,
-            day=message.day,
-            t=message.t,
-            content=message.content,
-            created_at=datetime.now(timezone.utc),
-            processed=False,
+    # Write to per-experiment SQLite (the simulation reads from here)
+    per_exp_sqlite = request.app.state.per_exp_sqlite
+    ok = await per_exp_sqlite.write_pending_dialog(
+        str(exp_id), agent_id, message.day, message.t, message.content
+    )
+    if not ok:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to store dialog; experiment SQLite file may not exist yet",
         )
-        await db.execute(stmt)
-        await db.commit()
 
-        return ApiResponseWrapper(data=None)
+    return ApiResponseWrapper(data=None)
 
 
 class AgentSurveyMessage(BaseModel):
@@ -368,10 +362,8 @@ async def post_agent_survey(
 ) -> ApiResponseWrapper[None]:
     """Send survey to agent by experiment ID and agent ID"""
 
-    # Get tenant_id from request
     tenant_id = await request.app.state.get_tenant_id(request)
 
-    # Check whether the experiment is started and belongs to the tenant
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
         stmt = select(Experiment).where(
@@ -384,15 +376,15 @@ async def post_agent_survey(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Experiment not found or you don't have permission to access it",
             )
-
         if ExperimentStatus(experiment.status) != ExperimentStatus.RUNNING:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Experiment not running"
             )
 
-        # Check whether the survey exists
+        # Verify survey exists
         stmt = select(Survey).where(
-            Survey.tenant_id.in_([tenant_id, "", "default"]), Survey.id == message.survey_id
+            Survey.tenant_id.in_([tenant_id, "", "default"]),
+            Survey.id == message.survey_id,
         )
         result = await db.execute(stmt)
         survey = result.scalar_one_or_none()
@@ -400,20 +392,17 @@ async def post_agent_survey(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Survey not found"
             )
+        survey_data = survey.data
 
-        # Store the survey request in pending_survey table
-        table_name = experiment.pending_survey_tablename
-        table, _ = pending_survey(table_name)
-        stmt = table.insert().values(
-            agent_id=agent_id,
-            day=message.day,
-            t=message.t,
-            survey_id=message.survey_id,
-            data=survey.data,
-            created_at=datetime.now(timezone.utc),
-            processed=False,
+    # Write to per-experiment SQLite (the simulation reads from here)
+    per_exp_sqlite = request.app.state.per_exp_sqlite
+    ok = await per_exp_sqlite.write_pending_survey(
+        str(exp_id), agent_id, message.day, message.t, message.survey_id, survey_data
+    )
+    if not ok:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to store survey; experiment SQLite file may not exist yet",
         )
-        await db.execute(stmt)
-        await db.commit()
 
-        return ApiResponseWrapper(data=None)
+    return ApiResponseWrapper(data=None)

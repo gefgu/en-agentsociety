@@ -4,27 +4,24 @@ from pathlib import Path
 from typing import Literal, Optional, Dict, List, Any
 import uuid
 
+import yaml
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import select, update, text, and_, desc, asc, event
+from sqlalchemy import select, update, text, event
 from sqlalchemy.exc import OperationalError, DatabaseError as SADatabaseError
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-import yaml
 
 from ..logger import get_logger
 from ..utils.decorators import lock_decorator
 from .model import (
     Experiment,
-    agent_profile,
-    agent_status,
     agent_survey,
     agent_dialog,
     global_prompt,
     pending_dialog,
     pending_survey,
-    metric,
-    task_result,
+    experiment_info,
 )
 from ._base import Base, TABLE_PREFIX
 from .type import (
@@ -33,13 +30,20 @@ from .type import (
     StorageGlobalPrompt,
     StoragePendingDialog,
     StoragePendingSurvey,
-    StorageProfile,
-    StorageStatus,
     StorageSurvey,
-    StorageTaskResult,
 )
 
 __all__ = ["DatabaseWriter", "DatabaseConfig"]
+
+# Simple table names — no per-experiment prefix since each experiment has its own SQLite file
+_TABLE_NAMES = {
+    "dialog": "dialog",
+    "survey": "survey",
+    "global_prompt": "global_prompt",
+    "pending_dialog": "pending_dialog",
+    "pending_survey": "pending_survey",
+    "experiment_info": "experiment_info",
+}
 
 
 class DatabaseConfig(BaseModel):
@@ -61,29 +65,26 @@ class DatabaseConfig(BaseModel):
         if self.db_type == "postgresql" and not self.pg_dsn:
             raise ValueError("PostgreSQL DSN is required")
         return self
-    
+
     def get_dsn(self, sqlite_path: Path):
         """Create async SQLAlchemy engine based on configuration"""
         if self.db_type == "postgresql":
             assert self.pg_dsn is not None
-            # Convert postgresql:// to postgresql+asyncpg://
             if self.pg_dsn.startswith("postgresql://"):
                 async_dsn = self.pg_dsn.replace("postgresql://", "postgresql+asyncpg://", 1)
             else:
                 async_dsn = self.pg_dsn
             return async_dsn
         elif self.db_type == "sqlite":
-            # Ensure directory exists for SQLite
             sqlite_path.parent.mkdir(parents=True, exist_ok=True)
             return f"sqlite+aiosqlite:///{sqlite_path}"
         else:
             raise ValueError(f"Unsupported database type: {self.db_type}")
 
+
 def _create_async_engine_from_config(config: DatabaseConfig, sqlite_path: Path):
     dsn = config.get_dsn(sqlite_path)
     if config.db_type == "sqlite":
-        # SQLite defaults are too strict for mixed async read/write workloads.
-        # Use WAL + busy_timeout so short lock windows do not fail the simulation.
         engine = create_async_engine(
             dsn,
             connect_args={"timeout": 30},
@@ -104,34 +105,20 @@ def _create_async_engine_from_config(config: DatabaseConfig, sqlite_path: Path):
 
 
 def _is_sqlite_corruption_error(error: Exception, config: DatabaseConfig) -> bool:
-    """
-    Detect if an exception is due to SQLite database corruption.
-
-    Returns True only for SQLite databases when the exception is a DatabaseError
-    (or its subclass OperationalError) with a message indicating a non-database file.
-    """
     if config.db_type != "sqlite":
         return False
-
     if not isinstance(error, (OperationalError, SADatabaseError)):
         return False
-
     error_msg = str(error).lower()
     corruption_indicators = [
         "file is not a database",
         "not a database",
         "unable to open database",
     ]
-
     return any(indicator in error_msg for indicator in corruption_indicators)
 
 
 def _rename_corrupt_sqlite(sqlite_path: Path) -> None:
-    """
-    Rename a corrupted SQLite database file to a timestamped backup.
-
-    Preserves the corrupt file for forensic inspection instead of deleting it.
-    """
     timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
     new_path = sqlite_path.parent / f"{sqlite_path.name}.corrupt.{timestamp}"
     sqlite_path.rename(new_path)
@@ -139,37 +126,22 @@ def _rename_corrupt_sqlite(sqlite_path: Path) -> None:
 
 
 async def _create_tables(exp_id: str, config: DatabaseConfig, sqlite_path: Path):
-    """Create tables using SQLAlchemy with corruption detection and retry logic"""
+    """Create simplified per-experiment tables."""
     engine = _create_async_engine_from_config(config, sqlite_path)
 
     async def _create_tables_impl(conn):
-        """Inner function containing table creation logic (reused in retry)"""
-        # Create experiment table if not exists
-        await conn.run_sync(Base.metadata.create_all, tables=[Experiment.__table__])
-
-        # Create other tables for specific experiment
         table_functions = {
-            "agent_profile": agent_profile,
-            "agent_status": agent_status,
-            "agent_survey": agent_survey,
-            "agent_dialog": agent_dialog,
-            "global_prompt": global_prompt,
-            "pending_dialog": pending_dialog,
-            "pending_survey": pending_survey,
-            "metric": metric,
-            "task_result": task_result,
+            "dialog": (agent_dialog, "dialog"),
+            "survey": (agent_survey, "survey"),
+            "global_prompt": (global_prompt, "global_prompt"),
+            "pending_dialog": (pending_dialog, "pending_dialog"),
+            "pending_survey": (pending_survey, "pending_survey"),
+            "experiment_info": (experiment_info, "experiment_info"),
         }
 
-        for table_type, table_func in table_functions.items():
-            table_name = f"{TABLE_PREFIX}{exp_id.replace('-', '_')}_{table_type}"
+        for table_type, (table_func, table_name) in table_functions.items():
             table_obj, _ = table_func(table_name)
-
-            # Drop existing table if exists
-            await conn.execute(text(f"DROP TABLE IF EXISTS {table_name}"))
-
-            # Create new table
             await conn.run_sync(table_obj.create, checkfirst=True)
-
             get_logger().debug(f"Created {config.db_type} table: {table_name}")
 
     try:
@@ -180,8 +152,6 @@ async def _create_tables(exp_id: str, config: DatabaseConfig, sqlite_path: Path)
             if _is_sqlite_corruption_error(e, config):
                 get_logger().warning(f"Detected SQLite corruption, attempting recovery: {e}")
                 _rename_corrupt_sqlite(sqlite_path)
-
-                # Create a fresh engine for retry
                 retry_engine = _create_async_engine_from_config(config, sqlite_path)
                 try:
                     async with retry_engine.begin() as conn:
@@ -193,6 +163,7 @@ async def _create_tables(exp_id: str, config: DatabaseConfig, sqlite_path: Path)
                 raise
     finally:
         await engine.dispose()
+
 
 class DatabaseWriter:
     def __init__(self, tenant_id: str, exp_id: str, config: DatabaseConfig, home_dir: str):
@@ -212,11 +183,11 @@ class DatabaseWriter:
         self._sqlite_path = Path(home_dir) / "sqlite" / f"{exp_id}.db"
         self._engine = _create_async_engine_from_config(config, sqlite_path=self._sqlite_path)
         self._async_session = async_sessionmaker(self._engine, expire_on_commit=False)
-        
+
         # Setup storage path
         self._storage_path = Path(home_dir) / "exps" / tenant_id / exp_id
         self._storage_path.mkdir(parents=True, exist_ok=True)
-        
+
         # Cache table objects
         self._tables = {}
         self._init_tables()
@@ -226,21 +197,17 @@ class DatabaseWriter:
         await self._create_tables()
 
     def _init_tables(self):
-        """Initialize table object cache"""
+        """Initialize table object cache with simplified names."""
         table_functions = {
-            "agent_profile": agent_profile,
-            "agent_status": agent_status,
-            "agent_survey": agent_survey,
-            "agent_dialog": agent_dialog,
-            "global_prompt": global_prompt,
-            "pending_dialog": pending_dialog,
-            "pending_survey": pending_survey,
-            "metric": metric,
-            "task_result": task_result,
+            "dialog": (agent_dialog, "dialog"),
+            "survey": (agent_survey, "survey"),
+            "global_prompt": (global_prompt, "global_prompt"),
+            "pending_dialog": (pending_dialog, "pending_dialog"),
+            "pending_survey": (pending_survey, "pending_survey"),
+            "experiment_info": (experiment_info, "experiment_info"),
         }
-        
-        for table_type, table_func in table_functions.items():
-            table_name = f"{TABLE_PREFIX}{self.exp_id.replace('-', '_')}_{table_type}"
+
+        for table_type, (table_func, table_name) in table_functions.items():
             table_obj, columns = table_func(table_name)
             self._tables[table_type] = {"table": table_obj, "columns": columns}
 
@@ -274,16 +241,7 @@ class DatabaseWriter:
         return any(s in err_msg for s in ["file is not a database", "not a database", "unable to open database"])
 
     async def _recover_sqlite_db(self) -> None:
-        """
-        Recover from a corrupt SQLite file mid-simulation.
-
-        Disposes the poisoned engine, renames the corrupt file to a timestamped
-        backup, creates a fresh database with all experiment tables, then rebinds
-        self._engine and self._async_session.
-
-        Caller must hold self._lock (all @lock_decorator write methods do).
-        Data written to the corrupt file before this call is unrecoverable.
-        """
+        """Recover from a corrupt SQLite file mid-simulation."""
         get_logger().warning(
             f"SQLite database at {self._sqlite_path} is corrupt. "
             f"Renaming corrupt file and creating a fresh database. "
@@ -296,13 +254,6 @@ class DatabaseWriter:
         self._async_session = async_sessionmaker(self._engine, expire_on_commit=False)
         get_logger().info(f"SQLite recovery complete. New database at {self._sqlite_path}.")
 
-    def _rename_corrupt_sqlite(self, sqlite_path: Path) -> None:
-        """Rename a corrupt SQLite database file to preserve it for forensic inspection."""
-        timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
-        new_path = sqlite_path.parent / f"{sqlite_path.name}.corrupt.{timestamp}"
-        sqlite_path.rename(new_path)
-        get_logger().warning(f"Renamed corrupt SQLite database: {sqlite_path} -> {new_path}")
-
     @property
     def exp_info_file(self):
         """Experiment info file path"""
@@ -313,495 +264,14 @@ class DatabaseWriter:
         """Storage path"""
         return self._storage_path
 
-    # ==================== READ METHODS ====================
-
-    async def read_dialogs(
-        self, 
-        day: Optional[int] = None, 
-        speaker: Optional[str] = None, 
-        dialog_type: Optional[int] = None,
-        start_t: Optional[float] = None,
-        end_t: Optional[float] = None,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-        order_by: str = "created_at",
-        order_direction: str = "asc"
-    ) -> List[Dict[str, Any]]:
-        """
-        Read dialog records with filtering and pagination.
-
-        - **Args**:
-            - `day` (Optional[int]): Filter by day.
-            - `speaker` (Optional[str]): Filter by speaker.
-            - `dialog_type` (Optional[int]): Filter by dialog type.
-            - `start_t` (Optional[float]): Filter by start time.
-            - `end_t` (Optional[float]): Filter by end time.
-            - `limit` (Optional[int]): Limit number of records.
-            - `offset` (Optional[int]): Offset for pagination.
-            - `order_by` (str): Column to order by.
-            - `order_direction` (str): Order direction ('asc' or 'desc').
-
-        - **Returns**:
-            - `List[Dict[str, Any]]`: List of dialog records.
-        """
-        table_obj = self._tables["agent_dialog"]["table"]
-        
-        async with self._async_session() as session:
-            try:
-                # Build query
-                stmt = select(table_obj)
-                
-                # Add filters
-                conditions = []
-                if day is not None:
-                    conditions.append(table_obj.c.day == day)
-                if speaker is not None:
-                    conditions.append(table_obj.c.speaker == speaker)
-                if dialog_type is not None:
-                    conditions.append(table_obj.c.type == dialog_type)
-                if start_t is not None:
-                    conditions.append(table_obj.c.t >= start_t)
-                if end_t is not None:
-                    conditions.append(table_obj.c.t <= end_t)
-                
-                if conditions:
-                    stmt = stmt.where(and_(*conditions))
-                
-                # Add ordering
-                order_column = getattr(table_obj.c, order_by, table_obj.c.created_at)
-                if order_direction.lower() == "desc":
-                    stmt = stmt.order_by(desc(order_column))
-                else:
-                    stmt = stmt.order_by(asc(order_column))
-                
-                # Add pagination
-                if limit is not None:
-                    stmt = stmt.limit(limit)
-                if offset is not None:
-                    stmt = stmt.offset(offset)
-                
-                result = await session.execute(stmt)
-                rows = result.fetchall()
-                
-                # Convert to list of dictionaries
-                return [dict(row._mapping) for row in rows]
-                
-            except Exception as e:
-                get_logger().error(f"Error reading dialogs from {self._config.db_type}: {e}")
-                raise
-
-    async def read_statuses(
-        self,
-        day: Optional[int] = None,
-        agent_id: Optional[int] = None,
-        start_t: Optional[float] = None,
-        end_t: Optional[float] = None,
-        action: Optional[str] = None,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-        order_by: str = "created_at",
-        order_direction: str = "asc"
-    ) -> List[Dict[str, Any]]:
-        """
-        Read status records with filtering and pagination.
-
-        - **Args**:
-            - `day` (Optional[int]): Filter by day.
-            - `agent_id` (Optional[int]): Filter by agent ID.
-            - `start_t` (Optional[float]): Filter by start time.
-            - `end_t` (Optional[float]): Filter by end time.
-            - `action` (Optional[str]): Filter by action.
-            - `limit` (Optional[int]): Limit number of records.
-            - `offset` (Optional[int]): Offset for pagination.
-            - `order_by` (str): Column to order by.
-            - `order_direction` (str): Order direction ('asc' or 'desc').
-
-        - **Returns**:
-            - `List[Dict[str, Any]]`: List of status records.
-        """
-        table_obj = self._tables["agent_status"]["table"]
-        
-        async with self._async_session() as session:
-            try:
-                stmt = select(table_obj)
-                
-                conditions = []
-                if day is not None:
-                    conditions.append(table_obj.c.day == day)
-                if agent_id is not None:
-                    conditions.append(table_obj.c.id == agent_id)
-                if start_t is not None:
-                    conditions.append(table_obj.c.t >= start_t)
-                if end_t is not None:
-                    conditions.append(table_obj.c.t <= end_t)
-                if action is not None:
-                    conditions.append(table_obj.c.action == action)
-                
-                if conditions:
-                    stmt = stmt.where(and_(*conditions))
-                
-                order_column = getattr(table_obj.c, order_by, table_obj.c.created_at)
-                if order_direction.lower() == "desc":
-                    stmt = stmt.order_by(desc(order_column))
-                else:
-                    stmt = stmt.order_by(asc(order_column))
-                
-                if limit is not None:
-                    stmt = stmt.limit(limit)
-                if offset is not None:
-                    stmt = stmt.offset(offset)
-                
-                result = await session.execute(stmt)
-                rows = result.fetchall()
-                
-                return [dict(row._mapping) for row in rows]
-                
-            except Exception as e:
-                get_logger().error(f"Error reading statuses from {self._config.db_type}: {e}")
-                raise
-
-    async def read_surveys(
-        self,
-        day: Optional[int] = None,
-        survey_id: Optional[str] = None,
-        start_t: Optional[float] = None,
-        end_t: Optional[float] = None,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-        order_by: str = "created_at",
-        order_direction: str = "asc"
-    ) -> List[Dict[str, Any]]:
-        """
-        Read survey records with filtering and pagination.
-
-        - **Args**:
-            - `day` (Optional[int]): Filter by day.
-            - `survey_id` (Optional[str]): Filter by survey ID.
-            - `start_t` (Optional[float]): Filter by start time.
-            - `end_t` (Optional[float]): Filter by end time.
-            - `limit` (Optional[int]): Limit number of records.
-            - `offset` (Optional[int]): Offset for pagination.
-            - `order_by` (str): Column to order by.
-            - `order_direction` (str): Order direction ('asc' or 'desc').
-
-        - **Returns**:
-            - `List[Dict[str, Any]]`: List of survey records.
-        """
-        table_obj = self._tables["agent_survey"]["table"]
-        
-        async with self._async_session() as session:
-            try:
-                stmt = select(table_obj)
-                
-                conditions = []
-                if day is not None:
-                    conditions.append(table_obj.c.day == day)
-                if survey_id is not None:
-                    conditions.append(table_obj.c.survey_id == uuid.UUID(survey_id))
-                if start_t is not None:
-                    conditions.append(table_obj.c.t >= start_t)
-                if end_t is not None:
-                    conditions.append(table_obj.c.t <= end_t)
-                
-                if conditions:
-                    stmt = stmt.where(and_(*conditions))
-                
-                order_column = getattr(table_obj.c, order_by, table_obj.c.created_at)
-                if order_direction.lower() == "desc":
-                    stmt = stmt.order_by(desc(order_column))
-                else:
-                    stmt = stmt.order_by(asc(order_column))
-                
-                if limit is not None:
-                    stmt = stmt.limit(limit)
-                if offset is not None:
-                    stmt = stmt.offset(offset)
-                
-                result = await session.execute(stmt)
-                rows = result.fetchall()
-                
-                # Convert UUID to string for JSON serialization
-                results = []
-                for row in rows:
-                    row_dict = dict(row._mapping)
-                    row_dict["survey_id"] = str(row_dict["survey_id"])
-                    results.append(row_dict)
-                
-                return results
-                
-            except Exception as e:
-                get_logger().error(f"Error reading surveys from {self._config.db_type}: {e}")
-                raise
-
-    async def read_profiles(self) -> List[Dict[str, Any]]:
-        """
-        Read all agent profiles.
-
-        - **Returns**:
-            - `List[Dict[str, Any]]`: List of agent profile records.
-        """
-        table_obj = self._tables["agent_profile"]["table"]
-        
-        async with self._async_session() as session:
-            try:
-                stmt = select(table_obj)
-                result = await session.execute(stmt)
-                rows = result.fetchall()
-                
-                return [dict(row._mapping) for row in rows]
-                
-            except Exception as e:
-                get_logger().error(f"Error reading profiles from {self._config.db_type}: {e}")
-                raise
-
-    async def read_global_prompts(
-        self,
-        day: Optional[int] = None,
-        start_t: Optional[float] = None,
-        end_t: Optional[float] = None,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-        order_by: str = "created_at",
-        order_direction: str = "asc"
-    ) -> List[Dict[str, Any]]:
-        """
-        Read global prompt records with filtering and pagination.
-
-        - **Args**:
-            - `day` (Optional[int]): Filter by day.
-            - `start_t` (Optional[float]): Filter by start time.
-            - `end_t` (Optional[float]): Filter by end time.
-            - `limit` (Optional[int]): Limit number of records.
-            - `offset` (Optional[int]): Offset for pagination.
-            - `order_by` (str): Column to order by.
-            - `order_direction` (str): Order direction ('asc' or 'desc').
-
-        - **Returns**:
-            - `List[Dict[str, Any]]`: List of global prompt records.
-        """
-        table_obj = self._tables["global_prompt"]["table"]
-        
-        async with self._async_session() as session:
-            try:
-                stmt = select(table_obj)
-                
-                conditions = []
-                if day is not None:
-                    conditions.append(table_obj.c.day == day)
-                if start_t is not None:
-                    conditions.append(table_obj.c.t >= start_t)
-                if end_t is not None:
-                    conditions.append(table_obj.c.t <= end_t)
-                
-                if conditions:
-                    stmt = stmt.where(and_(*conditions))
-                
-                order_column = getattr(table_obj.c, order_by, table_obj.c.created_at)
-                if order_direction.lower() == "desc":
-                    stmt = stmt.order_by(desc(order_column))
-                else:
-                    stmt = stmt.order_by(asc(order_column))
-                
-                if limit is not None:
-                    stmt = stmt.limit(limit)
-                if offset is not None:
-                    stmt = stmt.offset(offset)
-                
-                result = await session.execute(stmt)
-                rows = result.fetchall()
-                
-                return [dict(row._mapping) for row in rows]
-                
-            except Exception as e:
-                get_logger().error(f"Error reading global prompts from {self._config.db_type}: {e}")
-                raise
-
-    async def read_task_results(
-        self,
-        agent_id: Optional[int] = None,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-        order_by: str = "created_at",
-        order_direction: str = "asc"
-    ) -> List[Dict[str, Any]]:
-        """
-        Read task result records with filtering and pagination.
-
-        - **Args**:
-            - `agent_id` (Optional[int]): Filter by agent ID.
-            - `limit` (Optional[int]): Limit number of records.
-            - `offset` (Optional[int]): Offset for pagination.
-            - `order_by` (str): Column to order by.
-            - `order_direction` (str): Order direction ('asc' or 'desc').
-
-        - **Returns**:
-            - `List[Dict[str, Any]]`: List of task result records.
-        """
-        table_obj = self._tables["task_result"]["table"]
-        
-        async with self._async_session() as session:
-            try:
-                stmt = select(table_obj)
-                
-                if agent_id is not None:
-                    stmt = stmt.where(table_obj.c.agent_id == agent_id)
-                
-                order_column = getattr(table_obj.c, order_by, table_obj.c.created_at)
-                if order_direction.lower() == "desc":
-                    stmt = stmt.order_by(desc(order_column))
-                else:
-                    stmt = stmt.order_by(asc(order_column))
-                
-                if limit is not None:
-                    stmt = stmt.limit(limit)
-                if offset is not None:
-                    stmt = stmt.offset(offset)
-                
-                result = await session.execute(stmt)
-                rows = result.fetchall()
-                
-                return [dict(row._mapping) for row in rows]
-                
-            except Exception as e:
-                get_logger().error(f"Error reading task results from {self._config.db_type}: {e}")
-                raise
-
-    async def read_metrics(
-        self,
-        key: Optional[str] = None,
-        step: Optional[int] = None,
-        start_step: Optional[int] = None,
-        end_step: Optional[int] = None,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-        order_by: str = "step",
-        order_direction: str = "asc"
-    ) -> List[Dict[str, Any]]:
-        """
-        Read metric records with filtering and pagination.
-
-        - **Args**:
-            - `key` (Optional[str]): Filter by metric key.
-            - `step` (Optional[int]): Filter by specific step.
-            - `start_step` (Optional[int]): Filter by start step.
-            - `end_step` (Optional[int]): Filter by end step.
-            - `limit` (Optional[int]): Limit number of records.
-            - `offset` (Optional[int]): Offset for pagination.
-            - `order_by` (str): Column to order by.
-            - `order_direction` (str): Order direction ('asc' or 'desc').
-
-        - **Returns**:
-            - `List[Dict[str, Any]]`: List of metric records.
-        """
-        table_obj = self._tables["metric"]["table"]
-        
-        async with self._async_session() as session:
-            try:
-                stmt = select(table_obj)
-                
-                conditions = []
-                if key is not None:
-                    conditions.append(table_obj.c.key == key)
-                if step is not None:
-                    conditions.append(table_obj.c.step == step)
-                if start_step is not None:
-                    conditions.append(table_obj.c.step >= start_step)
-                if end_step is not None:
-                    conditions.append(table_obj.c.step <= end_step)
-                
-                if conditions:
-                    stmt = stmt.where(and_(*conditions))
-                
-                order_column = getattr(table_obj.c, order_by, table_obj.c.step)
-                if order_direction.lower() == "desc":
-                    stmt = stmt.order_by(desc(order_column))
-                else:
-                    stmt = stmt.order_by(asc(order_column))
-                
-                if limit is not None:
-                    stmt = stmt.limit(limit)
-                if offset is not None:
-                    stmt = stmt.offset(offset)
-                
-                result = await session.execute(stmt)
-                rows = result.fetchall()
-                
-                return [dict(row._mapping) for row in rows]
-                
-            except Exception as e:
-                get_logger().error(f"Error reading metrics from {self._config.db_type}: {e}")
-                raise
-
-    async def get_statistics(self) -> Dict[str, Any]:
-        """
-        Get comprehensive statistics for the experiment.
-
-        - **Returns**:
-            - `Dict[str, Any]`: Statistics including counts, time ranges, and summaries.
-        """
-        async with self._async_session() as session:
-            try:
-                stats = {}
-                
-                # Get counts for each table
-                for table_type in self._tables.keys():
-                    table_obj = self._tables[table_type]["table"]
-                    count_stmt = select(table_obj).select_from(table_obj)
-                    result = await session.execute(count_stmt)
-                    stats[f"{table_type}_count"] = len(result.fetchall())
-                
-                # Get time range for dialogs
-                dialog_table = self._tables["agent_dialog"]["table"]
-                time_stmt = select(
-                    dialog_table.c.day,
-                    dialog_table.c.t,
-                    dialog_table.c.created_at
-                ).order_by(asc(dialog_table.c.created_at))
-                result = await session.execute(time_stmt)
-                dialog_rows = result.fetchall()
-                
-                if dialog_rows:
-                    stats["dialog_time_range"] = {
-                        "first_day": dialog_rows[0].day,
-                        "last_day": dialog_rows[-1].day,
-                        "first_time": dialog_rows[0].t,
-                        "last_time": dialog_rows[-1].t,
-                        "first_created": dialog_rows[0].created_at.isoformat(),
-                        "last_created": dialog_rows[-1].created_at.isoformat(),
-                    }
-                
-                # Get unique speakers
-                speaker_stmt = select(dialog_table.c.speaker).distinct()
-                result = await session.execute(speaker_stmt)
-                stats["unique_speakers"] = [row.speaker for row in result.fetchall()]
-                
-                # Get dialog type distribution
-                type_stmt = select(dialog_table.c.type)
-                result = await session.execute(type_stmt)
-                type_counts = {}
-                for row in result.fetchall():
-                    type_counts[row.type] = type_counts.get(row.type, 0) + 1
-                stats["dialog_type_distribution"] = type_counts
-                
-                # Get unique agent IDs from status
-                status_table = self._tables["agent_status"]["table"]
-                agent_stmt = select(status_table.c.id).distinct()
-                result = await session.execute(agent_stmt)
-                stats["unique_agents"] = [row.id for row in result.fetchall()]
-                
-                return stats
-                
-            except Exception as e:
-                get_logger().error(f"Error getting statistics from {self._config.db_type}: {e}")
-                raise
-
     # ==================== WRITE METHODS ====================
 
     @lock_decorator
     async def write_dialogs(self, rows: list[StorageDialog]):
-        table_obj = self._tables["agent_dialog"]["table"]
+        table_obj = self._tables["dialog"]["table"]
         data = [
             {
+                "experiment_id": self.exp_id,
                 "id": row.id,
                 "day": row.day,
                 "t": row.t,
@@ -820,7 +290,7 @@ class DatabaseWriter:
                     stmt = insert_func(table_obj).values(data)
                     await session.execute(stmt)
                     await session.commit()
-                    get_logger().debug(f"Inserted {len(rows)} dialog records to {self._config.db_type}")
+                    get_logger().debug(f"Inserted {len(rows)} dialog records")
                     return
                 except Exception as e:
                     await session.rollback()
@@ -829,81 +299,7 @@ class DatabaseWriter:
                         await self._recover_sqlite_db()
                         recovered = True
                         continue
-                    get_logger().error(f"Error writing dialogs to {self._config.db_type}: {e}")
-                    if recovered:
-                        get_logger().warning("Write still failed after recovery. Data lost for this batch.")
-                        return
-                    raise
-
-    @lock_decorator
-    async def write_statuses(self, rows: list[StorageStatus]):
-        table_obj = self._tables["agent_status"]["table"]
-        data = [
-            {
-                "id": row.id,
-                "day": row.day,
-                "t": row.t,
-                "lng": row.lng,
-                "lat": row.lat,
-                "parent_id": row.parent_id,
-                "action": row.action,
-                "status": row.status,
-                "created_at": row.created_at,
-            }
-            for row in rows
-        ]
-        recovered = False
-        while True:
-            insert_func = self._get_insert_func()
-            async with self._async_session() as session:
-                try:
-                    stmt = insert_func(table_obj).values(data)
-                    await session.execute(stmt)
-                    await session.commit()
-                    get_logger().debug(f"Inserted {len(rows)} status records to {self._config.db_type}")
-                    return
-                except Exception as e:
-                    await session.rollback()
-                    if not recovered and self._is_sqlite_corruption_error(e, self._config):
-                        get_logger().warning("SQLite corruption detected; recovering and retrying write...")
-                        await self._recover_sqlite_db()
-                        recovered = True
-                        continue
-                    get_logger().error(f"Error writing statuses to {self._config.db_type}: {e}")
-                    if recovered:
-                        get_logger().warning("Write still failed after recovery. Data lost for this batch.")
-                        return
-                    raise
-
-    @lock_decorator
-    async def write_profiles(self, rows: list[StorageProfile]):
-        table_obj = self._tables["agent_profile"]["table"]
-        data = [
-            {
-                "id": row.id,
-                "name": row.name,
-                "profile": row.profile,
-            }
-            for row in rows
-        ]
-        recovered = False
-        while True:
-            insert_func = self._get_insert_func()
-            async with self._async_session() as session:
-                try:
-                    stmt = insert_func(table_obj).values(data)
-                    await session.execute(stmt)
-                    await session.commit()
-                    get_logger().debug(f"Inserted {len(rows)} profile records to {self._config.db_type}")
-                    return
-                except Exception as e:
-                    await session.rollback()
-                    if not recovered and self._is_sqlite_corruption_error(e, self._config):
-                        get_logger().warning("SQLite corruption detected; recovering and retrying write...")
-                        await self._recover_sqlite_db()
-                        recovered = True
-                        continue
-                    get_logger().error(f"Error writing profiles to {self._config.db_type}: {e}")
+                    get_logger().error(f"Error writing dialogs: {e}")
                     if recovered:
                         get_logger().warning("Write still failed after recovery. Data lost for this batch.")
                         return
@@ -911,9 +307,10 @@ class DatabaseWriter:
 
     @lock_decorator
     async def write_surveys(self, rows: list[StorageSurvey]):
-        table_obj = self._tables["agent_survey"]["table"]
+        table_obj = self._tables["survey"]["table"]
         data = [
             {
+                "experiment_id": self.exp_id,
                 "id": row.id,
                 "day": row.day,
                 "t": row.t,
@@ -931,7 +328,7 @@ class DatabaseWriter:
                     stmt = insert_func(table_obj).values(data)
                     await session.execute(stmt)
                     await session.commit()
-                    get_logger().debug(f"Inserted {len(rows)} survey records to {self._config.db_type}")
+                    get_logger().debug(f"Inserted {len(rows)} survey records")
                     return
                 except Exception as e:
                     await session.rollback()
@@ -940,7 +337,7 @@ class DatabaseWriter:
                         await self._recover_sqlite_db()
                         recovered = True
                         continue
-                    get_logger().error(f"Error writing surveys to {self._config.db_type}: {e}")
+                    get_logger().error(f"Error writing surveys: {e}")
                     if recovered:
                         get_logger().warning("Write still failed after recovery. Data lost for this batch.")
                         return
@@ -950,6 +347,7 @@ class DatabaseWriter:
     async def write_global_prompt(self, prompt_info: StorageGlobalPrompt):
         table_obj = self._tables["global_prompt"]["table"]
         data = {
+            "experiment_id": self.exp_id,
             "day": prompt_info.day,
             "t": prompt_info.t,
             "prompt": prompt_info.prompt,
@@ -963,7 +361,7 @@ class DatabaseWriter:
                     stmt = insert_func(table_obj).values([data])
                     await session.execute(stmt)
                     await session.commit()
-                    get_logger().debug(f"Inserted global prompt record to {self._config.db_type}")
+                    get_logger().debug("Inserted global prompt record")
                     return
                 except Exception as e:
                     await session.rollback()
@@ -972,87 +370,7 @@ class DatabaseWriter:
                         await self._recover_sqlite_db()
                         recovered = True
                         continue
-                    get_logger().error(f"Error writing global prompt to {self._config.db_type}: {e}")
-                    if recovered:
-                        get_logger().warning("Write still failed after recovery. Data lost for this batch.")
-                        return
-                    raise
-
-    @lock_decorator
-    async def write_task_result(self, rows: list[StorageTaskResult]):
-        table_obj = self._tables["task_result"]["table"]
-        data = [
-            {
-                "id": row.id,
-                "agent_id": row.agent_id,
-                "context": row.context,
-                "ground_truth": row.ground_truth,
-                "result": row.result,
-                "created_at": row.created_at,
-            }
-            for row in rows
-        ]
-        recovered = False
-        while True:
-            insert_func = self._get_insert_func()
-            async with self._async_session() as session:
-                try:
-                    stmt = insert_func(table_obj).values(data)
-                    await session.execute(stmt)
-                    await session.commit()
-                    get_logger().debug(f"Inserted {len(rows)} task result records to {self._config.db_type}")
-                    return
-                except Exception as e:
-                    await session.rollback()
-                    if not recovered and self._is_sqlite_corruption_error(e, self._config):
-                        get_logger().warning("SQLite corruption detected; recovering and retrying write...")
-                        await self._recover_sqlite_db()
-                        recovered = True
-                        continue
-                    get_logger().error(f"Error writing task results to {self._config.db_type}: {e}")
-                    if recovered:
-                        get_logger().warning("Write still failed after recovery. Data lost for this batch.")
-                        return
-                    raise
-
-    @lock_decorator
-    async def log_metric(self, metrics: list[tuple[str, float, int]]):
-        """
-        Batch insert metric data.
-
-        Args:
-            metrics: List of tuples (key, value, step)
-        """
-        if len(metrics) == 0:
-            return
-        table_obj = self._tables["metric"]["table"]
-        data = [
-            {
-                "key": key,
-                "value": value,
-                "step": step,
-                "created_at": datetime.now(),
-            }
-            for key, value, step in metrics
-        ]
-        recovered = False
-        while True:
-            insert_func = self._get_insert_func()
-            async with self._async_session() as session:
-                try:
-                    stmt = insert_func(table_obj).values(data)
-                    await session.execute(stmt)
-                    await session.commit()
-                    get_logger().debug(f"Batch inserted {len(metrics)} metric records to {self._config.db_type}")
-                    return
-                except Exception as e:
-                    await session.rollback()
-                    if not recovered and self._is_sqlite_corruption_error(e, self._config):
-                        get_logger().warning("SQLite corruption detected; recovering and retrying write...")
-                        await self._recover_sqlite_db()
-                        recovered = True
-                        continue
-                    get_logger().error(f"Error batch writing metrics to {self._config.db_type}: {e}")
+                    get_logger().error(f"Error writing global prompt: {e}")
                     if recovered:
                         get_logger().warning("Write still failed after recovery. Data lost for this batch.")
                         return
@@ -1060,69 +378,51 @@ class DatabaseWriter:
 
     @lock_decorator
     async def update_exp_info(self, exp_info: StorageExpInfo):
-        # save to local (idempotent - outside retry loop)
+        # Save to local YAML (idempotent)
         with open(self.exp_info_file, "w") as f:
             yaml.dump(exp_info.model_dump(), f)
 
+        table_obj = self._tables["experiment_info"]["table"]
+        data = {
+            "experiment_id": self.exp_id,
+            "tenant_id": exp_info.tenant_id,
+            "name": exp_info.name,
+            "num_day": exp_info.num_day,
+            "status": exp_info.status,
+            "cur_day": exp_info.cur_day,
+            "cur_t": exp_info.cur_t,
+            "config": exp_info.config,
+            "error": exp_info.error,
+            "input_tokens": exp_info.input_tokens,
+            "output_tokens": exp_info.output_tokens,
+            "created_at": exp_info.created_at,
+            "updated_at": exp_info.updated_at,
+        }
         recovered = False
         while True:
             insert_func = self._get_insert_func()
             async with self._async_session() as session:
                 try:
-                    # Use SQLAlchemy upsert operation
-                    stmt = insert_func(Experiment).values(
-                        tenant_id=exp_info.tenant_id,
-                        id=uuid.UUID(self.exp_id),
-                        name=exp_info.name,
-                        num_day=exp_info.num_day,
-                        status=exp_info.status,
-                        cur_day=exp_info.cur_day,
-                        cur_t=exp_info.cur_t,
-                        config=exp_info.config,
-                        error=exp_info.error,
-                        input_tokens=exp_info.input_tokens,
-                        output_tokens=exp_info.output_tokens,
-                        created_at=exp_info.created_at,
-                        updated_at=exp_info.updated_at,
-                    )
-
-                    # Database-specific upsert operation
-                    if self._config.db_type == "postgresql":
+                    stmt = insert_func(table_obj).values([data])
+                    if self._config.db_type in ("postgresql", "sqlite"):
                         stmt = stmt.on_conflict_do_update(
-                            index_elements=["tenant_id", "id"],
-                            set_=dict(
-                                name=stmt.excluded.name,
-                                num_day=stmt.excluded.num_day,
-                                status=stmt.excluded.status,
-                                cur_day=stmt.excluded.cur_day,
-                                cur_t=stmt.excluded.cur_t,
-                                config=stmt.excluded.config,
-                                error=stmt.excluded.error,
-                                input_tokens=stmt.excluded.input_tokens,
-                                output_tokens=stmt.excluded.output_tokens,
-                                updated_at=stmt.excluded.updated_at,
-                            ),
+                            index_elements=["experiment_id"],
+                            set_={
+                                "name": stmt.excluded.name,
+                                "num_day": stmt.excluded.num_day,
+                                "status": stmt.excluded.status,
+                                "cur_day": stmt.excluded.cur_day,
+                                "cur_t": stmt.excluded.cur_t,
+                                "config": stmt.excluded.config,
+                                "error": stmt.excluded.error,
+                                "input_tokens": stmt.excluded.input_tokens,
+                                "output_tokens": stmt.excluded.output_tokens,
+                                "updated_at": stmt.excluded.updated_at,
+                            },
                         )
-                    elif self._config.db_type == "sqlite":
-                        stmt = stmt.on_conflict_do_update(
-                            index_elements=["tenant_id", "id"],
-                            set_=dict(
-                                name=stmt.excluded.name,
-                                num_day=stmt.excluded.num_day,
-                                status=stmt.excluded.status,
-                                cur_day=stmt.excluded.cur_day,
-                                cur_t=stmt.excluded.cur_t,
-                                config=stmt.excluded.config,
-                                error=stmt.excluded.error,
-                                input_tokens=stmt.excluded.input_tokens,
-                                output_tokens=stmt.excluded.output_tokens,
-                                updated_at=stmt.excluded.updated_at,
-                            )
-                        )
-
                     await session.execute(stmt)
                     await session.commit()
-                    get_logger().debug(f"Updated experiment info for {self.exp_id} in {self._config.db_type}")
+                    get_logger().debug(f"Updated experiment info for {self.exp_id}")
                     return
                 except Exception as e:
                     await session.rollback()
@@ -1131,7 +431,7 @@ class DatabaseWriter:
                         await self._recover_sqlite_db()
                         recovered = True
                         continue
-                    get_logger().error(f"Error updating experiment info in {self._config.db_type}: {e}")
+                    get_logger().error(f"Error updating experiment info: {e}")
                     if recovered:
                         get_logger().warning("Write still failed after recovery. Data lost for this batch.")
                         return
@@ -1139,14 +439,9 @@ class DatabaseWriter:
 
     @lock_decorator
     async def fetch_pending_dialogs(self):
-        """
-        Fetch all unprocessed pending dialogs from the database.
-
-        - **Returns**:
-            - `list[StoragePendingDialog]`: List of pending dialogs.
-        """
+        """Fetch all unprocessed pending dialogs from the database."""
         table_obj = self._tables["pending_dialog"]["table"]
-        
+
         max_attempts = 4 if self._config.db_type == "sqlite" else 1
 
         for attempt in range(1, max_attempts + 1):
@@ -1155,39 +450,31 @@ class DatabaseWriter:
                     stmt = select(table_obj).where(table_obj.c.processed.is_(False))
                     result = await session.execute(stmt)
                     rows = result.fetchall()
-
                     return [StoragePendingDialog(**row._asdict()) for row in rows]
 
                 except Exception as e:
                     if attempt < max_attempts and self._is_sqlite_lock_error(e):
                         delay_seconds = 0.2 * attempt
                         get_logger().warning(
-                            "SQLite lock while fetching pending dialogs "
+                            f"SQLite lock while fetching pending dialogs "
                             f"(attempt {attempt}/{max_attempts}), retrying in {delay_seconds:.1f}s: {e}"
                         )
                         await asyncio.sleep(delay_seconds)
                         continue
 
-                    get_logger().error(
-                        f"Error fetching pending dialogs from {self._config.db_type}: {e}"
-                    )
+                    get_logger().error(f"Error fetching pending dialogs: {e}")
                     raise
 
         return []
 
     @lock_decorator
     async def mark_dialogs_as_processed(self, pending_ids: list[int]):
-        """
-        Mark specified dialogs as processed.
-
-        - **Args**:
-            - `pending_ids` (list[int]): List of pending dialog IDs to mark as processed.
-        """
+        """Mark specified dialogs as processed."""
         if not pending_ids:
             return
 
         table_obj = self._tables["pending_dialog"]["table"]
-        
+
         async with self._async_session() as session:
             try:
                 stmt = (
@@ -1195,27 +482,19 @@ class DatabaseWriter:
                     .where(table_obj.c.id.in_(pending_ids))
                     .values(processed=True)
                 )
-                
                 await session.execute(stmt)
                 await session.commit()
-                
-                get_logger().debug(f"Marked {len(pending_ids)} dialogs as processed in {self._config.db_type}")
-                
+                get_logger().debug(f"Marked {len(pending_ids)} dialogs as processed")
             except Exception as e:
                 await session.rollback()
-                get_logger().error(f"Error marking dialogs as processed in {self._config.db_type}: {e}")
+                get_logger().error(f"Error marking dialogs as processed: {e}")
                 raise
 
     @lock_decorator
     async def fetch_pending_surveys(self):
-        """
-        Fetch all unprocessed pending surveys from the database.
-
-        - **Returns**:
-            - `list[StoragePendingSurvey]`: List of pending surveys.
-        """
+        """Fetch all unprocessed pending surveys from the database."""
         table_obj = self._tables["pending_survey"]["table"]
-        
+
         max_attempts = 4 if self._config.db_type == "sqlite" else 1
 
         for attempt in range(1, max_attempts + 1):
@@ -1230,39 +509,31 @@ class DatabaseWriter:
                         row_dict = row._asdict()
                         row_dict["survey_id"] = str(row_dict["survey_id"])
                         results.append(StoragePendingSurvey(**row_dict))
-
                     return results
 
                 except Exception as e:
                     if attempt < max_attempts and self._is_sqlite_lock_error(e):
                         delay_seconds = 0.2 * attempt
                         get_logger().warning(
-                            "SQLite lock while fetching pending surveys "
+                            f"SQLite lock while fetching pending surveys "
                             f"(attempt {attempt}/{max_attempts}), retrying in {delay_seconds:.1f}s: {e}"
                         )
                         await asyncio.sleep(delay_seconds)
                         continue
 
-                    get_logger().error(
-                        f"Error fetching pending surveys from {self._config.db_type}: {e}"
-                    )
+                    get_logger().error(f"Error fetching pending surveys: {e}")
                     raise
 
         return []
 
     @lock_decorator
     async def mark_surveys_as_processed(self, pending_ids: list[int]):
-        """
-        Mark specified surveys as processed.
-
-        - **Args**:
-            - `pending_ids` (list[int]): List of pending survey IDs to mark as processed.
-        """
+        """Mark specified surveys as processed."""
         if not pending_ids:
             return
 
         table_obj = self._tables["pending_survey"]["table"]
-        
+
         async with self._async_session() as session:
             try:
                 stmt = (
@@ -1270,15 +541,12 @@ class DatabaseWriter:
                     .where(table_obj.c.id.in_(pending_ids))
                     .values(processed=True)
                 )
-                
                 await session.execute(stmt)
                 await session.commit()
-                
-                get_logger().debug(f"Marked {len(pending_ids)} surveys as processed in {self._config.db_type}")
-                
+                get_logger().debug(f"Marked {len(pending_ids)} surveys as processed")
             except Exception as e:
                 await session.rollback()
-                get_logger().error(f"Error marking surveys as processed in {self._config.db_type}: {e}")
+                get_logger().error(f"Error marking surveys as processed: {e}")
                 raise
 
     async def close(self):

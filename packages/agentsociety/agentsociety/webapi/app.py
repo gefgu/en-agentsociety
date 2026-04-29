@@ -15,7 +15,9 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from ..configs import EnvConfig
 from .api import api_router
+from .analytics_db import AnalyticsDB
 from .models._base import Base
+from .per_exp_sqlite import PerExperimentSQLite
 
 __all__ = ["create_app", "empty_get_tenant_id"]
 
@@ -109,6 +111,10 @@ def create_app(
         app.state.read_only = read_only
         # save env to app state
         app.state.env = env
+
+        # Per-experiment SQLite and analytics DB utilities
+        app.state.per_exp_sqlite = PerExperimentSQLite(env.home_dir)
+        app.state.analytics_db = AnalyticsDB(env.data_dir)
 
         # Hook to get tenant_id
         if not hasattr(app.state, "get_tenant_id"):
