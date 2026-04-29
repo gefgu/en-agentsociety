@@ -454,7 +454,13 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         if current_plan is None or not current_plan:
             return True
         step_index = current_plan.get("index", 0)
-        current_step = current_plan.get("steps", [])[step_index]
+        steps = current_plan.get("steps", [])
+        # If step_index is out of bounds, the plan is complete
+        if step_index >= len(steps):
+            current_plan["completed"] = True
+            await self.memory.status.update("current_plan", current_plan)
+            return True
+        current_step = steps[step_index]
         time_now = self.environment.get_tick()
         step_start_time = current_step["start_time"]
         step_consumed_time = current_step["evaluation"]["consumed_time"]
@@ -642,10 +648,16 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         else:
             content = payload["content"]
             key, value = content.split("@")
-            if "." in value:
-                value = float(value)
-            else:
-                value = int(value)
+            try:
+                if "." in value:
+                    value = float(value)
+                else:
+                    value = int(value)
+            except (ValueError, TypeError) as e:
+                get_logger().warning(
+                    f"Agent {self.id}: Failed to parse economic message value '{value}': {e}"
+                )
+                return ""
             description = f"You received a economic message: Your {key} has changed from {await self.memory.status.get(key)} to {value}"
             await self.memory.status.update(key, value)
             await self.memory.stream.add(topic="economy", description=description)
@@ -680,8 +692,12 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
         ):
             return  # No plan, no execution
         step_index = current_plan.get("index", 0)
+        steps = current_plan.get("steps", [])
+        # If step_index is out of bounds, the plan is complete
+        if step_index >= len(steps):
+            return
         execution_context = await self.memory.status.get("execution_context")
-        current_step = current_plan.get("steps", [])[step_index]
+        current_step = steps[step_index]
         # check current_step is valid (not empty)
         if current_step:
             self.context.current_step = current_step

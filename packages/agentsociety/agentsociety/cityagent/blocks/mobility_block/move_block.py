@@ -1,3 +1,4 @@
+import random
 import time
 from typing import TYPE_CHECKING
 
@@ -201,8 +202,47 @@ class MoveBlock(Block):
                         extra={"agent_id": self.agent.id},
                     )
 
+            if next_place is None and self._simulation_mode == "agentsociety":
+                aois = self.environment.map.get_all_aois()
+                if not aois:
+                    failure_reason = "No AOIs available for random POI selection"
+                    get_logger().error(
+                        f"MobilityBlock (Agent {self.agent.id}): {failure_reason}",
+                        extra={"agent_id": self.agent.id},
+                    )
+                    node_id = await self.memory.stream.add(
+                        topic="mobility",
+                        description=(
+                            f"Failed to find destination for {context['current_step']['intention']}: {failure_reason}"
+                        ),
+                    )
+                    return {
+                        "success": False,
+                        "evaluation": f"Failed to select destination: {failure_reason}",
+                        "consumed_time": 5,
+                        "node_id": node_id,
+                        "poi_id": None,
+                        "is_poi": False,
+                    }
+
+                while True:
+                    r_aoi = random.choice(aois)
+                    if len(r_aoi.get("poi_ids", [])) > 0:
+                        r_poi = random.choice(r_aoi["poi_ids"])
+                        break
+
+                poi = self.environment.map.get_poi(r_poi)
+                poi_cat = poi.get("category", "unknown")
+                # Structure: (Name, AOI_ID, Type)
+                next_place = (poi["name"], poi["aoi_id"], poi_cat)
+                poi_id = r_poi
+                get_logger().warning(
+                    f"MobilityBlock (Agent {self.agent.id}): Move to other place: no next_place provided, randomly selected {next_place}",
+                    extra={"agent_id": self.agent.id},
+                )
+
             # 2b. Enforce place selection: fail if destination is still unavailable
-            if next_place is None:
+            if next_place is None and self._simulation_mode != "agentsociety":
                 failure_reason = (
                     "PlaceSelectionBlock did not provide next_place"
                     if place_selection_result is None

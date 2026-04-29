@@ -147,9 +147,11 @@ class DataRecorder:
                 current_plan = await agent.status.get("current_plan", {})
                 if current_plan is not None and current_plan:
                     step_index = current_plan.get("index", 0)
-                    action = current_plan.get("steps", [])[step_index].get(
-                        "intention", "Planning"
-                    )
+                    steps = current_plan.get("steps", [])
+                    if 0 <= step_index < len(steps):
+                        action = steps[step_index].get("intention", "Planning")
+                    else:
+                        action = "Planning"
                 else:
                     action = "Planning"
 

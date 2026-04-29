@@ -49,13 +49,13 @@ class PromptMemoryHandler:
         if field != "current_intention":
             return "unknown"
         plan_cache = await self._get_current_plan(memory)
-        if not plan_cache.get("steps"):
+        steps = plan_cache.get("steps")
+        if not steps:
             return "unknown"
         idx = plan_cache.get("index", 0)
-        try:
-            return plan_cache["steps"][idx].get("intention", "unknown")
-        except Exception:
-            return "unknown"
+        if 0 <= idx < len(steps):
+            return steps[idx].get("intention", "unknown")
+        return "unknown"
 
     async def resolve_emotion(self, _: str, memory: Any) -> Any:
         return await memory.status.get("emotion_types", "unknown")
