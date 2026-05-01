@@ -1,7 +1,4 @@
-import os
 import re
-import string
-import importlib
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Optional, Union
@@ -10,16 +7,7 @@ import json_repair
 
 from ..logger import get_logger
 from .prompt_memory_handler import PromptMemoryHandler
-
-
-def _load_toml_module():
-    try:
-        return importlib.import_module("tomllib")
-    except ModuleNotFoundError:
-        return importlib.import_module("tomli")
-
-
-_TOML_MODULE = _load_toml_module()
+from .base import BasePrompt, PromptContext
 
 
 def _clean_json_response(response: str) -> str:
@@ -72,11 +60,6 @@ class PromptResult:
     error: Optional[str] = None
 
 
-class SafeDict(dict):
-    def __missing__(self, key):
-        return "unknown"
-
-
 def parse_version(version_str: str) -> tuple[int, ...]:
     """Convert semantic version string into a sortable tuple."""
     try:
@@ -91,193 +74,166 @@ class PromptManager:
     ):
         self.prompts_dir = prompts_dir
         self.active_config = active_config or {}
-        self._loaded_prompts: dict[str, dict] = {}
+        self._loaded_classes: dict[str, type[BasePrompt]] = {}
         self._prompt_memory_handler = PromptMemoryHandler()
-        self._resolve_and_load_prompts()
+        self._resolve_and_load_classes()
 
-    def _load_all_prompts(self) -> list[dict]:
-        all_available_prompts: list[dict] = []
-        if not os.path.isdir(self.prompts_dir):
-            get_logger().warning(
-                f"Prompt directory does not exist: {self.prompts_dir}"
-            )
-            return all_available_prompts
-
-        for root, _, files in os.walk(self.prompts_dir):
-            for file in files:
-                if not file.endswith(".toml"):
-                    continue
-                filepath = os.path.join(root, file)
-                try:
-                    with open(filepath, "rb") as f:
-                        data = _TOML_MODULE.load(f)
-                    data["_filepath"] = filepath
-                    all_available_prompts.append(data)
-                except Exception as e:
-                    get_logger().warning(
-                        f"Failed to parse prompt TOML file {filepath}: {e}"
-                    )
-
-        return all_available_prompts
-
-    def _resolve_and_load_prompts(self) -> None:
-        """Scan all prompt TOMLs and resolve active prompt definitions using fallback rules."""
-        all_available_prompts = self._load_all_prompts()
-
-        # If no active config is provided, load latest version of each prompt name.
-        if not self.active_config:
-            grouped: dict[str, list[dict]] = {}
-            for prompt in all_available_prompts:
-                name = prompt.get("metadata", {}).get("name")
-                if not name:
-                    continue
-                grouped.setdefault(name, []).append(prompt)
-
-            for name, candidates in grouped.items():
-                candidates.sort(
-                    key=lambda x: parse_version(
-                        x.get("metadata", {}).get("version", "0.0.0")
-                    ),
-                    reverse=True,
-                )
-                self._loaded_prompts[name] = candidates[0]
+    def _resolve_and_load_classes(self) -> None:
+        """Load Python prompt classes from the classes package and apply version/origin selection."""
+        try:
+            from .prompts import _ALL_PROMPT_CLASSES
+        except Exception as e:
+            get_logger().warning(f"Failed to import prompt classes: {e}")
             return
 
-        for target_name, target_meta in self.active_config.items():
-            target_version = target_meta.get("version")
-            target_origin = target_meta.get("origin")
+        # Group classes by name.
+        grouped: dict[str, list[type[BasePrompt]]] = {}
+        for cls in _ALL_PROMPT_CLASSES:
+            grouped.setdefault(cls.name, []).append(cls)
 
-            candidates = [
-                p
-                for p in all_available_prompts
-                if p.get("metadata", {}).get("name") == target_name
-            ]
+        if not self.active_config:
+            # No config: pick highest version per name.
+            for name, candidates in grouped.items():
+                best = max(candidates, key=lambda c: c.get_version())
+                self._loaded_classes[name] = best
+            return
 
-            if not candidates:
-                get_logger().error(
-                    f"No prompt files found for '{target_name}'. Prompt resolution failed."
-                )
+        for name, candidates in grouped.items():
+            target_meta = self.active_config.get(name)
+            if target_meta is None:
+                # Not in active config — pick highest version among all origins.
+                best = max(candidates, key=lambda c: c.get_version())
+                self._loaded_classes[name] = best
                 continue
 
-            candidates.sort(
-                key=lambda x: parse_version(x.get("metadata", {}).get("version", "0.0.0")),
-                reverse=True,
-            )
+            target_origin = target_meta.get("origin", "")
+            target_version = target_meta.get("version", "")
 
-            exact_match = next(
-                (
-                    p
-                    for p in candidates
-                    if p.get("metadata", {}).get("version") == target_version
-                    and p.get("metadata", {}).get("origin") == target_origin
-                ),
+            # 1. Exact match (origin + version).
+            exact = next(
+                (c for c in candidates if c.origin == target_origin and c.version == target_version),
                 None,
             )
-            if exact_match is not None:
-                self._loaded_prompts[target_name] = exact_match
-                get_logger().debug(
-                    f"Prompt exact match loaded for '{target_name}' ({target_origin}, v{target_version})"
-                )
+            if exact is not None:
+                self._loaded_classes[name] = exact
                 continue
 
+            # 2. Version-only match (any origin).
             version_match = next(
-                (
-                    p
-                    for p in candidates
-                    if p.get("metadata", {}).get("version") == target_version
-                ),
+                (c for c in candidates if c.version == target_version),
                 None,
             )
             if version_match is not None:
-                found_origin = version_match.get("metadata", {}).get("origin", "unknown")
-                get_logger().warning(
-                    f"Prompt fallback for '{target_name}': requested origin '{target_origin}' not found; "
-                    f"using origin '{found_origin}' at v{target_version}"
-                )
-                self._loaded_prompts[target_name] = version_match
+                self._loaded_classes[name] = version_match
                 continue
 
-            highest_match = candidates[0]
-            found_version = highest_match.get("metadata", {}).get("version", "unknown")
-            found_origin = highest_match.get("metadata", {}).get("origin", "unknown")
-            get_logger().warning(
-                f"Prompt fallback for '{target_name}': requested v{target_version} not found; "
-                f"using highest available v{found_version} (origin '{found_origin}')"
-            )
-            self._loaded_prompts[target_name] = highest_match
+            # 3. Highest version for the requested origin, then any origin.
+            origin_candidates = [c for c in candidates if c.origin == target_origin]
+            pool = origin_candidates if origin_candidates else candidates
+            self._loaded_classes[name] = max(pool, key=lambda c: c.get_version())
+
+    async def _build_full_context(
+        self, context: dict[str, Any], memory: Any
+    ) -> dict[str, Any]:
+        """Build a complete flat context dict from memory + call-site context.
+
+        Resolves all PromptContext fields from memory, then overlays the
+        caller-supplied *context* dict (caller wins on collision).
+        """
+        full: dict[str, Any] = {}
+        for field_name in PromptContext.model_fields:
+            if field_name in context:
+                value = context[field_name]
+                full[field_name] = (
+                    ", ".join(str(v) for v in value) if isinstance(value, list) else value
+                )
+            else:
+                full[field_name] = await self._prompt_memory_handler.resolve_field(
+                    field_name, memory
+                )
+        # Overlay any extra caller-supplied keys not in PromptContext.
+        for k, v in context.items():
+            if k not in full:
+                full[k] = v
+        return full
+
+    def _build_llm_context_from_class(
+        self,
+        prompt_cls: type[BasePrompt],
+        state_dict: dict[str, Any],
+        block_name: str,
+        func_name: str,
+        agent_id: str,
+    ) -> dict[str, Any]:
+        """Build the metadata dict for the LLM layer when using a Python prompt class."""
+        input_schema = prompt_cls.get_input_schema()
+        return {
+            "block_name": block_name,
+            "func_name": func_name,
+            "agent_id": agent_id,
+            "prompt_identity": (prompt_cls.name, prompt_cls.origin, prompt_cls.version),
+            "prompt_requires_free_text": prompt_cls.requires_free_text_generation(),
+            "prompt_inputs": {
+                key: state_dict[key]
+                for key in input_schema
+                if key in state_dict
+            },
+            "prompt_input_schema": input_schema,
+            "prompt_output_schema": prompt_cls.get_output_schema(),
+        }
 
     def get_required_fields(self, prompt_name: str) -> list[str]:
-        prompt_data = self._loaded_prompts.get(prompt_name, {})
-        schema = self.get_input_schema(prompt_name)
-        if schema:
-            return list(schema.keys())
-        # Backward compatibility for legacy prompt TOMLs.
-        return prompt_data.get("inputs", {}).get("required", [])
+        cls = self._loaded_classes.get(prompt_name)
+        if cls is None:
+            raise ValueError(f"Prompt '{prompt_name}' not found")
+        return list(cls.get_input_schema().keys())
 
     def get_prompt_identity(self, prompt_name: str) -> tuple[str, str, str]:
-        if prompt_name not in self._loaded_prompts:
-            raise ValueError(f"Prompt '{prompt_name}' not found in loaded configs")
-        meta = self._loaded_prompts[prompt_name].get("metadata", {})
-        name = str(meta.get("name", prompt_name))
-        origin = str(meta.get("origin", "unknown"))
-        version = str(meta.get("version", "0.0.0"))
-        return (name, origin, version)
+        cls = self._loaded_classes.get(prompt_name)
+        if cls is None:
+            raise ValueError(f"Prompt '{prompt_name}' not found")
+        return (cls.name, cls.origin, cls.version)
 
     def get_input_schema(self, prompt_name: str) -> dict[str, dict]:
-        prompt_data = self._loaded_prompts.get(prompt_name, {})
-        inputs = prompt_data.get("inputs", {})
-        if not isinstance(inputs, dict):
+        cls = self._loaded_classes.get(prompt_name)
+        if cls is None:
             return {}
-        return {
-            k: v
-            for k, v in inputs.items()
-            if k != "required" and isinstance(v, dict)
-        }
+        return cls.get_input_schema()
 
     def get_typed_input_fields(self, prompt_name: str) -> list[str]:
         schema = self.get_input_schema(prompt_name)
         allowed_types = {"text", "integer", "float", "categorical"}
         return [
-            field
-            for field, field_schema in schema.items()
+            f
+            for f, field_schema in schema.items()
             if str(field_schema.get("type", "")).lower() in allowed_types
         ]
 
     def get_text_input_fields(self, prompt_name: str) -> list[str]:
-        inputs = self.get_input_schema(prompt_name)
         return [
             k
-            for k, v in inputs.items()
+            for k, v in self.get_input_schema(prompt_name).items()
             if isinstance(v, dict) and str(v.get("type", "")).lower() == "text"
         ]
 
     def get_output_schema(self, prompt_name: str) -> dict[str, dict]:
-        prompt_data = self._loaded_prompts.get(prompt_name, {})
-        outputs = prompt_data.get("outputs", {})
-        if not isinstance(outputs, dict):
+        cls = self._loaded_classes.get(prompt_name)
+        if cls is None:
             return {}
-        return {k: v for k, v in outputs.items() if isinstance(v, dict)}
+        return cls.get_output_schema()
 
     def requires_free_text_generation(self, prompt_name: str) -> bool:
-        """Return True when prompt outputs require free-text generation.
-
-        Prompts are considered free-text if output schema is missing/empty or
-        any declared output type is not one of integer/float/categorical.
-        """
-        schema = self.get_output_schema(prompt_name)
-        if not schema:
+        """Return True when prompt outputs require free-text generation."""
+        cls = self._loaded_classes.get(prompt_name)
+        if cls is None:
             return True
-        structured_types = {"categorical", "float", "integer"}
-        return any(
-            str(field.get("type", "")).lower() not in structured_types
-            for field in schema.values()
-        )
+        return cls.requires_free_text_generation()
 
     def is_cache_eligible(self, prompt_name: str) -> bool:
         return not self.requires_free_text_generation(prompt_name)
 
     def has_prompt(self, prompt_name: str) -> bool:
-        return prompt_name in self._loaded_prompts
+        return prompt_name in self._loaded_classes
 
     async def build_agent_state(
         self, required_fields: list[str], context: dict[str, Any], memory: Any
@@ -325,133 +281,38 @@ class PromptManager:
 
         return state
 
-    @staticmethod
-    def _escape_literal_braces_keep_fields(template: str) -> str:
-        """Escape literal braces while preserving simple {field} placeholders.
-
-        This protects prompt templates that contain JSON examples with single braces.
-        """
-        # Protect already escaped braces first.
-        sanitized = template.replace("{{", "__LBRACE_ESC__").replace(
-            "}}", "__RBRACE_ESC__"
-        )
-
-        # Protect valid simple placeholders so we can escape all other braces.
-        placeholder_map: dict[str, str] = {}
-
-        def _protect(match: re.Match[str]) -> str:
-            token = f"__FIELD_{len(placeholder_map)}__"
-            placeholder_map[token] = match.group(0)
-            return token
-
-        sanitized = re.sub(r"\{[a-zA-Z_][a-zA-Z0-9_]*\}", _protect, sanitized)
-
-        # Escape remaining braces (literal JSON/object examples, etc.).
-        sanitized = sanitized.replace("{", "{{").replace("}", "}}")
-
-        # Restore placeholders and pre-escaped braces.
-        for token, field in placeholder_map.items():
-            sanitized = sanitized.replace(token, field)
-        sanitized = sanitized.replace("__LBRACE_ESC__", "{{").replace(
-            "__RBRACE_ESC__", "}}"
-        )
-        return sanitized
-
     def format_prompt(self, prompt_name: str, state_dict: dict) -> str:
-        if prompt_name not in self._loaded_prompts:
-            raise ValueError(f"Prompt '{prompt_name}' not found in loaded configs")
-
-        prompt_block = self._loaded_prompts[prompt_name].get("prompt", {})
-        prompt_input = str(prompt_block.get("input", ""))
-        output_guidance = str(prompt_block.get("output_guidance", "")).strip()
-        template = prompt_input
-        if output_guidance:
-            template = f"{prompt_input}\n\n{output_guidance}"
-        formatter = string.Formatter()
-        try:
-            return formatter.vformat(template, (), SafeDict(state_dict))
-        except ValueError as e:
-            # Fallback inspired by legacy FormatPrompt behavior: tolerate literal braces.
-            get_logger().warning(
-                f"Prompt formatting fallback for '{prompt_name}' due to ValueError: {e}"
-            )
-            safe_template = self._escape_literal_braces_keep_fields(template)
-            return formatter.vformat(safe_template, (), SafeDict(state_dict))
+        cls = self._loaded_classes.get(prompt_name)
+        if cls is None:
+            raise ValueError(f"Prompt '{prompt_name}' not found")
+        return cls(**state_dict).format_prompt()
 
     def format_prompt_to_dialog(self, prompt_name: str, state_dict: dict) -> list[dict[str, str]]:
-        return [{"role": "user", "content": self.format_prompt(prompt_name, state_dict)}]
-
-    def get_prompt_template(self, prompt_name: str) -> str:
-        if prompt_name not in self._loaded_prompts:
-            raise ValueError(f"Prompt '{prompt_name}' not found in loaded configs")
-        prompt_block = self._loaded_prompts[prompt_name].get("prompt", {})
-        prompt_input = str(prompt_block.get("input", ""))
-        output_guidance = str(prompt_block.get("output_guidance", "")).strip()
-        if not output_guidance:
-            return prompt_input
-        return f"{prompt_input}\n\n{output_guidance}"
+        cls = self._loaded_classes.get(prompt_name)
+        if cls is None:
+            raise ValueError(f"Prompt '{prompt_name}' not found")
+        return cls(**state_dict).format_prompt_to_dialog()
 
     # ------------------------------------------------------------------
     # execute_prompt: end-to-end prompt lifecycle
     # ------------------------------------------------------------------
 
     def coerce_output(self, prompt_name: str, parsed: dict[str, Any]) -> dict[str, Any]:
-        """Coerce values in *parsed* to match the TOML ``[outputs]`` schema types.
-
-        Keys not present in the output schema pass through unchanged.
-        """
-        schema = self.get_output_schema(prompt_name)
-        if not schema:
+        """Coerce values in *parsed* to match the output schema types via Pydantic Output model."""
+        cls = self._loaded_classes.get(prompt_name)
+        if cls is None:
             return parsed
-
-        result = dict(parsed)
-        for field_name, field_schema in schema.items():
-            if field_name not in result:
-                continue
-            value = result[field_name]
-            field_type = str(field_schema.get("type", "")).lower()
-            try:
-                if field_type == "float":
-                    result[field_name] = float(value) if value is not None else 0.0
-                elif field_type == "integer":
-                    result[field_name] = int(float(value)) if value is not None else 0
-                elif field_type in ("text", "categorical"):
-                    if isinstance(value, (dict, list)):
-                        pass  # complex objects must not be stringified — pass through unchanged
-                    else:
-                        result[field_name] = str(value) if value is not None else ""
-                elif field_type == "object":
-                    pass  # explicit passthrough, no coercion
-            except (ValueError, TypeError):
-                get_logger().warning(
-                    f"coerce_output: cannot convert field '{field_name}' "
-                    f"value {value!r} to {field_type}; keeping original"
-                )
-        return result
-
-    def _build_llm_context(
-        self,
-        prompt_name: str,
-        state_dict: dict[str, Any],
-        block_name: str,
-        func_name: str,
-        agent_id: str,
-    ) -> dict[str, Any]:
-        """Build the metadata dict consumed by the LLM caching / metrics layer."""
-        return {
-            "block_name": block_name,
-            "func_name": func_name,
-            "agent_id": agent_id,
-            "prompt_identity": self.get_prompt_identity(prompt_name),
-            "prompt_requires_free_text": self.requires_free_text_generation(prompt_name),
-            "prompt_inputs": {
-                key: state_dict[key]
-                for key in self.get_typed_input_fields(prompt_name)
-                if key in state_dict
-            },
-            "prompt_input_schema": self.get_input_schema(prompt_name),
-            "prompt_output_schema": self.get_output_schema(prompt_name),
-        }
+        output_cls = getattr(cls, "Output", None)
+        if output_cls is None:
+            return parsed
+        try:
+            return output_cls.model_validate(parsed).model_dump()
+        except Exception as e:
+            get_logger().warning(
+                f"coerce_output: Pydantic validation failed for '{prompt_name}': {e}; "
+                f"returning parsed as-is"
+            )
+            return parsed
 
     @staticmethod
     def _parse_response(raw: str, mode: ResponseMode) -> Any:
@@ -500,24 +361,29 @@ class PromptManager:
     ) -> PromptResult:
         """Execute a prompt end-to-end and return a :class:`PromptResult`.
 
-        1. Build agent state from *context* + memory.
+        1. Build full context from *context* + memory.
         2. Format the prompt dialog (or use *dialog_override*).
         3. Call the LLM.
         4. Parse the response according to *response_mode*.
-        5. Coerce output types according to the TOML ``[outputs]`` schema.
+        5. Coerce output types via Pydantic Output model.
         6. Optionally run *validate*; retry up to *max_retries* times.
         """
-        required_fields = self.get_required_fields(prompt_name)
-        state_dict = await self.build_agent_state(required_fields, context, memory)
-
-        prompt_context = self._build_llm_context(
-            prompt_name, state_dict, block_name, func_name, agent_id,
+        prompt_cls = self._loaded_classes.get(prompt_name)
+        if prompt_cls is None:
+            raise ValueError(f"Prompt '{prompt_name}' not found")
+        full_ctx = await self._build_full_context(context, memory)
+        prompt_instance = prompt_cls(**full_ctx)
+        state_dict = {
+            k: getattr(prompt_instance, k)
+            for k in prompt_cls.model_fields
+        }
+        prompt_context = self._build_llm_context_from_class(
+            prompt_cls, state_dict, block_name, func_name, agent_id
         )
-
         if dialog_override is not None:
             dialog = dialog_override
         else:
-            dialog = self.format_prompt_to_dialog(prompt_name, state_dict)
+            dialog = prompt_instance.format_prompt_to_dialog()
 
         from openai._types import NOT_GIVEN
 

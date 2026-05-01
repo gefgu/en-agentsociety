@@ -1,32 +1,16 @@
 """Shared fixtures for PromptManager unit tests."""
 
-import os
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-# Path to the real TOML prompts directory
-PROMPTS_DIR = os.path.join(
-    os.path.dirname(__file__),
-    "..",
-    "..",
-    "agentsociety",
-    "prompts",
-    "blocks",
-)
-
 
 @pytest.fixture
-def prompts_dir() -> str:
-    return os.path.abspath(PROMPTS_DIR)
-
-
-@pytest.fixture
-def prompt_manager(prompts_dir):
-    """Real PromptManager loaded from the actual TOML files."""
+def prompt_manager():
+    """Real PromptManager loaded from Python prompt classes."""
     from agentsociety.prompts.prompt_manager import PromptManager
 
-    return PromptManager(prompts_dir=prompts_dir)
+    return PromptManager(prompts_dir="", active_config={})
 
 
 @pytest.fixture

@@ -1,7 +1,7 @@
 """Unit tests for PromptManager._parse_response, coerce_output, and execute_prompt.
 
 These tests cover every real failure mode observed in production:
-  - coerce_output stringifying nested dicts (the needs_initialize bug)
+  - coerce_output preserving nested dicts (the needs_initialize bug)
   - parse failures across all ResponseMode variants
   - retry and validation callback logic
   - PLAIN_TEXT mode skipping coercion
@@ -11,9 +11,12 @@ No real LLM or Ray required — mock_llm replaces the network call.
 
 import pytest
 import pytest_asyncio
-from typing import Any, Optional, Tuple
+from typing import Any, ClassVar, Optional, Tuple
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from pydantic import BaseModel
+
+from agentsociety.prompts.base import BasePrompt
 from agentsociety.prompts.prompt_manager import PromptManager, ResponseMode, PromptResult
 
 
@@ -53,22 +56,87 @@ def _find_satisfaction_dict(
 
 
 # ---------------------------------------------------------------------------
+# Dummy prompt classes for TestCoerceOutput
+# ---------------------------------------------------------------------------
+
+class _FloatScorePrompt(BasePrompt):
+    """Dummy prompt with a float score output field."""
+    name: ClassVar[str] = "test_prompt"
+    version: ClassVar[str] = "1.0.0"
+    origin: ClassVar[str] = "test"
+
+    class Output(BaseModel):
+        score: float
+
+    def format_prompt(self) -> str:
+        return "test"
+
+
+class _AnyDataPrompt(BasePrompt):
+    """Dummy prompt with an Any-typed data output field."""
+    name: ClassVar[str] = "test_prompt"
+    version: ClassVar[str] = "1.0.0"
+    origin: ClassVar[str] = "test"
+
+    class Output(BaseModel):
+        data: Any
+
+    def format_prompt(self) -> str:
+        return "test"
+
+
+class _StrLabelPrompt(BasePrompt):
+    """Dummy prompt with a str label output field."""
+    name: ClassVar[str] = "test_prompt"
+    version: ClassVar[str] = "1.0.0"
+    origin: ClassVar[str] = "test"
+
+    class Output(BaseModel):
+        label: str
+
+    def format_prompt(self) -> str:
+        return "test"
+
+
+class _NoOutputPrompt(BasePrompt):
+    """Dummy prompt without a nested Output model."""
+    name: ClassVar[str] = "test_prompt"
+    version: ClassVar[str] = "1.0.0"
+    origin: ClassVar[str] = "test"
+
+    def format_prompt(self) -> str:
+        return "test"
+
+
+class _SimplePrompt(BasePrompt):
+    """Minimal prompt for execute_prompt pipeline tests (score: float output)."""
+    name: ClassVar[str] = "simple_prompt"
+    version: ClassVar[str] = "1.0.0"
+    origin: ClassVar[str] = "test"
+
+    class Output(BaseModel):
+        score: float
+
+    def format_prompt(self) -> str:
+        return "Return a score."
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_pm_with_schema(schema: dict) -> PromptManager:
-    """Create a PromptManager with a fake prompt loaded into _loaded_prompts."""
+def _make_pm_with_class(prompt_cls: type[BasePrompt]) -> PromptManager:
+    """Create a PromptManager with a single prompt class in _loaded_classes.
+
+    Injects *prompt_cls* under its own ``name`` ClassVar so ``coerce_output``
+    and other class-aware methods can find it.
+    """
     pm = PromptManager.__new__(PromptManager)
     pm.prompts_dir = ""
     pm.active_config = {}
-    pm._loaded_prompts = {}
+    pm._loaded_classes = {prompt_cls.name: prompt_cls}
     pm._prompt_memory_handler = MagicMock()
-    if schema is not None:
-        pm._loaded_prompts["test_prompt"] = {
-            "metadata": {"name": "test_prompt", "version": "1.0.0"},
-            "outputs": schema,
-            "inputs": {},
-        }
+    pm._prompt_memory_handler.resolve_field = AsyncMock(return_value=None)
     return pm
 
 
@@ -142,96 +210,99 @@ class TestParseResponse:
 # ---------------------------------------------------------------------------
 
 class TestCoerceOutput:
+    """Tests for Pydantic-based coerce_output.
+
+    After the TOML migration, coerce_output delegates to
+    ``Output.model_validate(parsed).model_dump()``.  Pydantic handles
+    numeric coercion (str → float) and falls back to returning the
+    original *parsed* dict on ValidationError.
+    """
+
     def test_float_from_string(self):
-        pm = _make_pm_with_schema({"score": {"type": "float"}})
+        """Pydantic coerces a numeric string to float for float-typed output fields."""
+        pm = _make_pm_with_class(_FloatScorePrompt)
         result = pm.coerce_output("test_prompt", {"score": "0.9"})
         assert result["score"] == pytest.approx(0.9)
+        assert isinstance(result["score"], float)
 
-    def test_integer_from_float_string(self):
-        pm = _make_pm_with_schema({"count": {"type": "integer"}})
-        result = pm.coerce_output("test_prompt", {"count": "3.7"})
-        assert result["count"] == 3
+    def test_float_passthrough(self):
+        """A float value passes through unchanged."""
+        pm = _make_pm_with_class(_FloatScorePrompt)
+        result = pm.coerce_output("test_prompt", {"score": 0.75})
+        assert result["score"] == pytest.approx(0.75)
 
-    def test_text_from_number(self):
-        pm = _make_pm_with_schema({"label": {"type": "text"}})
-        result = pm.coerce_output("test_prompt", {"label": 42})
-        assert result["label"] == "42"
-
-    def test_text_does_not_stringify_dict(self):
-        """THE BUG CASE: coerce_output must NOT call str() on a nested dict.
-
-        Before the fix, {"current_satisfaction": {"hunger": 0.9}} with type="text"
-        would become {"current_satisfaction": "{'hunger': 0.9}"} — a Python repr string
-        that breaks all .get() calls downstream.
-        """
+    def test_any_field_preserves_nested_dict(self):
+        """Any-typed output field must preserve dict values untouched."""
+        pm = _make_pm_with_class(_AnyDataPrompt)
         nested = {"hunger_satisfaction": 0.9, "energy_satisfaction": 0.8}
-        pm = _make_pm_with_schema({"current_satisfaction": {"type": "text"}})
-        result = pm.coerce_output("test_prompt", {"current_satisfaction": nested})
-        # Must still be a dict, not the string repr
-        assert isinstance(result["current_satisfaction"], dict), (
-            f"coerce_output stringified a nested dict! Got: {result['current_satisfaction']!r}"
-        )
-        assert result["current_satisfaction"]["hunger_satisfaction"] == 0.9
-
-    def test_text_does_not_stringify_list(self):
-        lst = [1, 2, 3]
-        pm = _make_pm_with_schema({"items": {"type": "text"}})
-        result = pm.coerce_output("test_prompt", {"items": lst})
-        assert isinstance(result["items"], list), (
-            f"coerce_output stringified a list! Got: {result['items']!r}"
-        )
-
-    def test_categorical_does_not_stringify_dict(self):
-        nested = {"a": 1}
-        pm = _make_pm_with_schema({"data": {"type": "categorical"}})
         result = pm.coerce_output("test_prompt", {"data": nested})
         assert isinstance(result["data"], dict)
+        assert result["data"]["hunger_satisfaction"] == 0.9
 
-    def test_object_type_passthrough(self):
-        pm = _make_pm_with_schema({"data": {"type": "object"}})
-        nested = {"hunger_satisfaction": 0.9}
-        result = pm.coerce_output("test_prompt", {"data": nested})
-        assert result["data"] is nested
+    def test_str_typed_field_dict_input_preserved_via_fallback(self):
+        """THE BUG CASE: a dict value for a str-typed field must NOT be stringified.
 
-    def test_none_becomes_default_float(self):
-        pm = _make_pm_with_schema({"score": {"type": "float"}})
-        result = pm.coerce_output("test_prompt", {"score": None})
-        assert result["score"] == 0.0
+        Before the TOML fix, ``coerce_output`` called ``str()`` on nested dicts
+        producing a Python repr string that broke all downstream ``.get()`` calls.
 
-    def test_none_becomes_default_integer(self):
-        pm = _make_pm_with_schema({"count": {"type": "integer"}})
-        result = pm.coerce_output("test_prompt", {"count": None})
-        assert result["count"] == 0
+        With Pydantic, dict→str coercion raises ValidationError, so
+        ``coerce_output`` falls back to returning the original parsed value
+        with the dict intact.
+        """
+        pm = _make_pm_with_class(_StrLabelPrompt)
+        nested = {"hunger_satisfaction": 0.9, "energy_satisfaction": 0.8}
+        result = pm.coerce_output("test_prompt", {"label": nested})
+        # Pydantic cannot coerce dict → str → ValidationError → fallback
+        assert isinstance(result["label"], dict), (
+            f"coerce_output stringified a nested dict! Got: {result['label']!r}"
+        )
+        assert result["label"]["hunger_satisfaction"] == 0.9
 
-    def test_none_becomes_empty_text(self):
-        pm = _make_pm_with_schema({"label": {"type": "text"}})
-        result = pm.coerce_output("test_prompt", {"label": None})
-        assert result["label"] == ""
+    def test_unknown_prompt_returns_parsed_unchanged(self):
+        """A prompt name not in _loaded_classes returns parsed as-is."""
+        pm = _make_pm_with_class(_FloatScorePrompt)
+        original = {"a": 1, "b": {"nested": True}}
+        result = pm.coerce_output("nonexistent_prompt", original)
+        assert result == original
 
-    def test_unknown_field_passes_through(self):
-        pm = _make_pm_with_schema({"known": {"type": "float"}})
-        result = pm.coerce_output("test_prompt", {"known": "1.0", "unknown": {"anything": True}})
-        assert result["unknown"] == {"anything": True}
-
-    def test_no_schema_passes_through(self):
-        pm = _make_pm_with_schema(None)
-        original = {"a": 1, "b": {"nested": "value"}}
+    def test_no_output_class_returns_parsed_unchanged(self):
+        """A prompt class without a nested Output model returns parsed as-is."""
+        pm = _make_pm_with_class(_NoOutputPrompt)
+        original = {"x": "anything"}
         result = pm.coerce_output("test_prompt", original)
         assert result == original
 
-    def test_bool_to_integer(self):
-        pm = _make_pm_with_schema({"flag": {"type": "integer"}})
-        result = pm.coerce_output("test_prompt", {"flag": True})
-        assert result["flag"] == 1
+    def test_validation_error_returns_original(self):
+        """A non-numeric string for a float field triggers fallback."""
+        pm = _make_pm_with_class(_FloatScorePrompt)
+        original = {"score": "not-a-float"}
+        result = pm.coerce_output("test_prompt", original)
+        assert result == original
 
-    def test_string_float_to_float(self):
-        pm = _make_pm_with_schema({"val": {"type": "float"}})
-        result = pm.coerce_output("test_prompt", {"val": "0.75"})
-        assert result["val"] == pytest.approx(0.75)
+    def test_extra_fields_stripped_on_successful_validation(self):
+        """model_dump() only returns declared Output fields — extras are dropped."""
+        pm = _make_pm_with_class(_FloatScorePrompt)
+        result = pm.coerce_output("test_prompt", {"score": 0.5, "unexpected": "extra"})
+        assert result["score"] == pytest.approx(0.5)
+        assert "unexpected" not in result
+
+    def test_any_field_preserves_list(self):
+        """Any-typed output field preserves list values."""
+        pm = _make_pm_with_class(_AnyDataPrompt)
+        lst = [1, 2, 3]
+        result = pm.coerce_output("test_prompt", {"data": lst})
+        assert isinstance(result["data"], list)
+        assert result["data"] == lst
+
+    def test_any_field_preserves_none(self):
+        """Any-typed output field preserves None."""
+        pm = _make_pm_with_class(_AnyDataPrompt)
+        result = pm.coerce_output("test_prompt", {"data": None})
+        assert result["data"] is None
 
 
 # ---------------------------------------------------------------------------
-# TestNeedsInitializeScenarios — uses real TOML file
+# TestNeedsInitializeScenarios — uses real Python prompt class
 # ---------------------------------------------------------------------------
 
 class TestNeedsInitializeScenarios:
@@ -242,7 +313,10 @@ class TestNeedsInitializeScenarios:
     string. The validator then (correctly) rejected it, causing 3 retries per agent per
     simulation start.
 
-    After the fix: coerce_output must leave nested dicts untouched.
+    After the fix: coerce_output delegates to Pydantic Output.model_validate().
+    The NeedsInitialize Output model declares current_satisfaction as Any, so nested
+    dicts pass through untouched.  Inputs that don't match the Output schema trigger
+    a ValidationError → fallback → original parsed returned unchanged.
     """
 
     PROMPT_NAME = "needs_initialize"
@@ -272,7 +346,12 @@ class TestNeedsInitializeScenarios:
             assert key in sat, f"Missing key '{key}' in coerced satisfaction dict"
 
     def test_flat_dict_also_works(self, prompt_manager):
-        """Some LLMs return the 4 keys at top level without wrapper."""
+        """Some LLMs return the 4 keys at top level without wrapper.
+
+        The NeedsInitialize Output only declares current_satisfaction, so a flat
+        dict (missing current_satisfaction) triggers a ValidationError → fallback
+        → all 4 satisfaction keys preserved in the returned dict.
+        """
         parsed = {
             "hunger_satisfaction": 0.9,
             "energy_satisfaction": 0.8,
@@ -280,7 +359,7 @@ class TestNeedsInitializeScenarios:
             "social_satisfaction": 0.6,
         }
         result = prompt_manager.coerce_output(self.PROMPT_NAME, parsed)
-        # Keys not in schema pass through unchanged
+        # Keys not matched by Output schema → returned as-is via fallback
         for key in self.SATISFACTION_KEYS:
             assert key in result
 
@@ -426,26 +505,13 @@ class TestExecutePromptPipeline:
     """Tests for the full execute_prompt loop using a mock LLM."""
 
     def _make_pm(self) -> PromptManager:
-        """PromptManager with a minimal fake prompt that has an output schema."""
+        """PromptManager with a minimal fake prompt class (score: float output)."""
         pm = PromptManager.__new__(PromptManager)
         pm.prompts_dir = ""
         pm.active_config = {}
+        pm._loaded_classes = {"simple_prompt": _SimplePrompt}
         pm._prompt_memory_handler = MagicMock()
-        pm._loaded_prompts = {
-            "simple_prompt": {
-                "metadata": {"name": "simple_prompt", "version": "1.0.0", "origin": "test"},
-                "inputs": {
-                    "required": [],
-                },
-                "outputs": {
-                    "score": {"type": "float", "description": "A score"},
-                },
-                "prompt": {
-                    "system": "You are a test assistant.",
-                    "input": "Return a score.",
-                },
-            }
-        }
+        pm._prompt_memory_handler.resolve_field = AsyncMock(return_value=None)
         return pm
 
     async def test_success_path(self, mock_llm, mock_memory):
@@ -585,7 +651,7 @@ class TestExecutePromptPipeline:
         assert actual_dialog == custom_dialog
 
     async def test_coerce_runs_on_json_response(self, mock_llm, mock_memory):
-        """Confirm that string scores are coerced to float via schema."""
+        """Confirm that string scores are coerced to float via Pydantic Output model."""
         pm = self._make_pm()
         mock_llm.atext_request = AsyncMock(return_value='{"score": "0.75"}')
         result = await pm.execute_prompt(
@@ -598,7 +664,7 @@ class TestExecutePromptPipeline:
             agent_id="agent_0",
         )
         assert result.success is True
-        # Schema says score is "float", so "0.75" should have been coerced
+        # Pydantic coerces "0.75" str → 0.75 float
         assert result.parsed["score"] == pytest.approx(0.75)
         assert isinstance(result.parsed["score"], float)
 
