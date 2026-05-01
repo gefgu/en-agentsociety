@@ -371,8 +371,19 @@ class PromptManager:
         prompt_cls = self._loaded_classes.get(prompt_name)
         if prompt_cls is None:
             raise ValueError(f"Prompt '{prompt_name}' not found")
+
         full_ctx = await self._build_full_context(context, memory)
-        prompt_instance = prompt_cls(**full_ctx)
+
+        # Use model_construct to bypass Pydantic input validation.
+        # Prompt input fields are only used for template string formatting,
+        # so type mismatches from memory (e.g. 'unknown' str for a float
+        # field, or an int for a str field) must not raise here.
+        declared_ctx: dict[str, Any] = {}
+        for field_name, field_info in prompt_cls.model_fields.items():
+            lookup_key = field_info.alias or field_name
+            declared_ctx[field_name] = full_ctx.get(lookup_key, full_ctx.get(field_name))
+        prompt_instance = prompt_cls.model_construct(**declared_ctx)
+
         state_dict = {
             k: getattr(prompt_instance, k)
             for k in prompt_cls.model_fields
