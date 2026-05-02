@@ -40,6 +40,24 @@ class PromptMemoryHandler:
     def normalize(value: Any) -> Any:
         return ", ".join(str(v) for v in value) if isinstance(value, list) else value
 
+    @staticmethod
+    def _extract_aoi_id(location: Any) -> Any:
+        if not isinstance(location, dict):
+            return location
+
+        aoi_position = location.get("aoi_position", location)
+        if isinstance(aoi_position, dict):
+            return aoi_position.get("aoi_id")
+        return aoi_position
+
+    @staticmethod
+    def _is_hashable(value: Any) -> bool:
+        try:
+            hash(value)
+        except TypeError:
+            return False
+        return True
+
     async def _get_current_plan(self, memory: Any) -> dict[str, Any]:
         loaded = await memory.status.get("current_plan", {})
         return loaded if isinstance(loaded, dict) else {}
@@ -94,32 +112,29 @@ class PromptMemoryHandler:
         location_knowledge = location_parts["location_knowledge"]
 
         current_location = "Outside"
-        if (
-            isinstance(position_now, dict)
-            and isinstance(home_location, dict)
-            and "aoi_position" in position_now
-            and position_now["aoi_position"] == home_location.get("aoi_position")
-        ):
+        current_aoi_id = self._extract_aoi_id(position_now)
+        home_aoi_id = self._extract_aoi_id(home_location)
+        work_aoi_id = self._extract_aoi_id(work_location)
+        if current_aoi_id is not None and current_aoi_id == home_aoi_id:
             current_location = "At home"
-        elif (
-            isinstance(position_now, dict)
-            and isinstance(work_location, dict)
-            and "aoi_position" in position_now
-            and position_now["aoi_position"] == work_location.get("aoi_position")
-        ):
+        elif current_aoi_id is not None and current_aoi_id == work_aoi_id:
             current_location = "At workplace"
-        elif (
-            isinstance(position_now, dict)
-            and isinstance(location_knowledge, dict)
-            and "aoi_position" in position_now
-        ):
+        elif current_aoi_id is not None and isinstance(location_knowledge, dict):
             known_locations = {
-                info.get("id")
+                known_aoi_id
                 for info in location_knowledge.values()
-                if isinstance(info, dict)
+                for known_aoi_id in [
+                    self._extract_aoi_id(
+                        info.get("id") if isinstance(info, dict) else info
+                    )
+                ]
+                if self._is_hashable(known_aoi_id)
             }
-            if position_now["aoi_position"] in known_locations:
-                current_location = str(position_now["aoi_position"])
+            if (
+                self._is_hashable(current_aoi_id)
+                and current_aoi_id in known_locations
+            ):
+                current_location = str(current_aoi_id)
 
         return current_location
 
