@@ -42,6 +42,8 @@ class LLMContext(TypedDict, total=False):
     prompt_input_schema: dict[str, dict[str, Any]]
     prompt_output_schema: dict[str, dict[str, Any]]
     model_role: str  # "base" or "routed"; set by RoutingLLM before delegating
+    prompt_attempt: int
+    prompt_bypass_cache: bool
 
 
 class LLMProviderType(str, Enum):
@@ -224,6 +226,8 @@ class LLM:
     ) -> bool:
         if not self._is_context_cache_eligible(context):
             return False
+        if context is not None and context.get("prompt_bypass_cache", False):
+            return False
         return (
             self._cache_actor is not None
             and context is not None
@@ -401,6 +405,7 @@ class LLM:
             self._cache_actor is None
             or prompt_identity is None
             or not self._is_context_cache_eligible(context)
+            or context.get("prompt_bypass_cache", False)
         ):
             return
 

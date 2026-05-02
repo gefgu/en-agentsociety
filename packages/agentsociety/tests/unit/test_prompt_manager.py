@@ -121,6 +121,19 @@ class _SimplePrompt(BasePrompt):
         return "Return a score."
 
 
+class _TimePrompt(BasePrompt):
+    """Minimal prompt for output validation retry tests (time: int output)."""
+    name: ClassVar[str] = "time_prompt"
+    version: ClassVar[str] = "1.0.0"
+    origin: ClassVar[str] = "test"
+
+    class Output(BaseModel):
+        time: int
+
+    def format_prompt(self) -> str:
+        return "Return estimated time."
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -514,6 +527,16 @@ class TestExecutePromptPipeline:
         pm._prompt_memory_handler.resolve_field = AsyncMock(return_value=None)
         return pm
 
+    def _make_time_pm(self) -> PromptManager:
+        """PromptManager with a minimal fake prompt class (time: int output)."""
+        pm = PromptManager.__new__(PromptManager)
+        pm.prompts_dir = ""
+        pm.active_config = {}
+        pm._loaded_classes = {"time_prompt": _TimePrompt}
+        pm._prompt_memory_handler = MagicMock()
+        pm._prompt_memory_handler.resolve_field = AsyncMock(return_value=None)
+        return pm
+
     async def test_success_path(self, mock_llm, mock_memory):
         pm = self._make_pm()
         mock_llm.atext_request = AsyncMock(return_value='{"score": 0.8}')
@@ -667,6 +690,53 @@ class TestExecutePromptPipeline:
         # Pydantic coerces "0.75" str → 0.75 float
         assert result.parsed["score"] == pytest.approx(0.75)
         assert isinstance(result.parsed["score"], float)
+
+    async def test_output_validation_failure_retries_at_least_three_times(
+        self, mock_llm, mock_memory
+    ):
+        """A required Output field set to null must retry instead of succeeding as-is."""
+        pm = self._make_time_pm()
+        mock_llm.atext_request = AsyncMock(return_value='{"time": null}')
+
+        result = await pm.execute_prompt(
+            prompt_name="time_prompt",
+            llm=mock_llm,
+            memory=mock_memory,
+            context={},
+            block_name="TestBlock",
+            func_name="test",
+            agent_id="agent_0",
+        )
+
+        assert result.success is False
+        assert "Output validation failed" in (result.error or "")
+        assert mock_llm.atext_request.call_count == 4
+
+    async def test_output_validation_retry_can_recover_and_bypasses_cache(
+        self, mock_llm, mock_memory
+    ):
+        pm = self._make_time_pm()
+        mock_llm.atext_request = AsyncMock(
+            side_effect=['{"time": null}', '{"time": 45}']
+        )
+
+        result = await pm.execute_prompt(
+            prompt_name="time_prompt",
+            llm=mock_llm,
+            memory=mock_memory,
+            context={},
+            block_name="TestBlock",
+            func_name="test",
+            agent_id="agent_0",
+        )
+
+        assert result.success is True
+        assert result.parsed["time"] == 45
+        first_context = mock_llm.atext_request.call_args_list[0].kwargs["context"]
+        retry_context = mock_llm.atext_request.call_args_list[1].kwargs["context"]
+        assert "prompt_bypass_cache" not in first_context
+        assert retry_context["prompt_bypass_cache"] is True
+        assert retry_context["prompt_attempt"] == 2
 
     async def test_coerce_does_not_run_on_plain_text(self, mock_llm, mock_memory):
         """PLAIN_TEXT mode: coerce_output must never be called."""

@@ -60,6 +60,14 @@ class PromptResult:
     error: Optional[str] = None
 
 
+class OutputValidationError(ValueError):
+    """Raised when a parsed LLM response does not match a prompt Output model."""
+
+
+class ResponseParseError(ValueError):
+    """Raised when a raw LLM response cannot be parsed in the requested mode."""
+
+
 def parse_version(version_str: str) -> tuple[int, ...]:
     """Convert semantic version string into a sortable tuple."""
     try:
@@ -297,7 +305,13 @@ class PromptManager:
     # execute_prompt: end-to-end prompt lifecycle
     # ------------------------------------------------------------------
 
-    def coerce_output(self, prompt_name: str, parsed: dict[str, Any]) -> dict[str, Any]:
+    def coerce_output(
+        self,
+        prompt_name: str,
+        parsed: dict[str, Any],
+        *,
+        raise_on_error: bool = False,
+    ) -> dict[str, Any]:
         """Coerce values in *parsed* to match the output schema types via Pydantic Output model."""
         cls = self._loaded_classes.get(prompt_name)
         if cls is None:
@@ -308,11 +322,35 @@ class PromptManager:
         try:
             return output_cls.model_validate(parsed).model_dump()
         except Exception as e:
+            action = "raising for retry" if raise_on_error else "returning parsed as-is"
             get_logger().warning(
                 f"coerce_output: Pydantic validation failed for '{prompt_name}': {e}; "
-                f"returning parsed as-is"
+                f"{action}"
             )
+            if raise_on_error:
+                raise OutputValidationError(
+                    f"Output validation failed for '{prompt_name}': {e}"
+                ) from e
             return parsed
+
+    @staticmethod
+    def _retry_dialog(
+        dialog: list[dict[str, str]],
+        *,
+        prompt_name: str,
+        last_error: str,
+        raw_response: str,
+    ) -> list[dict[str, str]]:
+        """Return a retry dialog with concise feedback about the invalid response."""
+        raw_preview = raw_response[:500] if raw_response else "(no response)"
+        correction = (
+            f"The previous response for prompt '{prompt_name}' could not be parsed or "
+            f"validated: {last_error}\n"
+            f"Previous response: {raw_preview}\n"
+            "Return only a JSON object that exactly matches the requested output schema. "
+            "Do not use null for required fields."
+        )
+        return [*dialog, {"role": "user", "content": correction}]
 
     @staticmethod
     def _parse_response(raw: str, mode: ResponseMode) -> Any:
@@ -406,26 +444,53 @@ class PromptManager:
 
         raw_response = ""
         last_error: Optional[str] = None
+        min_schema_retries = 3
+        effective_max_retries = max_retries
+        attempt = 0
 
-        for attempt in range(max(max_retries + 1, 1)):
+        while attempt <= effective_max_retries:
             try:
+                attempt_dialog = (
+                    dialog
+                    if attempt == 0 or last_error is None
+                    else self._retry_dialog(
+                        dialog,
+                        prompt_name=prompt_name,
+                        last_error=last_error,
+                        raw_response=raw_response,
+                    )
+                )
+                attempt_prompt_context = dict(prompt_context)
+                attempt_prompt_context["prompt_attempt"] = attempt + 1
+                if attempt > 0:
+                    attempt_prompt_context["prompt_bypass_cache"] = True
+
                 raw_response = await llm.atext_request(
-                    dialog,
+                    attempt_dialog,
                     response_format=response_format,
                     temperature=temperature,
                     timeout=timeout,
                     max_tokens=max_tokens,
-                    context=prompt_context,
+                    context=attempt_prompt_context,
                 )
 
-                parsed = self._parse_response(raw_response, response_mode)
+                try:
+                    parsed = self._parse_response(raw_response, response_mode)
+                except Exception as parse_error:
+                    raise ResponseParseError(
+                        f"Response parse failed for '{prompt_name}': {parse_error}"
+                    ) from parse_error
 
                 if isinstance(parsed, dict) and response_mode in (
                     ResponseMode.JSON,
                     ResponseMode.EXTRACT_JSON,
                     ResponseMode.EXTRACT_DICT,
                 ):
-                    parsed = self.coerce_output(prompt_name, parsed)
+                    parsed = self.coerce_output(
+                        prompt_name,
+                        parsed,
+                        raise_on_error=True,
+                    )
 
                 if validate is not None and not validate(parsed):
                     raise ValueError("Custom validation failed")
@@ -440,11 +505,18 @@ class PromptManager:
 
             except Exception as e:
                 last_error = str(e)
+                if isinstance(e, (OutputValidationError, ResponseParseError)):
+                    effective_max_retries = max(
+                        effective_max_retries,
+                        min_schema_retries,
+                    )
                 raw_preview = raw_response[:300] if raw_response else "(no response)"
                 get_logger().warning(
-                    f"execute_prompt '{prompt_name}' attempt {attempt + 1}/{max_retries + 1} "
-                    f"failed: {e}\nRaw response: {raw_preview}"
+                    f"execute_prompt '{prompt_name}' attempt "
+                    f"{attempt + 1}/{effective_max_retries + 1} failed: {e}\n"
+                    f"Raw response: {raw_preview}"
                 )
+                attempt += 1
 
         return PromptResult(
             raw_response=raw_response,
