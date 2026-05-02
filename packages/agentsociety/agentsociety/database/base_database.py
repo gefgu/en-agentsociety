@@ -12,15 +12,18 @@ from .schema import (
 	AdjustNeedsRecord,
 	AgentKVSnapshotRecord,
 	AgentLocationTypeRecord,
+	AgentProfileRecord,
 	AgentSpatialSnapshotRecord,
 	AgentStreamSnapshotRecord,
 	AgentTransportTypeRecord,
 	BlockDispatcherRecord,
 	DatabaseRecordModel,
 	ExperimentInfoRecord,
+	MetricRecord,
 	PendingMessageSnapshotRecord,
 	PromptResponseRecord,
 	StepAgentStatusRecord,
+	TaskResultRecord,
 )
 
 TableRecord = dict[str, Any]
@@ -68,6 +71,9 @@ class BaseSimulationDatabase(ABC):
 			"agent_stream_snapshot": AgentStreamSnapshotRecord,
 			"agent_spatial_snapshot": AgentSpatialSnapshotRecord,
 			"pending_messages_snapshot": PendingMessageSnapshotRecord,
+			"agent_profile": AgentProfileRecord,
+			"metric": MetricRecord,
+			"task_result": TaskResultRecord,
 		}
 
 		self.table_columns: dict[str, List[str]] = {

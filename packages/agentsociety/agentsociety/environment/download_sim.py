@@ -11,8 +11,8 @@ __all__ = ["download_binary", "resolve_binary"]
 SIM_VERSION = "v0.2.2"
 BIN_SOURCES = {
     "agentsociety-sim-oss": {
-        "linux_x86_64": f"https://agentsociety.obs.cn-north-4.myhuaweicloud.com/agentsociety-sim-oss/{SIM_VERSION}/agentsociety-sim-oss-linux-amd64",
-        "darwin_arm64": f"https://agentsociety.obs.cn-north-4.myhuaweicloud.com/agentsociety-sim-oss/{SIM_VERSION}/agentsociety-sim-oss-darwin-arm64",
+        "linux_x86_64": f"https://tsinghua-agentsociety.oss-cn-beijing.aliyuncs.com/agentsociety-sim-oss/{SIM_VERSION}/agentsociety-sim-oss-linux-amd64",
+        "darwin_arm64": f"https://tsinghua-agentsociety.oss-cn-beijing.aliyuncs.com/agentsociety-sim-oss/{SIM_VERSION}/agentsociety-sim-oss-darwin-arm64",
     },
 }
 
