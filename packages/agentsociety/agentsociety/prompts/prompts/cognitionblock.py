@@ -10,9 +10,9 @@ Contains:
 """
 from __future__ import annotations
 
-from typing import ClassVar, Optional
+from typing import Any, ClassVar, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..base import BasePrompt
 
@@ -283,7 +283,7 @@ class CognitionInitializeBig5Citysim(BasePrompt):
     background_story: Optional[str] = Field(None, description="Background story input value used by this prompt.")
 
     class Output(BaseModel):
-        psychographic_traits: str = Field(description="JSON object containing Big Five trait values.")
+        psychographic_traits: dict[str, int] = Field(description="Big Five trait values (each 1–3).")
 
     def format_prompt(self) -> str:
         return f"""You are an intelligent agent psychographic initialization system. Based on the profile information below, please help initialize the agent's Big Five personality traits.
@@ -351,7 +351,7 @@ class CognitionInitializeHobbiesCitysim(BasePrompt):
     neuroticism: Optional[int] = Field(None, description="Big Five trait: Neuroticism (1=Low, 2=Medium, 3=High).")
 
     class Output(BaseModel):
-        hobbies: str = Field(description="JSON list of hobby strings.")
+        hobbies: list[str] = Field(description="List of hobby names.")
 
     def format_prompt(self) -> str:
         return f"""You are an intelligent agent profile generator. Based on the demographic and psychographic information below, please generate a list of suitable hobbies for this agent.
@@ -424,7 +424,7 @@ class CognitionInitializePreferencesCitysim(BasePrompt):
     neuroticism: Optional[int] = Field(None, description="Big Five trait: Neuroticism (1=Low, 2=Medium, 3=High).")
 
     class Output(BaseModel):
-        preferences: str = Field(description="JSON object containing initialized behavioral preferences.")
+        preferences: dict[str, Any] = Field(description="Initialized behavioral preferences (chronotype, risk_tolerance, etc.).")
 
     def format_prompt(self) -> str:
         return f"""You are an intelligent agent behavioral analyst. Based on the demographic and psychographic profile below, please initialize the agent's daily habits and behavioral preferences.

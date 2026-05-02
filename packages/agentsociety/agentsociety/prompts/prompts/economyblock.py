@@ -1,9 +1,9 @@
 """Python prompt classes for EconomyBlock (worktime estimate + monthly plan prompts)."""
 from __future__ import annotations
 
-from typing import ClassVar, Optional
+from typing import Any, ClassVar, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..base import BasePrompt
 
@@ -138,7 +138,7 @@ class MonthPlanGoalCreationAgentsociety(BasePrompt):
     major_events_memories: Optional[str] = Field(None, description="Major events memories input value used by this prompt.")
 
     class Output(BaseModel):
-        goals: str = Field(..., description="Goal list generated for the next month.")
+        goals: list[str] = Field(default_factory=list, description="Goal list generated for the next month.")
 
     def format_prompt(self) -> str:
         return f"""Given the following economic and social context, please create 3 to 5 goals that I can achieve in the next month. These goals should be specific, measurable, achievable, relevant, and time-bound (SMART).
@@ -198,7 +198,7 @@ class MonthPlanMentalHealthAssessmentAgentsociety(BasePrompt):
     interest_rate_pct: Optional[float] = Field(None, description="Current interest rate percentage context.")
 
     class Output(BaseModel):
-        assessment: str = Field(..., description="Mental-health assessment response object as JSON.")
+        model_config = ConfigDict(extra="allow")
 
     def format_prompt(self) -> str:
         return f"""You're {_s(self.name_field)}, a {_s(self.age)}-year-old individual living in {_s(self.city)}. As with all Americans, a portion of your monthly income is taxed by the federal government. This taxation system is tiered, income is taxed cumulatively within defined brackets, combined with a redistributive policy: after collection, the government evenly redistributes the tax revenue back to all citizens, irrespective of their earnings.

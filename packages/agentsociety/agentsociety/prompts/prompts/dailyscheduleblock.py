@@ -6,7 +6,7 @@ Contains:
 """
 from __future__ import annotations
 
-from typing import ClassVar, Optional
+from typing import Any, ClassVar, Optional
 
 from pydantic import BaseModel, Field
 
@@ -42,7 +42,7 @@ class DailyScheduleGenerationAgentsociety(BasePrompt):
     social_satisfaction: Optional[float] = Field(None, description="Current social satisfaction level (0.0 to 1.0).")
 
     class Output(BaseModel):
-        blocks: str = Field(..., description="JSON array of generated daily schedule blocks.")
+        blocks: list[Any] = Field(default_factory=list, description="Generated daily schedule blocks.")
 
     def format_prompt(self) -> str:
         return f"""You are an intelligent agent's daily schedule system. Generate a complete daily schedule using recursive time-block decomposition.
@@ -210,7 +210,8 @@ class EmptyBlockFillingAgentsociety(BasePrompt):
     household: Optional[str] = Field(None, description="Household input value used by this prompt.")
 
     class Output(BaseModel):
-        selected: str = Field(..., description="Selected activity object for filling an empty schedule block.")
+        selected: Any = Field(default=None, description="Selected activity object (activity, type, reasoning).")
+        candidates: Optional[list[Any]] = Field(default=None, description="Candidate activities evaluated before selection.")
 
     def format_prompt(self) -> str:
         return f"""You are an intelligent agent's value-driven activity planner. Fill this [EMPTY] time block with the best activity to satisfy your intrinsic desires.

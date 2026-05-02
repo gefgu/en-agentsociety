@@ -1,7 +1,7 @@
 """Python prompt classes for PlanBlock (guidance selection + detailed generation)."""
 from __future__ import annotations
 
-from typing import ClassVar, Optional
+from typing import Any, ClassVar, Optional
 
 from pydantic import BaseModel, Field
 
@@ -41,7 +41,7 @@ class PlanGuidanceSelectionAgentsociety(BasePrompt):
 
     class Output(BaseModel):
         selected_option: str = Field(description="Selected guidance option.")
-        evaluation: str = Field(description="JSON evaluation object for TPB scores and reasoning.")
+        evaluation: Any = Field(default=None, description="TPB evaluation scores and reasoning dict.")
 
     def format_prompt(self) -> str:
         return f"""As an intelligent agent's decision system, please help me determine a suitable option to satisfy my current need.
@@ -194,7 +194,7 @@ class PlanDetailedGenerationAgentsociety(BasePrompt):
     max_plan_steps: Optional[int] = Field(None, description="Maximum number of actionable steps allowed in the generated plan.")
 
     class Output(BaseModel):
-        plan: str = Field(..., description="JSON plan object containing target and executable steps.")
+        plan: dict[str, Any] = Field(default_factory=dict, description="Plan object with 'target' and 'steps' list.")
 
     def format_prompt(self) -> str:
         return f"""As an intelligent agent's plan system, please help me generate specific execution steps based on the selected guidance plan.
