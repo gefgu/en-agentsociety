@@ -1,9 +1,100 @@
+from collections.abc import Mapping
 from typing import Any
 import time
+
+import json_repair
+from pydantic import BaseModel
 
 from ...agent import AgentToolbox, Block, DotDict
 from ...logger import get_logger
 from ...memory import Memory
+
+
+SATISFACTION_KEYS = (
+    "hunger_satisfaction",
+    "energy_satisfaction",
+    "safety_satisfaction",
+    "social_satisfaction",
+)
+
+SATISFACTION_DEFAULTS = {
+    "hunger_satisfaction": 0.9,
+    "energy_satisfaction": 0.9,
+    "safety_satisfaction": 0.4,
+    "social_satisfaction": 0.6,
+}
+
+
+def _coerce_satisfaction_value(value: Any) -> float | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        coerced = float(value)
+    except (TypeError, ValueError):
+        return None
+    if 0 <= coerced <= 1:
+        return coerced
+    return None
+
+
+def _as_mapping(value: Any) -> dict[str, Any] | None:
+    if isinstance(value, BaseModel):
+        return value.model_dump()
+    if isinstance(value, Mapping):
+        return dict(value)
+    if isinstance(value, str) and "{" in value and "}" in value:
+        try:
+            repaired = json_repair.loads(value)
+        except Exception:
+            return None
+        if isinstance(repaired, Mapping):
+            return dict(repaired)
+    return None
+
+
+def _find_complete_satisfaction_dict(parsed: Any) -> dict[str, float] | None:
+    """Find a complete satisfaction dict in top-level or nested LLM output."""
+    parsed_mapping = _as_mapping(parsed)
+    if parsed_mapping is None:
+        return None
+
+    if all(key in parsed_mapping for key in SATISFACTION_KEYS):
+        coerced = {
+            key: _coerce_satisfaction_value(parsed_mapping.get(key))
+            for key in SATISFACTION_KEYS
+        }
+        if all(value is not None for value in coerced.values()):
+            return {key: float(value) for key, value in coerced.items()}
+
+    for value in parsed_mapping.values():
+        candidate = _find_complete_satisfaction_dict(value)
+        if candidate is not None:
+            return candidate
+
+    return None
+
+
+def _has_complete_satisfaction_dict(parsed: Any) -> bool:
+    return _find_complete_satisfaction_dict(parsed) is not None
+
+
+def _extract_valid_satisfaction_updates(parsed: Any) -> dict[str, float]:
+    parsed_mapping = _as_mapping(parsed)
+    if parsed_mapping is None:
+        return {}
+
+    updates: dict[str, float] = {}
+    for field_name in SATISFACTION_KEYS:
+        if field_name not in parsed_mapping:
+            continue
+        value = _coerce_satisfaction_value(parsed_mapping.get(field_name))
+        if value is not None:
+            updates[field_name] = value
+    return updates
+
+
+def _has_valid_satisfaction_update(parsed: Any) -> bool:
+    return bool(_extract_valid_satisfaction_updates(parsed))
 
 
 class NeedsBlock(Block):
@@ -97,6 +188,28 @@ class NeedsBlock(Block):
         )
         return 0.5
 
+    async def _get_normalized_satisfaction(self) -> dict[str, float]:
+        raw_values = await self.memory.status.get_many(SATISFACTION_DEFAULTS)
+        normalized: dict[str, float] = {}
+        repaired_fields: list[str] = []
+
+        for field_name, default_value in SATISFACTION_DEFAULTS.items():
+            raw_value = raw_values.get(field_name)
+            normalized_value = _coerce_satisfaction_value(raw_value)
+            if normalized_value is None:
+                normalized_value = default_value
+            normalized[field_name] = normalized_value
+            if raw_value != normalized_value:
+                repaired_fields.append(field_name)
+
+        if repaired_fields:
+            await self.memory.status.update_many(normalized)
+            get_logger().warning(
+                "Repaired satisfaction memory values for fields: "
+                f"{', '.join(repaired_fields)}"
+            )
+
+        return normalized
 
     async def reset(self):
         """Reset the needs block."""
@@ -128,58 +241,23 @@ class NeedsBlock(Block):
         if not self.initialized:
             _, current_time = self.environment.get_datetime(format_time=True)
 
-            satisfaction_keys = (
-                "hunger_satisfaction", "energy_satisfaction",
-                "safety_satisfaction", "social_satisfaction",
-            )
-
-            def _has_satisfaction_keys(parsed: Any) -> bool:
-                if not isinstance(parsed, dict):
-                    return False
-                # Accept if at least 1 key is present at top level (partial responses are ok)
-                if any(k in parsed for k in satisfaction_keys):
-                    return True
-                # Search any nested dict — handles typos like "current_satisfation"
-                # and partial responses (missing 1-2 keys)
-                for v in parsed.values():
-                    if isinstance(v, dict) and any(k in v for k in satisfaction_keys):
-                        return True
-                return False
-
-            def _find_satisfaction_dict(parsed: dict) -> dict:
-                """Return the dict holding the 4 keys (top-level or any nested dict)."""
-                if all(k in parsed for k in satisfaction_keys):
-                    return parsed
-                for v in parsed.values():
-                    if isinstance(v, dict) and all(k in v for k in satisfaction_keys):
-                        return v
-                return parsed
-
             result = await self.execute_prompt(
                 self.initial_prompt_name,
                 {"current_time": current_time},
                 func_name="initialize",
                 max_retries=2,
-                validate=_has_satisfaction_keys,
+                validate=_has_complete_satisfaction_dict,
             )
+            initialized_successfully = False
             if result.success:
-                sat = _find_satisfaction_dict(result.parsed)
-                await self.memory.status.update_many(
-                    {
-                        "hunger_satisfaction": float(
-                            sat.get("hunger_satisfaction", 0.9)
-                        ),
-                        "energy_satisfaction": float(
-                            sat.get("energy_satisfaction", 0.9)
-                        ),
-                        "safety_satisfaction": float(
-                            sat.get("safety_satisfaction", 0.4)
-                        ),
-                        "social_satisfaction": float(
-                            sat.get("social_satisfaction", 0.6)
-                        ),
-                    }
-                )
+                sat = _find_complete_satisfaction_dict(result.parsed)
+                if sat is None:
+                    get_logger().warning(
+                        "NeedsBlock.initialize returned success without complete satisfaction values"
+                    )
+                else:
+                    await self.memory.status.update_many(sat)
+                    initialized_successfully = True
             else:
                 get_logger().warning(f"NeedsBlock.initialize failed: {result.error}")
 
@@ -194,7 +272,7 @@ class NeedsBlock(Block):
                         "execution_context": {},
                     }
                 )
-            self.initialized = True
+            self.initialized = initialized_successfully
 
     async def reflect_to_intervention(self, intervention: str):
         # rebuild needs for intervention
@@ -223,15 +301,7 @@ class NeedsBlock(Block):
         if "do_something" in reflection:
             self._need_to_do = reflection.get("description")
         else:
-            satisfaction_keys = {
-                "hunger_satisfaction", "energy_satisfaction",
-                "safety_satisfaction", "social_satisfaction",
-            }
-            updates = {
-                need_type: new_value
-                for need_type, new_value in reflection.items()
-                if need_type in satisfaction_keys
-            }
+            updates = _extract_valid_satisfaction_updates(reflection)
             if updates:
                 await self.memory.status.update_many(updates)
 
@@ -251,31 +321,11 @@ class NeedsBlock(Block):
             time_diff = (tick_now - self.last_evaluation_time) / 3600
             self.last_evaluation_time = tick_now
 
-        satisfaction = await self.memory.status.get_many(
-            {
-                "hunger_satisfaction": None,
-                "energy_satisfaction": None,
-                "safety_satisfaction": None,
-                "social_satisfaction": None,
-            }
-        )
+        satisfaction = await self._get_normalized_satisfaction()
         hunger_satisfaction = satisfaction["hunger_satisfaction"]
         energy_satisfaction = satisfaction["energy_satisfaction"]
         safety_satisfaction = satisfaction["safety_satisfaction"]
         social_satisfaction = satisfaction["social_satisfaction"]
-
-        hunger_satisfaction = self._ensure_float(
-            hunger_satisfaction, "hunger_satisfaction"
-        )
-        energy_satisfaction = self._ensure_float(
-            energy_satisfaction, "energy_satisfaction"
-        )
-        safety_satisfaction = self._ensure_float(
-            safety_satisfaction, "safety_satisfaction"
-        )
-        social_satisfaction = self._ensure_float(
-            social_satisfaction, "social_satisfaction"
-        )
 
         # calculates hunger and fatigue decay based on elapsed time
         hungry_decay = self.alpha_H * time_diff
@@ -426,33 +476,17 @@ class NeedsBlock(Block):
         cognition = None
 
         # Get satisfaction values and ensure they are floats (may come as strings from DB)
+        satisfaction = await self._get_normalized_satisfaction()
         status_values = await self.memory.status.get_many(
             {
-                "hunger_satisfaction": None,
-                "energy_satisfaction": None,
-                "safety_satisfaction": None,
-                "social_satisfaction": None,
                 "current_plan": None,
                 "current_need": None,
             }
         )
-        hunger_satisfaction = status_values["hunger_satisfaction"]
-        energy_satisfaction = status_values["energy_satisfaction"]
-        safety_satisfaction = status_values["safety_satisfaction"]
-        social_satisfaction = status_values["social_satisfaction"]
-
-        hunger_satisfaction = self._ensure_float(
-            hunger_satisfaction, "hunger_satisfaction"
-        )
-        energy_satisfaction = self._ensure_float(
-            energy_satisfaction, "energy_satisfaction"
-        )
-        safety_satisfaction = self._ensure_float(
-            safety_satisfaction, "safety_satisfaction"
-        )
-        social_satisfaction = self._ensure_float(
-            social_satisfaction, "social_satisfaction"
-        )
+        hunger_satisfaction = satisfaction["hunger_satisfaction"]
+        energy_satisfaction = satisfaction["energy_satisfaction"]
+        safety_satisfaction = satisfaction["safety_satisfaction"]
+        social_satisfaction = satisfaction["social_satisfaction"]
 
         # If needs adjustment is required, update current need
         # The adjustment scheme is to adjust the need if the current need is empty, or a higher priority need appears
@@ -616,33 +650,12 @@ class NeedsBlock(Block):
             evaluation_results.append(f"- {step['intention']} ({step['type']}): {eva_}")
         evaluation_results_str = "\n".join(evaluation_results)
 
-        status_values = await self.memory.status.get_many(
-            {
-                "current_need": None,
-                "hunger_satisfaction": None,
-                "energy_satisfaction": None,
-                "safety_satisfaction": None,
-                "social_satisfaction": None,
-            }
-        )
-        current_need = status_values["current_need"]
-        current_hunger = self._ensure_float(
-            status_values["hunger_satisfaction"], "hunger_satisfaction"
-        )
-        current_energy = self._ensure_float(
-            status_values["energy_satisfaction"], "energy_satisfaction"
-        )
-        current_safety = self._ensure_float(
-            status_values["safety_satisfaction"], "safety_satisfaction"
-        )
-        current_social = self._ensure_float(
-            status_values["social_satisfaction"], "social_satisfaction"
-        )
-
-        satisfaction_keys = {
-            "hunger_satisfaction", "energy_satisfaction",
-            "safety_satisfaction", "social_satisfaction",
-        }
+        current_need = await self.memory.status.get("current_need", None)
+        satisfaction = await self._get_normalized_satisfaction()
+        current_hunger = satisfaction["hunger_satisfaction"]
+        current_energy = satisfaction["energy_satisfaction"]
+        current_safety = satisfaction["safety_satisfaction"]
+        current_social = satisfaction["social_satisfaction"]
 
         result = await self.execute_prompt(
             self.evaluation_prompt_name,
@@ -657,18 +670,14 @@ class NeedsBlock(Block):
             },
             func_name="evaluate_and_adjust_needs",
             max_retries=2,
-            validate=lambda p: isinstance(p, dict) and any(k in p for k in satisfaction_keys),
+            validate=_has_valid_satisfaction_update,
         )
         if not result.success:
             get_logger().warning(f"NeedsBlock.evaluate_and_adjust_needs failed: {result.error}")
             return
 
         new_satisfaction = result.parsed
-        updates = {
-            need_type: new_value
-            for need_type, new_value in new_satisfaction.items()
-            if need_type in satisfaction_keys
-        }
+        updates = _extract_valid_satisfaction_updates(new_satisfaction)
         if updates:
             await self.memory.status.update_many(updates)
 
@@ -681,10 +690,10 @@ class NeedsBlock(Block):
                 "current_energy": current_energy,
                 "current_safety": current_safety,
                 "current_social": current_social,
-                "new_hunger": new_satisfaction.get("hunger_satisfaction", current_hunger),
-                "new_energy": new_satisfaction.get("energy_satisfaction", current_energy),
-                "new_safety": new_satisfaction.get("safety_satisfaction", current_safety),
-                "new_social": new_satisfaction.get("social_satisfaction", current_social),
+                "new_hunger": updates.get("hunger_satisfaction", current_hunger),
+                "new_energy": updates.get("energy_satisfaction", current_energy),
+                "new_safety": updates.get("safety_satisfaction", current_safety),
+                "new_social": updates.get("social_satisfaction", current_social),
                 "timestamp": int(time.time()),
                 "actor": "llm",
             }

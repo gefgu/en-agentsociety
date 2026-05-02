@@ -18,6 +18,10 @@ from pydantic import BaseModel
 
 from agentsociety.prompts.base import BasePrompt
 from agentsociety.prompts.prompt_manager import PromptManager, ResponseMode, PromptResult
+from agentsociety.cityagent.blocks.needs_block import (
+    _find_complete_satisfaction_dict,
+    _has_complete_satisfaction_dict,
+)
 from agentsociety.prompts.prompts.cognitionblock import CognitionEmotionUpdateAgentsociety
 from agentsociety.prompts.prompts.otherblock import OtherTimeEstimateAgentsociety
 
@@ -28,33 +32,15 @@ from agentsociety.prompts.prompts.otherblock import OtherTimeEstimateAgentsociet
 # ---------------------------------------------------------------------------
 
 def _has_satisfaction_keys_fixed(parsed: Any, satisfaction_keys: Tuple[str, ...]) -> bool:
-    """Fixed validator: accepts any dict (top-level or nested) with at least 1 satisfaction key.
-
-    Uses `any` instead of `all` so partial LLM responses (missing 1-2 keys) are accepted.
-    Missing keys are filled in with defaults during extraction.
-    Also handles typos in the wrapper key name by searching all nested dicts.
-    """
-    if not isinstance(parsed, dict):
-        return False
-    if any(k in parsed for k in satisfaction_keys):
-        return True
-    # Search any nested dict value — handles typos like "current_satisfation"
-    for v in parsed.values():
-        if isinstance(v, dict) and any(k in v for k in satisfaction_keys):
-            return True
-    return False
+    """Validator: requires all four valid values, top-level or nested."""
+    return _has_complete_satisfaction_dict(parsed)
 
 
 def _find_satisfaction_dict(
     parsed: dict, satisfaction_keys: Tuple[str, ...]
 ) -> Optional[dict]:
     """Find the dict (top-level or nested) that holds the 4 satisfaction keys."""
-    if all(k in parsed for k in satisfaction_keys):
-        return parsed
-    for v in parsed.values():
-        if isinstance(v, dict) and all(k in v for k in satisfaction_keys):
-            return v
-    return None
+    return _find_complete_satisfaction_dict(parsed)
 
 
 # ---------------------------------------------------------------------------
@@ -340,9 +326,8 @@ class TestNeedsInitializeScenarios:
     simulation start.
 
     After the fix: coerce_output delegates to Pydantic Output.model_validate().
-    The NeedsInitialize Output model declares current_satisfaction as Any, so nested
-    dicts pass through untouched.  Inputs that don't match the Output schema trigger
-    a ValidationError → fallback → original parsed returned unchanged.
+    The NeedsInitialize Output model keeps nested and top-level satisfaction dicts
+    parseable, while NeedsBlock validation requires all four numeric values.
     """
 
     PROMPT_NAME = "needs_initialize"
@@ -374,9 +359,8 @@ class TestNeedsInitializeScenarios:
     def test_flat_dict_also_works(self, prompt_manager):
         """Some LLMs return the 4 keys at top level without wrapper.
 
-        The NeedsInitialize Output only declares current_satisfaction, so a flat
-        dict (missing current_satisfaction) triggers a ValidationError → fallback
-        → all 4 satisfaction keys preserved in the returned dict.
+        The NeedsInitialize Output accepts the top-level shape so execute_prompt can
+        reach NeedsBlock validation instead of retrying a valid response shape.
         """
         parsed = {
             "hunger_satisfaction": 0.9,
@@ -385,7 +369,6 @@ class TestNeedsInitializeScenarios:
             "social_satisfaction": 0.6,
         }
         result = prompt_manager.coerce_output(self.PROMPT_NAME, parsed)
-        # Keys not matched by Output schema → returned as-is via fallback
         for key in self.SATISFACTION_KEYS:
             assert key in result
 
@@ -475,8 +458,8 @@ class TestNeedsInitializeScenarios:
         assert sat is not None
         assert sat["hunger_satisfaction"] == 0.8
 
-    def test_partial_satisfaction_keys_accepted(self):
-        """LLM returns only 3 of 4 keys — real production failure.
+    def test_partial_satisfaction_keys_rejected(self):
+        """LLM returns only 3 of 4 keys.
 
         Raw response seen in logs:
             {"current_satisfaction": {"hunger_satisfaction": 0.8,
@@ -484,9 +467,8 @@ class TestNeedsInitializeScenarios:
                                       "safety_satisfaction": 0.85}}
             (social_satisfaction missing)
 
-        The validator must accept a partial dict; extraction fills in defaults
-        for missing keys. Requiring all 4 keys causes retries even when the
-        response is 75% valid.
+        Initialization must reject partial dicts so execute_prompt retries
+        instead of silently filling missing values with defaults.
         """
         parsed = {
             "current_satisfaction": {
@@ -497,10 +479,22 @@ class TestNeedsInitializeScenarios:
             }
         }
         result = _has_satisfaction_keys_fixed(parsed, self.SATISFACTION_KEYS)
-        assert result is True, (
-            "Validator rejected a partial satisfaction dict. "
-            "It should accept any nested dict with at least 1 satisfaction key."
-        )
+        assert result is False
+
+    @pytest.mark.parametrize(
+        "bad_value",
+        [None, "not-a-number", -0.1, 1.1],
+    )
+    def test_invalid_satisfaction_values_rejected(self, bad_value):
+        parsed = {
+            "current_satisfaction": {
+                "hunger_satisfaction": 0.8,
+                "energy_satisfaction": 0.9,
+                "safety_satisfaction": 0.85,
+                "social_satisfaction": bad_value,
+            }
+        }
+        assert _has_satisfaction_keys_fixed(parsed, self.SATISFACTION_KEYS) is False
 
     def test_typo_coerce_then_extract(self, prompt_manager):
         """Full path: coerce_output then extract — typo response must produce correct values."""
@@ -520,6 +514,100 @@ class TestNeedsInitializeScenarios:
         assert sat is not None
         assert sat["hunger_satisfaction"] == 0.8
         assert sat["social_satisfaction"] == 0.5
+
+    @pytest.mark.parametrize(
+        "raw_response, expected",
+        [
+            (
+                """{
+  "current_satisfaction": {
+    "hunger_satisfaction": 0.75,
+    "energy_satisfaction": 0.8,
+    "safety_satisfaction": 0.75,
+    "social_satisfaction": 0.45
+  }
+}""",
+                {
+                    "hunger_satisfaction": 0.75,
+                    "energy_satisfaction": 0.8,
+                    "safety_satisfaction": 0.75,
+                    "social_satisfaction": 0.45,
+                },
+            ),
+            (
+                """{
+    "current_satisfaction": {
+        "hunger_satisfaction": 0.67,
+        "energy_satisfaction": 0.75,
+        "safety_satisfaction": 0.85,
+        "social_satisfaction": 0.5
+    }
+}""",
+                {
+                    "hunger_satisfaction": 0.67,
+                    "energy_satisfaction": 0.75,
+                    "safety_satisfaction": 0.85,
+                    "social_satisfaction": 0.5,
+                },
+            ),
+            (
+                """{
+    "current_satisfaction": {
+        "hunger_satisfaction": 0.5,
+        "energy_satisfaction": 0.9,
+        "safety_satisfaction": 0.8,
+        "social_satisfaction": 0.6
+    }
+}""",
+                {
+                    "hunger_satisfaction": 0.5,
+                    "energy_satisfaction": 0.9,
+                    "safety_satisfaction": 0.8,
+                    "social_satisfaction": 0.6,
+                },
+            ),
+            (
+                """{
+  "current_satisfaction": {
+    "hunger_satisfaction": 0.6,
+    "energy_satisfaction": 0.7,
+    "safety_satisfaction": 0.85,
+    "social_satisfaction": 0.5
+  }
+}""",
+                {
+                    "hunger_satisfaction": 0.6,
+                    "energy_satisfaction": 0.7,
+                    "safety_satisfaction": 0.85,
+                    "social_satisfaction": 0.5,
+                },
+            ),
+            (
+                """{
+    "current_satisfaction": {
+        "hunger_satisfaction": 0.9,
+        "energy_satisfaction": 0.9,
+        "safety_satisfaction": 0.8,
+        "social_satisfaction": 0.4
+    }
+}""",
+                {
+                    "hunger_satisfaction": 0.9,
+                    "energy_satisfaction": 0.9,
+                    "safety_satisfaction": 0.8,
+                    "social_satisfaction": 0.4,
+                },
+            ),
+        ],
+    )
+    def test_raw_logged_initialize_responses_pass_validation(
+        self, prompt_manager, raw_response, expected
+    ):
+        parsed = PromptManager._parse_response(raw_response, ResponseMode.JSON)
+        coerced = prompt_manager.coerce_output(self.PROMPT_NAME, parsed)
+
+        assert _has_satisfaction_keys_fixed(coerced, self.SATISFACTION_KEYS)
+        assert _find_satisfaction_dict(coerced, self.SATISFACTION_KEYS) == expected
 
 
 # ---------------------------------------------------------------------------

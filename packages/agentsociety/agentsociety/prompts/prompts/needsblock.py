@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any, ClassVar, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..base import BasePrompt
 
@@ -18,6 +18,13 @@ from ..base import BasePrompt
 def _s(v: object, d: str = "unknown") -> object:
     """Return *v* if not None, else *d*."""
     return v if v is not None else d
+
+
+class NeedsSatisfactionOutput(BaseModel):
+    hunger_satisfaction: float = Field(..., ge=0, le=1, description="Initialized hunger satisfaction level.")
+    energy_satisfaction: float = Field(..., ge=0, le=1, description="Initialized energy satisfaction level.")
+    safety_satisfaction: float = Field(..., ge=0, le=1, description="Initialized safety satisfaction level.")
+    social_satisfaction: float = Field(..., ge=0, le=1, description="Initialized social satisfaction level.")
 
 
 # ---------------------------------------------------------------------------
@@ -180,7 +187,18 @@ class NeedsInitializeAgentsociety(BasePrompt):
     social_frequency: Optional[float] = Field(None, description="Frequency of seeking social interaction (0.0 to 1.0).")
 
     class Output(BaseModel):
-        current_satisfaction: Any = Field(description="JSON object containing initialized satisfaction values.")
+        model_config = ConfigDict(extra="allow")
+
+        current_satisfaction: Optional[NeedsSatisfactionOutput] = Field(
+            None, description="JSON object containing initialized satisfaction values."
+        )
+        # Some models return the four values at the top level instead of wrapping
+        # them in current_satisfaction. Keep that shape parseable; NeedsBlock
+        # still performs the final completeness check.
+        hunger_satisfaction: Optional[float] = Field(None, ge=0, le=1)
+        energy_satisfaction: Optional[float] = Field(None, ge=0, le=1)
+        safety_satisfaction: Optional[float] = Field(None, ge=0, le=1)
+        social_satisfaction: Optional[float] = Field(None, ge=0, le=1)
 
     def format_prompt(self) -> str:
         return f"""You are an intelligent agent satisfaction initialization system. Based on the profile information below, please help initialize the agent's satisfaction levels and related parameters.
