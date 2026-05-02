@@ -17,7 +17,7 @@ from ...agent import (
 from ...logger import get_logger
 from ...memory import Memory
 from ..sharing_params import SocietyAgentBlockOutput
-from .utils import prettify_document
+from .utils import coerce_minutes, prettify_document
 
 def softmax(x, gamma=1.0):
     """Compute softmax values with temperature scaling.
@@ -73,7 +73,11 @@ class WorkBlock(Block):
             func_name="forward",
         )
         if result.success:
-            time = result.parsed.get("time", random.randint(1, 3) * 60)
+            time = coerce_minutes(
+                result.parsed.get("time"),
+                lambda: random.randint(1, 3) * 60,
+                minimum=1,
+            )
         else:
             get_logger().warning(f"WorkBlock: LLM failed: {result.error}")
             time = random.randint(1, 3) * 60

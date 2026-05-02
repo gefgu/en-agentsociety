@@ -14,6 +14,7 @@ from ...logger import get_logger
 from ...memory import Memory
 from ...agent.dispatcher import BlockDispatcher
 from ..sharing_params import SocietyAgentBlockOutput
+from .utils import coerce_minutes
 from pydantic import Field
 import numpy as np
 
@@ -58,7 +59,11 @@ class SocialNoneBlock(Block):
             return {
                 "success": True,
                 "evaluation": f"Finished {intention}",
-                "consumed_time": result.parsed.get("time", 5),
+                "consumed_time": coerce_minutes(
+                    result.parsed.get("time"),
+                    5,
+                    minimum=1,
+                ),
                 "node_id": node_id,
             }
         else:

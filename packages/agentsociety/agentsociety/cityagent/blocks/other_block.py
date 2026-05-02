@@ -12,6 +12,7 @@ from ...logger import get_logger
 from ...memory import Memory
 from ...agent.dispatcher import BlockDispatcher
 from ..sharing_params import SocietyAgentBlockOutput
+from .utils import coerce_minutes
 
 
 class SleepBlock(Block):
@@ -51,7 +52,11 @@ class SleepBlock(Block):
             self.prompt_name, dict(context), func_name="forward",
         )
         if result.success:
-            consumed_time = int(result.parsed.get("time", random.randint(1, 8) * 60))
+            consumed_time = coerce_minutes(
+                result.parsed.get("time"),
+                lambda: random.randint(1, 8) * 60,
+                minimum=1,
+            )
         else:
             get_logger().warning(f"SleepBlock LLM failed: {result.error}")
             consumed_time = random.randint(1, 8) * 60
@@ -90,7 +95,11 @@ class OtherNoneBlock(Block):
             self.prompt_name, dict(context), func_name="forward",
         )
         if result.success:
-            consumed_time = int(result.parsed.get("time", random.randint(1, 180)))
+            consumed_time = coerce_minutes(
+                result.parsed.get("time"),
+                lambda: random.randint(1, 180),
+                minimum=1,
+            )
         else:
             get_logger().warning(f"OtherNoneBlock LLM failed: {result.error}")
             consumed_time = random.randint(1, 180)
