@@ -18,6 +18,8 @@ from pydantic import BaseModel
 
 from agentsociety.prompts.base import BasePrompt
 from agentsociety.prompts.prompt_manager import PromptManager, ResponseMode, PromptResult
+from agentsociety.prompts.prompts.cognitionblock import CognitionEmotionUpdateAgentsociety
+from agentsociety.prompts.prompts.otherblock import OtherTimeEstimateAgentsociety
 
 
 # ---------------------------------------------------------------------------
@@ -148,6 +150,17 @@ def _make_pm_with_class(prompt_cls: type[BasePrompt]) -> PromptManager:
     pm.prompts_dir = ""
     pm.active_config = {}
     pm._loaded_classes = {prompt_cls.name: prompt_cls}
+    pm._prompt_memory_handler = MagicMock()
+    pm._prompt_memory_handler.resolve_field = AsyncMock(return_value=None)
+    return pm
+
+
+def _make_pm_with_classes(prompt_classes: list[type[BasePrompt]]) -> PromptManager:
+    """Create a PromptManager with several prompt classes registered by name."""
+    pm = PromptManager.__new__(PromptManager)
+    pm.prompts_dir = ""
+    pm.active_config = {}
+    pm._loaded_classes = {prompt_cls.name: prompt_cls for prompt_cls in prompt_classes}
     pm._prompt_memory_handler = MagicMock()
     pm._prompt_memory_handler.resolve_field = AsyncMock(return_value=None)
     return pm
@@ -738,6 +751,49 @@ class TestExecutePromptPipeline:
         assert retry_context["prompt_bypass_cache"] is True
         assert retry_context["prompt_attempt"] == 2
 
+    async def test_parse_failure_retries_at_least_three_times(
+        self, mock_llm, mock_memory
+    ):
+        pm = self._make_pm()
+        mock_llm.atext_request = AsyncMock(return_value="No JSON here")
+
+        result = await pm.execute_prompt(
+            prompt_name="simple_prompt",
+            llm=mock_llm,
+            memory=mock_memory,
+            context={},
+            block_name="TestBlock",
+            func_name="test",
+            agent_id="agent_0",
+            response_mode=ResponseMode.EXTRACT_JSON,
+        )
+
+        assert result.success is False
+        assert "Response parse failed" in (result.error or "")
+        assert mock_llm.atext_request.call_count == 4
+
+    async def test_parse_failure_retry_can_recover(self, mock_llm, mock_memory):
+        pm = self._make_pm()
+        mock_llm.atext_request = AsyncMock(
+            side_effect=["No JSON here", 'result: {"score": 0.66}']
+        )
+
+        result = await pm.execute_prompt(
+            prompt_name="simple_prompt",
+            llm=mock_llm,
+            memory=mock_memory,
+            context={},
+            block_name="TestBlock",
+            func_name="test",
+            agent_id="agent_0",
+            response_mode=ResponseMode.EXTRACT_JSON,
+        )
+
+        assert result.success is True
+        assert result.parsed["score"] == pytest.approx(0.66)
+        retry_dialog = mock_llm.atext_request.call_args_list[1].args[0]
+        assert "could not be parsed or validated" in retry_dialog[-1]["content"]
+
     async def test_coerce_does_not_run_on_plain_text(self, mock_llm, mock_memory):
         """PLAIN_TEXT mode: coerce_output must never be called."""
         pm = self._make_pm()
@@ -755,3 +811,171 @@ class TestExecutePromptPipeline:
             )
         mock_coerce.assert_not_called()
         assert result.success is True
+
+
+@pytest.mark.asyncio
+class TestRecentPromptFailureRegressions:
+    """Regression tests for prompt failures recently seen in simulation logs."""
+
+    def _make_recent_pm(self) -> PromptManager:
+        return _make_pm_with_classes(
+            [
+                OtherTimeEstimateAgentsociety,
+                CognitionEmotionUpdateAgentsociety,
+            ]
+        )
+
+    async def test_other_time_estimate_null_time_retries_three_times(
+        self, mock_llm, mock_memory
+    ):
+        pm = self._make_recent_pm()
+        mock_llm.atext_request = AsyncMock(return_value='{"time": null}')
+
+        result = await pm.execute_prompt(
+            prompt_name="other_time_estimate",
+            llm=mock_llm,
+            memory=mock_memory,
+            context={
+                "plan": "Run errands",
+                "intention": "Buy groceries",
+                "emotion_types": "neutral",
+                "household": "single",
+            },
+            block_name="OtherNoneBlock",
+            func_name="forward",
+            agent_id="agent_0",
+        )
+
+        assert result.success is False
+        assert "Output validation failed" in (result.error or "")
+        assert mock_llm.atext_request.call_count == 4
+
+    async def test_other_time_estimate_null_time_recovers_on_retry(
+        self, mock_llm, mock_memory
+    ):
+        pm = self._make_recent_pm()
+        mock_llm.atext_request = AsyncMock(
+            side_effect=['{"time": null}', '{"time": 35}']
+        )
+
+        result = await pm.execute_prompt(
+            prompt_name="other_time_estimate",
+            llm=mock_llm,
+            memory=mock_memory,
+            context={
+                "plan": "Run errands",
+                "intention": "Buy groceries",
+                "emotion_types": "neutral",
+                "household": "single",
+            },
+            block_name="OtherNoneBlock",
+            func_name="forward",
+            agent_id="agent_0",
+        )
+
+        assert result.success is True
+        assert result.parsed == {"time": 35}
+        retry_context = mock_llm.atext_request.call_args_list[1].kwargs["context"]
+        assert retry_context["prompt_bypass_cache"] is True
+
+    async def test_cognition_emotion_update_missing_required_fields_retries(
+        self, mock_llm, mock_memory
+    ):
+        pm = self._make_recent_pm()
+        mock_llm.atext_request = AsyncMock(
+            return_value='{"word": "Relief", "sadness": 1, "joy": 5}'
+        )
+
+        result = await pm.execute_prompt(
+            prompt_name="cognition_emotion_update",
+            llm=mock_llm,
+            memory=mock_memory,
+            context={
+                "incident_text": "I completed my plan.",
+                "sadness": 2,
+                "joy": 3,
+                "fear": 1,
+                "disgust": 0,
+                "anger": 0,
+                "surprise": 2,
+            },
+            block_name="CognitionBlock",
+            func_name="emotion_update",
+            agent_id="agent_0",
+        )
+
+        assert result.success is False
+        assert "Output validation failed" in (result.error or "")
+        assert mock_llm.atext_request.call_count == 4
+
+    async def test_cognition_emotion_update_null_required_field_retries(
+        self, mock_llm, mock_memory
+    ):
+        pm = self._make_recent_pm()
+        mock_llm.atext_request = AsyncMock(
+            return_value=(
+                '{"word": "Relief", "sadness": null, "joy": 5, "fear": 1, '
+                '"disgust": 0, "anger": 0, "surprise": 2, '
+                '"conclusion": "I feel calmer."}'
+            )
+        )
+
+        result = await pm.execute_prompt(
+            prompt_name="cognition_emotion_update",
+            llm=mock_llm,
+            memory=mock_memory,
+            context={
+                "incident_text": "I completed my plan.",
+                "sadness": 2,
+                "joy": 3,
+                "fear": 1,
+                "disgust": 0,
+                "anger": 0,
+                "surprise": 2,
+            },
+            block_name="CognitionBlock",
+            func_name="emotion_update",
+            agent_id="agent_0",
+        )
+
+        assert result.success is False
+        assert "Output validation failed" in (result.error or "")
+        assert mock_llm.atext_request.call_count == 4
+
+    async def test_cognition_emotion_update_invalid_then_valid_recovers(
+        self, mock_llm, mock_memory
+    ):
+        pm = self._make_recent_pm()
+        mock_llm.atext_request = AsyncMock(
+            side_effect=[
+                '{"word": "Relief", "sadness": 1, "joy": 5}',
+                (
+                    '{"word": "Relief", "sadness": 1, "joy": 5, "fear": 1, '
+                    '"disgust": 0, "anger": 0, "surprise": 2, '
+                    '"conclusion": "I feel calmer."}'
+                ),
+            ]
+        )
+
+        result = await pm.execute_prompt(
+            prompt_name="cognition_emotion_update",
+            llm=mock_llm,
+            memory=mock_memory,
+            context={
+                "incident_text": "I completed my plan.",
+                "sadness": 2,
+                "joy": 3,
+                "fear": 1,
+                "disgust": 0,
+                "anger": 0,
+                "surprise": 2,
+            },
+            block_name="CognitionBlock",
+            func_name="emotion_update",
+            agent_id="agent_0",
+        )
+
+        assert result.success is True
+        assert result.parsed["conclusion"] == "I feel calmer."
+        assert result.parsed["sadness"] == 1
+        assert mock_llm.atext_request.call_count == 2

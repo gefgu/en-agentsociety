@@ -1,4 +1,5 @@
 from agentsociety.cityagent.blocks.utils import coerce_minutes
+from agentsociety.cityagent.blocks.needs_block import NeedsBlock
 
 
 def test_coerce_minutes_accepts_numeric_values():
@@ -20,3 +21,14 @@ def test_coerce_minutes_uses_default_for_unknown_values():
 def test_coerce_minutes_clamps_bounds():
     assert coerce_minutes("-10", 5, minimum=1) == 1
     assert coerce_minutes("1000", 5, maximum=180) == 180
+
+
+def test_needs_block_ensure_float_defaults_none_values():
+    assert NeedsBlock._ensure_float(None, None, "hunger_satisfaction") == 0.5
+    assert NeedsBlock._ensure_float(None, None, "energy_satisfaction") == 0.5
+    assert NeedsBlock._ensure_float(None, None, "social_satisfaction") == 0.5
+
+
+def test_needs_block_ensure_float_handles_memory_strings():
+    assert NeedsBlock._ensure_float(None, "0.75", "hunger_satisfaction") == 0.75
+    assert NeedsBlock._ensure_float(None, "bad", "hunger_satisfaction") == 0.5
