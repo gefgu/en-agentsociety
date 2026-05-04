@@ -245,8 +245,7 @@ class ClickHouseDatabase(BaseSimulationDatabase):
             return (
                 "SELECT "
                 "id, tenant_id, name, num_day, status, cur_day, cur_t, config, error, "
-                "input_tokens, output_tokens, created_at, updated_at, "
-                "last_mobility_safe_step, prev_mobility_safe_step, economy_checkpoint_path "
+                "input_tokens, output_tokens, created_at, updated_at "
                 "FROM experiment_info FINAL "
                 "WHERE id = toUUID({source_uuid:String}) "
                 "ORDER BY updated_at DESC "
@@ -261,16 +260,15 @@ class ClickHouseDatabase(BaseSimulationDatabase):
                 base_params,
             )
         if query_name == "candidate_steps":
-            if resume_step is None or rollback_depth is None:
-                raise ValueError("resume_step and rollback_depth are required for candidate_steps query")
+            if rollback_depth is None:
+                raise ValueError("rollback_depth is required for candidate_steps query")
             return (
                 "SELECT DISTINCT simulation_step FROM agent_kv_snapshot "
-                "WHERE exp_id = {source_exp_id:String} AND simulation_step >= 1 AND simulation_step <= {resume_step:Int32} "
+                "WHERE exp_id = {source_exp_id:String} AND simulation_step >= 1 "
                 "ORDER BY simulation_step DESC "
                 "LIMIT {rollback_depth:Int32}",
                 {
                     **base_params,
-                    "resume_step": resume_step,
                     "rollback_depth": rollback_depth,
                 },
             )
@@ -321,16 +319,4 @@ class ClickHouseDatabase(BaseSimulationDatabase):
                     "attempt_step": attempt_step,
                 },
             )
-        if query_name == "experiment_info_for_update":
-            return (
-                "SELECT "
-                "id, tenant_id, name, num_day, status, cur_day, cur_t, config, error, "
-                "input_tokens, output_tokens, created_at, updated_at "
-                "FROM experiment_info FINAL "
-                "WHERE id = toUUID({source_uuid:String}) "
-                "ORDER BY updated_at DESC "
-                "LIMIT 1",
-                {"source_uuid": source_uuid},
-            )
-
         raise ValueError(f"Unknown resume query '{query_name}'")

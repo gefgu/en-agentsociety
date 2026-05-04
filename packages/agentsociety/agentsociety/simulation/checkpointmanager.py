@@ -29,54 +29,6 @@ class CheckpointManager:
         self._exp_id = exp_id
         self._home_dir = home_dir
         self._start_tick = start_tick
-        self._last_mobility_safe_step = -1
-
-    def _build_economy_checkpoint_candidates(self, raw_path: str, resume_step: int) -> list[str]:
-        """Build candidate filesystem paths for economy checkpoint restore."""
-        cleaned = str(raw_path or "").strip()
-        if not cleaned:
-            return []
-
-        candidates: list[Path] = []
-
-        raw = Path(cleaned).expanduser()
-        candidates.append(raw)
-
-        home_dir = Path(self._home_dir).expanduser()
-        if raw.is_absolute():
-            candidates.append(raw.resolve(strict=False))
-        else:
-            cwd = Path.cwd()
-            candidates.append((cwd / raw).resolve(strict=False))
-            candidates.append((home_dir / raw).resolve(strict=False))
-
-        # Handle historical/relative forms like "data/data/checkpoints/...".
-        parts = list(raw.parts)
-        if len(parts) >= 2 and parts[0] == parts[1]:
-            de_duplicated = Path(*parts[1:])
-            candidates.append(de_duplicated)
-            if not de_duplicated.is_absolute():
-                candidates.append((Path.cwd() / de_duplicated).resolve(strict=False))
-                candidates.append((home_dir / de_duplicated).resolve(strict=False))
-
-        # Prefer the canonical expected location for this experiment/step.
-        if resume_step >= 0:
-            expected = (
-                (home_dir / "checkpoints" / self._exp_id / f"econ_step_{resume_step}.bin")
-                .expanduser()
-                .resolve(strict=False)
-            )
-            candidates.append(expected)
-
-        deduped: list[str] = []
-        seen: set[str] = set()
-        for candidate in candidates:
-            key = str(candidate)
-            if key in seen:
-                continue
-            seen.add(key)
-            deduped.append(key)
-        return deduped
 
     def restore_runtime_state(
         self,
@@ -131,59 +83,21 @@ class CheckpointManager:
             return
 
         resume_step = int(resume_state.get("last_mobility_safe_step", -1))
-        latest_step = int(resume_state.get("latest_step", -1) or -1)
 
         economy_checkpoint_path = resume_state.get("economy_checkpoint_path", "")
         if economy_checkpoint_path:
-            candidate_paths = self._build_economy_checkpoint_candidates(
-                str(economy_checkpoint_path),
-                resume_step,
-            )
-            restore_errors: list[str] = []
-            restored_from: Optional[str] = None
-
-            for candidate_path in candidate_paths:
-                try:
-                    await environment.economy_client.load(candidate_path)
-                    restored_from = candidate_path
-                    break
-                except Exception as e:
-                    restore_errors.append(f"{candidate_path}: {e}")
-
-            if restored_from is None:
+            try:
+                await environment.economy_client.load(economy_checkpoint_path)
+                get_logger().info(f"Economy state restored from {economy_checkpoint_path}")
+            except Exception as e:
                 raise RuntimeError(
-                    "Failed to restore economy state from any candidate path. "
-                    f"Stored path='{economy_checkpoint_path}', "
-                    f"attempted={candidate_paths}, errors={restore_errors}. "
-                    "Cannot continue resume safely - economy state is unavailable."
-                )
-
-            if restored_from != str(economy_checkpoint_path):
-                get_logger().warning(
-                    "Economy checkpoint restored using normalized path "
-                    f"'{restored_from}' (stored='{economy_checkpoint_path}')"
-                )
-            else:
-                get_logger().info(f"Economy state restored from {restored_from}")
+                    f"Failed to restore economy state from '{economy_checkpoint_path}': {e}. "
+                    "Cannot continue resume safely."
+                ) from e
         else:
-            if latest_step > 0:
-                raise RuntimeError(
-                    f"Resume at step {latest_step} has no economy checkpoint path. "
-                    "The economy simulator cannot be restored. "
-                    "This indicates a checkpoint write failure or incomplete flush. "
-                    "Cannot continue resume safely - the economy state would be corrupted."
-                )
-            get_logger().info(
-                "No economy checkpoint (latest_step == 0, no checkpoint was ever written); "
-                "economy starts fresh. Expected for experiments that crashed before their first safe step."
-            )
+            get_logger().info("No economy checkpoint; economy starts fresh.")
 
         if resume_step < 0:
-            if latest_step > 0:
-                raise RuntimeError(
-                    f"Resume at step {latest_step} has no mobility checkpoint step recorded. "
-                    "Cannot restore mobility state safely."
-                )
             get_logger().info("No mobility checkpoint step found; skipping mobility position reset")
             return
 
@@ -592,14 +506,6 @@ class CheckpointManager:
             econ_path = str((checkpoint_dir / f"econ_step_{step}.bin").resolve(strict=False))
             try:
                 await environment.economy_client.save(econ_path)
-                prev_checkpoint = self._last_mobility_safe_step
-                self._last_mobility_safe_step = step
-                await db_actor.update_experiment_info_checkpoint.remote(
-                    exp_id=self._exp_id,
-                    last_mobility_safe_step=step,
-                    prev_mobility_safe_step=prev_checkpoint,
-                    economy_checkpoint_path=econ_path,
-                )
                 get_logger().debug(
                     f"Checkpoint step {step}: economy checkpoint saved to {econ_path} (all_at_aoi={all_at_aoi})"
                 )

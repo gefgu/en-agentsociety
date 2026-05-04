@@ -28,8 +28,6 @@ class DatabaseRecordModel(BaseModel):
         "cur_day",
         "input_tokens",
         "output_tokens",
-        "last_mobility_safe_step",
-        "prev_mobility_safe_step",
         mode="before",
         check_fields=False,
     )
@@ -131,7 +129,6 @@ class DatabaseRecordModel(BaseModel):
         "func_name",
         "actor",
         "current_need",
-        "economy_checkpoint_path",
         mode="before",
         check_fields=False,
     )
@@ -331,6 +328,3 @@ class ExperimentInfoRecord(DatabaseRecordModel):
     output_tokens: int
     created_at: datetime
     updated_at: datetime
-    last_mobility_safe_step: int = -1
-    prev_mobility_safe_step: int = -1
-    economy_checkpoint_path: str = ""

@@ -369,40 +369,26 @@ class BaseSimulationDatabase(ABC):
 		latest_step_raw = step_rows[0].get("max_step") if step_rows else None
 		latest_step = int(latest_step_raw) if latest_step_raw is not None else 0
 
-		last_safe_raw = latest_exp_info.get("last_mobility_safe_step")
-		last_safe_step = int(last_safe_raw) if last_safe_raw is not None else -1
-		economy_checkpoint_path = str(
-			latest_exp_info.get("economy_checkpoint_path") or ""
-		)
-
-		resume_step = last_safe_step
 		kv_snapshots: dict[int, list[dict]] = {}
 		stream_snapshots: dict[int, list[dict]] = {}
 		spatial_snapshots: dict[int, list[dict]] = {}
 		pending_messages: list[dict] = []
+		resume_step = -1
+		economy_checkpoint_path = ""
 
-		if resume_step == 0:
-			raise RuntimeError(
-				f"Resume failed for experiment '{source_exp_id}': the only available "
-				"checkpoint is at step 0, which is excluded from resume by design "
-				"(step-0 state is semantically empty). Please start a new experiment."
-			)
-
-		if resume_step >= 0:
-			(
-				resume_step,
-				kv_snapshots,
-				stream_snapshots,
-				spatial_snapshots,
-				pending_messages,
-				economy_checkpoint_path,
-			) = self._fetch_checkpoint_snapshots(
-				source_exp_id=source_exp_id,
-				source_uuid=source_uuid,
-				resume_step=resume_step,
-				rollback_depth=rollback_depth,
-				expected_agent_ids=resolved_expected_agent_ids,
-			)
+		(
+			resume_step,
+			kv_snapshots,
+			stream_snapshots,
+			spatial_snapshots,
+			pending_messages,
+			economy_checkpoint_path,
+		) = self._fetch_checkpoint_snapshots(
+			source_exp_id=source_exp_id,
+			source_uuid=source_uuid,
+			rollback_depth=rollback_depth,
+			expected_agent_ids=resolved_expected_agent_ids,
+		)
 
 		return {
 			"source_exp_id": source_exp_id,
@@ -421,16 +407,14 @@ class BaseSimulationDatabase(ABC):
 		self,
 		source_exp_id: str,
 		source_uuid: str,
-		resume_step: int,
 		rollback_depth: int,
 		expected_agent_ids: set[int],
 	) -> tuple[int, dict[int, list], dict[int, list], dict[int, list], list[dict], str]:
-		"""Fetch KV/stream/spatial/message snapshots, rolling back up to rollback_depth steps."""
+		"""Fetch KV/stream/spatial/message snapshots, iterating from the latest KV step backward."""
 		candidate_rows = self._run_resume_query(
 			"candidate_steps",
 			source_exp_id=source_exp_id,
 			source_uuid=source_uuid,
-			resume_step=resume_step,
 			rollback_depth=rollback_depth,
 		)
 		candidate_steps = [
@@ -476,6 +460,19 @@ class BaseSimulationDatabase(ABC):
 				/ source_exp_id
 				/ f"econ_step_{attempt_step}.bin"
 			)
+			if not Path(econ_path).exists():
+				reason = f"Economy checkpoint missing on disk at step {attempt_step}: {econ_path}"
+				if first_failure_reason is None:
+					first_failure_reason = reason
+				get_logger().warning(
+					reason
+					+ (
+						f". Trying older step ({remaining} remaining)."
+						if remaining > 0
+						else ". No more candidates."
+					)
+				)
+				continue
 
 			kv_snapshots: dict[int, list[dict]] = {}
 			for row in kv_rows:
@@ -513,10 +510,10 @@ class BaseSimulationDatabase(ABC):
 				attempt_step=attempt_step,
 			)
 
-			if attempt_step != resume_step:
+			if i > 0:
 				get_logger().warning(
 					f"Resumed from rolled-back checkpoint at step {attempt_step} "
-					f"(latest was {resume_step}, rolled back {resume_step - attempt_step} steps)"
+					f"(rolled back {i} step(s) from the latest available)"
 				)
 			get_logger().info(f"Loaded checkpoint snapshots at step {attempt_step}")
 			return (
@@ -535,51 +532,3 @@ class BaseSimulationDatabase(ABC):
 			f"All {n} candidate step(s) were rejected.{detail}"
 		)
 
-	def update_experiment_info_checkpoint(
-		self,
-		exp_id: str,
-		last_mobility_safe_step: int,
-		prev_mobility_safe_step: int,
-		economy_checkpoint_path: str,
-	) -> None:
-		"""Write checkpoint columns for an experiment by inserting a new row."""
-		if not self._is_connected():
-			return
-		try:
-			source_uuid = str(uuid.UUID(exp_id))
-
-			rows = self._run_resume_query(
-				"experiment_info_for_update",
-				source_exp_id=exp_id,
-				source_uuid=source_uuid,
-			)
-			if not rows:
-				get_logger().error(
-					f"update_experiment_info_checkpoint: no row found for exp_id={exp_id}"
-				)
-				return
-
-			base = rows[0]
-			new_record = {
-				"tenant_id": base["tenant_id"],
-				"id": str(base["id"]),
-				"name": base["name"],
-				"num_day": base["num_day"],
-				"status": base["status"],
-				"cur_day": base["cur_day"],
-				"cur_t": base["cur_t"],
-				"config": base["config"],
-				"error": base["error"],
-				"input_tokens": base["input_tokens"],
-				"output_tokens": base["output_tokens"],
-				"created_at": base["created_at"],
-				"updated_at": datetime.now(),
-				"last_mobility_safe_step": last_mobility_safe_step,
-				"prev_mobility_safe_step": prev_mobility_safe_step,
-				"economy_checkpoint_path": economy_checkpoint_path,
-			}
-			self.insert_record("experiment_info", new_record)
-		except Exception as e:
-			get_logger().error(
-				f"Failed to update experiment_info checkpoint columns: {e}"
-			)

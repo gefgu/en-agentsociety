@@ -269,20 +269,6 @@ class DatabaseActor:
         normalized = self._to_model_list(records, TaskResultRecord)
         self._db.insert_records("task_result", normalized)
 
-    def update_experiment_info_checkpoint(
-        self,
-        exp_id: str,
-        last_mobility_safe_step: int,
-        prev_mobility_safe_step: int,
-        economy_checkpoint_path: str,
-    ) -> None:
-        self._db.update_experiment_info_checkpoint(
-            exp_id=exp_id,
-            last_mobility_safe_step=last_mobility_safe_step,
-            prev_mobility_safe_step=prev_mobility_safe_step,
-            economy_checkpoint_path=economy_checkpoint_path,
-        )
-
     def fetch_resume_data(
         self,
         source_exp_id: str,
