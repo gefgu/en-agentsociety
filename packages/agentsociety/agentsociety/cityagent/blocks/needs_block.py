@@ -264,6 +264,9 @@ class NeedsBlock(Block):
             current_plan = await self.memory.status.get("current_plan", False)
             if current_plan:
                 history = await self.memory.status.get("plan_history")
+                if not isinstance(history, list):
+                    get_logger().warning(f"plan_history is not a list ({type(history).__name__}), resetting to []")
+                    history = []
                 history.append(current_plan)
                 await self.memory.status.update_many(
                     {
@@ -593,6 +596,9 @@ class NeedsBlock(Block):
             if needs_changed:
                 await self.evaluate_and_adjust_needs(current_plan)
                 history = await self.memory.status.get("plan_history")
+                if not isinstance(history, list):
+                    get_logger().warning(f"plan_history is not a list ({type(history).__name__}), resetting to []")
+                    history = []
                 history.append(current_plan)
                 await self.memory.stream.add(
                     topic="cognition",

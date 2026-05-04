@@ -601,6 +601,11 @@ Keep your responses concise and clear.
         if self.environment is None:
             raise ValueError("Environment is not initialized")
         position = await self.status.get("position")
+        if not isinstance(position, dict):
+            get_logger().warning(
+                f"Agent {self.id}: position is not a dict ({type(position).__name__}), skipping aoi_info"
+            )
+            return None
         if "aoi_position" in position:
             parent_id = position["aoi_position"]["aoi_id"]
             return self.environment.sense_aoi(parent_id)

@@ -75,6 +75,9 @@ class CognitionBlock(Block):
     async def attitude_update(self):
         """Update agent's attitudes toward specific topics based on daily experiences."""
         attitude = await self.memory.status.get("attitude")
+        if not isinstance(attitude, dict):
+            get_logger().warning(f"attitude is not a dict ({type(attitude).__name__}), skipping attitude update")
+            return
         for topic in attitude:
             incident_str = await self.memory.stream.search(
                 query=topic, top_k=self.params.top_k

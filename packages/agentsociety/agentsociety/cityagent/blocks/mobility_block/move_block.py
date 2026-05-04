@@ -133,6 +133,9 @@ class MoveBlock(Block):
         place_selection_result = None  # Store PlaceSelectionBlock result for later merging
 
         place_knowledge = await self.memory.status.get("location_knowledge")
+        if not isinstance(place_knowledge, dict):
+            get_logger().warning(f"location_knowledge is not a dict ({type(place_knowledge).__name__}), defaulting to {{}}")
+            place_knowledge = {}
         known_places = list(place_knowledge.keys())
         places = ["home", "workplace"] + known_places + ["other"]
 

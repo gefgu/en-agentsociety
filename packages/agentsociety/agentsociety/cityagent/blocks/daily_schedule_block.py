@@ -148,6 +148,9 @@ class DailyScheduleBlock(Block):
         """
         day, time_seconds = self.environment.get_datetime(format_time=False)
         daily_schedule = await self.memory.status.get("daily_schedule")
+        if daily_schedule is not None and not isinstance(daily_schedule, dict):
+            get_logger().warning(f"daily_schedule is not a dict ({type(daily_schedule).__name__}), ignoring")
+            daily_schedule = None
 
         if not daily_schedule or daily_schedule.get("day") != day:
             return None

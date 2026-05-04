@@ -614,9 +614,18 @@ class AgentManager:
         Returns:
             List of time logs from agent execution
         """
-        tasks = [agent.run() for agent in self._id2agent.values()]
-        agent_time_log = await asyncio.gather(*tasks)
-        return agent_time_log
+        async def _safe_run(agent):
+            try:
+                return await agent.run()
+            except Exception as e:
+                get_logger().error(
+                    f"Agent {agent.id} raised an unhandled exception and was skipped: {e}",
+                    exc_info=True,
+                )
+                return None
+
+        tasks = [_safe_run(agent) for agent in self._id2agent.values()]
+        return await asyncio.gather(*tasks)
 
     async def close_all_agents(self) -> None:
         """Close all agents and clean up resources."""
