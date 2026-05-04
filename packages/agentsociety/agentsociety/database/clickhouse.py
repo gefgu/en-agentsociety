@@ -48,6 +48,7 @@ class ClickHouseDatabase(BaseSimulationDatabase):
         batch_size: int = 128,
         batch_timeout: float = 30.0,
         metrics_actor: Optional[Any] = None,
+        checkpoint_home_dir: Optional[str] = None,
     ):
         self.config = config or ClickHouseConfig()
         self.client: Optional[ClickHouseClient] = None
@@ -58,6 +59,7 @@ class ClickHouseDatabase(BaseSimulationDatabase):
             batch_size=batch_size,
             batch_timeout=batch_timeout,
             metrics_actor=metrics_actor,
+            checkpoint_home_dir=checkpoint_home_dir,
         )
         self._connect()
         self._create_tables()

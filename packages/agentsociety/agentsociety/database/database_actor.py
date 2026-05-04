@@ -40,6 +40,7 @@ class DatabaseActor:
         batch_timeout: float = 30.0,
         metrics_actor: Optional[Any] = None,
         duckdb_config: Optional[DuckDBConfig] = None,
+        checkpoint_home_dir: Optional[str] = None,
     ):
         resolved_clickhouse_config = clickhouse_config or ClickHouseConfig()
 
@@ -50,6 +51,7 @@ class DatabaseActor:
             batch_timeout=batch_timeout,
             metrics_actor=metrics_actor,
             config=resolved_clickhouse_config,
+            checkpoint_home_dir=checkpoint_home_dir,
         )
 
         if clickhouse_db.is_available():
@@ -66,6 +68,7 @@ class DatabaseActor:
                 batch_timeout=batch_timeout,
                 metrics_actor=metrics_actor,
                 config=duckdb_config,
+                checkpoint_home_dir=checkpoint_home_dir,
             )
             if not self._db.is_available():
                 raise RuntimeError(

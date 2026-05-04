@@ -48,9 +48,11 @@ class BaseSimulationDatabase(ABC):
 		batch_size: int = 128,
 		batch_timeout: float = 30.0,
 		metrics_actor: Optional[Any] = None,
+		checkpoint_home_dir: Optional[str] = None,
 	):
 		self.exp_id = exp_id
 		self.home_dir = Path(home_dir)
+		self.checkpoint_home_dir = Path(checkpoint_home_dir) if checkpoint_home_dir else self.home_dir
 		self.db_path = self.home_dir / db_subdir
 		self.db_path.mkdir(parents=True, exist_ok=True)
 		self.migrations_dir = Path(__file__).resolve().parent / "migrations"
@@ -455,7 +457,7 @@ class BaseSimulationDatabase(ABC):
 				continue
 
 			econ_path = str(
-				self.home_dir
+				self.checkpoint_home_dir
 				/ "checkpoints"
 				/ source_exp_id
 				/ f"econ_step_{attempt_step}.bin"

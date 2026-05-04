@@ -37,6 +37,7 @@ class DuckDBDatabase(BaseSimulationDatabase):
         batch_timeout: float = 30.0,
         metrics_actor: Optional[Any] = None,
         config: Optional[DuckDBConfig] = None,
+        checkpoint_home_dir: Optional[str] = None,
     ):
         self.config = config or DuckDBConfig()
         self.conn: Optional[Any] = None
@@ -47,6 +48,7 @@ class DuckDBDatabase(BaseSimulationDatabase):
             batch_size=batch_size,
             batch_timeout=batch_timeout,
             metrics_actor=metrics_actor,
+            checkpoint_home_dir=checkpoint_home_dir,
         )
         self._insert_sql_by_table = self._build_insert_sql_by_table()
         self.db_file = self.config.resolve_db_file(self.db_path, self.exp_id)

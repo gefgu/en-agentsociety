@@ -15,6 +15,7 @@ class FakeSimulationDatabase(BaseSimulationDatabase):
         tmp_path: Path,
         *,
         exp_id: Optional[str] = None,
+        checkpoint_home_dir: Optional[Path] = None,
         latest_exp_info: Optional[dict[str, Any]] = None,
         latest_step: int = 0,
         kv_rows_by_step: Optional[dict[int, list[dict[str, Any]]]] = None,
@@ -26,6 +27,7 @@ class FakeSimulationDatabase(BaseSimulationDatabase):
             exp_id=exp_id or str(uuid.uuid4()),
             home_dir=str(tmp_path),
             db_subdir="db",
+            checkpoint_home_dir=str(checkpoint_home_dir) if checkpoint_home_dir else None,
         )
 
     @property
@@ -166,6 +168,37 @@ def test_resume_fallback_uses_disk_checkpoint_with_matching_kv_snapshot(
     assert resume_data["kv_snapshots"] == {
         1: [{"key": "position", "value_json": "{}"}]
     }
+
+
+def test_resume_uses_checkpoint_home_dir_not_database_dir(
+    tmp_path: Path,
+) -> None:
+    """Checkpoints are found in checkpoint_home_dir even when it differs from the DB home_dir."""
+    exp_id = str(uuid.uuid4())
+    db_dir = tmp_path / "db"
+    checkpoint_dir_root = tmp_path / "home"
+    checkpoint_dir = checkpoint_dir_root / "checkpoints" / exp_id
+    checkpoint_dir.mkdir(parents=True)
+    (checkpoint_dir / "econ_step_445.bin").write_bytes(b"economy")
+
+    db = FakeSimulationDatabase(
+        db_dir,
+        exp_id=exp_id,
+        checkpoint_home_dir=checkpoint_dir_root,
+        latest_exp_info=_latest_exp_info(exp_id),
+        latest_step=445,
+        kv_rows_by_step={
+            445: [{"agent_id": 1, "key": "position", "value_json": "{}"}],
+        },
+    )
+
+    resume_data = db.fetch_resume_data(exp_id)
+
+    assert resume_data is not None
+    assert resume_data["last_mobility_safe_step"] == 445
+    assert resume_data["economy_checkpoint_path"] == str(
+        checkpoint_dir_root / "checkpoints" / exp_id / "econ_step_445.bin"
+    )
 
 
 def test_resume_rolls_back_when_latest_economy_file_missing(

@@ -420,6 +420,7 @@ class InfrastructureManager:
             self._db_actor = DatabaseActor.remote(
                 exp_id=self._exp_id,
                 home_dir=self._config.env.data_dir,
+                checkpoint_home_dir=self._config.env.home_dir,
                 clickhouse_config=ClickHouseConfig(
                     host=clickhouse_cfg.host,
                     port=clickhouse_cfg.port,
