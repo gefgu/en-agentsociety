@@ -23,6 +23,7 @@ from agentsociety.cityagent.blocks.needs_block import (
     _has_complete_satisfaction_dict,
 )
 from agentsociety.prompts.prompts.cognitionblock import CognitionEmotionUpdateAgentsociety
+from agentsociety.prompts.prompts.economyblock import MonthPlanGoalCreationAgentsociety
 from agentsociety.prompts.prompts.otherblock import OtherTimeEstimateAgentsociety
 
 
@@ -215,6 +216,17 @@ class TestParseResponse:
         result = PromptManager._parse_response(raw, ResponseMode.JSON)
         assert isinstance(result["current_satisfaction"], dict)
         assert result["current_satisfaction"]["hunger_satisfaction"] == 0.9
+
+
+class TestPromptFormatting:
+    def test_month_plan_goal_creation_requests_string_goal_array(self):
+        prompt = MonthPlanGoalCreationAgentsociety().format_prompt()
+
+        assert 'Return exactly one JSON object with a "goals" field.' in prompt
+        assert '"goals" must be an array of 3 to 5 strings.' in prompt
+        assert "Each array item must be a plain goal description string" in prompt
+        assert '"description"' in prompt
+        assert '"goalDescription"' in prompt
 
 
 # ---------------------------------------------------------------------------

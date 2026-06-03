@@ -156,14 +156,31 @@ Recent Major Events:
 {_s(self.major_events_memories)}
 
 Please generate goals that can help improve my economic situation, mental well-being, and social connections based on the above context.
-Return a JSON array of goal, with just the goal description, without any other text. For example:
-[
-    "Find a part-time job in retail to increase my monthly income.",
-    "Reduce my monthly consumption by 20% by cooking at home more often.",
-    "Save at least $100 from my income by cutting unnecessary expenses.",
-    "Engage in a new hobby or activity to increase my interest in new experiences.",
-    "Reconnect with an old friend to reduce social isolation."
-]
+
+Output requirements:
+- Return exactly one JSON object with a "goals" field.
+- "goals" must be an array of 3 to 5 strings.
+- Each array item must be a plain goal description string, not an object.
+- Do not use keys such as "description", "goalDescription", "title", or "reason".
+- Do not include markdown, comments, explanations, or any text outside the JSON object.
+
+Correct format:
+{{
+    "goals": [
+        "Find a part-time job in retail to increase my monthly income.",
+        "Reduce my monthly consumption by 20% by cooking at home more often.",
+        "Save at least $100 from my income by cutting unnecessary expenses.",
+        "Engage in a new hobby or activity to increase my interest in new experiences.",
+        "Reconnect with an old friend to reduce social isolation."
+    ]
+}}
+
+Incorrect format:
+{{
+    "goals": [
+        {{"description": "Find a part-time job in retail to increase my monthly income."}}
+    ]
+}}
 Return JSON only, without any extra text."""
 
 

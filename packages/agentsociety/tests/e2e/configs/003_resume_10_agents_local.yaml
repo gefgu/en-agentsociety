@@ -1,16 +1,25 @@
+# llm:
+#   - provider: vllm
+#     base_url: "http://localhost:8080/v1/"
+#     api_key: ""
+#     model: "Qwen/Qwen2.5-32B-Instruct-AWQ"
+#     concurrency: 256
+#     timeout: 60
+#   - provider: vllm
+#     base_url: "http://200.134.10.4:8080/v1/"
+#     api_key: ""
+#     model: "Qwen/Qwen2.5-32B-Instruct-AWQ"
+#     concurrency: 48
+#     timeout: 60
+
 llm:
   - provider: vllm
     base_url: "http://localhost:8080/v1/"
     api_key: ""
-    model: "Qwen/Qwen2.5-32B-Instruct-AWQ"
+    model: "casperhansen/mistral-small-24b-instruct-2501-awq"
     concurrency: 256
     timeout: 60
-  - provider: vllm
-    base_url: "http://200.134.10.4:8080/v1/"
-    api_key: ""
-    model: "Qwen/Qwen2.5-32B-Instruct-AWQ"
-    concurrency: 48
-    timeout: 60
+
 
 env:
   db:

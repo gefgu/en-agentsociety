@@ -23,13 +23,13 @@ map:
 agents:
   citizens:
     - agent_class: citizen
-      number: 1
+      number: 10
 
 exp:
   name: "010_mistral_robustness"
   workflow:
     - type: step
-      steps: 10
+      steps: 100
       ticks_per_step: 600
   environment:
     start_tick: 25200  # 7 AM
