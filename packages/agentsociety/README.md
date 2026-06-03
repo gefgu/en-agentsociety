@@ -1,17 +1,30 @@
 <div style="text-align: center; background-color: white; padding: 20px; border-radius: 30px;">
   <img src="./static/agentsociety_logo.png" alt="AgentSociety Logo" width="200" style="display: block; margin: 0 auto;">
-  <h1 style="color: black; margin: 0; font-size: 3em;">AgentSociety: LLM Agents in City</h1>
+  <h1 style="color: black; margin: 0; font-size: 3em;">En-AgentSociety: Enhanced AgentSociety</h1>
 </div>
 
 
-# 🚀 AgentSociety
-![License](https://img.shields.io/badge/license-MIT-green) &ensp;
+# 🚀 En-AgentSociety
+![License](https://img.shields.io/badge/license-Apache%202.0-blue) &ensp;
 [![Online Documentation](https://img.shields.io/badge/docs-online-blue)](https://agentsociety.readthedocs.io/en/latest/) &ensp;
 
 
 AgentSociety is an advanced framework specifically designed for building agents in urban simulation environments. With AgentSociety, you can easily create and manage agents, enabling complex urban scenarios to be modeled and simulated efficiently.
 
-The paper is available at [arXiv](https://arxiv.org/abs/2502.08691):
+## En-AgentSociety: Fork Contributions
+
+**En-AgentSociety** is a fork of [AgentSociety](https://github.com/tsinghua-fib-lab/agentsociety) by FIB Lab, Tsinghua University,
+developed by [Gustavo H. Santos](https://github.com/gefgu). The following features and improvements were added:
+
+- **Checkpoint & Resume System** — Full simulation state serialization/deserialization, allowing interrupted experiments to be resumed from the last saved step. Includes checkpoint snapshots in both ClickHouse and DuckDB backends, config mismatch detection on resume, and guards against resuming already-finished experiments.
+- **Pydantic-based Prompt System** — Replaced all TOML prompt files with typed `BasePrompt` Pydantic classes. Prompts are now versioned Python objects with schema validation, making them easier to maintain, test, and evolve.
+- **DuckDB Database Backend** — A local alternative to ClickHouse (no server required), with full support for the resume path. Enables development and offline testing without external infrastructure.
+- **Qdrant Semantic Cache** — Vector-based LLM response caching with championship selection logic. Includes a batched `EmbedActor` to reduce ONNX overhead, cache shadow-mode metrics, and persistence across runs.
+- **LLM Load Balancing & Actor Pattern** — Refactored LLM layer into a distributed actor model with per-model routing and error handling for providers including Mistral.
+- **Simulation Robustness** — Retry logic for malformed LLM outputs, SQLite corruption detection and recovery, per-step error isolation to prevent a single agent failure from crashing the simulation, and configurable resume-mismatch actions.
+- **Mobility Block Refactoring** — Split into focused modules (`move_block`, `place_selection_block`, `transport_mode_selection_block`) with improved POI filtering, area selection, and null-result handling.
+
+The paper for the original project is available at [arXiv](https://arxiv.org/abs/2502.08691):
 
 ```
 @article{piao2025agentsociety,

@@ -25,3 +25,5 @@ agentsociety-sim
 agentsociety-ui
 agentsociety_data/
 .agentsociety-benchmark/
+packages/agentsociety/data/
+**/docs/features/
