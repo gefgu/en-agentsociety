@@ -109,6 +109,15 @@ def _load_source(
     )
 
 
+def _source_provided(type_: Optional[str], exp_id: Optional[str], file: Optional[UploadFile]) -> bool:
+    """Return True when the caller supplied enough params to identify a source."""
+    if type_ == "experiment":
+        return bool(exp_id)
+    if type_ == "file":
+        return file is not None
+    return False
+
+
 @router.post("/mobility/compare")
 async def compare_sources(
     request: Request,
@@ -123,28 +132,36 @@ async def compare_sources(
     b_file: Optional[UploadFile] = File(None),
     b_duckdb: Optional[UploadFile] = File(None),
 ) -> ApiResponseWrapper[dict]:
-    from ..mobility import build_comparison_payload
+    from ..mobility import build_comparison_payload, build_single_payload
 
     try:
         a_file_bytes = await a_file.read() if a_file is not None else None
         a_duckdb_bytes = await a_duckdb.read() if a_duckdb is not None else None
-        b_file_bytes = await b_file.read() if b_file is not None else None
-        b_duckdb_bytes = await b_duckdb.read() if b_duckdb is not None else None
+
+        if not _source_provided(a_type, a_exp_id, a_file):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="At least one source (A) must be provided.",
+            )
 
         df_a, label_a = _load_source(
             request, type_=a_type, exp_id=a_exp_id, file=a_file,
             file_bytes=a_file_bytes, duckdb_bytes=a_duckdb_bytes, label=a_label,
         )
-        df_b, label_b = _load_source(
-            request, type_=b_type, exp_id=b_exp_id, file=b_file,
-            file_bytes=b_file_bytes, duckdb_bytes=b_duckdb_bytes, label=b_label,
-        )
 
-        # Disambiguate identical labels so the charts/legend stay readable.
-        if label_a == label_b:
-            label_a, label_b = f"{label_a} (A)", f"{label_b} (B)"
+        if _source_provided(b_type, b_exp_id, b_file):
+            b_file_bytes = await b_file.read() if b_file is not None else None
+            b_duckdb_bytes = await b_duckdb.read() if b_duckdb is not None else None
+            df_b, label_b = _load_source(
+                request, type_=b_type, exp_id=b_exp_id, file=b_file,
+                file_bytes=b_file_bytes, duckdb_bytes=b_duckdb_bytes, label=b_label,
+            )
+            if label_a == label_b:
+                label_a, label_b = f"{label_a} (A)", f"{label_b} (B)"
+            payload = build_comparison_payload(df_a, df_b, label_a, label_b)
+        else:
+            payload = build_single_payload(df_a, label_a)
 
-        payload = build_comparison_payload(df_a, df_b, label_a, label_b)
         return ApiResponseWrapper(data=payload)
 
     except HTTPException:

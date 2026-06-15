@@ -348,6 +348,88 @@ def _distance_frequency_dataset(visits: pd.DataFrame, label: str):
 # Payload assembly
 # ---------------------------------------------------------------------------
 
+def build_single_payload(
+    df: pd.DataFrame,
+    label: str = "A",
+) -> Dict[str, Any]:
+    """Compute mobility charts for a single trajectory source (no comparison metrics)."""
+    df = _normalise(df)
+    traj = _traj(df)
+
+    charts: Dict[str, Any] = {}
+    warnings: List[str] = []
+
+    def add_chart(key: str, chart_type: str, factory):
+        try:
+            result = factory()
+            if result is None:
+                return
+            if isinstance(result, tuple):
+                fig, extra = result
+            else:
+                fig, extra = result, {}
+            if fig is not None:
+                charts[key] = _chart(fig, chart_type, **extra)
+        except Exception as exc:  # noqa: BLE001
+            warnings.append(f"chart {key}: {exc}")
+
+    from skmob_vis import (
+        plot_distance_frequency_law,
+        plot_lognormal_fits,
+        plot_truncated_powerlaw_fits,
+    )
+
+    jumps = list(traj.jump_lengths(merge=True))
+    rog = traj.radius_of_gyration()["radius_of_gyration"].to_numpy()
+    law_visits = _mobility_law_visits(df)
+
+    _POWERLAW_FORMULA = "p(x) = c (x + r0)^-beta exp(-x / kappa)"
+
+    def powerlaw_single(values, **kwargs):
+        dataset = _truncated_powerlaw_dataset(values, label)
+        fig = plot_truncated_powerlaw_fits(dataset, **kwargs)
+        params = [{"label": dataset[3], "values": dict(zip(("c", "r0", "beta", "kappa"), [round(float(x), 4) for x in dataset[0]]))}]
+        return fig, {"formula": _POWERLAW_FORMULA, "parameters": params}
+
+    add_chart("powerlaw_jump", "mobility_law", lambda: powerlaw_single(jumps, title="Travel-distance mobility law"))
+    add_chart("powerlaw_rog", "mobility_law", lambda: powerlaw_single(rog, title="Radius-of-gyration mobility law", x_label="radius of gyration · km", y_label="P(r_g)"))
+
+    def lognormal_single():
+        dataset = _daily_location_lognormal_dataset(law_visits, label)
+        fig = plot_lognormal_fits(dataset)
+        params = [{"label": dataset[4], "values": {"mu": round(dataset[2], 4), "sigma": round(dataset[3], 4)}}]
+        return fig, {
+            "formula": "f(N) = exp(-(ln N - mu)^2 / (2 sigma^2)) / (N sigma sqrt(2 pi))",
+            "parameters": params,
+        }
+
+    add_chart("lognormal", "mobility_law", lognormal_single)
+
+    def dist_freq_single():
+        dataset = _distance_frequency_dataset(law_visits, label)
+        fig = plot_distance_frequency_law(dataset)
+        params = [{"label": dataset[4], "values": {"eta": round(dataset[2], 4), "mu": round(dataset[3], 4)}}]
+        return fig, {"formula": "rho(r, f) = mu (r f)^-eta", "parameters": params}
+
+    add_chart("distance_frequency", "mobility_law", dist_freq_single)
+
+    if "purpose" in df.columns:
+        try:
+            from skmob_vis import plot_visit_purpose_comparison
+
+            visits_cmp = _visits_for_comparison(df)
+            add_chart("purpose", "visit_purpose_comparison",
+                      lambda: plot_visit_purpose_comparison({label: visits_cmp}))
+        except Exception as exc:  # noqa: BLE001
+            warnings.append(f"activity: {exc}")
+
+    return {
+        "labels": [label],
+        "metrics": {"wasserstein": [], "jensen_shannon": [], "cpc": []},
+        "charts": charts,
+        "warnings": warnings,
+    }
+
 def _chart(figure, chart_type: str, **extra) -> dict:
     payload = {"chartType": chart_type, "option": figure.to_dict()}
     payload.update(extra)

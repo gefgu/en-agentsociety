@@ -110,8 +110,8 @@ const ChartsPage: React.FC = () => {
     s.type === "experiment" ? !!s.expId && (clickhouse || !!s.duckdb) : !!s.file;
 
   const onCompare = async () => {
-    if (!valid(sourceA) || !valid(sourceB)) {
-      message.warning(t("charts.select_two"));
+    if (!valid(sourceA)) {
+      message.warning(t("charts.select_source"));
       return;
     }
     setLoading(true);
@@ -120,7 +120,7 @@ const ChartsPage: React.FC = () => {
     try {
       const fd = new FormData();
       appendSource(fd, "a", sourceA);
-      appendSource(fd, "b", sourceB);
+      if (valid(sourceB)) appendSource(fd, "b", sourceB);
       const res = await fetchCustom("/api/mobility/compare", { method: "POST", body: fd });
       const body = await res.json();
       if (!res.ok) throw new Error(body?.detail || (await res.statusText));
@@ -256,7 +256,7 @@ const ChartsPage: React.FC = () => {
         <Col md={24} xl={11}>{renderSlot("B", sourceB, setSourceB)}</Col>
         <Col md={24} xl={2}>
           <Button type="primary" loading={loading} onClick={onCompare} style={{ width: "100%" }}>
-            {t("charts.compare")}
+            {valid(sourceB) ? t("charts.compare") : t("charts.analyse")}
           </Button>
         </Col>
       </Row>
@@ -272,14 +272,18 @@ const ChartsPage: React.FC = () => {
       {payload && (
         <div style={{ marginTop: 16 }}>
           <h2 style={{ fontFamily: FONT_SERIF, fontSize: 22 }}>
-            {payload.labels?.[0]} &nbsp;vs&nbsp; {payload.labels?.[1]}
+            {payload.labels?.length === 1
+              ? payload.labels[0]
+              : <>{payload.labels?.[0]} &nbsp;vs&nbsp; {payload.labels?.[1]}</>}
           </h2>
 
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 48 }}>
-            {metricTable(t("charts.metrics_wasserstein"), metrics?.wasserstein, [["name", ""], ["value", ""]])}
-            {metricTable(t("charts.metrics_jsd"), metrics?.jensen_shannon, [["name", ""], ["value", ""]])}
-            {metricTable(t("charts.metrics_cpc"), metrics?.cpc, [["resolution", ""], ["value", ""]])}
-          </div>
+          {(metrics?.wasserstein?.length > 0 || metrics?.jensen_shannon?.length > 0 || metrics?.cpc?.length > 0) && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 48 }}>
+              {metricTable(t("charts.metrics_wasserstein"), metrics?.wasserstein, [["name", ""], ["value", ""]])}
+              {metricTable(t("charts.metrics_jsd"), metrics?.jensen_shannon, [["name", ""], ["value", ""]])}
+              {metricTable(t("charts.metrics_cpc"), metrics?.cpc, [["resolution", ""], ["value", ""]])}
+            </div>
+          )}
 
           {hasAny(DISTRIBUTION_CHARTS) && <h3 style={sectionStyle}>{t("charts.distributions")}</h3>}
           <Row gutter={[16, 16]}>{DISTRIBUTION_CHARTS.map(([k, title]) => renderChart(k, title))}</Row>

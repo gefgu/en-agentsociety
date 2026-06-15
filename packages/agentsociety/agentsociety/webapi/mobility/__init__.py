@@ -7,12 +7,14 @@ React frontend can render the charts natively.
 
 from .report import (
     build_comparison_payload,
+    build_single_payload,
     trajdf_from_visits_df,
     trajdf_from_upload,
 )
 
 __all__ = [
     "build_comparison_payload",
+    "build_single_payload",
     "trajdf_from_visits_df",
     "trajdf_from_upload",
 ]

@@ -34,12 +34,8 @@ try:
     from agentsociety_community.workflows import functions as workflow_functions
     from agentsociety_community.blocks import citizens as citizen_blocks
 except ImportError:
-    import warnings
-
-    warnings.warn(
-        "agentsociety_community is not installed. Please install it with `pip install agentsociety-community`"
-    )
-
+    import logging as _logging
+    _logging.getLogger(__name__).debug("agentsociety_community not installed; agent-template endpoints will return empty results")
     citizens = None
     supervisors = None
     workflow_functions = None
