@@ -361,10 +361,27 @@ def transform_time_into_timestamps(
 
     :return pd.DataFrame: Simulation dataframe with timestamps.
     """
-    # Convert day to timedelta (days) and t to timedelta (seconds)
-    simulation_df["timestamp"] = pd.to_datetime(start_date) + pd.to_timedelta(
-        simulation_df["simulation_step"] * simulation_step_interval_seconds, unit="s"
+    # Recompute timestamps from simulation_step only when the step values are
+    # meaningful (≥ 0). Old simulation runs stored simulation_step = -1 (the
+    # Pydantic default) but still wrote a real wall-clock timestamp; overwriting
+    # those with -1 * 600s would collapse all rows to the same instant.
+    valid_steps = (
+        simulation_df["simulation_step"].notna()
+        & (simulation_df["simulation_step"] >= 0)
     )
+    if valid_steps.any():
+        simulation_df = simulation_df.copy()
+        simulation_df["timestamp"] = pd.to_datetime(start_date) + pd.to_timedelta(
+            simulation_df["simulation_step"] * simulation_step_interval_seconds, unit="s"
+        )
+    elif "timestamp" not in simulation_df.columns:
+        raise ValueError(
+            "Cannot determine timestamps: simulation_step is invalid and no "
+            "timestamp column is present in the data."
+        )
+    else:
+        simulation_df = simulation_df.copy()
+        simulation_df["timestamp"] = pd.to_datetime(simulation_df["timestamp"], utc=True).dt.tz_localize(None)
     return simulation_df
 
 
