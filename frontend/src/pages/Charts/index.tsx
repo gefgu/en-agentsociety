@@ -26,6 +26,7 @@ type SourceType = "experiment" | "file";
 interface SourceState {
   type: SourceType;
   expId?: string;
+  expName?: string;
   file?: File;
   duckdb?: File;
 }
@@ -78,7 +79,15 @@ const ChartsPage: React.FC = () => {
     (async () => {
       try {
         const res = await fetchCustom("/api/experiments");
-        if (res.ok) setExperiments((await res.json()).data || []);
+        if (res.ok) {
+          const list: Experiment[] = (await res.json()).data || [];
+          setExperiments(list);
+          // Resolve the name for the pre-filled experiment from the route param.
+          if (exp_id) {
+            const match = list.find((e) => e.id === exp_id);
+            if (match) setSourceA((prev) => ({ ...prev, expName: match.name }));
+          }
+        }
       } catch {
         /* non-fatal */
       }
@@ -100,6 +109,7 @@ const ChartsPage: React.FC = () => {
     fd.append(`${prefix}_type`, s.type);
     if (s.type === "experiment") {
       fd.append(`${prefix}_exp_id`, s.expId || "");
+      if (s.expName) fd.append(`${prefix}_label`, s.expName);
       if (!clickhouse && s.duckdb) fd.append(`${prefix}_duckdb`, s.duckdb);
     } else if (s.file) {
       fd.append(`${prefix}_file`, s.file);
@@ -158,7 +168,10 @@ const ChartsPage: React.FC = () => {
             value={s.expId}
             options={expOptions}
             optionFilterProp="label"
-            onChange={(v) => set({ ...s, expId: v })}
+            onChange={(v) => {
+              const name = experiments.find((e) => e.id === v)?.name;
+              set({ ...s, expId: v, expName: name });
+            }}
           />
           {!clickhouse && s.expId && (
             <Upload
