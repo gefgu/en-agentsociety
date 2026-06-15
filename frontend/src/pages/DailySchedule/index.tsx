@@ -216,6 +216,5 @@ const DailySchedulePage = () => {
 }
 
 export { BLOCKS, ATTRIBUTE_TO_EMOJI };
-export type { BlockExecution, TimelineDataPoint };
 
 export default DailySchedulePage;

@@ -7,40 +7,67 @@ from fastapi import (
     Request,
     status,
     Query,
-    Depends
 )
-from ..clickhouse import get_clickhouse_client
 
-from ...configs import EnvConfig
 from ..models import ApiResponseWrapper
 from joblib import Parallel, delayed
 from ..constants.poi_mapping import category_mapping
 import numpy as np
 
-__all__ = ["router"]
+__all__ = ["router", "get_agent_visits", "build_visits_from_frames"]
 
 router = APIRouter(tags=["agent_visits"])
+
+
+def resolve_visits(request: Request, exp_id: str) -> pd.DataFrame:
+    """Load visits for an experiment from ClickHouse, falling back to local DuckDB.
+
+    Probes ClickHouse first; if it is unavailable, reads the experiment's local
+    ``.duckdb`` file. Raises 503 when neither backend can serve the data.
+    """
+    from ..datasource import (
+        clickhouse_available,
+        resolve_local_duckdb_path,
+    )
+
+    if clickhouse_available():
+        from ..clickhouse import get_clickhouse_client
+
+        return get_agent_visits(client=get_clickhouse_client(), exp_id=exp_id)
+
+    duckdb_path = resolve_local_duckdb_path(request, exp_id)
+    if duckdb_path is not None:
+        return get_agent_visits(exp_id=exp_id, duckdb_path=str(duckdb_path))
+
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail=(
+            "No analytics backend available: ClickHouse is unreachable and no "
+            f"local DuckDB file was found for experiment {exp_id}."
+        ),
+    )
 
 
 @router.get("/agent-visits")
 async def list_agent_visits(
     request: Request,
     exp_id: Optional[str] = Query(None, description="Filter by experiment ID"),
-    client = Depends(get_clickhouse_client),
 ) -> ApiResponseWrapper[List[Dict[str, Any]]]:
-    """List all agent visits from ClickHouse"""
+    """List all agent visits from the analytics backend (ClickHouse or DuckDB)."""
     try:
         if exp_id is None:
             return ApiResponseWrapper(data=[])
 
-        rows = get_agent_visits(client, exp_id).to_dict(orient="records")
+        rows = resolve_visits(request, exp_id).to_dict(orient="records")
 
         return ApiResponseWrapper(data=rows)
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error querying ClickHouse: {str(e)}",
+            detail=f"Error querying analytics backend: {str(e)}",
         )
     
 
@@ -48,15 +75,16 @@ async def list_agent_visits(
 async def get_visit_purpose_distributions(
     request: Request,
     exp_id: Optional[str] = Query(None, description="Filter by experiment ID"),
-    client = Depends(get_clickhouse_client),
 ) -> ApiResponseWrapper[Dict[str, Any]]:
-    """List all agent visits from ClickHouse"""
+    """Visit-purpose distribution from the analytics backend (ClickHouse or DuckDB)."""
 
     try:
         if exp_id is None:
             return ApiResponseWrapper(data={})
 
-        visits_df = get_agent_visits(client, exp_id)
+        visits_df = resolve_visits(request, exp_id)
+        if visits_df.empty:
+            return ApiResponseWrapper(data={"distributions": [], "total_visits": 0})
         rows = extract_visit_purpose_distributions(visits_df).to_dict(orient="records")
 
         data = {
@@ -66,10 +94,12 @@ async def get_visit_purpose_distributions(
 
         return ApiResponseWrapper(data=data)
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error querying ClickHouse: {str(e)}",
+            detail=f"Error querying analytics backend: {str(e)}",
         )
 
 @router.get("/visits/daily-activity")
@@ -77,7 +107,6 @@ async def get_daily_activity_distribution(
     request: Request,
     exp_id: Optional[str] = Query(None, description="Filter by experiment ID"),
     step_minutes: int = Query(10, description="Time step resolution in minutes"),
-    client = Depends(get_clickhouse_client),
 ) -> ApiResponseWrapper[Dict[str, Any]]:
     """
     Get the percentage of agents engaged in each purpose for every time step of the day.
@@ -88,13 +117,15 @@ async def get_daily_activity_distribution(
             return ApiResponseWrapper(data={})
 
         # 1. Get raw visits with 'start_timestamp', 'end_timestamp', and 'purpose'
-        visits_df = get_agent_visits(client, exp_id)
+        visits_df = resolve_visits(request, exp_id)
 
         # 2. Process into time-series buckets
         result = extract_daily_activity_distribution(visits_df, step_minutes)
 
         return ApiResponseWrapper(data=result)
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -102,36 +133,42 @@ async def get_daily_activity_distribution(
         )
 
 
-def get_agent_visits(client, exp_id: str) -> pd.DataFrame:
-    # Query example
-    query = "SELECT * FROM step_agent_status"
-    params = {}
-    query += " WHERE exp_id = {exp_id:String}"
-    params["exp_id"] = exp_id
+def get_agent_visits(client=None, exp_id: str = "", duckdb_path=None) -> pd.DataFrame:
+    """Load the per-visit DataFrame for an experiment from ClickHouse or DuckDB.
 
-    visit_result = client.query(query, parameters=params)
+    Provide a ClickHouse ``client`` or a ``duckdb_path`` — the underlying tables
+    share one schema, so the downstream processing is identical.
+    """
+    from ..datasource import load_experiment_frames
 
-    # Convert to list of dicts
-    columns = visit_result.column_names
-    rows = [dict(zip(columns, row)) for row in visit_result.result_rows]
-    simulation_df = pd.DataFrame(rows)
+    simulation_df, location_types_df = load_experiment_frames(
+        exp_id, client=client, duckdb_path=duckdb_path
+    )
+    return build_visits_from_frames(simulation_df, location_types_df)
 
-    query = "SELECT * FROM agent_location_type"
-    params = {}
-    if exp_id:
-        query += " WHERE exp_id = {exp_id:String}"
-        params["exp_id"] = exp_id
 
-    location_types_result = client.query(query, parameters=params)
+def build_visits_from_frames(
+    simulation_df: pd.DataFrame,
+    location_types_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """Turn raw ``step_agent_status`` + ``agent_location_type`` frames into visits.
 
-    # Convert to list of dicts
-    columns = location_types_result.column_names
-    rows = [dict(zip(columns, row)) for row in location_types_result.result_rows]
-    location_types_df = pd.DataFrame(rows)
+    Extracted from :func:`get_agent_visits` so the same logic is reused regardless
+    of whether the frames came from ClickHouse or a DuckDB file.
+    """
+    if simulation_df is None or simulation_df.empty:
+        return pd.DataFrame()
 
     simulation_df = transform_time_into_timestamps(simulation_df)
 
     visitation_df = extract_visits(simulation_df)
+    if visitation_df.empty:
+        return visitation_df
+
+    if location_types_df is None or location_types_df.empty:
+        location_types_df = pd.DataFrame(
+            columns=["exp_id", "simulation_step", "timestamp", "agent_id", "location_type"]
+        )
 
     visitation_df = visitation_df.sort_values("start_step")
     location_types_df = location_types_df.sort_values("simulation_step")

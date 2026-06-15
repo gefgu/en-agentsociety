@@ -53,6 +53,15 @@ dependencies = [
 duckdb = [
     "duckdb>=1.1.0",
 ]
+# Mobility-metrics comparison report served by webapi/mobility. The chart/metric
+# engines skmob2 and skmob-vis are local (maturin) packages and must be installed
+# from source, e.g. `uv pip install /path/to/skmob2 /path/to/skmob-vis`.
+mobility = [
+    "pandas",
+    "joblib",
+    "h3",
+    "scipy",
+]
 
 [project.urls]
 Homepage = "https://github.com/tsinghua-fib-lab/agentsociety"

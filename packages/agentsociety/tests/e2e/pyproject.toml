@@ -12,10 +12,19 @@ dependencies = [
   "setuptools",
   "testcontainers[clickhouse]",
   "duckdb>=1.1.0",
+  # Mobility-metrics comparison report (webapi/mobility) dependencies.
+  "pandas",
+  "joblib",
+  "h3",
+  "scipy",
+  "skmob2",
+  "skmob-vis",
 ]
 
 [tool.uv.sources]
 agentsociety = { path = "../..", editable = true }
+skmob2 = { path = "/mnt/raid5/gustavo/skmob2", editable = true }
+skmob-vis = { path = "/mnt/raid5/gustavo/skmob-vis", editable = true }
 
 [tool.uv]
 managed = true
