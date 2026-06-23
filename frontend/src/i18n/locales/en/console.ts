@@ -33,6 +33,8 @@ export default {
         grafana: "Grafana",
         charts: "Charts"
     },
+    pageTitle: "Experiments",
+    pageSubtitle: "Manage and monitor your simulation experiments.",
     modals: {
         experimentDetail: "Experiment Detail",
         experimentLog: "Experiment Log",

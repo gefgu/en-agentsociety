@@ -4,7 +4,6 @@ import { Modal, Typography, Tag } from "antd";
 
 const { Title, Paragraph } = Typography;
 
-// Block to attributes mapping
 const BLOCK_TO_ATTRIBUTES: Record<string, string[]> = {
   "MobilityBlock": [
     "plan", "intention", "radius", "weather", "temperature",
@@ -56,14 +55,12 @@ const TimelineGrid = ({ timelineData }: { timelineData: TimelineDataPoint[] }) =
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Mapping for block emoji lookup
   const BLOCK_EMOJI_MAP = BLOCKS.reduce((acc, block) => {
     acc[block.name] = block.emoji;
     return acc;
   }, {} as Record<string, string>);
 
-  // Dynamic columns based on screen size
-  const columns = isBigScreen 
+  const columns = isBigScreen
     ? [
         { start: 0, end: 4 },
         { start: 4, end: 8 },
@@ -114,7 +111,7 @@ const TimelineGrid = ({ timelineData }: { timelineData: TimelineDataPoint[] }) =
         gap: '40px',
         justifyContent: 'center',
         padding: '20px',
-        backgroundColor: 'white',
+        backgroundColor: 'var(--color-surface)',
         overflowX: 'auto',
         flexWrap: 'wrap'
       }}>
@@ -126,7 +123,7 @@ const TimelineGrid = ({ timelineData }: { timelineData: TimelineDataPoint[] }) =
               fontWeight: 'bold',
               textAlign: 'center',
               marginBottom: '30px',
-              color: '#000'
+              color: 'var(--color-text)'
             }}>
               {`${column.start.toString().padStart(2, '0')}:00 - ${column.end.toString().padStart(2, '0')}:00`}
             </div>
@@ -136,7 +133,7 @@ const TimelineGrid = ({ timelineData }: { timelineData: TimelineDataPoint[] }) =
               {/* Vertical Line */}
               <div style={{
                 width: '5px',
-                backgroundColor: '#000',
+                backgroundColor: 'var(--color-text)',
                 position: 'absolute',
                 left: '80px',
                 top: 0,
@@ -165,7 +162,7 @@ const TimelineGrid = ({ timelineData }: { timelineData: TimelineDataPoint[] }) =
                         fontSize: '22px',
                         textAlign: 'right',
                         width: '70px',
-                        color: '#000',
+                        color: 'var(--color-text)',
                         fontFamily: 'system-ui, -apple-system, sans-serif'
                       }}>
                         {timeLabel}
@@ -175,7 +172,7 @@ const TimelineGrid = ({ timelineData }: { timelineData: TimelineDataPoint[] }) =
                       <div style={{
                         width: '20px',
                         height: '2px',
-                        backgroundColor: '#000',
+                        backgroundColor: 'var(--color-text)',
                         marginLeft: '0px',
                         zIndex: 2,
                         position: 'relative'
@@ -191,7 +188,7 @@ const TimelineGrid = ({ timelineData }: { timelineData: TimelineDataPoint[] }) =
                         {executions.map((execution, stackIdx) => {
                           const emoji = BLOCK_EMOJI_MAP[execution.block_name] || '❓';
                           const block = BLOCKS.find(b => b.name === execution.block_name);
-                          
+
                           return (
                             <span
                               key={stackIdx}
@@ -224,7 +221,6 @@ const TimelineGrid = ({ timelineData }: { timelineData: TimelineDataPoint[] }) =
         ))}
       </div>
 
-      {/* Modal for displaying prompt and response */}
       <Modal
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -244,14 +240,13 @@ const TimelineGrid = ({ timelineData }: { timelineData: TimelineDataPoint[] }) =
       >
         {selectedExecution && (
           <div>
-            {/* Required Attributes Section */}
             <div style={{ marginTop: 16, marginBottom: 24 }}>
               <Title level={4}>Required Attributes</Title>
               <div style={{
-                backgroundColor: '#f9f9f9',
+                backgroundColor: 'var(--color-bg)',
                 padding: '16px',
                 borderRadius: '8px',
-                border: '1px solid #e0e0e0'
+                border: '1px solid var(--color-border)'
               }}>
                 {BLOCK_TO_ATTRIBUTES[selectedExecution.block_name] ? (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -266,7 +261,6 @@ const TimelineGrid = ({ timelineData }: { timelineData: TimelineDataPoint[] }) =
                             display: 'flex',
                             alignItems: 'center',
                             gap: '6px',
-                            border: '1px solid #d9d9d9',
                             borderRadius: '6px'
                           }}
                         >
@@ -277,37 +271,36 @@ const TimelineGrid = ({ timelineData }: { timelineData: TimelineDataPoint[] }) =
                     })}
                   </div>
                 ) : (
-                  <span style={{ color: '#999', fontStyle: 'italic' }}>No attributes defined</span>
+                  <span style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>No attributes defined</span>
                 )}
               </div>
             </div>
 
-            {/* Prompt Section */}
             <Title level={4}>Prompt</Title>
             <Paragraph
               style={{
-                backgroundColor: '#f5f5f5',
-                padding: '16px',
-                borderRadius: '8px',
-                whiteSpace: 'pre-wrap',
-                fontFamily: 'monospace',
-                fontSize: '14px'
-              }}
-            >
-              {selectedExecution.prompt}
-            </Paragraph>
-
-            {/* Response Section */}
-            <Title level={4} style={{ marginTop: 24 }}>Response</Title>
-            <Paragraph
-              style={{
-                backgroundColor: '#e6f7ff',
+                backgroundColor: 'var(--color-bg)',
                 padding: '16px',
                 borderRadius: '8px',
                 whiteSpace: 'pre-wrap',
                 fontFamily: 'monospace',
                 fontSize: '14px',
-                border: '1px solid #91d5ff'
+                border: '1px solid var(--color-border)'
+              }}
+            >
+              {selectedExecution.prompt}
+            </Paragraph>
+
+            <Title level={4} style={{ marginTop: 24 }}>Response</Title>
+            <Paragraph
+              style={{
+                backgroundColor: 'rgba(15,184,164,0.08)',
+                padding: '16px',
+                borderRadius: '8px',
+                whiteSpace: 'pre-wrap',
+                fontFamily: 'monospace',
+                fontSize: '14px',
+                border: '1px solid rgba(15,184,164,0.25)'
               }}
             >
               {selectedExecution.response}

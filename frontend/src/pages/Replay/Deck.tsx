@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import DeckGL from '@deck.gl/react';
 import { FlyToInterpolator, MapView, MapViewState } from '@deck.gl/core';
 import { HeatmapLayer, TextLayer, IconLayer, ScatterplotLayer } from 'deck.gl';
@@ -23,7 +24,7 @@ const AOI_COLOR_MAP = new Map<string, string>([
     ['LAND_USE_TYPE_OTHER', '#5C8D71'],
 ]);
 
-const LAND_USE_NAME = new Map<string, string>([
+const LAND_USE_NAME_ZH = new Map<string, string>([
     ['LAND_USE_TYPE_UNSPECIFIED', '未指定'],
     ['LAND_USE_TYPE_COMMERCIAL', '商服用地'],
     ['LAND_USE_TYPE_INDUSTRIAL', '工矿仓储用地'],
@@ -32,12 +33,23 @@ const LAND_USE_NAME = new Map<string, string>([
     ['LAND_USE_TYPE_TRANSPORTATION', '交通运输用地'],
     ['LAND_USE_TYPE_OTHER', '其他土地'],
 ]);
+const LAND_USE_NAME_EN = new Map<string, string>([
+    ['LAND_USE_TYPE_UNSPECIFIED', 'Unspecified'],
+    ['LAND_USE_TYPE_COMMERCIAL', 'Commercial'],
+    ['LAND_USE_TYPE_INDUSTRIAL', 'Industrial / Warehouse'],
+    ['LAND_USE_TYPE_RESIDENTIAL', 'Residential'],
+    ['LAND_USE_TYPE_PUBLIC', 'Public / Administrative'],
+    ['LAND_USE_TYPE_TRANSPORTATION', 'Transportation'],
+    ['LAND_USE_TYPE_OTHER', 'Other'],
+]);
 
 
 const Deck = observer((props: {
     style: React.CSSProperties,
 }) => {
     const store = useContext(StoreContext)
+    const { i18n } = useTranslation();
+    const LAND_USE_NAME = i18n.language === 'en' ? LAND_USE_NAME_EN : LAND_USE_NAME_ZH;
 
     const [curZoom, setCurZoom] = useState(10.5);
     const [hovering, setHovering] = useState(false);

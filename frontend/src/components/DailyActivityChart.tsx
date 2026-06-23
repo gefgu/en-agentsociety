@@ -2,12 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as echarts from 'echarts';
 import { fetchCustom } from './fetch';
 import message from 'antd/lib/message';
+import { useTheme } from '../context/ThemeContext';
 
-// 1. Define types matching the NEW backend response
 type DailyActivityResponse = {
   data: {
-    time_labels: string[];            // ["00:00", "00:10", ...]
-    series: Record<string, number[]>; // { "HOME": [50.5, ...], "WORK": [...] }
+    time_labels: string[];
+    series: Record<string, number[]>;
   }
 }
 
@@ -24,17 +24,13 @@ const DailyActivityChart = ({
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const [chartData, setChartData] = useState<DailyActivityResponse['data'] | null>(null);
+  const { theme } = useTheme();
 
-  // 2. Fetch data (simplified)
   const fetchVisitData = async (experimentId: string) => {
     try {
-      // Note: Endpoint changed to match your backend route name if necessary
-      // You named it '/visits/daily-activity' in Python
       const res = await fetchCustom(`/api/visits/daily-activity?exp_id=${experimentId}&step_minutes=10`);
-
       if (res.ok) {
         const response = await res.json();
-        console.log('Fetched daily activity:', response);
         setChartData(response.data);
       } else {
         throw new Error(await res.text());
@@ -54,28 +50,27 @@ const DailyActivityChart = ({
   useEffect(() => {
     if (chartRef.current && chartData) {
       const myChart = echarts.init(chartRef.current);
+      const textColor = theme === 'dark' ? '#c9d8ee' : '#333333';
 
-      // --- CONFIGURATION ---
       const colorMap: Record<string, string> = {
-        'HOME': '#d95f02',      // Orange
-        'WORK': '#e6ab02',      // Mustard
-        'LEISURE': '#7570b3',   // Purple
-        'STUDIES': '#66a61e',   // Green
-        'PURCHASE': '#e7298a',  // Pink
-        'HEALTH': '#1b9e77',    // Teal
-        'UNKNOWN': '#d3d3d3'    // Grey
+        'HOME':     '#d95f02',
+        'WORK':     '#e6ab02',
+        'LEISURE':  '#7570b3',
+        'STUDIES':  '#66a61e',
+        'PURCHASE': '#e7298a',
+        'HEALTH':   '#1b9e77',
+        'UNKNOWN':  '#d3d3d3'
       };
 
-      // Get keys (purposes) from the dictionary
       const purposes = Object.keys(chartData.series);
 
       const option = {
+        backgroundColor: 'transparent',
         title: {
           text: 'Daily Activity Distribution',
           left: 'center',
-          textStyle: { fontWeight: 'bold', fontSize: 32, color: '#333' }
+          textStyle: { fontWeight: 'bold', fontSize: 32, color: textColor }
         },
-        // ADDED: Save feature with default naming
         toolbox: {
           show: true,
           feature: {
@@ -112,7 +107,7 @@ const DailyActivityChart = ({
           bottom: -5,
           icon: 'circle',
           itemGap: 24,
-          textStyle: { fontSize: 16 } // Slightly smaller to fit if many categories
+          textStyle: { fontSize: 16, color: textColor }
         },
         grid: {
           left: '5%',
@@ -124,12 +119,14 @@ const DailyActivityChart = ({
           {
             type: 'category',
             boundaryGap: false,
-            data: chartData.time_labels, // Use backend labels directly
+            data: chartData.time_labels,
             axisLabel: {
-              interval: 17, // Show roughly every 3 hours (18 steps * 10min = 180min)
+              interval: 17,
               fontWeight: 'bold',
-              fontSize: 20
-            }
+              fontSize: 20,
+              color: textColor
+            },
+            axisLine: { lineStyle: { color: textColor } }
           }
         ],
         yAxis: [
@@ -139,26 +136,22 @@ const DailyActivityChart = ({
             nameLocation: 'middle',
             nameGap: 60,
             max: 100,
-            axisLabel: { formatter: '{value}%', fontSize: 20 },
-            nameTextStyle: {
-              fontSize: 24,
-              color: '#333'
-            },
+            axisLabel: { formatter: '{value}%', fontSize: 20, color: textColor },
+            nameTextStyle: { fontSize: 24, color: textColor },
+            splitLine: { lineStyle: { color: theme === 'dark' ? 'rgba(255,255,255,0.07)' : '#e0e0e0' } }
           }
         ],
         series: purposes.map(purpose => ({
           name: purpose,
           type: 'line',
-          stack: 'Total', // Enables the stacked area effect
+          stack: 'Total',
           smooth: true,
           showSymbol: false,
           areaStyle: { opacity: 1 },
           lineStyle: { width: 0 },
-          itemStyle: {
-            color: colorMap[purpose] || '#999'
-          },
+          itemStyle: { color: colorMap[purpose] || '#999' },
           emphasis: { focus: 'series' },
-          data: chartData.series[purpose] // Use backend data directly
+          data: chartData.series[purpose]
         }))
       };
 
@@ -172,7 +165,7 @@ const DailyActivityChart = ({
         myChart.dispose();
       };
     }
-  }, [chartData]); // Re-render when data arrives
+  }, [chartData, theme]);
 
   return (
     <div
@@ -180,10 +173,10 @@ const DailyActivityChart = ({
       style={{
         width: width,
         height: height,
-        background: '#fff',
+        background: 'transparent',
         borderRadius: '8px',
         padding: '10px',
-        margin: '24px' // Consistent margin
+        margin: '24px'
       }}
     />
   );

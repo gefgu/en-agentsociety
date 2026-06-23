@@ -1,6 +1,6 @@
 import { ATTRIBUTE_TO_EMOJI, BLOCKS } from "../pages/DailySchedule";
+import { useTheme } from "../context/ThemeContext";
 
-// Block to attributes mapping
 const BLOCK_TO_ATTRIBUTES: Record<string, string[]> = {
   "MobilityBlock": [
     "plan", "intention", "radius", "weather", "temperature",
@@ -39,10 +39,12 @@ const BLOCK_TO_ATTRIBUTES: Record<string, string[]> = {
 };
 
 const BlocksLegend = () => {
+  const { theme } = useTheme();
+
   return (
-    <div style={{ 
+    <div style={{
       padding: '25px',
-      backgroundColor: 'white',
+      backgroundColor: 'var(--color-surface)',
       borderRadius: '8px'
     }}>
       <div style={{
@@ -55,8 +57,8 @@ const BlocksLegend = () => {
           <div
             key={block.name}
             style={{
-              backgroundColor: block.color,
-              border: '3px solid #333',
+              backgroundColor: theme === 'dark' ? block.darkColor : block.lightColor,
+              border: '1px solid var(--color-border)',
               borderRadius: '15px',
               padding: '24px 16px',
               display: 'flex',
@@ -80,17 +82,17 @@ const BlocksLegend = () => {
               <div style={{ fontSize: '60px', lineHeight: 1 }}>
                 {block.emoji}
               </div>
-              <div style={{ 
-                fontSize: '20px', 
-                fontWeight: 'bold', 
+              <div style={{
+                fontSize: '20px',
+                fontWeight: 'bold',
                 marginTop: '12px',
-                color: '#000'
+                color: 'var(--color-text)'
               }}>
                 {block.name}
               </div>
-              <div style={{ 
-                fontSize: '15px', 
-                color: '#333', 
+              <div style={{
+                fontSize: '15px',
+                color: 'var(--color-text-muted)',
                 marginTop: '6px',
                 lineHeight: 1.3
               }}>
@@ -98,10 +100,9 @@ const BlocksLegend = () => {
               </div>
             </div>
 
-            {/* Show attribute emojis for this block */}
             {BLOCK_TO_ATTRIBUTES[block.name] && (
-              <div style={{ 
-                marginTop: '16px', 
+              <div style={{
+                marginTop: '16px',
                 minHeight: '50px',
                 display: 'flex',
                 flexWrap: 'wrap',

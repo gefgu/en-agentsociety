@@ -3,10 +3,12 @@ import { Link, useLocation } from "react-router-dom";
 import Account from "./components/Account";
 import { useTranslation } from 'react-i18next';
 import { WITH_AUTH } from "./components/fetch";
+import { useTheme } from "./context/ThemeContext";
 
 const RootMenu = ({ selectedKey }: { selectedKey: string }) => {
   const { t, i18n } = useTranslation();
   const location = useLocation();
+  const { theme, toggleTheme } = useTheme();
 
   const handleLanguageChange = () => {
     const newLang = i18n.language === 'en' ? 'zh' : 'en';
@@ -65,6 +67,15 @@ const RootMenu = ({ selectedKey }: { selectedKey: string }) => {
         <GithubOutlined />
         GitHub
       </a>
+
+      <button
+        className="site-nav-link"
+        onClick={toggleTheme}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, fontSize: 15, lineHeight: 1 }}
+        title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      >
+        {theme === 'dark' ? '☀' : '☾'}
+      </button>
 
       <button
         className="site-nav-link"

@@ -362,7 +362,7 @@ const Page = () => {
               margin: 0,
               letterSpacing: '-0.022em',
             }}>
-              {t('console.table.id') === 'ID' ? 'Experiments' : '实验列表'}
+              {t('console.pageTitle')}
             </h1>
             <p style={{
               fontFamily: 'var(--font-body)',
@@ -370,9 +370,7 @@ const Page = () => {
               color: 'var(--color-text-muted)',
               margin: '4px 0 0',
             }}>
-              {t('console.table.id') === 'ID'
-                ? 'Manage and monitor your simulation experiments.'
-                : '管理和监控您的仿真实验。'}
+              {t('console.pageSubtitle')}
             </p>
           </div>
           <Button

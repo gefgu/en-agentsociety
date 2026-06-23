@@ -19,6 +19,26 @@
     -moz-osx-font-smoothing: grayscale;
 }
 
+html.light-mode {
+    --color-bg:         #f5f7fa;
+    --color-surface:    #ffffff;
+    --color-nav-bg:     rgba(245,247,250,0.96);
+    --color-accent:     #0a9e8c;
+    --color-text:       #111827;
+    --color-text-muted: rgba(17,24,39,0.52);
+    --color-border:     rgba(0,0,0,0.09);
+}
+
+html.light-mode body {
+    background-image:
+        linear-gradient(rgba(0,0,0,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.025) 1px, transparent 1px);
+}
+
+html.light-mode ::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.15);
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
     width: 5px;

@@ -1,9 +1,8 @@
-import * as echarts from 'echarts'; // Import ECharts
-import { count } from 'echarts/types/src/component/dataZoom/history.js';
+import * as echarts from 'echarts';
 import React, { useState, useEffect, useRef } from 'react';
 import { fetchCustom } from './fetch';
 import message from 'antd/lib/message';
-
+import { useTheme } from '../context/ThemeContext';
 
 type VisitPurposeDistribution = {
   purpose: string;
@@ -18,7 +17,6 @@ type VisitDistributionResponse = {
   }
 }
 
-
 const VisitDistributionBarChart = ({
   exp_id, exp_name, width, height,
 }: {
@@ -28,7 +26,8 @@ const VisitDistributionBarChart = ({
   height: string,
 }) => {
   const chartRef = useRef(null);
-  const heightOffset = parseFloat(height.replace('px', '')) * 0.2; // Offset to position the graphic box lower
+  const heightOffset = parseFloat(height.replace('px', '')) * 0.2;
+  const { theme } = useTheme();
 
   const [visit_data, setVisitData] = useState<VisitDistributionResponse>();
 
@@ -37,7 +36,6 @@ const VisitDistributionBarChart = ({
       const res = await fetchCustom(`/api/visits/purpose-distributions?exp_id=${experimentId}`);
       if (res.ok) {
         const data = await res.json();
-        console.log('Fetched visit data:', data);
         setVisitData(data);
       } else {
         throw new Error(await res.text());
@@ -55,31 +53,30 @@ const VisitDistributionBarChart = ({
     }
   }, [exp_id]);
 
-
   useEffect(() => {
     if (chartRef.current) {
       const myChart = echarts.init(chartRef.current);
       const data = visit_data?.data.distributions || [];
       const totalTrips = visit_data?.data.total_visits || 0;
+      const textColor = theme === 'dark' ? '#c9d8ee' : '#333333';
+      const boxFill = theme === 'dark' ? '#0c1728' : '#ffffff';
+      const boxStroke = theme === 'dark' ? 'rgba(255,255,255,0.2)' : '#333333';
+      const splitLineColor = theme === 'dark' ? 'rgba(255,255,255,0.07)' : '#e0e0e0';
 
       const option = {
+        backgroundColor: 'transparent',
         title: {
           text: `Visit Purpose Distribution`,
           left: 'center',
-          textStyle: {
-            fontSize: 32,
-            fontWeight: 'bold',
-            color: '#333'
-          }
+          textStyle: { fontSize: 32, fontWeight: 'bold', color: textColor }
         },
         tooltip: {
           trigger: 'axis',
           formatter: (params) => {
-            const data = params[0].data; // Access custom data
-            return `${params[0].name}<br/>Count: <b>${data.count}</b><br/>Percentage: <b>${data.value}%</b>`;
+            const d = params[0].data;
+            return `${params[0].name}<br/>Count: <b>${d.count}</b><br/>Percentage: <b>${d.value}%</b>`;
           }
         },
-        // The "N = ..." Box
         graphic: [
           {
             type: 'group',
@@ -89,18 +86,18 @@ const VisitDistributionBarChart = ({
               {
                 type: 'rect',
                 shape: { width: 100, height: 40, r: 5 },
-                style: { fill: '#fff', stroke: '#333', lineWidth: 1 }
+                style: { fill: boxFill, stroke: boxStroke, lineWidth: 1 }
               },
               {
                 type: 'text',
-                position: [50, 20], // Center text in rect
+                position: [50, 20],
                 style: {
                   text: `N = ${totalTrips}`,
                   textAlign: 'center',
                   textVerticalAlign: 'middle',
                   fontSize: 16,
                   fontWeight: 'bold',
-                  fill: '#333'
+                  fill: textColor
                 }
               }
             ]
@@ -115,49 +112,40 @@ const VisitDistributionBarChart = ({
         xAxis: {
           type: 'category',
           data: data.map(item => item.purpose),
-          axisLabel: {
-            fontWeight: 'bold',
-            fontSize: 14,
-            interval: 0 // Force show all labels
-          },
-          axisTick: { alignWithLabel: true }
+          axisLabel: { fontWeight: 'bold', fontSize: 14, interval: 0, color: textColor },
+          axisTick: { alignWithLabel: true },
+          axisLine: { lineStyle: { color: textColor } }
         },
         yAxis: {
           type: 'value',
           name: '% of Trips',
           nameLocation: 'middle',
-          nameGap: 50, // Space for the axis name
-          nameTextStyle: {
-            fontSize: 32,
-            color: '#333'
-          },
-          max: 100, // Fix scale to 100% like the image
-          axisLabel: {
-            fontSize: 28
-          }
+          nameGap: 50,
+          nameTextStyle: { fontSize: 32, color: textColor },
+          max: 100,
+          axisLabel: { fontSize: 28, color: textColor },
+          splitLine: { lineStyle: { color: splitLineColor } }
         },
         toolbox: {
-            show: true,
-            feature: {
-              saveAsImage: {
-                show: true,
-                title: 'Save as Image',
-                type: 'png', // or 'jpeg'
-                name: `visit_distribution_${exp_name || exp_id}`, // Default naming
-                pixelRatio: 2 // This makes it High Resolution (Retina quality)
-              }
-            },
-            right: 20,
-            top: 20
+          show: true,
+          feature: {
+            saveAsImage: {
+              show: true,
+              title: 'Save as Image',
+              type: 'png',
+              name: `visit_distribution_${exp_name || exp_id}`,
+              pixelRatio: 2
+            }
           },
+          right: 20,
+          top: 20
+        },
         series: [
           {
             name: 'Purpose',
             type: 'bar',
-            // Convert proportions to 0-100 scale for the Y-Axis
             data: data.map(item => ({
               value: parseFloat((item.proportion * 100).toFixed(2)),
-              // Keep the original metadata for the tooltip
               count: item.count,
               proportion: item.proportion
             })),
@@ -172,22 +160,16 @@ const VisitDistributionBarChart = ({
         ]
       };
 
-
       myChart.setOption(option);
 
-      const handleResize = () => {
-        myChart.resize();
-      };
-
+      const handleResize = () => myChart.resize();
       window.addEventListener('resize', handleResize);
 
       return () => {
         window.removeEventListener('resize', handleResize);
       };
-
     }
-
-  }, [visit_data]);
+  }, [visit_data, theme]);
 
   return (
     <div
@@ -195,7 +177,7 @@ const VisitDistributionBarChart = ({
       style={{
         width: width,
         height: height,
-        background: '#fff',
+        background: 'transparent',
         margin: '24px',
       }}
     />

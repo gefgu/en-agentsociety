@@ -8,14 +8,14 @@ import ScheduleAttributesLegend from "../../components/ScheduleAttributesLegend"
 
 // Block definitions matching the Python code
 const BLOCKS = [
-  { emoji: '🏃', name: 'MobilityBlock', desc: 'Movement', color: '#E3F2FD' },
-  { emoji: '🧠', name: 'CognitionBlock', desc: 'Emotions/Reflections', color: '#F3E5F5' },
-  { emoji: '💰', name: 'EconomyBlock', desc: 'Income/Consumption', color: '#FFF9C4' },
-  { emoji: '🔺', name: 'NeedsBlock', desc: "Maslow's Needs", color: '#FFECB3' },
-  { emoji: '💤', name: 'OtherBlock', desc: 'Handle the rest', color: '#E0E0E0' },
-  { emoji: '💬', name: 'SocialBlock', desc: 'Social Interactions', color: '#C8E6C9' },
-  { emoji: '📅', name: 'PlanBlock', desc: 'Planning', color: '#FFCCBC' },
-  { emoji: '🎯', name: 'Dispatcher', desc: 'Select Block', color: '#FFCDD2' },
+  { emoji: '🏃', name: 'MobilityBlock',   desc: 'Movement',            lightColor: '#E3F2FD', darkColor: 'rgba(96,165,250,0.18)',   color: '#E3F2FD' },
+  { emoji: '🧠', name: 'CognitionBlock',  desc: 'Emotions/Reflections', lightColor: '#F3E5F5', darkColor: 'rgba(167,139,250,0.18)',  color: '#F3E5F5' },
+  { emoji: '💰', name: 'EconomyBlock',    desc: 'Income/Consumption',   lightColor: '#FFF9C4', darkColor: 'rgba(251,191,36,0.18)',   color: '#FFF9C4' },
+  { emoji: '🔺', name: 'NeedsBlock',      desc: "Maslow's Needs",       lightColor: '#FFECB3', darkColor: 'rgba(252,211,77,0.18)',   color: '#FFECB3' },
+  { emoji: '💤', name: 'OtherBlock',      desc: 'Handle the rest',      lightColor: '#E0E0E0', darkColor: 'rgba(148,163,184,0.18)', color: '#E0E0E0' },
+  { emoji: '💬', name: 'SocialBlock',     desc: 'Social Interactions',  lightColor: '#C8E6C9', darkColor: 'rgba(74,222,128,0.18)',   color: '#C8E6C9' },
+  { emoji: '📅', name: 'PlanBlock',       desc: 'Planning',             lightColor: '#FFCCBC', darkColor: 'rgba(251,146,60,0.18)',   color: '#FFCCBC' },
+  { emoji: '🎯', name: 'Dispatcher',      desc: 'Select Block',         lightColor: '#FFCDD2', darkColor: 'rgba(248,113,113,0.18)', color: '#FFCDD2' },
 ];
 
 // Attribute to emoji mapping

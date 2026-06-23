@@ -27,6 +27,15 @@ export const PairEducation = [
     [7, "大专"],
 ]
 export const MapEducation = new Map<number, string>(PairEducation as Iterable<readonly [number, string]>);
+export const MapEducationEn = new Map<number, string>([
+    [1, "PhD"],
+    [2, "Master's"],
+    [3, "Bachelor's"],
+    [4, "High School"],
+    [5, "Junior High"],
+    [6, "Primary School"],
+    [7, "Associate's"],
+]);
 
 // // 智能体性别
 // enum Gender {
@@ -42,6 +51,10 @@ export const PairGender = [
     [2, "女性"],
 ]
 export const MapGender = new Map<number, string>(PairGender as Iterable<readonly [number, string]>);
+export const MapGenderEn = new Map<number, string>([
+    [1, "Male"],
+    [2, "Female"],
+]);
 
 // // 智能体消费水平
 // enum Consumption {
@@ -66,6 +79,13 @@ export const PairConsumption = [
     [5, "高"],
 ];
 export const MapConsumption = new Map<number, string>(PairConsumption as Iterable<readonly [number, string]>);
+export const MapConsumptionEn = new Map<number, string>([
+    [1, "Low"],
+    [2, "Relatively Low"],
+    [3, "Medium"],
+    [4, "Relatively High"],
+    [5, "High"],
+]);
 
 export const PairLandUse = [
     [0, '未指定'],
@@ -77,19 +97,28 @@ export const PairLandUse = [
     [12, '其他土地'],
 ];
 export const MapLandUse = new Map<number, string>(PairLandUse as Iterable<readonly [number, string]>);
+export const MapLandUseEn = new Map<number, string>([
+    [0, 'Unspecified'],
+    [5, 'Commercial'],
+    [6, 'Industrial / Warehouse'],
+    [7, 'Residential'],
+    [8, 'Public / Administrative'],
+    [10, 'Transportation'],
+    [12, 'Other'],
+]);
 
-export const GetEducationName = (education: number) => {
-    return MapEducation.get(education) || "未知";
+export const GetEducationName = (education: number, lang = 'zh') => {
+    return (lang === 'en' ? MapEducationEn : MapEducation).get(education) || (lang === 'en' ? 'Unknown' : '未知');
 }
 
-export const GetGenderName = (gender: number) => {
-    return MapGender.get(gender) || "未知";
+export const GetGenderName = (gender: number, lang = 'zh') => {
+    return (lang === 'en' ? MapGenderEn : MapGender).get(gender) || (lang === 'en' ? 'Unknown' : '未知');
 }
 
-export const GetConsumptionName = (consumption: number) => {
-    return MapConsumption.get(consumption) || "未知";
+export const GetConsumptionName = (consumption: number, lang = 'zh') => {
+    return (lang === 'en' ? MapConsumptionEn : MapConsumption).get(consumption) || (lang === 'en' ? 'Unknown' : '未知');
 }
 
-export const GetLandUseName = (landUse: number) => {
-    return MapLandUse.get(landUse) || "未知";
+export const GetLandUseName = (landUse: number, lang = 'zh') => {
+    return (lang === 'en' ? MapLandUseEn : MapLandUse).get(landUse) || (lang === 'en' ? 'Unknown' : '未知');
 }

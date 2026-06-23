@@ -2,12 +2,11 @@ import React, { useMemo, useState } from "react";
 import Map, { Source, Layer } from "react-map-gl";
 import { Segmented } from "antd";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { PALETTE, FONT_MONO } from "./theme";
+import { getPalette, FONT_MONO } from "./theme";
+import { useTheme } from "../../context/ThemeContext";
 
-// Reuse the same public token as the Replay map.
 const MAPBOX_ACCESS_TOKEN =
   "pk.eyJ1IjoiZmh5ZHJhbGlzayIsImEiOiJja3VzMWc5NXkwb3RnMm5sbnVvd3IydGY0In0.FrwFkYIMpLbU83K9rHSe8w";
-const MAP_STYLE = "mapbox://styles/mapbox/light-v11";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type StvdChart = {
@@ -17,12 +16,13 @@ type StvdChart = {
   zoom?: number;
 };
 
-/**
- * Spatial-temporal volume difference map. Renders the per-H3-cell GeoJSON layers
- * produced by skmob-vis, coloured by each cell's precomputed bivariate colour
- * (`properties._skmobVis.color`), with a manual resolution selector.
- */
 const StvdMap: React.FC<{ stvd: StvdChart; height?: string }> = ({ stvd, height = "560px" }) => {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
+  const mapStyle = theme === 'dark'
+    ? 'mapbox://styles/mapbox/dark-v11'
+    : 'mapbox://styles/mapbox/light-v11';
+
   const resolutions = useMemo(
     () => Object.keys(stvd.layers || {}).sort((a, b) => Number(a) - Number(b)),
     [stvd.layers],
@@ -32,8 +32,6 @@ const StvdMap: React.FC<{ stvd: StvdChart; height?: string }> = ({ stvd, height 
   const featureCollection = useMemo(() => {
     const layer = stvd.layers?.[resolution] || stvd.layers?.[resolutions[0]];
     if (!layer) return { type: "FeatureCollection", features: [] };
-    // Promote the precomputed bivariate colour to a top-level property so the
-    // mapbox fill layer can read it directly.
     const features = (layer.features || []).map((f: any) => ({
       ...f,
       properties: {
@@ -47,7 +45,7 @@ const StvdMap: React.FC<{ stvd: StvdChart; height?: string }> = ({ stvd, height 
   const center = stvd.center || [0, 0];
 
   if (!resolutions.length) {
-    return <div style={{ color: PALETTE.muted, fontFamily: FONT_MONO }}>No STVD data.</div>;
+    return <div style={{ color: palette.muted, fontFamily: FONT_MONO }}>No STVD data.</div>;
   }
 
   return (
@@ -63,14 +61,14 @@ const StvdMap: React.FC<{ stvd: StvdChart; height?: string }> = ({ stvd, height 
       <Map
         mapboxAccessToken={MAPBOX_ACCESS_TOKEN}
         initialViewState={{ longitude: center[0], latitude: center[1], zoom: stvd.zoom || 10 }}
-        mapStyle={MAP_STYLE}
+        mapStyle={mapStyle}
         style={{ width: "100%", height: "100%", borderRadius: 6 }}
       >
         <Source id="stvd" type="geojson" data={featureCollection as any}>
           <Layer
             id="stvd-fill"
             type="fill"
-            paint={{ "fill-color": ["get", "color"], "fill-opacity": 0.6, "fill-outline-color": PALETTE.axis }}
+            paint={{ "fill-color": ["get", "color"], "fill-opacity": 0.6, "fill-outline-color": palette.axis }}
           />
         </Source>
       </Map>

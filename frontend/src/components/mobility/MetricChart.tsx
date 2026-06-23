@@ -1,13 +1,9 @@
 import React, { useEffect, useRef } from "react";
 import * as echarts from "echarts";
 import { applyFormatters } from "./formatters";
-import { PALETTE } from "./theme";
+import { getPalette } from "./theme";
+import { useTheme } from "../../context/ThemeContext";
 
-/**
- * Renders a skmob-vis ECharts option (returned as JSON by the backend) natively.
- * Re-attaches the per-chart-type tooltip/axis formatters that skmob-vis would
- * otherwise inject as client-side JS.
- */
 const MetricChart: React.FC<{
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   option: any;
@@ -15,16 +11,17 @@ const MetricChart: React.FC<{
   height?: string;
 }> = ({ option, chartType, height = "420px" }) => {
   const ref = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme();
 
   useEffect(() => {
     if (!ref.current || !option) return;
     const chart = echarts.init(ref.current);
 
-    // Deep clone so we can mutate/strip _meta without touching the source.
+    const palette = getPalette(theme);
     const opt = JSON.parse(JSON.stringify(option));
     const meta = opt._meta || {};
     delete opt._meta;
-    if (opt.backgroundColor === undefined) opt.backgroundColor = PALETTE.bg;
+    if (opt.backgroundColor === undefined) opt.backgroundColor = palette.bg;
     applyFormatters(opt, chartType, meta);
     chart.setOption(opt);
 
@@ -37,7 +34,7 @@ const MetricChart: React.FC<{
       window.removeEventListener("resize", resize);
       chart.dispose();
     };
-  }, [option, chartType]);
+  }, [option, chartType, theme]);
 
   return <div ref={ref} style={{ width: "100%", height }} />;
 };

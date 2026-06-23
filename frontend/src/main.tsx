@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import './index.css'
 import { Navigate, Outlet, RouterProvider, createBrowserRouter } from 'react-router-dom'
 import { ConfigProvider, ThemeConfig, theme as antTheme } from 'antd'
+import { ThemeProvider, useTheme } from './context/ThemeContext'
 import RootLayout from './Layout'
 import Console from './pages/Console/index'
 import Replay from './pages/Replay/index'
@@ -197,7 +198,7 @@ const router = createBrowserRouter([{
     }]
 }])
 
-const theme: ThemeConfig = {
+const darkTheme: ThemeConfig = {
   algorithm: antTheme.darkAlgorithm,
   token: {
     colorPrimary:       '#0fb8a4',
@@ -222,19 +223,46 @@ const theme: ThemeConfig = {
   },
 };
 
-const App = () => {
-  const { i18n } = useTranslation()
+const lightTheme: ThemeConfig = {
+  algorithm: antTheme.defaultAlgorithm,
+  token: {
+    colorPrimary:       '#0a9e8c',
+    colorInfo:          '#0a9e8c',
+    colorBgContainer:   '#ffffff',
+    colorBgLayout:      '#f5f7fa',
+    colorBgElevated:    '#ffffff',
+    colorBorder:        'rgba(0,0,0,0.12)',
+    colorText:          '#111827',
+    colorTextSecondary: 'rgba(17,24,39,0.65)',
+    borderRadius:       8,
+    fontFamily:         "'DM Sans', system-ui, sans-serif",
+  },
+  components: {
+    Layout: { headerBg: '#f5f7fa', bodyBg: '#f5f7fa' },
+    Table:  { headerBg: '#eef2f7', rowHoverBg: 'rgba(10,158,140,0.06)' },
+    Card:   { colorBgContainer: '#ffffff' },
+    Modal:  { contentBg: '#ffffff', headerBg: '#ffffff' },
+    Select: { colorBgContainer: '#ffffff' },
+    Input:  { colorBgContainer: '#ffffff' },
+  },
+};
+
+const AppShell = () => {
+  const { theme } = useTheme();
+  const { i18n } = useTranslation();
 
   return (
     <ConfigProvider
-      theme={theme}
+      theme={theme === 'dark' ? darkTheme : lightTheme}
       locale={i18n.language === 'en' ? enUS : zhCN}
     >
       <RouterProvider router={router} />
     </ConfigProvider>
-  )
-}
+  );
+};
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <App />
+  <ThemeProvider>
+    <AppShell />
+  </ThemeProvider>
 )

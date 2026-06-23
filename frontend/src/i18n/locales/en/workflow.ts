@@ -83,6 +83,7 @@ export default {
     message_intervene: "Message Intervene",
     update_state_interveneTooltip: "Directly update agent state information by specifying state key and new value",
     message_interveneTooltip: "Send intervention messages to agents to influence their behavior or decisions",
+    interveneMessageTooltip: "Intervention message content used to influence agent behaviour or provide information.",
     pleaseEnterInterveneMessage: "Please enter intervene message",
     saveContext: "Save Context",
     saveContextTooltip: "Save agent context to global Context variable, which will be stored as file for analysis",

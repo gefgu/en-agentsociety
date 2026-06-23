@@ -1,18 +1,16 @@
 import { ATTRIBUTE_TO_EMOJI } from "../pages/DailySchedule";
 
 const ScheduleAttributesLegend = () => {
-  // Generate attributes list
   const ATTRIBUTES = Object.keys(ATTRIBUTE_TO_EMOJI).map(attr => ({
     emoji: ATTRIBUTE_TO_EMOJI[attr],
     name: attr.replace(/_/g, ' '),
     displayName: attr,
-    color: '#D1C4E9'
   }));
 
   return (
-    <div style={{ 
+    <div style={{
       padding: '25px',
-      backgroundColor: 'white',
+      backgroundColor: 'var(--color-surface)',
       borderRadius: '8px'
     }}>
       <div style={{
@@ -25,8 +23,8 @@ const ScheduleAttributesLegend = () => {
           <div
             key={idx}
             style={{
-              backgroundColor: attr.color,
-              border: '3px solid #333333',
+              backgroundColor: 'rgba(167,139,250,0.15)',
+              border: '1px solid var(--color-border)',
               borderRadius: '15px',
               padding: '16px 8px',
               display: 'flex',
@@ -58,7 +56,7 @@ const ScheduleAttributesLegend = () => {
               fontSize: '16px',
               fontWeight: 'bold',
               textAlign: 'center',
-              color: '#000000',
+              color: 'var(--color-text)',
               wordBreak: 'break-word',
               lineHeight: '1.2'
             }}>
