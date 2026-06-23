@@ -207,6 +207,7 @@ const Page = () => {
                   { key: 'log', label: <Link to={`/loki/${record.id}`} target="_blank" rel="noopener noreferrer">{t('console.buttons.viewLog')}</Link> },
                   { key: 'grafana', label: <Link to={`/grafana/${record.id}`} target="_blank" rel="noopener noreferrer">{t('console.buttons.grafana')}</Link> },
                   { key: 'charts', label: <Link to={`/charts/${record.id}/${encodeURIComponent(record.name)}`} target="_blank" rel="noopener noreferrer">{t('console.buttons.charts')}</Link> },
+                  { key: 'dailySchedule', label: <Link to={`/daily-schedule/${record.id}`}>{t('console.buttons.dailySchedule', 'Daily Schedule')}</Link> },
                   { key: 'exportArtifacts', label: t('console.buttons.exportArtifacts'), onClick: () => postDownloadCustom(`/api/experiments/${record.id}/artifacts`) },
                   { key: 'export', label: t('console.buttons.export'), onClick: () => postDownloadCustom(`/api/experiments/${record.id}/export`) },
                   {
