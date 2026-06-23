@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 from datetime import datetime
 
-from agentsociety.configs import AgentConfig, Config, IndividualConfig
+from en_agentsociety.configs import AgentConfig, Config, IndividualConfig
 from agentsociety_benchmark.cli.config import BenchmarkConfig
 from agentsociety_benchmark.storage.database import DatabaseWriter
 from agentsociety_benchmark.storage.type import StorageBenchmark, BenchmarkStatus

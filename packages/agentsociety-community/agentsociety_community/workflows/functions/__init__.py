@@ -11,7 +11,7 @@ How to add a new function:
 
 from typing import TYPE_CHECKING, Awaitable, Callable, Dict, Type
 
-from agentsociety.simulation import AgentSociety
+from en_agentsociety.simulation import AgentSociety
 
 FunctionType = Callable[[AgentSociety], Awaitable[None]]
 

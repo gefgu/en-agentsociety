@@ -3,12 +3,12 @@ import random
 import time
 from typing import Any, Optional, Tuple
 
-from agentsociety.agent import Agent, Block, BlockContext, BlockParams, FormatPrompt
-from agentsociety.agent.toolbox import AgentToolbox
-from agentsociety.environment import Environment
-from agentsociety.logger import get_logger
-from agentsociety.memory import Memory
-from agentsociety.memory.const import RelationType, SocialRelation
+from en_agentsociety.agent import Agent, Block, BlockContext, BlockParams, FormatPrompt
+from en_agentsociety.agent.toolbox import AgentToolbox
+from en_agentsociety.environment import Environment
+from en_agentsociety.logger import get_logger
+from en_agentsociety.memory import Memory
+from en_agentsociety.memory.const import RelationType, SocialRelation
 
 from ..sharing_params import EnvCitizenBlockOutput
 

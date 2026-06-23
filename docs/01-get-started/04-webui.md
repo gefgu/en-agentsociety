@@ -30,7 +30,7 @@ env:
 
 假设配置文件存储为`./ui.yaml`，则可以通过以下命令启动可视化界面：
 ```bash
-agentsociety ui -c ./ui.yaml
+en-agentsociety ui -c ./ui.yaml
 ```
 
 启动后，可以在浏览器中访问`http://127.0.0.1:8080`，进入可视化界面。

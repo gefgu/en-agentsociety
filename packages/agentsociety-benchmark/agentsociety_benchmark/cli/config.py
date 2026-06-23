@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Literal, Optional
-from agentsociety.configs import LLMConfig, EnvConfig
-from agentsociety.storage.database import DatabaseConfig
+from en_agentsociety.configs import LLMConfig, EnvConfig
+from en_agentsociety.storage.database import DatabaseConfig
 
 __all__ = ["BenchmarkConfig"]
 

@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
-from agentsociety.storage import DatabaseConfig
-from agentsociety.utils.decorators import lock_decorator
+from en_agentsociety.storage import DatabaseConfig
+from en_agentsociety.utils.decorators import lock_decorator
 from .model import (
     Benchmark,
 )

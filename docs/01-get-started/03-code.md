@@ -74,7 +74,7 @@ exp:
 
 假设配置文件存储为`./config.yaml`，则可以通过以下命令运行AgentSociety命令行工具提供的配置预检查（预检查是可选步骤）：
 ```bash
-agentsociety check -c ./config.yaml
+en-agentsociety check -c ./config.yaml
 ```
 
 如果配置文件正确，则输出内容如下：
@@ -88,7 +88,7 @@ Map file. Passed.
 
 配置预检查通过后，可以通过以下命令运行AgentSociety：
 ```bash
-agentsociety run -c ./config.yaml
+en-agentsociety run -c ./config.yaml
 ```
 
 此后，AgentSociety开始模拟，并不断输出模拟过程中的日志。
@@ -101,8 +101,8 @@ agentsociety run -c ./config.yaml
 
 ```python
 import asyncio
-from agentsociety.cityagent import default
-from agentsociety.configs import (
+from en_agentsociety.cityagent import default
+from en_agentsociety.configs import (
     AgentsConfig,
     Config,
     EnvConfig,
@@ -110,12 +110,12 @@ from agentsociety.configs import (
     LLMConfig,
     MapConfig,
 )
-from agentsociety.configs.agent import AgentConfig
-from agentsociety.configs.exp import WorkflowStepConfig, WorkflowType
-from agentsociety.environment import EnvironmentConfig
-from agentsociety.llm import LLMProviderType
-from agentsociety.simulation import AgentSociety
-from agentsociety.storage import DatabaseConfig
+from en_agentsociety.configs.agent import AgentConfig
+from en_agentsociety.configs.exp import WorkflowStepConfig, WorkflowType
+from en_agentsociety.environment import EnvironmentConfig
+from en_agentsociety.llm import LLMProviderType
+from en_agentsociety.simulation import AgentSociety
+from en_agentsociety.storage import DatabaseConfig
 
 llm_config = LLMConfig(
     provider=LLMProviderType.VLLM,

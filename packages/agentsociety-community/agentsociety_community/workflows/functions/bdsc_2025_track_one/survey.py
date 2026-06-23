@@ -6,7 +6,7 @@ import json
 from typing import Any
 import uuid
 from datetime import datetime
-from agentsociety.survey.models import Survey, Page, Question, QuestionType
+from en_agentsociety.survey.models import Survey, Page, Question, QuestionType
 
 def create_low_carbon_awareness_survey() -> Survey:
     """

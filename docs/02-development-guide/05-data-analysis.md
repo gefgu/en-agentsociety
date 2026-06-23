@@ -134,7 +134,7 @@ def get_experiments():
         updated_at,
         input_tokens,
         output_tokens
-    FROM agentsociety.as_experiment
+    FROM en_agentsociety.as_experiment
     ORDER BY created_at DESC
     """
     
@@ -175,7 +175,7 @@ def get_experiment_data(exp_id):
 ```python
 try:
     query = f"""
-    SELECT * FROM agentsociety.as_{table_suffix}_agent_profile
+    SELECT * FROM en_agentsociety.as_{table_suffix}_agent_profile
     """
     data['profiles'] = conn.execute(query).df()
     print(f"Agent profiles: {len(data['profiles'])} records")
@@ -189,7 +189,7 @@ except Exception as e:
 ```python
 try:
     query = f"""
-    SELECT * FROM agentsociety.as_{table_suffix}_agent_status
+    SELECT * FROM en_agentsociety.as_{table_suffix}_agent_status
     ORDER BY day, t
     """
     data['statuses'] = conn.execute(query).df()
@@ -204,7 +204,7 @@ except Exception as e:
 ```python
 try:
     query = f"""
-    SELECT * FROM agentsociety.as_{table_suffix}_agent_dialog
+    SELECT * FROM en_agentsociety.as_{table_suffix}_agent_dialog
     ORDER BY day, t
     """
     data['dialogs'] = conn.execute(query).df()
@@ -219,7 +219,7 @@ except Exception as e:
 ```python
 try:
     query = f"""
-    SELECT * FROM agentsociety.as_{table_suffix}_agent_survey
+    SELECT * FROM en_agentsociety.as_{table_suffix}_agent_survey
     ORDER BY day, t
     """
     data['surveys'] = conn.execute(query).df()
@@ -234,7 +234,7 @@ except Exception as e:
 ```python
 try:
     query = f"""
-    SELECT * FROM agentsociety.as_{table_suffix}_global_prompt
+    SELECT * FROM en_agentsociety.as_{table_suffix}_global_prompt
     ORDER BY day, t
     """
     data['global_prompts'] = conn.execute(query).df()
@@ -249,7 +249,7 @@ except Exception as e:
 ```python
 try:
     query = f"""
-    SELECT * FROM agentsociety.as_{table_suffix}_metric
+    SELECT * FROM en_agentsociety.as_{table_suffix}_metric
     ORDER BY step
     """
     data['metrics'] = conn.execute(query).df()

@@ -1,0 +1,238 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2025, FIBLAB
+# This file is distributed under the same license as the AgentSociety
+# package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: AgentSociety 1.5\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-08-05 00:57+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+
+#: ../../apidocs/agentsociety/en_agentsociety.cityagent.bankagent.md:1
+#, python-brace-format
+msgid "{py:mod}`en_agentsociety.cityagent.bankagent`"
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.cityagent.bankagent.md:10
+msgid "Module Contents"
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.cityagent.bankagent.md:12
+msgid "Classes"
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.cityagent.bankagent.md:18
+#, python-brace-format
+msgid ""
+"{py:obj}`BankAgentConfig "
+"<en_agentsociety.cityagent.bankagent.BankAgentConfig>`"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:20
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:78
+msgid "Configuration for BankAgent."
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.cityagent.bankagent.md:22
+#, python-brace-format
+msgid "{py:obj}`BankAgent <en_agentsociety.cityagent.bankagent.BankAgent>`"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:24
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:105
+msgid "A central banking agent that manages monetary policy in the simulation."
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.cityagent.bankagent.md:28
+msgid "Functions"
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.cityagent.bankagent.md:34
+#, python-brace-format
+msgid ""
+"{py:obj}`calculate_inflation "
+"<en_agentsociety.cityagent.bankagent.calculate_inflation>`"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:36
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:68
+msgid "Calculate annual inflation rates based on historical price data."
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.cityagent.bankagent.md:40
+msgid "Data"
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.cityagent.bankagent.md:46
+#, python-brace-format
+msgid "{py:obj}`__all__ <en_agentsociety.cityagent.bankagent.__all__>`"
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.cityagent.bankagent.md:52
+msgid "API"
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.cityagent.bankagent.md:58
+msgid "['BankAgent']"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:70
+msgid "Args:     prices (list/np.array): A list of monthly price values"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:73
+msgid ""
+"Returns:     list: Annual inflation rates in percentages. Returns empty "
+"list if           insufficient data (less than 2 full years of data)."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:77
+msgid ""
+"Logic:     1. Truncates input to full years of data (multiples of 12 "
+"months)     2. Reshapes monthly data into yearly groups     3. Computes "
+"average price per year     4. Calculates year-over-year inflation rates"
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.cityagent.bankagent.md:75
+#, python-brace-format
+msgid "Bases: {py:obj}`en_agentsociety.agent.AgentParams`"
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.cityagent.bankagent.md:80
+#: ../../apidocs/agentsociety/en_agentsociety.cityagent.bankagent.md:107
+msgid "Initialization"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:84
+msgid ""
+"Create a new model by parsing and validating input data from keyword "
+"arguments."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:86
+msgid ""
+"Raises [`ValidationError`][pydantic_core.ValidationError] if the input "
+"data cannot be validated to form a valid model."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:89
+msgid "`self` is explicitly positional-only to allow `self` as a field name."
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.cityagent.bankagent.md:91
+msgid "'Field(...)'"
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.cityagent.bankagent.md:102
+#, python-brace-format
+msgid "Bases: {py:obj}`en_agentsociety.agent.BankAgentBase`"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:107
+msgid "Key Responsibilities:"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:108
+msgid ""
+"Adjusts interest rates based on inflation trends (Taylor Rule "
+"implementation)"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:109
+msgid "Applies interest to citizens' savings periodically"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:110
+msgid "Interacts with economic simulation components via EconomyClient"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:112
+msgid "Configurable Parameters:"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:113
+msgid ""
+"time_diff: Frequency of policy updates in simulation seconds (default: 30"
+" days)"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:111
+msgid "Initialize the banking agent."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:113
+msgid "**Args**:"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:114
+msgid "`name` (`str`): The name or identifier of the agent."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:115
+msgid "`toolbox` (`AgentToolbox`): The toolbox of the agent."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:116
+msgid "`memory` (`Memory`): The memory of the agent."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:118
+msgid "**Description**:"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:119
+msgid ""
+"Initializes the banking agent with the provided parameters and sets up "
+"necessary internal states."
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.cityagent.bankagent.md:117
+msgid "None"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:139
+msgid "Reset the BankAgent."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:148
+msgid "Check if monthly policy update should be triggered."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:150
+msgid ""
+"Returns:     bool: True if required time interval has passed since last "
+"update"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:153
+msgid "Note:     Uses simulation time rather than real-world time"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:157
+msgid "Execute monthly policy update cycle."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:159
+msgid "Performs two main actions:"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:160
+msgid "Applies interest to citizens' savings"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/cityagent/bankagent.py:161
+msgid "Adjusts interest rate based on inflation (Taylor Rule)"
+msgstr ""
+

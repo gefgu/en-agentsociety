@@ -1,4 +1,4 @@
-from agentsociety.simulation import AgentSociety
+from en_agentsociety.simulation import AgentSociety
 
 __all__ = ["do_nothing"]
 

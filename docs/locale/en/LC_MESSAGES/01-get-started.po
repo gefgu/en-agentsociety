@@ -229,10 +229,10 @@ msgid "使用前准备"
 msgstr "Preparation Before Use"
 
 #: ../../01-get-started/02-installation.md:28
-msgid "完成AgentSociety的安装后，在命令行中可以输入`agentsociety`命令检查是否安装成功，如果出现以下内容说明安装成功："
+msgid "完成AgentSociety的安装后，在命令行中可以输入`en-agentsociety`命令检查是否安装成功，如果出现以下内容说明安装成功："
 msgstr ""
 "After completing the installation of AgentSociety, you can enter the "
-"`agentsociety` command in the command line to check if the installation "
+"`en-agentsociety` command in the command line to check if the installation "
 "was successful. If the following content appears, the installation is "
 "successful:"
 

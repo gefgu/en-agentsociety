@@ -2,9 +2,9 @@
 from typing import Any
 
 import json_repair
-from agentsociety.agent import AgentToolbox, Block, FormatPrompt, DotDict
-from agentsociety.logger import get_logger
-from agentsociety.memory import Memory
+from en_agentsociety.agent import AgentToolbox, Block, FormatPrompt, DotDict
+from en_agentsociety.logger import get_logger
+from en_agentsociety.memory import Memory
 from .utils import clean_json_response
 
 INITIAL_NEEDS_PROMPT = """You are an intelligent agent satisfaction initialization system. Based on the profile information below, please help initialize the agent's satisfaction levels and related parameters.

@@ -4,8 +4,8 @@ MessageProbe tool for the Agent Society.
 
 from typing import Dict
 
-from agentsociety.llm import LLM
-from agentsociety.agent import Agent
+from en_agentsociety.llm import LLM
+from en_agentsociety.agent import Agent
 import json_repair
 from .utils import clean_json_response
 

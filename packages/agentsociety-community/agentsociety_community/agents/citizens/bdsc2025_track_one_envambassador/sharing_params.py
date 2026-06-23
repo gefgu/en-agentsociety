@@ -1,5 +1,5 @@
 from pydantic import Field
-from agentsociety.agent import AgentParams, AgentContext
+from en_agentsociety.agent import AgentParams, AgentContext
 from .defaults import *
 
 

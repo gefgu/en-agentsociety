@@ -6,7 +6,7 @@ import json_repair
 import numpy as np
 from pydantic import Field
 
-from agentsociety.agent import (
+from en_agentsociety.agent import (
     AgentToolbox,
     Block,
     FormatPrompt,
@@ -15,8 +15,8 @@ from agentsociety.agent import (
     DotDict,
     BlockContext,
 )
-from agentsociety.logger import get_logger
-from agentsociety.memory import Memory
+from en_agentsociety.logger import get_logger
+from en_agentsociety.memory import Memory
 from ....agents.citizens.cityagent.societyagent import SocietyAgentBlockOutput
 from .utils import clean_json_response, prettify_document
 from .utils import extract_dict_from_string

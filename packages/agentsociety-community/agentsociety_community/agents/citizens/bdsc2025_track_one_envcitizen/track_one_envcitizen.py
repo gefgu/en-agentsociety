@@ -1,12 +1,12 @@
 import time
 
 import json
-from agentsociety.message import Message, MessageKind
+from en_agentsociety.message import Message, MessageKind
 import json_repair
 from typing import Optional
 
 from pydantic import Field
-from agentsociety.agent import (
+from en_agentsociety.agent import (
     AgentToolbox,
     Block,
     CitizenAgentBase,
@@ -16,9 +16,9 @@ from agentsociety.agent import (
     DotDict,
     MemoryAttribute,
 )
-from agentsociety.logger import get_logger
-from agentsociety.memory import Memory
-from agentsociety.survey import Survey
+from en_agentsociety.logger import get_logger
+from en_agentsociety.memory import Memory
+from en_agentsociety.survey import Survey
 from .blocks import (
     EnvCognitionBlock,
     EnvNeedsBlock,

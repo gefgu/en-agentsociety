@@ -36,11 +36,11 @@ AgentSociety Benchmark Toolkit 是一个专为多智能体系统设计的综合�
 ```bash
 # 从源码安装
 git clone <repository-url>
-cd packages/agentsociety-benchmark
+cd packages/en-agentsociety-benchmark
 pip install -e .
 
 # 或者使用pip安装（如果已发布）
-pip install agentsociety-benchmark
+pip install en-agentsociety-benchmark
 ```
 
 ### 查看可用任务

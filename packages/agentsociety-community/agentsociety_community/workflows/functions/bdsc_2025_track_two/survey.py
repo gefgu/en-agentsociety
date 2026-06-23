@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from agentsociety.survey.models import Page, Question, QuestionType, Survey
+from en_agentsociety.survey.models import Page, Question, QuestionType, Survey
 import json_repair
 
 

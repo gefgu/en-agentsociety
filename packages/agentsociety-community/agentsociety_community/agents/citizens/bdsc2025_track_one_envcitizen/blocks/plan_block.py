@@ -2,9 +2,9 @@ from typing import Any, Optional, Tuple
 
 import json_repair
 
-from agentsociety.agent import AgentToolbox, Block, FormatPrompt
-from agentsociety.logger import get_logger
-from agentsociety.memory import Memory
+from en_agentsociety.agent import AgentToolbox, Block, FormatPrompt
+from en_agentsociety.logger import get_logger
+from en_agentsociety.memory import Memory
 from .utils import clean_json_response
 
 GUIDANCE_SELECTION_PROMPT = """As an intelligent agent's decision system, please help me determine a suitable option to satisfy my current need.

@@ -1,8 +1,8 @@
 import json_repair
 from typing import Any
 
-from agentsociety.agent import AgentToolbox, Block, FormatPrompt
-from agentsociety.memory import Memory
+from en_agentsociety.agent import AgentToolbox, Block, FormatPrompt
+from en_agentsociety.memory import Memory
 from .utils import clean_json_response
 
 INITIAL_NEEDS_PROMPT = """You are an intelligent agent satisfaction initialization system. Based on the profile information below, please help initialize the agent's satisfaction levels and related parameters.

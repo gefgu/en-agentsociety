@@ -23,7 +23,7 @@ BehaviorModeling benchmark 旨在评估LLM智能体在用户行为建模方面�
 您的智能体应该继承自 `IndividualAgentBase` 并实现 `forward` 方法。可以参考 `template_agent.py` 文件作为起点：
 
 ```python
-from agentsociety.agent import IndividualAgentBase
+from en_agentsociety.agent import IndividualAgentBase
 from typing import Any
 from .interactiontool import InteractionTool  # 可选：直接导入InteractionTool
 
@@ -175,7 +175,7 @@ elif target == "recommendation":
 以下是一个展示如何实现基本智能体的完整示例，包含详细的InteractionTool使用和最佳实践：
 
 ```python
-from agentsociety.agent import IndividualAgentBase
+from en_agentsociety.agent import IndividualAgentBase
 from typing import Any
 
 class BehaviorModelingAgent(IndividualAgentBase):

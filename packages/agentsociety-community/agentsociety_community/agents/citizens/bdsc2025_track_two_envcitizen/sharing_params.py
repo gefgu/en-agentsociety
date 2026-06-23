@@ -1,7 +1,7 @@
 
 
 from pydantic import Field
-from agentsociety.agent import (
+from en_agentsociety.agent import (
     BlockOutput,
     AgentParams,
     AgentContext,

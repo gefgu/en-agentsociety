@@ -2,9 +2,9 @@ import asyncio
 import random
 from typing import Any, Optional, cast
 
-from agentsociety.agent import (AgentToolbox, Block)
-from agentsociety.agent.prompt import FormatPrompt
-from agentsociety.memory import Memory
+from en_agentsociety.agent import (AgentToolbox, Block)
+from en_agentsociety.agent.prompt import FormatPrompt
+from en_agentsociety.memory import Memory
 from openai import OpenAIError
 
 from .supervisor.sensing_api import (InterventionType)

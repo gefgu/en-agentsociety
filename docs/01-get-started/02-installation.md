@@ -2,7 +2,7 @@
 
 AgentSociety的安装通过pip即可完成：
 ```bash
-pip install agentsociety
+pip install en-agentsociety
 ```
 
 ```{admonition} 更多程序包
@@ -15,7 +15,7 @@ pip install agentsociety-community agentsociety-benchmark
 
 如果需要安装指定版本，可以在PyPI上查看[历史版本](https://pypi.org/project/agentsociety/#history)，并使用指定版本的安装方式（以安装1.3.7版本为例）：
 ```bash
-pip install "agentsociety==1.3.7"
+pip install "en-agentsociety==1.3.7"
 ```
 
 ```{admonition} 注意
@@ -25,9 +25,9 @@ AgentSociety的Python程序包不区分操作系统与体系结构，请保证�
 
 ## 使用前准备
 
-完成AgentSociety的安装后，在命令行中可以输入`agentsociety`命令检查是否安装成功，如果出现以下内容说明安装成功：
+完成AgentSociety的安装后，在命令行中可以输入`en-agentsociety`命令检查是否安装成功，如果出现以下内容说明安装成功：
 ```bash
-Usage: agentsociety [OPTIONS] COMMAND [ARGS]...
+Usage: en-agentsociety [OPTIONS] COMMAND [ARGS]...
 
   AgentSociety CLI tool
 

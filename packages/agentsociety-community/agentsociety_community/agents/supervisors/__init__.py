@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable, Dict, Type
 
-from agentsociety.agent import SupervisorBase
+from en_agentsociety.agent import SupervisorBase
 
 if TYPE_CHECKING:
     from .bdsc2025_track_two_supervisor import (BaselineSupervisor,

@@ -1,9 +1,9 @@
 from typing import Any, Optional, Tuple
 
 import json_repair
-from agentsociety.agent import Agent, AgentToolbox, Block, DotDict, FormatPrompt
-from agentsociety.logger import get_logger
-from agentsociety.memory import Memory
+from en_agentsociety.agent import Agent, AgentToolbox, Block, DotDict, FormatPrompt
+from en_agentsociety.logger import get_logger
+from en_agentsociety.memory import Memory
 
 from .utils import clean_json_response
 

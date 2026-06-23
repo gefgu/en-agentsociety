@@ -32,7 +32,7 @@ extensions = [
 ]
 
 autodoc2_packages = [
-    "../packages/agentsociety/agentsociety",
+    "../packages/en-agentsociety/en_agentsociety",
 ]
 autodoc2_render_plugin = "myst"
 

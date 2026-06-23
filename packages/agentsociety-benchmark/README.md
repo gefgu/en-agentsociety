@@ -36,11 +36,11 @@ The HarricaneMobility benchmark focuses on evaluating agents' behavior modeling 
 ```bash
 # Install from source
 git clone <repository-url>
-cd packages/agentsociety-benchmark
+cd packages/en-agentsociety-benchmark
 pip install -e .
 
 # Or install via pip (if published)
-pip install agentsociety-benchmark
+pip install en-agentsociety-benchmark
 ```
 
 ### Command Line Interface

@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from agentsociety.survey.models import Survey, Page, Question, QuestionType
+from en_agentsociety.survey.models import Survey, Page, Question, QuestionType
 
 def personality_survey() -> Survey:
     survey_id = uuid.uuid4()

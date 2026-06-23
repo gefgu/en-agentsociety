@@ -1,4 +1,4 @@
-from agentsociety.taskloader import Task
+from en_agentsociety.taskloader import Task
 from typing import Optional
 from dataclasses import dataclass
 

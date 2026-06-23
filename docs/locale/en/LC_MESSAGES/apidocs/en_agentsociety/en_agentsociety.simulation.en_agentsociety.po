@@ -1,0 +1,186 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2025, FIBLAB
+# This file is distributed under the same license as the AgentSociety
+# package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: AgentSociety 1.5\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-08-05 00:57+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+
+#: ../../apidocs/agentsociety/en_agentsociety.simulation.en_agentsociety.md:1
+#, python-brace-format
+msgid "{py:mod}`en_agentsociety.simulation.en_agentsociety`"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:7
+msgid "A clear version of the simulation."
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.simulation.en_agentsociety.md:10
+msgid "Module Contents"
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.simulation.en_agentsociety.md:12
+msgid "Classes"
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.simulation.en_agentsociety.md:18
+#, python-brace-format
+msgid "{py:obj}`AgentSociety <en_agentsociety.simulation.en_agentsociety.AgentSociety>`"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:20
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:53
+msgid "Factory class for creating simulation engines based on configuration type."
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.simulation.en_agentsociety.md:24
+msgid "Data"
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.simulation.en_agentsociety.md:30
+#, python-brace-format
+msgid "{py:obj}`__all__ <en_agentsociety.simulation.en_agentsociety.__all__>`"
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.simulation.en_agentsociety.md:36
+msgid "API"
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.simulation.en_agentsociety.md:42
+msgid "['AgentSociety']"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:55
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:61
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:69
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:77
+msgid "**Description**:"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:56
+msgid ""
+"A factory class that creates and returns the appropriate engine instance "
+"based on the configuration type provided."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:58
+msgid "Returns SimulationEngine for Config type"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:59
+msgid "Returns TaskSolverEngine for SolverConfig type"
+msgstr ""
+
+#: ../../apidocs/agentsociety/en_agentsociety.simulation.en_agentsociety.md:55
+msgid "Initialization"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:59
+msgid "Initialize AgentSociety factory class."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:62
+msgid "This constructor is kept for backward compatibility but is deprecated."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:63
+msgid "Use AgentSociety.create() static method instead."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:65
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:75
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:81
+msgid "**Args**:"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:66
+msgid "`config` (Union[Config, IndividualConfig]): The configuration object."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:67
+msgid "`tenant_id` (str, optional): The tenant ID. Defaults to \"\"."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:67
+msgid ""
+"Create and return the appropriate engine instance based on configuration "
+"type."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:70
+msgid ""
+"Factory method that creates the appropriate engine instance based on the "
+"configuration type provided."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:72
+msgid "For Config type: returns SimulationEngine instance"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:73
+msgid "For IndividualConfig type: returns IndividualEngine instance"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:76
+msgid ""
+"`config` (Union[Config, IndividualConfig]): The configuration object that"
+" determines which engine to create."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:78
+msgid ""
+"`tenant_id` (str, optional): The tenant ID for the engine. Defaults to "
+"\"\"."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:80
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:84
+msgid "**Returns**:"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:81
+msgid ""
+"`Union[SimulationEngine, IndividualEngine]`: The appropriate engine "
+"instance based on the configuration type."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:84
+msgid "**Raises**:"
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:85
+msgid "`ValueError`: If the configuration type is not supported."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:75
+msgid "Delegate attribute access to the underlying engine instance."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:78
+msgid ""
+"Delegates any attribute access to the underlying engine instance for "
+"backward compatibility."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:82
+msgid "`name` (str): The name of the attribute to access."
+msgstr ""
+
+#: ../../../packages/en-agentsociety/en_agentsociety/simulation/en_agentsociety.py:85
+msgid "The attribute value from the underlying engine."
+msgstr ""
+

@@ -4,8 +4,8 @@ Communication tool for the Agent Society.
 
 from typing import Union
 
-from agentsociety.agent import Agent
-from agentsociety.llm import LLM
+from en_agentsociety.agent import Agent
+from en_agentsociety.llm import LLM
 from .message_probe import MessageProbe
 
 COMMUNICATION_BELLEISHMENT = """

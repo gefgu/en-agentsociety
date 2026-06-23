@@ -1,6 +1,6 @@
 from pathlib import Path
-from agentsociety.agent import CustomTool
-from agentsociety.configs import IndividualConfig, TaskLoaderConfig, AgentConfig
+from en_agentsociety.agent import CustomTool
+from en_agentsociety.configs import IndividualConfig, TaskLoaderConfig, AgentConfig
 
 from .task import BehaviorModelingTask
 from .interactiontool import InteractionTool

@@ -1,7 +1,7 @@
-from agentsociety.agent import AgentToolbox, Block, FormatPrompt
-from agentsociety.message import Message, MessageKind
-from agentsociety.memory import Memory
-from agentsociety.logger import get_logger
+from en_agentsociety.agent import AgentToolbox, Block, FormatPrompt
+from en_agentsociety.message import Message, MessageKind
+from en_agentsociety.memory import Memory
+from en_agentsociety.logger import get_logger
 from typing import Any, Optional
 
 import json_repair

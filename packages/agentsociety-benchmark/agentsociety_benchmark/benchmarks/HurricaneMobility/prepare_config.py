@@ -1,6 +1,6 @@
 from pathlib import Path
-from agentsociety.agent import CitizenAgentBase
-from agentsociety.configs import Config, AgentsConfig, AgentConfig, MapConfig, ExpConfig, WorkflowStepConfig, EnvironmentConfig, WorkflowType
+from en_agentsociety.agent import CitizenAgentBase
+from en_agentsociety.configs import Config, AgentsConfig, AgentConfig, MapConfig, ExpConfig, WorkflowStepConfig, EnvironmentConfig, WorkflowType
 from agentsociety_benchmark.utils.agent_loader import load_agent_class
 from agentsociety_benchmark.cli import BenchmarkConfig
 

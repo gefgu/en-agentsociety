@@ -1,4 +1,4 @@
-from agentsociety.agent import IndividualAgentBase
+from en_agentsociety.agent import IndividualAgentBase
 from typing import Any
 
 class BehaviorModelingAgent(IndividualAgentBase):

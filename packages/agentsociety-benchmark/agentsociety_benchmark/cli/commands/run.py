@@ -11,7 +11,7 @@ import requests
 import yaml
 
 from ..config import BenchmarkConfig
-from agentsociety.configs import AgentConfig
+from en_agentsociety.configs import AgentConfig
 from agentsociety_benchmark.runner import BenchmarkRunner
 
 

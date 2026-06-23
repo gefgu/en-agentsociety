@@ -1,4 +1,4 @@
-from agentsociety.agent import CitizenAgentBase
+from en_agentsociety.agent import CitizenAgentBase
 from pycityproto.city.person.v2.motion_pb2 import Status
 import random
 

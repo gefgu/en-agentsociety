@@ -3,10 +3,10 @@ import random
 import time
 from typing import Any, Optional, cast
 
-from agentsociety.agent import (AgentToolbox, Block, CitizenAgentBase,
+from en_agentsociety.agent import (AgentToolbox, Block, CitizenAgentBase,
                                 MemoryAttribute)
-from agentsociety.memory import Memory
-from agentsociety.memory.const import RelationType, SocialRelation
+from en_agentsociety.memory import Memory
+from en_agentsociety.memory.const import RelationType, SocialRelation
 
 from .sharing_params import (RumorSpreaderBlockOutput, RumorSpreaderConfig,
                              RumorSpreaderContext)

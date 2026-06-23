@@ -3,11 +3,11 @@ import copy
 import json
 import random
 
-from agentsociety.cityagent import (
+from en_agentsociety.cityagent import (
     SocietyAgent,
     default,
 )
-from agentsociety.configs import (
+from en_agentsociety.configs import (
     AgentsConfig,
     Config,
     EnvConfig,
@@ -15,15 +15,15 @@ from agentsociety.configs import (
     LLMConfig,
     MapConfig,
 )
-from agentsociety.configs.agent import AgentConfig
-from agentsociety.configs.exp import (
+from en_agentsociety.configs.agent import AgentConfig
+from en_agentsociety.configs.exp import (
     WorkflowStepConfig,
     WorkflowType,
 )
-from agentsociety.environment import EnvironmentConfig
-from agentsociety.llm import LLMProviderType
-from agentsociety.simulation import AgentSociety
-from agentsociety.storage import DatabaseConfig
+from en_agentsociety.environment import EnvironmentConfig
+from en_agentsociety.llm import LLMProviderType
+from en_agentsociety.simulation import AgentSociety
+from en_agentsociety.storage import DatabaseConfig
 
 
 async def gather_memory(simulation: AgentSociety):
@@ -111,10 +111,10 @@ config = default(config)
 async def main():
     agentsociety = AgentSociety.create(config)
     try:
-        await agentsociety.init()
-        await agentsociety.run()
+        await en_agentsociety.init()
+        await en_agentsociety.run()
     finally:
-        await agentsociety.close()
+        await en_agentsociety.close()
 
 
 if __name__ == "__main__":

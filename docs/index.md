@@ -36,14 +36,14 @@
 ## 安装
 
 ```bash
-pip install agentsociety
+pip install en-agentsociety
 ```
 
 参考[快速入门](01-get-started/index.md)部分了解[前置准备](01-get-started/01-prerequisites.md)和[安装](01-get-started/02-installation.md) 说明。
 
 除了AgentSociety平台本身外，我们还提供了一些PyPI包用于扩展AgentSociety的功能：
-- [agentsociety-community](https://github.com/tsinghua-fib-lab/AgentSociety/tree/main/packages/agentsociety-community)：社区库，用于发布自定义智能体与Block。
-- [agentsociety-benchmark](https://github.com/tsinghua-fib-lab/AgentSociety/tree/main/packages/agentsociety-benchmark)：基准测试库，基于AgentSociety框架评估智能体在多种城市任务上的性能。
+- [agentsociety-community](https://github.com/tsinghua-fib-lab/AgentSociety/tree/main/packages/en-agentsociety-community)：社区库，用于发布自定义智能体与Block。
+- [agentsociety-benchmark](https://github.com/tsinghua-fib-lab/AgentSociety/tree/main/packages/en-agentsociety-benchmark)：基准测试库，基于AgentSociety框架评估智能体在多种城市任务上的性能。
 
 ## 使用案例
 

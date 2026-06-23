@@ -11,7 +11,7 @@ How to add a new block:
 
 from typing import Callable, Dict, Type, TYPE_CHECKING
 
-from agentsociety.agent import Block
+from en_agentsociety.agent import Block
 
 if TYPE_CHECKING:
     from .cityagent import (

@@ -6,7 +6,7 @@ import json
 
 import json_repair
 
-from agentsociety.agent import (
+from en_agentsociety.agent import (
     AgentToolbox,
     Block,
     FormatPrompt,
@@ -14,11 +14,11 @@ from agentsociety.agent import (
     DotDict,
     BlockContext,
 )
-from agentsociety.logger import get_logger
-from agentsociety.memory import Memory
-from agentsociety.agent.dispatcher import BlockDispatcher
+from en_agentsociety.logger import get_logger
+from en_agentsociety.memory import Memory
+from en_agentsociety.agent.dispatcher import BlockDispatcher
 from .utils import TIME_ESTIMATE_PROMPT, clean_json_response
-from agentsociety.cityagent.sharing_params import SocietyAgentBlockOutput
+from en_agentsociety.cityagent.sharing_params import SocietyAgentBlockOutput
 from pydantic import Field
 
 

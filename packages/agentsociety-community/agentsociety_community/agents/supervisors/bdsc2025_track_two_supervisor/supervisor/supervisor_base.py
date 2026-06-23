@@ -3,10 +3,10 @@ import time
 from abc import abstractmethod
 from typing import Any, Optional, Set, Tuple, cast
 
-from agentsociety.agent import (AgentToolbox, Block, SupervisorBase)
-from agentsociety.memory import Memory
-from agentsociety.memory.const import RelationType, SocialRelation
-from agentsociety.message import Message, MessageKind
+from en_agentsociety.agent import (AgentToolbox, Block, SupervisorBase)
+from en_agentsociety.memory import Memory
+from en_agentsociety.memory.const import RelationType, SocialRelation
+from en_agentsociety.message import Message, MessageKind
 
 from .sensing_api import InterventionType, SensingAPI
 from .sharing_params import SupervisorConfig, SupervisorContext

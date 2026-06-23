@@ -4,9 +4,9 @@ Input: Configs, Output: Evaluation results.
 """
 
 from typing import Any
-from agentsociety.simulation import AgentSociety
-from agentsociety.configs.exp import WorkflowType, WorkflowStepConfig, ExpConfig
-from agentsociety.environment import EnvironmentConfig
+from en_agentsociety.simulation import AgentSociety
+from en_agentsociety.configs.exp import WorkflowType, WorkflowStepConfig, ExpConfig
+from en_agentsociety.environment import EnvironmentConfig
 
 from ....agents.citizens.bdsc2025_track_one_envambassador import EnvAgentBase
 from ....agents.citizens.bdsc2025_track_one_envcitizen import TrackOneEnvCitizen

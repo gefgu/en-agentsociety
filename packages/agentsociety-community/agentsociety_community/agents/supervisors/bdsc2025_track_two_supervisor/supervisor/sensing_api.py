@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Optional, Tuple, Union
 
-from agentsociety.agent import SupervisorBase
+from en_agentsociety.agent import SupervisorBase
 
 
 class InterventionType(str, Enum):

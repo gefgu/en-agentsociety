@@ -1,8 +1,8 @@
 
-from agentsociety.configs.exp import (ExpConfig,
+from en_agentsociety.configs.exp import (ExpConfig,
                                       WorkflowStepConfig, WorkflowType)
-from agentsociety.environment import EnvironmentConfig
-from agentsociety.simulation import AgentSociety
+from en_agentsociety.environment import EnvironmentConfig
+from en_agentsociety.simulation import AgentSociety
 
 from ....agents.citizens.bdsc2025_track_two_envcitizen import \
     TrackTwoEnvCitizen

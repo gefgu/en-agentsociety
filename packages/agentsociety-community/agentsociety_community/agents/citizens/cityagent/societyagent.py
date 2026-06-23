@@ -6,15 +6,15 @@ from typing import Any, Optional
 
 import json_repair
 
-from agentsociety.agent import (
+from en_agentsociety.agent import (
     AgentToolbox,
     Block,
     CitizenAgentBase,
     FormatPrompt,
     MemoryAttribute,
 )
-from agentsociety.logger import get_logger
-from agentsociety.memory import Memory
+from en_agentsociety.logger import get_logger
+from en_agentsociety.memory import Memory
 from .cognition_block import CognitionBlock
 from .needs_block import NeedsBlock
 from .plan_block import PlanBlock
@@ -23,7 +23,7 @@ from .sharing_params import (
     SocietyAgentBlockOutput,
     SocietyAgentContext,
 )
-from agentsociety.message import Message
+from en_agentsociety.message import Message
 
 ENVIRONMENT_REFLECTION_PROMPT = """
 You are a citizen of the city.

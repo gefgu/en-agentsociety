@@ -1,9 +1,9 @@
 from typing import Any, Optional
 
 import json_repair
-from agentsociety.agent import AgentToolbox, Block, BlockParams, FormatPrompt
-from agentsociety.logger import get_logger
-from agentsociety.memory import Memory
+from en_agentsociety.agent import AgentToolbox, Block, BlockParams, FormatPrompt
+from en_agentsociety.logger import get_logger
+from en_agentsociety.memory import Memory
 from pydantic import Field
 
 __all__ = ["CognitionBlock"]

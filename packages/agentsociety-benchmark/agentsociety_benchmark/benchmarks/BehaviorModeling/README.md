@@ -23,7 +23,7 @@ The BehaviorModeling benchmark evaluates LLM agents' capabilities in user behavi
 Your agent should inherit from `IndividualAgentBase` and implement the `forward` method. You can use `template_agent.py` as a starting point:
 
 ```python
-from agentsociety.agent import IndividualAgentBase
+from en_agentsociety.agent import IndividualAgentBase
 from typing import Any
 from .interactiontool import InteractionTool  # Optional: direct import of InteractionTool
 
@@ -175,7 +175,7 @@ elif target == "recommendation":
 Here's a complete example showing how to implement a basic agent with detailed InteractionTool usage and best practices:
 
 ```python
-from agentsociety.agent import IndividualAgentBase
+from en_agentsociety.agent import IndividualAgentBase
 from typing import Any
 
 class BehaviorModelingAgent(IndividualAgentBase):

@@ -1,8 +1,8 @@
 from typing import Any, Optional
 
-from agentsociety.agent import CitizenAgentBase, AgentToolbox, Block, AgentParams, MemoryAttribute
-from agentsociety.message import Message, MessageKind
-from agentsociety.memory import Memory
+from en_agentsociety.agent import CitizenAgentBase, AgentToolbox, Block, AgentParams, MemoryAttribute
+from en_agentsociety.message import Message, MessageKind
+from en_agentsociety.memory import Memory
 
 from .tools import Sense, Poster, Announcement, Communication, MessageProbe
 from .fundmanager import FundManager

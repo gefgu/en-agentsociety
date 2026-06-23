@@ -5,9 +5,9 @@ import json_repair
 import numpy as np
 from pydantic import Field
 
-from agentsociety.agent import AgentToolbox, Block, FormatPrompt, BlockParams, BlockDispatcher, DotDict
-from agentsociety.logger import get_logger
-from agentsociety.memory import Memory
+from en_agentsociety.agent import AgentToolbox, Block, FormatPrompt, BlockParams, BlockDispatcher, DotDict
+from en_agentsociety.logger import get_logger
+from en_agentsociety.memory import Memory
 from .utils import TIME_ESTIMATE_PROMPT, clean_json_response
 
 

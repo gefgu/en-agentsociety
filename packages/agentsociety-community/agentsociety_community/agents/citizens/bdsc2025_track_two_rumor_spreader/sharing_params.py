@@ -1,5 +1,5 @@
 
-from agentsociety.agent import AgentContext, AgentParams, BlockOutput
+from en_agentsociety.agent import AgentContext, AgentParams, BlockOutput
 from pydantic import Field
 
 

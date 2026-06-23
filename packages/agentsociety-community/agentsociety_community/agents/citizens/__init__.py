@@ -11,7 +11,7 @@ How to add a new citizen:
 
 from typing import TYPE_CHECKING, Callable, Dict, Type
 
-from agentsociety.agent import CitizenAgentBase
+from en_agentsociety.agent import CitizenAgentBase
 
 if TYPE_CHECKING:
     from .bdsc2025_track_one_envambassador.baseline import BaselineEnvAmbassador

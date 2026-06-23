@@ -1,4 +1,4 @@
-from agentsociety.agent import IndividualAgentBase
+from en_agentsociety.agent import IndividualAgentBase
 
 # Lazy imports to avoid dependency issues during CLI operations
 def _get_prepare_config():

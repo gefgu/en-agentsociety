@@ -1,5 +1,5 @@
-from agentsociety.simulation import AgentSociety
-from agentsociety.configs import IndividualConfig
+from en_agentsociety.simulation import AgentSociety
+from en_agentsociety.configs import IndividualConfig
 
 async def entry(config: IndividualConfig, tenant_id: str):
     # ========================    
@@ -9,18 +9,18 @@ async def entry(config: IndividualConfig, tenant_id: str):
     # ========================    
     # init agentsociety
     # ========================
-    await agentsociety.init()
+    await en_agentsociety.init()
     # ========================    
     # run agentsociety
     # ========================
-    await agentsociety.run()
+    await en_agentsociety.run()
     # ========================    
     # get results
     # ========================
-    assert agentsociety._database_writer is not None
-    results = await agentsociety._database_writer.read_task_results()
+    assert en_agentsociety._database_writer is not None
+    results = await en_agentsociety._database_writer.read_task_results()
     # ========================    
     # close agentsociety
     # ========================
-    await agentsociety.close()
+    await en_agentsociety.close()
     return results

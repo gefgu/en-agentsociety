@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Optional
-from agentsociety.logger import get_logger
+from en_agentsociety.logger import get_logger
 
 
 class FundManager:

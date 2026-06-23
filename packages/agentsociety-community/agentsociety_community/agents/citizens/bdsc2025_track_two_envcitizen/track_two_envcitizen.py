@@ -2,12 +2,12 @@ import random
 import time
 from typing import Optional
 
-from agentsociety.agent import AgentToolbox, Block, CitizenAgentBase, MemoryAttribute
-from agentsociety.logger import get_logger
-from agentsociety.memory import Memory
-from agentsociety.memory.const import RelationType, SocialRelation
-from agentsociety.message import Message
-from agentsociety.survey import Survey
+from en_agentsociety.agent import AgentToolbox, Block, CitizenAgentBase, MemoryAttribute
+from en_agentsociety.logger import get_logger
+from en_agentsociety.memory import Memory
+from en_agentsociety.memory.const import RelationType, SocialRelation
+from en_agentsociety.message import Message
+from en_agentsociety.survey import Survey
 
 from .blocks import SocialBlock
 from .sharing_params import EnvCitizenBlockOutput, EnvCitizenConfig, EnvCitizenContext

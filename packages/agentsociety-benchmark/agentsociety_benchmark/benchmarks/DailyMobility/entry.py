@@ -1,6 +1,6 @@
-from agentsociety.simulation import AgentSociety
-from agentsociety.environment import MapData
-from agentsociety.configs import Config
+from en_agentsociety.simulation import AgentSociety
+from en_agentsociety.environment import MapData
+from en_agentsociety.configs import Config
 import numpy as np
 
 
@@ -105,23 +105,23 @@ async def entry(config: Config, tenant_id: str):
     # ========================    
     # init agentsociety
     # ========================
-    await agentsociety.init()
+    await en_agentsociety.init()
     # ========================    
     # run agentsociety
     # ========================
-    await agentsociety.run()
+    await en_agentsociety.run()
     # ========================    
     # get results
     # ========================
-    assert agentsociety._database_writer is not None
-    results = await agentsociety._database_writer.read_statuses()
+    assert en_agentsociety._database_writer is not None
+    results = await en_agentsociety._database_writer.read_statuses()
     # ========================    
     # gather results
     # ========================
-    map = agentsociety.environment.map # type: ignore
+    map = en_agentsociety.environment.map # type: ignore
     results = gather_results(results, map)
     # ========================    
     # close agentsociety
     # ========================
-    await agentsociety.close()
+    await en_agentsociety.close()
     return results

@@ -24,7 +24,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 COPY README.md LICENSE ./
 COPY pyproject.toml uv.lock ./
 COPY packages/ ./packages/
-COPY --from=builder /app/dist /app/packages/agentsociety/agentsociety/_dist
+COPY --from=builder /app/dist /app/packages/en-agentsociety/en_agentsociety/_dist
 
 # 使用清华源安装依赖
 RUN mkdir -p /etc/uv

@@ -3,9 +3,9 @@ import random
 import networkx as nx
 import numpy as np
 
-from agentsociety.cityagent.societyagent import SocietyAgent
-from agentsociety.logger import get_logger
-from agentsociety.simulation import AgentSociety
+from en_agentsociety.cityagent.societyagent import SocietyAgent
+from en_agentsociety.logger import get_logger
+from en_agentsociety.simulation import AgentSociety
 
 __all__ = ["initialize_social_network_with_graphs"]
 

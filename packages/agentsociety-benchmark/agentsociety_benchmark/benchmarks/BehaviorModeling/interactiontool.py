@@ -3,7 +3,7 @@ import json
 import lmdb
 from typing import Optional, Dict, List, Iterator
 from tqdm import tqdm
-from agentsociety.logger import get_logger
+from en_agentsociety.logger import get_logger
 
 class InteractionTool:
     def __init__(self, data_dir: str, block_set_path: Optional[str] = None):

@@ -1,1 +1,1 @@
-packages/agentsociety/README.md
+packages/en-agentsociety/README.md
