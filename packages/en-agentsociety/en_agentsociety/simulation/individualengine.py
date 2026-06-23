@@ -173,6 +173,7 @@ class IndividualEngine:
                     ),
                     batch_size=clickhouse_cfg.batch_size,
                     batch_timeout=clickhouse_cfg.batch_timeout,
+                    llm_response_storage=self._config.env.llm_response_storage,
                 )
                 get_logger().info("-----Database actor initialized")
             except Exception as e:
@@ -184,7 +185,7 @@ class IndividualEngine:
             # Initialize the LLM
             # ====================
             get_logger().info("-----Initializing LLM model...")
-            self._llm = LLM(self._config.llm)
+            self._llm = LLM(self._config.llm, db_actor=self._db_actor)
             get_logger().info("-----LLM initialized")
 
             # ====================

@@ -21,6 +21,7 @@ from .schema import (
 	ExperimentInfoRecord,
 	MetricRecord,
 	PendingMessageSnapshotRecord,
+	PromptResponseDetailRecord,
 	PromptResponseRecord,
 	StepAgentStatusRecord,
 	TaskResultRecord,
@@ -64,6 +65,7 @@ class BaseSimulationDatabase(ABC):
 		self.table_schemas: dict[str, type[DatabaseRecordModel]] = {
 			"NeedsBlock_adjust_needs": AdjustNeedsRecord,
 			"prompt_responses": PromptResponseRecord,
+			"prompt_response_details": PromptResponseDetailRecord,
 			"agent_location_type": AgentLocationTypeRecord,
 			"agent_transport_type": AgentTransportTypeRecord,
 			"step_agent_status": StepAgentStatusRecord,
@@ -533,4 +535,3 @@ class BaseSimulationDatabase(ABC):
 			f"Resume failed: no valid checkpoint found for experiment '{source_exp_id}'. "
 			f"All {n} candidate step(s) were rejected.{detail}"
 		)
-

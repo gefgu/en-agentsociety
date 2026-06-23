@@ -9,6 +9,7 @@
   - `db_type` (str): 数据库类型，支持`sqlite`和`postgresql`
   - `pg_dsn` (Optional[str]): PostgreSQL连接字符串，使用PostgreSQL时必需
 - `home_dir` (str): AgentSociety数据存储目录，默认`./agentsociety_data`
+- `llm_response_storage` (`detailed` | `lightview`): LLM调用记录存储模式，默认`detailed`。`detailed`保存完整prompt和response；`lightview`只保存步骤、时间、智能体、Block、函数、token和字符数等元数据。
 
 ## 配置示例
 
@@ -18,6 +19,7 @@ env:
   db:
     enabled: true
     db_type: sqlite
+  llm_response_storage: lightview
   home_dir: ./agentsociety_data
 ```
 

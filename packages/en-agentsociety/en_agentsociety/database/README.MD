@@ -28,6 +28,7 @@ Record contracts are defined in `schema.py`:
 
 - `AdjustNeedsRecord`
 - `PromptResponseRecord`
+- `PromptResponseDetailRecord`
 - `AgentLocationTypeRecord`
 - `AgentTransportTypeRecord`
 - `StepAgentStatusRecord`
@@ -158,11 +159,23 @@ db_actor.insert_prompt_response_record.remote(
 	response="Go to work",
 	block_name="PlannerBlock",
 	func_name="step",
+	input_tokens=5,
+	output_tokens=3,
+	prompt_identity="planner",
+	model_role="base",
 )
 
 db_actor.flush_all_batches.remote()
 db_actor.close.remote()
 ```
+
+LLM prompt/response telemetry supports two storage modes configured by
+`env.llm_response_storage`:
+
+- `detailed` stores full prompt/response text in `prompt_responses` and mirrors it
+	in `prompt_response_details`.
+- `lightview` stores only metadata in `prompt_responses`; `prompt` and `response`
+	are intentionally empty and no detail row is written.
 
 ## Resume Behavior
 

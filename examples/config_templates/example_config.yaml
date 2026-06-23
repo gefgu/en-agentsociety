@@ -7,6 +7,7 @@ llm:
 env:
   db:
     enabled: true # Whether to enable database
+  llm_response_storage: detailed # LLM telemetry mode: detailed stores prompts/responses, lightview stores metadata only
 map:
   file_path: <MAP-FILE-PATH> # Path to the map file
 agents:

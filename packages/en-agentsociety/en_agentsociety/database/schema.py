@@ -125,8 +125,12 @@ class DatabaseRecordModel(BaseModel):
         "extra_json",
         "prompt",
         "response",
+        "request_id",
         "block_name",
         "func_name",
+        "prompt_identity",
+        "model_role",
+        "storage_mode",
         "actor",
         "current_need",
         mode="before",
@@ -186,6 +190,27 @@ class PromptResponseRecord(DatabaseRecordModel):
     simulation_step: int = -1
     timestamp: datetime = Field(default_factory=datetime.now)
     agent_id: int = -1
+    request_id: str = ""
+    prompt: str
+    response: str
+    block_name: str
+    func_name: str
+    input_tokens: int = 0
+    output_tokens: int = 0
+    prompt_chars: int = 0
+    response_chars: int = 0
+    prompt_identity: str = ""
+    model_role: str = "base"
+    storage_mode: str = "detailed"
+    detail_available: int = 0
+
+
+class PromptResponseDetailRecord(DatabaseRecordModel):
+    exp_id: str = ""
+    simulation_step: int = -1
+    timestamp: datetime = Field(default_factory=datetime.now)
+    agent_id: int = -1
+    request_id: str = ""
     prompt: str
     response: str
     block_name: str

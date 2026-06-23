@@ -322,34 +322,32 @@ class LLM:
         result: Any,
         log: dict[str, Any],
     ) -> None:
-        if self._metrics_actor is None:
-            return
-
-        end_time = time.perf_counter()
         metric_context = context or {}
         model_role = metric_context.get("model_role", "base")
-        self._metrics_actor.record_block_performance.remote(
-            duration=end_time - start_time,
-            actor="llm",
-            model_role=model_role,
-            token_input=log["input_tokens"],
-            token_output=log["output_tokens"],
-            block_name=metric_context.get("block_name", "unknown"),
-            func_name=metric_context.get("func_name", "unknown"),
-            agent_id=metric_context.get("agent_id", "unknown"),
-        )
-
         prompt_name = (
             str(metric_context["prompt_identity"][0])
             if "prompt_identity" in metric_context
             else "unknown"
         )
-        self._metrics_actor.record_llm_tokens_by_prompt.remote(
-            prompt_name=prompt_name,
-            token_input=log["input_tokens"],
-            token_output=log["output_tokens"],
-            model_role=model_role,
-        )
+
+        if self._metrics_actor is not None:
+            end_time = time.perf_counter()
+            self._metrics_actor.record_block_performance.remote(
+                duration=end_time - start_time,
+                actor="llm",
+                model_role=model_role,
+                token_input=log["input_tokens"],
+                token_output=log["output_tokens"],
+                block_name=metric_context.get("block_name", "unknown"),
+                func_name=metric_context.get("func_name", "unknown"),
+                agent_id=metric_context.get("agent_id", "unknown"),
+            )
+            self._metrics_actor.record_llm_tokens_by_prompt.remote(
+                prompt_name=prompt_name,
+                token_input=log["input_tokens"],
+                token_output=log["output_tokens"],
+                model_role=model_role,
+            )
 
         if self._db_actor is not None:
             self._db_actor.insert_prompt_response_record.remote(
@@ -359,6 +357,10 @@ class LLM:
                 response=result,
                 block_name=metric_context.get("block_name", "unknown"),
                 func_name=metric_context.get("func_name", "unknown"),
+                input_tokens=log["input_tokens"],
+                output_tokens=log["output_tokens"],
+                prompt_identity=prompt_name,
+                model_role=model_role,
             )
 
     def _maybe_serve_probe_result(

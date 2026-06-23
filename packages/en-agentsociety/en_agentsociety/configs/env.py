@@ -74,6 +74,10 @@ class EnvConfig(BaseModel):
     """Whether to initialize the database actor. Set to false to skip database
     initialization, e.g. in e2e tests that don't require telemetry."""
 
+    llm_response_storage: Literal["lightview", "detailed"] = Field(default="detailed")
+    """Storage mode for LLM prompt/response telemetry. Use 'lightview' to store
+    metadata only, or 'detailed' to store full prompt and response payloads."""
+
     resume_rollback_depth: int = Field(default=10, ge=0)
     """Maximum number of older checkpoints to try when the latest checkpoint is
     invalid during resume. 0 means fail immediately on the first bad step."""

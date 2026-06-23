@@ -432,6 +432,7 @@ class InfrastructureManager:
                 batch_size=clickhouse_cfg.batch_size,
                 batch_timeout=clickhouse_cfg.batch_timeout,
                 metrics_actor=self._metrics_actor,
+                llm_response_storage=self._config.env.llm_response_storage,
             )
             self._db_tool = CustomTool(
                 name="db_actor",

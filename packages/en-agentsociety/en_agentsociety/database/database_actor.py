@@ -1,4 +1,5 @@
-from typing import Any, Optional
+import uuid
+from typing import Any, Literal, Optional
 from datetime import datetime
 
 import ray
@@ -18,6 +19,7 @@ from .schema import (
     ExperimentInfoRecord,
     MetricRecord,
     PendingMessageSnapshotRecord,
+    PromptResponseDetailRecord,
     PromptResponseRecord,
     StepAgentStatusRecord,
     TaskResultRecord,
@@ -41,7 +43,14 @@ class DatabaseActor:
         metrics_actor: Optional[Any] = None,
         duckdb_config: Optional[DuckDBConfig] = None,
         checkpoint_home_dir: Optional[str] = None,
+        llm_response_storage: Literal["lightview", "detailed"] = "detailed",
     ):
+        if llm_response_storage not in {"lightview", "detailed"}:
+            get_logger().warning(
+                f"Unknown LLM response storage mode '{llm_response_storage}', using 'detailed'."
+            )
+            llm_response_storage = "detailed"
+        self._llm_response_storage = llm_response_storage
         resolved_clickhouse_config = clickhouse_config or ClickHouseConfig()
 
         clickhouse_db = ClickHouseDatabase(
@@ -109,26 +118,58 @@ class DatabaseActor:
         response: str,
         block_name: str,
         func_name: str,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+        prompt_identity: str = "",
+        model_role: str = "base",
     ):
-        response_text = response
-        if not isinstance(response_text, str):
-            if hasattr(response_text, "choices") and len(response_text.choices) > 0:
-                response_text = response_text.choices[0].message.content or ""
-            else:
-                response_text = str(response_text)
-
+        request_id = str(uuid.uuid4())
+        response_text = self._coerce_response_text(response)
         prompt_text = prompt if isinstance(prompt, str) else str(prompt)
+        storage_mode = self._llm_response_storage
+        detail_available = 1 if storage_mode == "detailed" else 0
+        stored_prompt = prompt_text if detail_available else ""
+        stored_response = response_text if detail_available else ""
 
         record = PromptResponseRecord(
             simulation_step=self._current_simulation_step(),
             timestamp=timestamp,
             agent_id=agent_id,
-            prompt=prompt_text,
-            response=response_text,
+            request_id=request_id,
+            prompt=stored_prompt,
+            response=stored_response,
             block_name=block_name,
             func_name=func_name,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            prompt_chars=len(prompt_text),
+            response_chars=len(response_text),
+            prompt_identity=prompt_identity,
+            model_role=model_role,
+            storage_mode=storage_mode,
+            detail_available=detail_available,
         )
         self._db.insert_record("prompt_responses", record)
+        if detail_available:
+            detail_record = PromptResponseDetailRecord(
+                simulation_step=self._current_simulation_step(),
+                timestamp=timestamp,
+                agent_id=agent_id,
+                request_id=request_id,
+                prompt=prompt_text,
+                response=response_text,
+                block_name=block_name,
+                func_name=func_name,
+            )
+            self._db.insert_record("prompt_response_details", detail_record)
+
+    @staticmethod
+    def _coerce_response_text(response: Any) -> str:
+        if isinstance(response, str):
+            return response
+        if hasattr(response, "choices") and len(response.choices) > 0:
+            return response.choices[0].message.content or ""
+        return str(response)
 
     def insert_user_location_type_record(
         self,
