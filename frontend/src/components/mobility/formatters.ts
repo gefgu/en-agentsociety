@@ -59,7 +59,7 @@ function applyEcdf(option: any, meta: any) {
     const xStr = Number.isInteger(x) ? String(x) : x.toFixed(2);
     const xHeader = xUnit ? "X = " + xStr + " " + xUnit.toUpperCase() : "X = " + xStr;
     let out =
-      '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:6px;">' +
+      '<div style="font-family:\'JetBrains Mono\',monospace;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:6px;">' +
       xHeader +
       "</div>";
     (option.series || []).forEach((s: any) => {
@@ -75,11 +75,11 @@ function applyEcdf(option: any, meta: any) {
         color +
         ';flex-shrink:0;"></span>';
       out +=
-        '<span style="flex:1;font-family:\'IBM Plex Sans\',sans-serif;font-size:14px;">' +
+        '<span style="flex:1;font-family:\'DM Sans\',sans-serif;font-size:14px;">' +
         s.name +
         "</span>";
       out +=
-        '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:14px;font-weight:500;font-variant-numeric:tabular-nums;">' +
+        '<span style="font-family:\'JetBrains Mono\',monospace;font-size:14px;font-weight:500;font-variant-numeric:tabular-nums;">' +
         fy.toFixed(3) +
         "</span>";
       out += "</div>";
@@ -94,11 +94,11 @@ function applyMobilityLaw(option: any) {
   ensure(option, "tooltip").formatter = (params: any) => {
     const value = params.value || [];
     let out =
-      '<div style="font-family:\'IBM Plex Sans\',sans-serif;font-size:14px;">' +
+      '<div style="font-family:\'DM Sans\',sans-serif;font-size:14px;">' +
       params.seriesName +
       "</div>";
     out +=
-      '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:13px;margin-top:4px;">';
+      '<div style="font-family:\'JetBrains Mono\',monospace;font-size:13px;margin-top:4px;">';
     out += "x = " + formatLawNumber(value[0]) + "<br/>y = " + formatLawNumber(value[1]) + "</div>";
     const series = (option.series || [])[params.seriesIndex] || {};
     const fp = series.fitParameters;
@@ -108,7 +108,7 @@ function applyMobilityLaw(option: any) {
         .join(", ");
       if (text)
         out +=
-          '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;margin-top:6px;">' +
+          '<div style="font-family:\'JetBrains Mono\',monospace;font-size:12px;margin-top:6px;">' +
           text +
           "</div>";
     }

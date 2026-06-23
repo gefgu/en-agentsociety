@@ -1,59 +1,101 @@
 :root {
-    font-weight: normal;
+    --color-bg:         #070d1a;
+    --color-surface:    #0c1728;
+    --color-nav-bg:     rgba(7,13,26,0.96);
+    --color-accent:     #0fb8a4;
+    --color-text:       #e2eaf5;
+    --color-text-muted: rgba(226,234,245,0.48);
+    --color-border:     rgba(255,255,255,0.07);
+    --font-heading:     'Space Grotesk', system-ui, sans-serif;
+    --font-body:        'DM Sans', system-ui, sans-serif;
+    --font-mono:        'JetBrains Mono', 'SFMono-Regular', monospace;
+    --nav-height:       52px;
 
+    font-family: var(--font-body);
+    font-weight: normal;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
-/* 滚动槽 */
+/* Scrollbar */
 ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-    border-radius: 3px;
-    background: rgba(0, 0, 0, 0.06);
-    -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.08);
+    background: transparent;
 }
 
-/* 滚动条滑块 */
 ::-webkit-scrollbar-thumb {
-    border-radius: 3px;
-    background: rgba(0, 0, 0, 0.12);
-    -webkit-box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
 }
 
 body {
-    margin: 0px;
-    color: #FFFFFF;
-    /* display: flex; */
+    margin: 0;
+    background-color: var(--color-bg);
+    background-image:
+        linear-gradient(rgba(255,255,255,0.011) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.011) 1px, transparent 1px);
+    background-size: 44px 44px;
+    color: var(--color-text);
+    font-family: var(--font-body);
 }
 
-/* New Version */
+/* ── Site nav ──────────────────────────────────────────────── */
+
+.site-nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    height: var(--nav-height);
+    background: var(--color-nav-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+}
+
+.site-nav-link {
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    font-weight: 400;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    padding: 5px 9px;
+    border-radius: 6px;
+    transition: color 0.15s, background 0.15s;
+    white-space: nowrap;
+}
+
+.site-nav-link:hover {
+    color: var(--color-text);
+    background: rgba(255,255,255,0.06);
+}
+
+.site-nav-link.active {
+    background: rgba(15,184,164,0.1);
+    color: var(--color-accent);
+    font-weight: 500;
+}
+
+.site-nav-separator {
+    width: 1px;
+    height: 16px;
+    background: rgba(255,255,255,0.1);
+    margin: 0 5px;
+    flex-shrink: 0;
+}
+
+/* ── Ant Design overrides ──────────────────────────────────── */
 
 .ant-layout {
-    color: #FFFFFF;
-}
-
-.ant-layout-header {
-    z-index: 1;
-    width: 100%;
-    height: 68px;
-    opacity: 1;
-
-    align-content: center;
-
-    /* 下阴影 */
-    /* box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25); */
-}
-
-.ant-menu {
-    background: transparent;
-    width: 50vw;
-    height: 68px;
+    color: var(--color-text);
 }
 
 .ant-menu-horizontal {
@@ -72,42 +114,38 @@ body {
     width: 100%;
 }
 
+/* ── Replay page layout ────────────────────────────────────── */
+
 .deck {
     position: absolute;
-    top: 68px;
+    top: var(--nav-height);
     left: 0;
     width: 100%;
-    height: calc(100% - 68px);
+    height: calc(100% - var(--nav-height));
     z-index: 0;
 }
 
 .agentsociety-left {
     position: absolute;
-    top: calc(68px + 20px);
+    top: calc(var(--nav-height) + 20px);
     left: 0px;
     z-index: 1;
 }
 
 .left-inner {
-    /* 毛玻璃效果 */
     background: rgba(255, 255, 255, 0.5);
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.2);
-
-    /* background: rgba(255, 255, 255, 1);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.2); */
 
     border-radius: 0 8px 8px 0;
     margin: 8px 0;
     padding: 0 16px;
     width: 21vw;
-    height: calc(100vh - 68px - 60px);
+    height: calc(100vh - var(--nav-height) - 60px);
     overflow: auto;
 
     backdrop-filter: blur(40px);
 
-    /* 增加向左侧收起的动画效果 */
     transition: transform 0.3s ease-in-out;
 }
 
@@ -149,14 +187,12 @@ body {
 .left-info-block:hover {
     background: rgba(22, 119, 255, 0.1);
     cursor: pointer;
-    /* 增加动画效果 */
     transition: background 0.3s;
 }
 
 .left-info-block-status:hover {
     background: rgba(22, 119, 255, 0.1);
     cursor: pointer;
-    /* 增加动画效果 */
     transition: background 0.3s;
 }
 
@@ -173,38 +209,29 @@ body {
 
 .agentsociety-right {
     position: absolute;
-    top: calc(68px + 20px);
+    top: calc(var(--nav-height) + 20px);
     right: 0px;
     z-index: 1;
 
-    /* 用于避免动画效果移出屏幕后新增滚动条 */
     overflow: hidden;
-    /* 添加这一行 */
     width: 21vw;
-    /* 添加这一行，与子元素宽度相同 */
 }
 
 .right-inner {
-    /* 毛玻璃效果 */
     background: rgba(255, 255, 255, 0.5);
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.2);
 
-    /* background: rgba(255, 255, 255, 1);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.2); */
-
     border-radius: 8px 0 0 8px;
     margin: 8px 0;
     width: 21vw;
-    height: calc(100vh - 68px - 60px);
+    height: calc(100vh - var(--nav-height) - 60px);
 
     justify-content: flex-start;
     align-items: flex-start;
 
     backdrop-filter: blur(40px);
 
-    /* 增加向右侧收起的动画效果 */
     transition: transform 0.3s ease-in-out;
 }
 
@@ -242,12 +269,12 @@ body {
 
 .bubble-no-input {
     padding: 0 8px 8px 0;
-    height: calc(100vh - 68px - 124px);
+    height: calc(100vh - var(--nav-height) - 124px);
 }
 
 .bubble-input {
     padding: 0 8px 8px 0;
-    height: calc(100vh - 68px - 90px - 112px);
+    height: calc(100vh - var(--nav-height) - 90px - 112px);
 }
 
 .global-prompt {
@@ -304,7 +331,6 @@ body {
 }
 
 .ant-slider .ant-slider-track {
-    /* 渐变的颜色 */
     background: linear-gradient(90deg, #1677FF22 1%, #1677FF 100%);
 }
 

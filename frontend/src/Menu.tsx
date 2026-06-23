@@ -1,136 +1,80 @@
-import { GithubOutlined, ExperimentOutlined, ApiOutlined, TeamOutlined, GlobalOutlined, NodeIndexOutlined, SettingOutlined, LineChartOutlined, BarChartOutlined, FileSearchOutlined, CalendarOutlined } from "@ant-design/icons";
-import { Menu, MenuProps, Space, Dropdown, Button } from "antd";
-import { Link } from "react-router-dom";
+import { GithubOutlined } from "@ant-design/icons";
+import { Link, useLocation } from "react-router-dom";
 import Account from "./components/Account";
 import { useTranslation } from 'react-i18next';
 import { WITH_AUTH } from "./components/fetch";
-// import Account from "./components/Account";
 
-const RootMenu = ({ selectedKey, style }: {
-  selectedKey: string,
-  style?: React.CSSProperties
-}) => {
+const RootMenu = ({ selectedKey }: { selectedKey: string }) => {
   const { t, i18n } = useTranslation();
+  const location = useLocation();
 
   const handleLanguageChange = () => {
     const newLang = i18n.language === 'en' ? 'zh' : 'en';
     i18n.changeLanguage(newLang);
   };
 
-  const agentItems: MenuProps['items'] = [
-    {
-      key: '/agent-templates',
-      label: <Link to="/agent-templates">{t('menu.agentTemplates')}</Link>,
-      icon: <SettingOutlined />,
-    },
-    {
-      key: '/profiles',
-      label: <Link to="/profiles">{t('menu.profiles')}</Link>,
-      icon: <TeamOutlined />,
-    },
-  ];
-
-  const menuItems: MenuProps['items'] = [
-    {
-      key: '/llms',
-      label: <Link to="/llms">{t('menu.llmConfigs')}</Link>,
-      icon: <ApiOutlined />,
-    },
-    {
-      key: '/maps',
-      label: <Link to="/maps">{t('menu.maps')}</Link>,
-      icon: <GlobalOutlined />,
-    },
-    {
-      key: '/agents',
-      label: (
-        <Dropdown menu={{ items: agentItems }} placement="bottomLeft" arrow>
-          <div>
-            <Link to="/agents"><Space><TeamOutlined />{t('menu.agents')}</Space></Link>
-          </div>
-        </Dropdown>
-      ),
-
-    },
-    {
-      key: '/workflows',
-      label: <Link to="/workflows">{t('menu.workflows')}</Link>,
-      icon: <NodeIndexOutlined />,
-    },
-    {
-      key: "/console",
-      label: <Link to="/console">{t('menu.experiments')}</Link>,
-      icon: <ExperimentOutlined />,
-    },
-    {
-      key: "/grafana",
-      label: <Link to="/grafana">{t('menu.grafana')}</Link>,
-      icon: <LineChartOutlined />,
-    },
-    {
-      key: "/charts",
-      label: <Link to="/charts">{t('menu.charts')}</Link>,
-      icon: <BarChartOutlined />,
-    },
-    {
-      key: "/loki",
-      label: <Link to="/loki">{t('menu.loki')}</Link>,
-      icon: <FileSearchOutlined />,
-    },
-    {
-      key: "/daily-schedule",
-      label: <Link to="/daily-schedule">{t('menu.dailySchedule')}</Link>,
-      icon: <CalendarOutlined />,
-    },
-    { key: "/survey", label: <Link to="/survey">{t('menu.survey')}</Link> },
-    ...(WITH_AUTH ? [{ key: "/bill", label: <Link to="/bill">{t('menu.bill')}</Link> }] : []),
-  ];
-
-  menuItems.push({ key: "/Documentation", label: <Link to="https://agentsociety.readthedocs.io/en/latest/" rel="noopener noreferrer" target="_blank"><Space>{t('menu.documentation')}</Space></Link> });
-  menuItems.push({ key: "/Github", label: <Link to="https://github.com/tsinghua-fib-lab/agentsociety/" rel="noopener noreferrer" target="_blank"><Space>{t('menu.github')}<GithubOutlined /></Space></Link> });
-
-  const menuStyle: React.CSSProperties = {
-    ...style,
-    display: 'flex',
-    width: '100%',
-    alignItems: 'center',
-  };
-
-  const menuClass = "large-icons-menu";
+  const isActive = (path: string) =>
+    selectedKey === path || location.pathname.startsWith(path + '/') ? ' active' : '';
 
   return (
-    <div style={{ display: 'flex', width: '100%' }}>
-      <style>
-        {`
-                .${menuClass} .anticon {
-                    font-size: 1em !important; /* Adjust pixel value as needed */
-                }
-                `}
-      </style>
-      <Menu
-        theme="dark"
-        mode="horizontal"
-        items={menuItems}
-        selectedKeys={[selectedKey]}
-        style={menuStyle}
-        className={menuClass}
-      />
-      <div style={{
-        marginLeft: 'auto',
-        display: 'flex',
-        alignItems: 'center',
-        minWidth: '320px',
-        justifyContent: 'flex-end'
-      }}>
-        <Button
-          type="text"
-          style={{ color: 'white' }}
-          onClick={handleLanguageChange}
-        >
-          {i18n.language === 'en' ? '中文' : 'English'}
-        </Button>
-        {WITH_AUTH && <Account />}
-      </div>
+    <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: 1, overflow: 'hidden' }}>
+      {/* Config group */}
+      <Link to="/llms" className={`site-nav-link${isActive('/llms')}`}>{t('menu.llmConfigs')}</Link>
+      <Link to="/maps" className={`site-nav-link${isActive('/maps')}`}>{t('menu.maps')}</Link>
+      <Link to="/agents" className={`site-nav-link${isActive('/agents')}`}>{t('menu.agents')}</Link>
+      <Link to="/workflows" className={`site-nav-link${isActive('/workflows')}`}>{t('menu.workflows')}</Link>
+
+      <div className="site-nav-separator" />
+
+      {/* App group */}
+      <Link to="/console" className={`site-nav-link${isActive('/console')}`}>{t('menu.experiments')}</Link>
+      <Link to="/grafana" className={`site-nav-link${isActive('/grafana')}`}>{t('menu.grafana')}</Link>
+      <Link to="/charts" className={`site-nav-link${isActive('/charts')}`}>{t('menu.charts')}</Link>
+      <Link to="/loki" className={`site-nav-link${isActive('/loki')}`}>{t('menu.loki')}</Link>
+      <Link to="/daily-schedule" className={`site-nav-link${isActive('/daily-schedule')}`}>{t('menu.dailySchedule')}</Link>
+
+      <div className="site-nav-separator" />
+
+      {/* Docs group */}
+      <Link to="/survey" className={`site-nav-link${isActive('/survey')}`}>{t('menu.survey')}</Link>
+      <a
+        href="https://agentsociety.readthedocs.io/en/latest/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="site-nav-link"
+      >
+        {t('menu.documentation')}
+      </a>
+
+      <div style={{ flex: 1 }} />
+
+      {/* Right side */}
+      <a
+        href="https://github.com/tsinghua-fib-lab/agentsociety/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="site-nav-link"
+        style={{
+          border: '1px solid rgba(255,255,255,0.09)',
+          background: 'rgba(255,255,255,0.05)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 5,
+        }}
+      >
+        <GithubOutlined />
+        GitHub
+      </a>
+
+      <button
+        className="site-nav-link"
+        onClick={handleLanguageChange}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}
+      >
+        {i18n.language === 'en' ? 'ZH' : 'EN'}
+      </button>
+
+      {WITH_AUTH && <Account />}
     </div>
   );
 };

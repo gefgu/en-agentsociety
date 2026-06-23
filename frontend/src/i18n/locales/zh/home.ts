@@ -3,5 +3,19 @@ export default {
     releaseNotes: "V1.5版本全新发布！点此查看最新文档。",
     getStarted: "开始使用",
     stars: "星标",
-    mainDescription: "使用<strong><em>大模型驱动的社会人智能体</em></strong>和<strong><em>真实城市社会环境</em></strong>构建虚拟社会"
-}; 
+    mainDescription: "使用<strong><em>大模型驱动的社会人智能体</em></strong>和<strong><em>真实城市社会环境</em></strong>构建虚拟社会",
+    badge: "开源 · 城市智能体仿真",
+    heroTitle: "En-AgentSociety",
+    heroSubtitle: "在真实城市环境中构建和研究由大语言模型驱动的大规模社会仿真。",
+    pills: ["多智能体", "城市规模", "LLM驱动", "开源"],
+    featuresOverline: "核心功能",
+    featuresTitle: "一切你需要的社会仿真能力",
+    card1Title: "可观测性",
+    card1Body: "通过 Grafana 仪表盘和 Loki 日志聚合实时监控实验进度。",
+    card2Title: "行为验证",
+    card2Body: "通过可配置的问卷工作流和结构化智能体访谈进行行为验证。",
+    card3Title: "城市规模",
+    card3Body: "基于真实城市地图、移动模型和地理数据进行城市规模仿真。",
+    card4Title: "开源免费",
+    card4Body: "MIT 许可证，支持自托管和扩展，可接入自定义 LLM 和环境。",
+};

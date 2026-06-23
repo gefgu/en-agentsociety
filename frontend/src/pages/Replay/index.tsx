@@ -46,9 +46,8 @@ const Replay: React.FC = observer(() => {
                 <TimelinePlayer initialInterval={1000} />
             </div>
             <Row justify="center" align="middle" style={{
-                backgroundColor: "#FFFFFF",
+                backgroundColor: "transparent",
                 borderRadius: "0px 0px 16px 16px",
-                boxShadow: "0px 4px 10px 0px rgba(80, 80, 80, 0.1)",
             }}>
             </Row>
             <div className="agentsociety-right">

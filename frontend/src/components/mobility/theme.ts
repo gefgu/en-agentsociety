@@ -15,6 +15,6 @@ export const PALETTE = {
   panel: "#fffdf8",
 };
 
-export const FONT_SERIF = '"IBM Plex Serif", Georgia, serif';
-export const FONT_SANS = '"IBM Plex Sans", system-ui, sans-serif';
-export const FONT_MONO = '"IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace';
+export const FONT_SERIF = '"Space Grotesk", Georgia, serif';
+export const FONT_SANS = '"DM Sans", system-ui, sans-serif';
+export const FONT_MONO = '"JetBrains Mono", ui-monospace, "SFMono-Regular", monospace';

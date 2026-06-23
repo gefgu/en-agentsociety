@@ -2,7 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import './index.css'
 import { Navigate, Outlet, RouterProvider, createBrowserRouter } from 'react-router-dom'
-import { ConfigProvider, ThemeConfig } from 'antd'
+import { ConfigProvider, ThemeConfig, theme as antTheme } from 'antd'
 import RootLayout from './Layout'
 import Console from './pages/Console/index'
 import Replay from './pages/Replay/index'
@@ -198,26 +198,28 @@ const router = createBrowserRouter([{
 }])
 
 const theme: ThemeConfig = {
+  algorithm: antTheme.darkAlgorithm,
   token: {
-    colorPrimary: "#000000",
-    colorInfo: "#000000",
-    borderRadius: 16,
-    colorBgContainer: "#FFFFFF",
-    colorBgLayout: "#FFFFFF",
+    colorPrimary:       '#0fb8a4',
+    colorInfo:          '#0fb8a4',
+    colorBgBase:        '#0c1728',
+    colorBgContainer:   '#0c1728',
+    colorBgLayout:      '#070d1a',
+    colorBgElevated:    '#122238',
+    colorBorder:        'rgba(255,255,255,0.10)',
+    colorText:          '#e2eaf5',
+    colorTextSecondary: 'rgba(226,234,245,0.65)',
+    borderRadius:       8,
+    fontFamily:         "'DM Sans', system-ui, sans-serif",
   },
   components: {
-    Layout: {
-      lightSiderBg: "#F8F8F8",
-      headerBg: "#FFFFFF",
-    },
-    Button: {
-      algorithm: true,
-      colorBgContainer: "#FFFFFF",
-    },
-    Select: {
-      colorBgContainer: "#FFFFFF",
-    }
-  }
+    Layout: { headerBg: '#070d1a', bodyBg: '#070d1a', siderBg: '#0c1728' },
+    Table:  { headerBg: '#0e1e36', rowHoverBg: 'rgba(15,184,164,0.06)' },
+    Card:   { colorBgContainer: '#0c1728' },
+    Modal:  { contentBg: '#0c1728', headerBg: '#0c1728' },
+    Select: { colorBgContainer: '#0c1728' },
+    Input:  { colorBgContainer: '#0c1728' },
+  },
 };
 
 const App = () => {

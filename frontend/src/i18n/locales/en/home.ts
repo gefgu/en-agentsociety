@@ -4,5 +4,19 @@ export default {
     getStarted: "Get Started",
     stars: "Stars",
     mainDescription: "Create your society with <strong><em>Large Model-driven Social Human Agent</em></strong> and <strong><em>Realistic Urban Social Environment</em></strong>",
-    title: "FastSociety"
-}; 
+    title: "En-AgentSociety",
+    badge: "Open Source · Urban Agent Simulation",
+    heroTitle: "En-AgentSociety",
+    heroSubtitle: "Build and study large-scale social simulations with LLM-driven agents in realistic urban environments.",
+    pills: ["Multi-Agent", "Urban Scale", "LLM-Driven", "Open Source"],
+    featuresOverline: "CAPABILITIES",
+    featuresTitle: "Everything you need to simulate society",
+    card1Title: "Observability",
+    card1Body: "Real-time experiment monitoring via Grafana dashboards and Loki log aggregation.",
+    card2Title: "Validation",
+    card2Body: "Behavioral validation with configurable survey workflows and structured agent interviews.",
+    card3Title: "Regional Scale",
+    card3Body: "Realistic urban maps with mobility models and geographic data for city-scale simulations.",
+    card4Title: "Open Source",
+    card4Body: "MIT licensed, self-hostable, and extensible — bring your own LLMs and environments.",
+};
