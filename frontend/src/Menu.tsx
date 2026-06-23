@@ -34,7 +34,6 @@ const RootMenu = ({ selectedKey }: { selectedKey: string }) => {
       <Link to="/charts" className={`site-nav-link${isActive('/charts')}`}>{t('menu.charts')}</Link>
       <Link to="/loki" className={`site-nav-link${isActive('/loki')}`}>{t('menu.loki')}</Link>
       <Link to="/daily-schedule" className={`site-nav-link${isActive('/daily-schedule')}`}>{t('menu.dailySchedule')}</Link>
-      <Link to="/citysim-schedule" className={`site-nav-link${isActive('/citysim-schedule')}`}>{t('menu.citySimSchedule', 'CitySim')}</Link>
 
       <div className="site-nav-separator" />
 
