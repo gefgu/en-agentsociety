@@ -63,7 +63,7 @@ body {
 
 .site-nav-link {
     font-family: var(--font-body);
-    font-size: 12.5px;
+    font-size: 14px;
     font-weight: 400;
     color: var(--color-text-muted);
     text-decoration: none;
