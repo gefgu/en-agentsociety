@@ -1,0 +1,113 @@
+.timeline-wrapper {
+  display: flex;
+  gap: 40px;
+  justify-content: center;
+  padding: 20px;
+  background-color: var(--color-surface);
+  overflow-x: auto;
+  flex-wrap: wrap;
+}
+
+.timeline-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 280px;
+}
+
+.timeline-col-header {
+  font-size: 32px;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 30px;
+  color: var(--color-text);
+}
+
+.timeline-track {
+  display: flex;
+  position: relative;
+}
+
+.timeline-axis-line {
+  width: 5px;
+  background-color: var(--color-text);
+  position: absolute;
+  left: 80px;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+}
+
+.timeline-rows {
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+}
+
+.timeline-row {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.timeline-time-label {
+  font-size: 22px;
+  text-align: right;
+  width: 70px;
+  color: var(--color-text);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.timeline-tick {
+  width: 20px;
+  height: 2px;
+  background-color: var(--color-text);
+  margin-left: 0;
+  z-index: 2;
+  position: relative;
+}
+
+.timeline-emojis {
+  display: flex;
+  gap: 10px;
+  margin-left: 20px;
+  align-items: center;
+}
+
+.timeline-emoji {
+  font-size: 16px;
+  cursor: pointer;
+  transition: transform 0.15s;
+  display: inline-block;
+}
+
+.timeline-emoji:hover {
+  transform: scale(1.5);
+}
+
+.modal-attrs-box {
+  background-color: var(--color-bg);
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+
+.modal-prompt-box {
+  background-color: var(--color-bg);
+  padding: 16px;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  font-family: monospace;
+  font-size: 14px;
+  border: 1px solid var(--color-border);
+}
+
+.modal-response-box {
+  background-color: rgba(15, 184, 164, 0.08);
+  padding: 16px;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  font-family: monospace;
+  font-size: 14px;
+  border: 1px solid rgba(15, 184, 164, 0.25);
+}

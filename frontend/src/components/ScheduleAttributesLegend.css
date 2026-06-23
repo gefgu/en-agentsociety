@@ -1,0 +1,46 @@
+.attrs-legend {
+  padding: 25px;
+  background-color: var(--color-surface);
+  border-radius: 8px;
+}
+
+.attrs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(125px, 1fr));
+  gap: 10px;
+  max-width: 100%;
+}
+
+.attr-card {
+  background-color: rgba(167, 139, 250, 0.15);
+  border: 1px solid var(--color-border);
+  border-radius: 15px;
+  padding: 16px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 125px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: default;
+}
+
+.attr-card:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.attr-emoji {
+  font-size: 42px;
+  margin-bottom: 8px;
+  line-height: 1;
+}
+
+.attr-name {
+  font-size: 16px;
+  font-weight: bold;
+  text-align: center;
+  color: var(--color-text);
+  word-break: break-word;
+  line-height: 1.2;
+}

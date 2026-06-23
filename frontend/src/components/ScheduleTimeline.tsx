@@ -1,8 +1,9 @@
 import { BLOCKS, BlockExecution, TimelineDataPoint, ATTRIBUTE_TO_EMOJI } from "../pages/DailySchedule";
 import { useEffect, useState } from "react";
 import { Modal, Typography, Tag } from "antd";
+import "./ScheduleTimeline.css";
 
-const { Title, Paragraph } = Typography;
+const { Title } = Typography;
 
 const BLOCK_TO_ATTRIBUTES: Record<string, string[]> = {
   "MobilityBlock": [
@@ -23,9 +24,7 @@ const BLOCK_TO_ATTRIBUTES: Record<string, string[]> = {
     "gender", "education", "consumption_level", "occupation", "age",
     "income", "time", "plan", "event", "needs", "need", "intervention", "intention"
   ],
-  "OtherBlock": [
-    "plan", "intention", "emotion"
-  ],
+  "OtherBlock": ["plan", "intention", "emotion"],
   "PlanBlock": [
     "weather", "temperature", "need", "location", "time", "consumption",
     "job", "age", "emotion", "thought", "options", "other", "plan", "max_steps"
@@ -36,9 +35,7 @@ const BLOCK_TO_ATTRIBUTES: Record<string, string[]> = {
     "intention", "chat", "discussion_constraint", "environment_info",
     "friend_info", "emotion"
   ],
-  "Dispatcher": [
-    "intention", "blocks"
-  ]
+  "Dispatcher": ["intention", "blocks"]
 };
 
 const TimelineGrid = ({ timelineData }: { timelineData: TimelineDataPoint[] }) => {
@@ -47,10 +44,7 @@ const TimelineGrid = ({ timelineData }: { timelineData: TimelineDataPoint[] }) =
   const [selectedExecution, setSelectedExecution] = useState<BlockExecution | null>(null);
 
   useEffect(() => {
-    const handleResize = () => {
-      setIsBigScreen(window.innerWidth >= 1920);
-    };
-
+    const handleResize = () => setIsBigScreen(window.innerWidth >= 1920);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -61,151 +55,52 @@ const TimelineGrid = ({ timelineData }: { timelineData: TimelineDataPoint[] }) =
   }, {} as Record<string, string>);
 
   const columns = isBigScreen
-    ? [
-        { start: 0, end: 4 },
-        { start: 4, end: 8 },
-        { start: 8, end: 12 },
-        { start: 12, end: 16 },
-        { start: 16, end: 20 },
-        { start: 20, end: 24 }
-      ]
-    : [
-        { start: 0, end: 6 },
-        { start: 6, end: 12 },
-        { start: 12, end: 18 },
-        { start: 18, end: 24 }
-      ];
+    ? [{ start: 0, end: 4 }, { start: 4, end: 8 }, { start: 8, end: 12 },
+       { start: 12, end: 16 }, { start: 16, end: 20 }, { start: 20, end: 24 }]
+    : [{ start: 0, end: 6 }, { start: 6, end: 12 }, { start: 12, end: 18 }, { start: 18, end: 24 }];
 
   const intervalsPerColumn = isBigScreen ? 24 : 36;
 
-  const getTimeLabel = (columnIndex: number, intervalIndex: number) => {
+  const getTimeLabel = (colIdx: number, intervalIdx: number) => {
     const hoursPerColumn = isBigScreen ? 4 : 6;
-    const startHour = columnIndex * hoursPerColumn;
-    const hours = startHour + Math.floor(intervalIndex / 6);
-    const minutes = (intervalIndex % 6) * 10;
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    const hours = colIdx * hoursPerColumn + Math.floor(intervalIdx / 6);
+    const minutes = (intervalIdx % 6) * 10;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
   };
 
-  const getBlockExecutionsForInterval = (columnIndex: number, intervalIndex: number): BlockExecution[] => {
-    const globalIdx = (columnIndex * intervalsPerColumn) + intervalIndex;
-    if (globalIdx < timelineData.length) {
-      return timelineData[globalIdx].block_executions || [];
-    }
-    return [];
-  };
-
-  const handleEmojiClick = (execution: BlockExecution) => {
-    setSelectedExecution(execution);
-    setModalOpen(true);
-  };
-
-  const handleModalClose = () => {
-    setModalOpen(false);
-    setSelectedExecution(null);
+  const getExecutions = (colIdx: number, intervalIdx: number): BlockExecution[] => {
+    const globalIdx = colIdx * intervalsPerColumn + intervalIdx;
+    return globalIdx < timelineData.length ? timelineData[globalIdx].block_executions || [] : [];
   };
 
   return (
     <>
-      <div style={{
-        display: 'flex',
-        gap: '40px',
-        justifyContent: 'center',
-        padding: '20px',
-        backgroundColor: 'var(--color-surface)',
-        overflowX: 'auto',
-        flexWrap: 'wrap'
-      }}>
-        {columns.map((column, colIndex) => (
-          <div key={colIndex} style={{ display: 'flex', flexDirection: 'column', minWidth: '280px' }}>
-            {/* Column Header */}
-            <div style={{
-              fontSize: '32px',
-              fontWeight: 'bold',
-              textAlign: 'center',
-              marginBottom: '30px',
-              color: 'var(--color-text)'
-            }}>
-              {`${column.start.toString().padStart(2, '0')}:00 - ${column.end.toString().padStart(2, '0')}:00`}
+      <div className="timeline-wrapper">
+        {columns.map((col, colIdx) => (
+          <div key={colIdx} className="timeline-column">
+            <div className="timeline-col-header">
+              {`${String(col.start).padStart(2, '0')}:00 – ${String(col.end).padStart(2, '0')}:00`}
             </div>
 
-            {/* Timeline Column */}
-            <div style={{ display: 'flex', position: 'relative' }}>
-              {/* Vertical Line */}
-              <div style={{
-                width: '5px',
-                backgroundColor: 'var(--color-text)',
-                position: 'absolute',
-                left: '80px',
-                top: 0,
-                bottom: 0,
-                zIndex: 1
-              }} />
-
-              {/* Time Labels and Emojis */}
-              <div style={{ display: 'flex', flexDirection: 'column', width: '300px' }}>
+            <div className="timeline-track">
+              <div className="timeline-axis-line" />
+              <div className="timeline-rows">
                 {Array.from({ length: intervalsPerColumn }).map((_, intervalIdx) => {
-                  const executions = getBlockExecutionsForInterval(colIndex, intervalIdx);
-                  const timeLabel = getTimeLabel(colIndex, intervalIdx);
-
+                  const executions = getExecutions(colIdx, intervalIdx);
                   return (
-                    <div
-                      key={intervalIdx}
-                      style={{
-                        height: '30px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        position: 'relative'
-                      }}
-                    >
-                      {/* Time Label */}
-                      <div style={{
-                        fontSize: '22px',
-                        textAlign: 'right',
-                        width: '70px',
-                        color: 'var(--color-text)',
-                        fontFamily: 'system-ui, -apple-system, sans-serif'
-                      }}>
-                        {timeLabel}
-                      </div>
-
-                      {/* Tick Mark */}
-                      <div style={{
-                        width: '20px',
-                        height: '2px',
-                        backgroundColor: 'var(--color-text)',
-                        marginLeft: '0px',
-                        zIndex: 2,
-                        position: 'relative'
-                      }} />
-
-                      {/* Emojis */}
-                      <div style={{
-                        display: 'flex',
-                        gap: '10px',
-                        marginLeft: '20px',
-                        alignItems: 'center'
-                      }}>
-                        {executions.map((execution, stackIdx) => {
-                          const emoji = BLOCK_EMOJI_MAP[execution.block_name] || '❓';
-                          const block = BLOCKS.find(b => b.name === execution.block_name);
-
+                    <div key={intervalIdx} className="timeline-row">
+                      <div className="timeline-time-label">{getTimeLabel(colIdx, intervalIdx)}</div>
+                      <div className="timeline-tick" />
+                      <div className="timeline-emojis">
+                        {executions.map((exec, i) => {
+                          const emoji = BLOCK_EMOJI_MAP[exec.block_name] || '❓';
+                          const block = BLOCKS.find(b => b.name === exec.block_name);
                           return (
                             <span
-                              key={stackIdx}
-                              title={`${execution.block_name} - ${block?.desc || ''} (Click for details)`}
-                              style={{
-                                fontSize: '16px',
-                                cursor: 'pointer',
-                                transition: 'transform 0.15s',
-                                display: 'inline-block'
-                              }}
-                              onClick={() => handleEmojiClick(execution)}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.transform = 'scale(1.5)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.transform = 'scale(1)';
-                              }}
+                              key={i}
+                              className="timeline-emoji"
+                              title={`${exec.block_name} – ${block?.desc || ''} (click for details)`}
+                              onClick={() => { setSelectedExecution(exec); setModalOpen(true); }}
                             >
                               {emoji}
                             </span>
@@ -223,17 +118,13 @@ const TimelineGrid = ({ timelineData }: { timelineData: TimelineDataPoint[] }) =
 
       <Modal
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '32px' }}>
-              {selectedExecution && BLOCK_EMOJI_MAP[selectedExecution.block_name]}
-            </span>
-            <span style={{ fontSize: '20px', fontWeight: 'bold' }}>
-              {selectedExecution?.block_name}
-            </span>
-          </div>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 32 }}>{selectedExecution && BLOCK_EMOJI_MAP[selectedExecution.block_name]}</span>
+            <span style={{ fontSize: 20, fontWeight: 'bold' }}>{selectedExecution?.block_name}</span>
+          </span>
         }
         open={modalOpen}
-        onCancel={handleModalClose}
+        onCancel={() => { setModalOpen(false); setSelectedExecution(null); }}
         footer={null}
         width={800}
         centered
@@ -242,29 +133,14 @@ const TimelineGrid = ({ timelineData }: { timelineData: TimelineDataPoint[] }) =
           <div>
             <div style={{ marginTop: 16, marginBottom: 24 }}>
               <Title level={4}>Required Attributes</Title>
-              <div style={{
-                backgroundColor: 'var(--color-bg)',
-                padding: '16px',
-                borderRadius: '8px',
-                border: '1px solid var(--color-border)'
-              }}>
+              <div className="modal-attrs-box">
                 {BLOCK_TO_ATTRIBUTES[selectedExecution.block_name] ? (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                    {BLOCK_TO_ATTRIBUTES[selectedExecution.block_name].map((attr, idx) => {
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {BLOCK_TO_ATTRIBUTES[selectedExecution.block_name].map((attr, i) => {
                       const emoji = ATTRIBUTE_TO_EMOJI[attr];
                       return (
-                        <Tag
-                          key={idx}
-                          style={{
-                            fontSize: '14px',
-                            padding: '6px 12px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            borderRadius: '6px'
-                          }}
-                        >
-                          {emoji && <span style={{ fontSize: '16px' }}>{emoji}</span>}
+                        <Tag key={i} style={{ fontSize: 14, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6, borderRadius: 6 }}>
+                          {emoji && <span style={{ fontSize: 16 }}>{emoji}</span>}
                           <span>{attr.replace(/_/g, ' ')}</span>
                         </Tag>
                       );
@@ -277,34 +153,10 @@ const TimelineGrid = ({ timelineData }: { timelineData: TimelineDataPoint[] }) =
             </div>
 
             <Title level={4}>Prompt</Title>
-            <Paragraph
-              style={{
-                backgroundColor: 'var(--color-bg)',
-                padding: '16px',
-                borderRadius: '8px',
-                whiteSpace: 'pre-wrap',
-                fontFamily: 'monospace',
-                fontSize: '14px',
-                border: '1px solid var(--color-border)'
-              }}
-            >
-              {selectedExecution.prompt}
-            </Paragraph>
+            <p className="modal-prompt-box">{selectedExecution.prompt}</p>
 
             <Title level={4} style={{ marginTop: 24 }}>Response</Title>
-            <Paragraph
-              style={{
-                backgroundColor: 'rgba(15,184,164,0.08)',
-                padding: '16px',
-                borderRadius: '8px',
-                whiteSpace: 'pre-wrap',
-                fontFamily: 'monospace',
-                fontSize: '14px',
-                border: '1px solid rgba(15,184,164,0.25)'
-              }}
-            >
-              {selectedExecution.response}
-            </Paragraph>
+            <p className="modal-response-box">{selectedExecution.response}</p>
           </div>
         )}
       </Modal>

@@ -55,14 +55,7 @@ const RootMenu = ({ selectedKey }: { selectedKey: string }) => {
         href="https://github.com/tsinghua-fib-lab/agentsociety/"
         target="_blank"
         rel="noopener noreferrer"
-        className="site-nav-link"
-        style={{
-          border: '1px solid rgba(255,255,255,0.09)',
-          background: 'rgba(255,255,255,0.05)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 5,
-        }}
+        className="site-nav-link site-nav-pill"
       >
         <GithubOutlined />
         GitHub

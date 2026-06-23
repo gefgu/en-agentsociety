@@ -18,7 +18,9 @@ import { fetchCustom } from "../../components/fetch";
 import { Experiment } from "../../components/type";
 import MetricChart from "../../components/mobility/MetricChart";
 import StvdMap from "../../components/mobility/StvdMap";
-import { PALETTE, FONT_SERIF, FONT_SANS, FONT_MONO } from "../../components/mobility/theme";
+import { getPalette, FONT_MONO, FONT_SANS } from "../../components/mobility/theme";
+import { useTheme } from "../../context/ThemeContext";
+import "./Charts.css";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -33,7 +35,6 @@ interface SourceState {
 
 const EMPTY_SOURCE: SourceState = { type: "experiment" };
 
-// Display order + section grouping for the chart grid.
 const DISTRIBUTION_CHARTS: [string, string][] = [
   ["jump_ecdf", "Jump length ECDF"],
   ["rog_ecdf", "Radius of gyration ECDF"],
@@ -53,19 +54,11 @@ const ACTIVITY_CHARTS: [string, string][] = [
   ["motif", "Daily motifs"],
 ];
 
-const sectionStyle: React.CSSProperties = {
-  fontFamily: FONT_MONO,
-  fontSize: 11,
-  fontWeight: 600,
-  textTransform: "uppercase",
-  letterSpacing: "0.1em",
-  color: PALETTE.muted,
-  margin: "28px 0 4px",
-};
-
 const ChartsPage: React.FC = () => {
   const { t } = useTranslation();
   const { exp_id } = useParams<{ exp_id?: string }>();
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
 
   const [experiments, setExperiments] = useState<Experiment[]>([]);
   const [clickhouse, setClickhouse] = useState<boolean>(true);
@@ -82,21 +75,16 @@ const ChartsPage: React.FC = () => {
         if (res.ok) {
           const list: Experiment[] = (await res.json()).data || [];
           setExperiments(list);
-          // Resolve the name for the pre-filled experiment from the route param.
           if (exp_id) {
             const match = list.find((e) => e.id === exp_id);
             if (match) setSourceA((prev) => ({ ...prev, expName: match.name }));
           }
         }
-      } catch {
-        /* non-fatal */
-      }
+      } catch { /* non-fatal */ }
       try {
         const res = await fetchCustom("/api/mobility/datasource");
         if (res.ok) setClickhouse(!!(await res.json()).data?.clickhouse);
-      } catch {
-        /* non-fatal */
-      }
+      } catch { /* non-fatal */ }
     })();
   }, []);
 
@@ -120,10 +108,7 @@ const ChartsPage: React.FC = () => {
     s.type === "experiment" ? !!s.expId && (clickhouse || !!s.duckdb) : !!s.file;
 
   const onCompare = async () => {
-    if (!valid(sourceA)) {
-      message.warning(t("charts.select_source"));
-      return;
-    }
+    if (!valid(sourceA)) { message.warning(t("charts.select_source")); return; }
     setLoading(true);
     setError("");
     setPayload(null);
@@ -133,7 +118,7 @@ const ChartsPage: React.FC = () => {
       if (valid(sourceB)) appendSource(fd, "b", sourceB);
       const res = await fetchCustom("/api/mobility/compare", { method: "POST", body: fd });
       const body = await res.json();
-      if (!res.ok) throw new Error(body?.detail || (await res.statusText));
+      if (!res.ok) throw new Error(body?.detail || res.statusText);
       setPayload(body.data);
     } catch (err: any) {
       setError(String(err?.message || err));
@@ -147,7 +132,7 @@ const ChartsPage: React.FC = () => {
     <Card
       size="small"
       title={t("charts.source", { slot })}
-      style={{ background: PALETTE.panel, borderColor: PALETTE.border }}
+      style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
     >
       <Segmented
         value={s.type}
@@ -161,8 +146,7 @@ const ChartsPage: React.FC = () => {
       {s.type === "experiment" ? (
         <>
           <Select
-            showSearch
-            allowClear
+            showSearch allowClear
             placeholder={t("charts.select_experiment")}
             style={{ width: "100%" }}
             value={s.expId}
@@ -174,14 +158,9 @@ const ChartsPage: React.FC = () => {
             }}
           />
           {!clickhouse && s.expId && (
-            <Upload
-              maxCount={1}
-              beforeUpload={(file) => {
-                set({ ...s, duckdb: file });
-                return false;
-              }}
-              onRemove={() => set({ ...s, duckdb: undefined })}
-            >
+            <Upload maxCount={1}
+              beforeUpload={(file) => { set({ ...s, duckdb: file }); return false; }}
+              onRemove={() => set({ ...s, duckdb: undefined })}>
               <Button size="small" icon={<UploadOutlined />} style={{ marginTop: 8 }}>
                 {t("charts.upload_duckdb")}
               </Button>
@@ -189,14 +168,9 @@ const ChartsPage: React.FC = () => {
           )}
         </>
       ) : (
-        <Upload
-          maxCount={1}
-          beforeUpload={(file) => {
-            set({ ...s, file });
-            return false;
-          }}
-          onRemove={() => set({ ...s, file: undefined })}
-        >
+        <Upload maxCount={1}
+          beforeUpload={(file) => { set({ ...s, file }); return false; }}
+          onRemove={() => set({ ...s, file: undefined })}>
           <Button icon={<UploadOutlined />}>{t("charts.upload_trajectory")}</Button>
         </Upload>
       )}
@@ -214,19 +188,17 @@ const ChartsPage: React.FC = () => {
         <Card
           size="small"
           title={title}
-          style={{ background: PALETTE.panel, borderColor: PALETTE.border }}
+          style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
           styles={{ header: { fontFamily: FONT_SANS } }}
         >
           <MetricChart option={chart.option} chartType={chart.chartType} />
           {chart.parameters && (
-            <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: PALETTE.muted, padding: "6px 4px 0" }}>
+            <div className="charts-params">
               {chart.formula && <div style={{ marginBottom: 4 }}>{chart.formula}</div>}
               {chart.parameters.map((p: any) => (
                 <div key={p.label}>
                   {p.label}:{" "}
-                  {Object.entries(p.values)
-                    .map(([k, v]) => `${k}=${v}`)
-                    .join(", ")}
+                  {Object.entries(p.values).map(([k, v]) => `${k}=${v}`).join(", ")}
                 </div>
               ))}
             </div>
@@ -239,15 +211,15 @@ const ChartsPage: React.FC = () => {
   const hasAny = (entries: [string, string][]) => entries.some(([k]) => charts[k]);
 
   const metricTable = (title: string, rows: any[], cols: [string, string][]) =>
-    rows && rows.length ? (
-      <div style={{ minWidth: 240 }}>
-        <h3 style={sectionStyle}>{title}</h3>
-        <table style={{ borderCollapse: "collapse", fontFamily: FONT_MONO, fontSize: 13 }}>
+    rows?.length ? (
+      <div className="charts-metric-block">
+        <h3 className="charts-section-header">{title}</h3>
+        <table className="charts-metric-table">
           <tbody>
             {rows.map((r, i) => (
               <tr key={i}>
                 {cols.map(([field], j) => (
-                  <td key={j} style={{ padding: "3px 20px 3px 0" }}>
+                  <td key={j}>
                     {field === "value" ? r.value : field === "resolution" ? `H3 ${r.resolution}` : r[field]}
                     {field === "value" && r.unit ? ` ${r.unit}` : ""}
                   </td>
@@ -260,9 +232,9 @@ const ChartsPage: React.FC = () => {
     ) : null;
 
   return (
-    <div style={{ padding: 24, background: PALETTE.bg, minHeight: "100%", color: PALETTE.axis }}>
-      <h2 style={{ fontFamily: FONT_SERIF, fontSize: 32, margin: 0 }}>{t("charts.title")}</h2>
-      <p style={{ color: PALETTE.muted, fontFamily: FONT_SANS, marginTop: 4 }}>{t("charts.subtitle")}</p>
+    <div className="charts-page">
+      <h2 className="charts-title">{t("charts.title")}</h2>
+      <p className="charts-subtitle">{t("charts.subtitle")}</p>
 
       <Row gutter={[16, 16]} style={{ marginTop: 8 }} align="middle">
         <Col md={24} xl={11}>{renderSlot("A", sourceA, setSourceA)}</Col>
@@ -277,55 +249,51 @@ const ChartsPage: React.FC = () => {
       {error && <Alert type="error" message={error} style={{ marginTop: 16 }} showIcon />}
 
       {loading && (
-        <div style={{ textAlign: "center", padding: 64 }}>
+        <div className="charts-loading">
           <Spin tip={t("charts.comparing")} />
         </div>
       )}
 
       {payload && (
         <div style={{ marginTop: 16 }}>
-          <h2 style={{ fontFamily: FONT_SERIF, fontSize: 22 }}>
+          <h2 className="charts-compare-label">
             {payload.labels?.length === 1
               ? payload.labels[0]
               : <>{payload.labels?.[0]} &nbsp;vs&nbsp; {payload.labels?.[1]}</>}
           </h2>
 
           {(metrics?.wasserstein?.length > 0 || metrics?.jensen_shannon?.length > 0 || metrics?.cpc?.length > 0) && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 48 }}>
+            <div className="charts-metrics-row">
               {metricTable(t("charts.metrics_wasserstein"), metrics?.wasserstein, [["name", ""], ["value", ""]])}
               {metricTable(t("charts.metrics_jsd"), metrics?.jensen_shannon, [["name", ""], ["value", ""]])}
               {metricTable(t("charts.metrics_cpc"), metrics?.cpc, [["resolution", ""], ["value", ""]])}
             </div>
           )}
 
-          {hasAny(DISTRIBUTION_CHARTS) && <h3 style={sectionStyle}>{t("charts.distributions")}</h3>}
+          {hasAny(DISTRIBUTION_CHARTS) && <h3 className="charts-section-header">{t("charts.distributions")}</h3>}
           <Row gutter={[16, 16]}>{DISTRIBUTION_CHARTS.map(([k, title]) => renderChart(k, title))}</Row>
 
-          {hasAny(LAW_CHARTS) && <h3 style={sectionStyle}>{t("charts.mobility_laws")}</h3>}
+          {hasAny(LAW_CHARTS) && <h3 className="charts-section-header">{t("charts.mobility_laws")}</h3>}
           <Row gutter={[16, 16]}>{LAW_CHARTS.map(([k, title]) => renderChart(k, title))}</Row>
 
-          {hasAny(ACTIVITY_CHARTS) && <h3 style={sectionStyle}>{t("charts.activity")}</h3>}
+          {hasAny(ACTIVITY_CHARTS) && <h3 className="charts-section-header">{t("charts.activity")}</h3>}
           <Row gutter={[16, 16]}>{ACTIVITY_CHARTS.map(([k, title]) => renderChart(k, title))}</Row>
 
           {charts.stvd && (
             <>
-              <h3 style={sectionStyle}>{t("charts.stvd")}</h3>
-              <Card size="small" style={{ background: PALETTE.panel, borderColor: PALETTE.border }}>
+              <h3 className="charts-section-header">{t("charts.stvd")}</h3>
+              <Card size="small" style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
                 <StvdMap stvd={charts.stvd} />
               </Card>
             </>
           )}
 
           {payload.warnings?.length > 0 && (
-            <Alert
-              type="warning"
-              style={{ marginTop: 24 }}
+            <Alert type="warning" style={{ marginTop: 24 }}
               message={t("charts.warnings")}
               description={
                 <ul style={{ margin: 0, fontFamily: FONT_MONO, fontSize: 12 }}>
-                  {payload.warnings.map((w: string, i: number) => (
-                    <li key={i}>{w}</li>
-                  ))}
+                  {payload.warnings.map((w: string, i: number) => <li key={i}>{w}</li>)}
                 </ul>
               }
             />

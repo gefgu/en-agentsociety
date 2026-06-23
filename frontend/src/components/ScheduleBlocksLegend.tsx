@@ -1,5 +1,6 @@
 import { ATTRIBUTE_TO_EMOJI, BLOCKS } from "../pages/DailySchedule";
 import { useTheme } from "../context/ThemeContext";
+import "./ScheduleBlocksLegend.css";
 
 const BLOCK_TO_ATTRIBUTES: Record<string, string[]> = {
   "MobilityBlock": [
@@ -20,9 +21,7 @@ const BLOCK_TO_ATTRIBUTES: Record<string, string[]> = {
     "gender", "education", "consumption_level", "occupation", "age",
     "income", "time", "plan", "event", "needs", "need", "intervention", "intention"
   ],
-  "OtherBlock": [
-    "plan", "intention", "emotion"
-  ],
+  "OtherBlock": ["plan", "intention", "emotion"],
   "PlanBlock": [
     "weather", "temperature", "need", "location", "time", "consumption",
     "job", "age", "emotion", "thought", "options", "other", "plan", "max_steps"
@@ -33,104 +32,33 @@ const BLOCK_TO_ATTRIBUTES: Record<string, string[]> = {
     "intention", "chat", "discussion_constraint", "environment_info",
     "friend_info", "emotion"
   ],
-  "Dispatcher": [
-    "intention", "blocks"
-  ]
+  "Dispatcher": ["intention", "blocks"]
 };
 
 const BlocksLegend = () => {
   const { theme } = useTheme();
 
   return (
-    <div style={{
-      padding: '25px',
-      backgroundColor: 'var(--color-surface)',
-      borderRadius: '8px'
-    }}>
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-        gap: '16px',
-        maxWidth: '100%'
-      }}>
+    <div className="blocks-legend">
+      <div className="blocks-grid">
         {BLOCKS.map((block) => (
           <div
             key={block.name}
-            style={{
-              backgroundColor: theme === 'dark' ? block.darkColor : block.lightColor,
-              border: '1px solid var(--color-border)',
-              borderRadius: '15px',
-              padding: '24px 16px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              minHeight: '250px',
-              transition: 'transform 0.2s, box-shadow 0.2s',
-              cursor: 'default'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.05)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
+            className="block-card"
+            style={{ '--block-color': theme === 'dark' ? block.darkColor : block.lightColor } as React.CSSProperties}
           >
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '60px', lineHeight: 1 }}>
-                {block.emoji}
-              </div>
-              <div style={{
-                fontSize: '20px',
-                fontWeight: 'bold',
-                marginTop: '12px',
-                color: 'var(--color-text)'
-              }}>
-                {block.name}
-              </div>
-              <div style={{
-                fontSize: '15px',
-                color: 'var(--color-text-muted)',
-                marginTop: '6px',
-                lineHeight: 1.3
-              }}>
-                {block.desc}
-              </div>
+            <div className="block-card-header">
+              <div className="block-emoji">{block.emoji}</div>
+              <div className="block-name">{block.name}</div>
+              <div className="block-desc">{block.desc}</div>
             </div>
 
             {BLOCK_TO_ATTRIBUTES[block.name] && (
-              <div style={{
-                marginTop: '16px',
-                minHeight: '50px',
-                display: 'flex',
-                flexWrap: 'wrap',
-                justifyContent: 'center',
-                alignItems: 'center',
-                gap: '6px'
-              }}>
+              <div className="block-attrs">
                 {BLOCK_TO_ATTRIBUTES[block.name]
                   .filter(attr => ATTRIBUTE_TO_EMOJI[attr])
-                  .map((attr, idx) => (
-                    <span
-                      key={idx}
-                      title={attr.replace(/_/g, ' ')}
-                      style={{
-                        fontSize: '22px',
-                        opacity: 0.85,
-                        cursor: 'help',
-                        transition: 'transform 0.15s, opacity 0.15s'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'scale(1.3)';
-                        e.currentTarget.style.opacity = '1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'scale(1)';
-                        e.currentTarget.style.opacity = '0.85';
-                      }}
-                    >
+                  .map((attr, i) => (
+                    <span key={i} className="block-attr-emoji" title={attr.replace(/_/g, ' ')}>
                       {ATTRIBUTE_TO_EMOJI[attr]}
                     </span>
                   ))}

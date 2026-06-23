@@ -1,0 +1,65 @@
+.charts-page {
+  padding: 24px;
+  min-height: 100%;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.charts-title {
+  font-family: var(--font-heading);
+  font-size: 32px;
+  margin: 0;
+}
+
+.charts-subtitle {
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+  margin-top: 4px;
+}
+
+.charts-section-header {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-text-muted);
+  margin: 28px 0 4px;
+}
+
+.charts-compare-label {
+  font-family: var(--font-heading);
+  font-size: 22px;
+}
+
+.charts-metric-table {
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.charts-metric-table td {
+  padding: 3px 20px 3px 0;
+}
+
+.charts-metric-block {
+  min-width: 240px;
+}
+
+.charts-params {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  padding: 6px 4px 0;
+}
+
+.charts-loading {
+  text-align: center;
+  padding: 64px;
+}
+
+.charts-metrics-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 48px;
+}

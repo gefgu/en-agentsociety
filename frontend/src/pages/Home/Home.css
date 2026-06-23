@@ -1,0 +1,230 @@
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.hero-animate       { animation: fadeUp 0.55s 0.08s ease both; opacity: 0; }
+.hero-badge-animate { animation: fadeUp 0.45s ease both; }
+
+/* ── Hero ────────────────────────────────────────────────────── */
+
+.home-hero {
+  position: relative;
+  min-height: calc(100vh - var(--nav-height));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 32px 140px;
+  overflow: hidden;
+}
+
+.home-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.home-glow-outer {
+  background: radial-gradient(ellipse 1000px 700px at 50% 48%, rgba(15,184,164,0.07) 0%, transparent 62%);
+}
+
+.home-glow-inner {
+  background: radial-gradient(ellipse 500px 400px at 50% 40%, rgba(15,184,164,0.04) 0%, transparent 62%);
+}
+
+.home-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 14px;
+  border-radius: 20px;
+  background: rgba(15,184,164,0.1);
+  border: 1px solid rgba(15,184,164,0.22);
+  color: #0fb8a4;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin-bottom: 28px;
+}
+
+.home-hero-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.home-logo-mark {
+  margin-bottom: 24px;
+}
+
+.home-hero-title {
+  font-family: var(--font-heading);
+  font-size: 58px;
+  font-weight: 700;
+  letter-spacing: -0.038em;
+  line-height: 1.04;
+  color: var(--color-text);
+  margin: 0 0 20px;
+  text-align: center;
+}
+
+.home-hero-subtitle {
+  font-family: var(--font-body);
+  font-size: 17.5px;
+  font-weight: 300;
+  color: var(--color-text-muted);
+  margin: 0 0 32px;
+  max-width: 560px;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.home-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 40px;
+}
+
+/* pill colors are data-driven so .home-pill only carries structure */
+.home-pill {
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.home-cta-group {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.home-cta-btn {
+  padding: 0 34px;
+  height: 48px;
+  font-size: 15px;
+  font-family: var(--font-body);
+  font-weight: 600;
+}
+
+.home-github-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 24px;
+  height: 48px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 400;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.home-github-link:hover {
+  background: rgba(255,255,255,0.09);
+  color: var(--color-text);
+}
+
+html.light-mode .home-github-link {
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(0,0,0,0.1);
+}
+
+html.light-mode .home-github-link:hover {
+  background: rgba(0,0,0,0.08);
+}
+
+.home-scroll-indicator {
+  margin-top: 56px;
+  color: var(--color-text-muted);
+  font-size: 20px;
+  opacity: 0.5;
+}
+
+/* ── Features ────────────────────────────────────────────────── */
+
+.home-features {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 64px 48px 100px;
+}
+
+.home-features-overline {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin: 0 0 12px;
+}
+
+.home-features-title {
+  font-family: var(--font-heading);
+  font-size: 35px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.18;
+  color: var(--color-text);
+  margin: 0 0 40px;
+}
+
+.home-features-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+/* .home-feature-card: accent border-top and icon color are data-driven (inline) */
+.home-feature-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 30px;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.home-feature-card:hover {
+  background: var(--color-bg);
+  border-color: var(--color-border);
+}
+
+.home-card-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+.home-card-title {
+  font-family: var(--font-heading);
+  font-size: 16.5px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 10px;
+}
+
+.home-card-body {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  margin: 0;
+  line-height: 1.72;
+}

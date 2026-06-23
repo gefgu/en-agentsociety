@@ -25,8 +25,8 @@ html.light-mode {
     --color-nav-bg:     rgba(245,247,250,0.96);
     --color-accent:     #0a9e8c;
     --color-text:       #111827;
-    --color-text-muted: rgba(17,24,39,0.52);
-    --color-border:     rgba(0,0,0,0.09);
+    --color-text-muted: #5c6270;
+    --color-border:     rgba(0,0,0,0.10);
 }
 
 html.light-mode body {
@@ -37,6 +37,19 @@ html.light-mode body {
 
 html.light-mode ::-webkit-scrollbar-thumb {
     background: rgba(0,0,0,0.15);
+}
+
+html.light-mode .site-nav-link:hover {
+    background: rgba(0,0,0,0.05);
+}
+
+html.light-mode .site-nav-separator {
+    background: rgba(0,0,0,0.12);
+}
+
+html.light-mode .site-nav-pill {
+    background: rgba(0,0,0,0.04);
+    border-color: rgba(0,0,0,0.10);
 }
 
 /* Scrollbar */
@@ -110,6 +123,15 @@ body {
     background: rgba(255,255,255,0.1);
     margin: 0 5px;
     flex-shrink: 0;
+}
+
+/* Used for button-style nav items (GitHub link etc.) */
+.site-nav-pill {
+    border: 1px solid rgba(255,255,255,0.09);
+    background: rgba(255,255,255,0.05);
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
 /* ── Ant Design overrides ──────────────────────────────────── */
