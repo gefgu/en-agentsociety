@@ -1,0 +1,105 @@
+/* Planned schedule Gantt */
+.cs-gantt-wrapper {
+  position: relative;
+  padding-top: 28px;
+  padding-bottom: 32px;
+}
+
+.cs-gantt-axis {
+  position: relative;
+  height: 20px;
+  margin-bottom: 4px;
+}
+
+.cs-gantt-axis span {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: var(--color-text-secondary, #888);
+  white-space: nowrap;
+}
+
+.cs-gantt-bar {
+  position: relative;
+  height: 44px;
+  background: var(--color-bg-secondary, rgba(0,0,0,0.06));
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.cs-gantt-block {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  transition: filter 0.15s;
+  border-right: 1px solid rgba(255,255,255,0.2);
+}
+
+.cs-gantt-block:hover {
+  filter: brightness(1.15);
+  z-index: 2;
+}
+
+.cs-gantt-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(0,0,0,0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 4px;
+}
+
+.cs-gantt-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.cs-gantt-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+}
+
+.cs-gantt-legend-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* Personality panel */
+.cs-personality {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cs-personality-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cs-prefs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 16px;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.cs-goals-list {
+  margin: 4px 0 0 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.7;
+}

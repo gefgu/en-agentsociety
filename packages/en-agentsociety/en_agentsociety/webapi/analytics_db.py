@@ -147,5 +147,49 @@ class AnalyticsDB:
         sql = "SELECT * FROM experiment_info WHERE id = ? LIMIT 1"
         return await asyncio.to_thread(self._duckdb_query_one_sync, exp_id, sql, [exp_id])
 
+    async def query_block_timeline(
+        self, exp_id: str, agent_id: int
+    ) -> List[Dict[str, Any]]:
+        """Return prompt_response rows for one agent, ordered by simulation_step then timestamp."""
+        if not self._duckdb_exists(exp_id):
+            return []
+        sql = (
+            "SELECT simulation_step, block_name, func_name, prompt, response, detail_available "
+            "FROM prompt_responses "
+            "WHERE exp_id = ? AND agent_id = ? "
+            "ORDER BY simulation_step, timestamp"
+        )
+        return await asyncio.to_thread(self._duckdb_query_sync, exp_id, sql, [exp_id, agent_id])
+
+    async def query_daily_schedule(
+        self,
+        exp_id: str,
+        agent_id: int,
+        day: Optional[int] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Return daily_schedule dict from the latest step_agent_status for a given day."""
+        if not self._duckdb_exists(exp_id):
+            return None
+        conditions = ["exp_id = ?", "agent_id = ?"]
+        params: list = [exp_id, agent_id]
+        if day is not None:
+            conditions.append("day = ?")
+            params.append(day)
+        sql = (
+            f"SELECT status, day FROM step_agent_status WHERE {' AND '.join(conditions)} "
+            "ORDER BY day DESC, t DESC LIMIT 1"
+        )
+        row = await asyncio.to_thread(self._duckdb_query_one_sync, exp_id, sql, params)
+        if not row:
+            return None
+        status_val = row.get("status", "{}")
+        if isinstance(status_val, str):
+            try:
+                status_val = json.loads(status_val)
+            except Exception:
+                return None
+        schedule = status_val.get("daily_schedule")
+        return schedule if isinstance(schedule, dict) and schedule.get("blocks") else None
+
     def duckdb_exists(self, exp_id: str) -> bool:
         return self._duckdb_exists(exp_id)

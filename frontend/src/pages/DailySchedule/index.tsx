@@ -1,10 +1,11 @@
-import { useEffect, useState, useRef } from "react";
-import { Col, Row, Card } from 'antd';
+import { useEffect, useState, useCallback } from "react";
+import { Col, Row, Card, Select, Spin, Alert, Empty } from 'antd';
 import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import TimelineGrid from "../../components/ScheduleTimeline";
 import BlocksLegend from "../../components/ScheduleBlocksLegend";
 import ScheduleAttributesLegend from "../../components/ScheduleAttributesLegend";
+import { fetchCustom } from "../../components/fetch";
 
 // Block definitions matching the Python code
 const BLOCKS = [
@@ -20,77 +21,28 @@ const BLOCKS = [
 
 // Attribute to emoji mapping
 const ATTRIBUTE_TO_EMOJI: Record<string, string> = {
-  // Mobility & Location
-  "location": "🗺️",
-  "radius": "⭕",
-  "residence": "🏠",
-  "work": "🏢",
-  "city": "🏙️",
-
-  // Environment & Time
-  "weather": "☁️",
-  "temperature": "🌡️",
-  "environment_info": "🌳",
-  "time": "⌚",
-
-  // Demographics
-  "name": "🏷️",
-  "gender": "⚧",
-  "age": "🎂",
-  "race": "🌍",
-  "religion": "🛐",
-  "marriage_status": "💍",
-  "background_story": "📜",
-
-  // Internal State
-  "emotion": "😶",
-  "emotion_levels": "🎭",
-  "thought": "💭",
-  "memories": "🧠",
-  "personality": "🧩",
-  "topic": "💡",
-
-  // Needs & Planning
-  "needs": "🔋",
-  "need": "🚨",
-  "plan": "📝",
-  "intention": "🎯",
-  "intervention": "📢",
-  "options": "🤔",
-  "event": "🏁",
-  "max_steps": "📏",
-  "other": "ℹ️",
-
-  // Economy & Work
-  "occupation": "💼",
-  "job": "⚒️",
-  "education": "🎓",
-  "income": "💵",
-  "wealth": "💰",
-  "hourly_rate": "⏱️",
-  "taxes": "📉",
-  "interest_rate": "📈",
-  "prices": "🏷️",
-  "consumption": "🛒",
-  "consumption_level": "📊",
-  "family_consumption": "👨‍👩‍👧",
-
-  // Social
-  "chat": "💬",
-  "relationship_type": "🔗",
-  "relationship_strength": "💪",
-  "friend_info": "🤝",
-  "discussion_constraint": "🤐",
-
-  // Blocks
+  "location": "🗺️", "radius": "⭕", "residence": "🏠", "work": "🏢", "city": "🏙️",
+  "weather": "☁️", "temperature": "🌡️", "environment_info": "🌳", "time": "⌚",
+  "name": "🏷️", "gender": "⚧", "age": "🎂", "race": "🌍", "religion": "🛐",
+  "marriage_status": "💍", "background_story": "📜",
+  "emotion": "😶", "emotion_levels": "🎭", "thought": "💭", "memories": "🧠",
+  "personality": "🧩", "topic": "💡",
+  "needs": "🔋", "need": "🚨", "plan": "📝", "intention": "🎯",
+  "intervention": "📢", "options": "🤔", "event": "🏁", "max_steps": "📏", "other": "ℹ️",
+  "occupation": "💼", "job": "⚒️", "education": "🎓", "income": "💵", "wealth": "💰",
+  "hourly_rate": "⏱️", "taxes": "📉", "interest_rate": "📈", "prices": "🏷️",
+  "consumption": "🛒", "consumption_level": "📊", "family_consumption": "👨‍👩‍👧",
+  "chat": "💬", "relationship_type": "🔗", "relationship_strength": "💪",
+  "friend_info": "🤝", "discussion_constraint": "🤐",
   "blocks": "📦"
 };
 
-// Type definition for block execution data
 export type BlockExecution = {
   block_name: string;
   prompt: string;
   response: string;
+  func_name?: string;
+  detail_available?: number;
 };
 
 export type TimelineDataPoint = {
@@ -98,105 +50,130 @@ export type TimelineDataPoint = {
   block_executions: BlockExecution[];
 };
 
-// Sample prompts and responses by block type
-const SAMPLE_PROMPTS: Record<string, { prompt: string; response: string }> = {
-  MobilityBlock: {
-    prompt: "Given your current location and intention, determine the next destination. Consider weather conditions, time of day, and your current needs.",
-    response: "Moving to workplace located at [coordinates: 40.7128, -74.0060]. Estimated travel time: 15 minutes. Mode: walking."
-  },
-  CognitionBlock: {
-    prompt: "Reflect on recent social interactions and evaluate your emotional state. Consider your personality traits and recent memories.",
-    response: "Current emotional state: content (0.75). Recent interaction with colleague was positive. Memory updated with work achievement."
-  },
-  EconomyBlock: {
-    prompt: "Evaluate your current financial situation. Plan consumption based on income, savings, and current needs. Consider prices and taxes.",
-    response: "Monthly budget: $3,500. Planned expenses: $2,800. Savings target: $700. Current consumption level: moderate."
-  },
-  NeedsBlock: {
-    prompt: "Assess your current physiological and psychological needs based on Maslow's hierarchy. Prioritize actions accordingly.",
-    response: "Primary need: Physiological (hunger: 0.6). Secondary need: Social belonging (0.4). Action: Plan lunch break."
-  },
-  OtherBlock: {
-    prompt: "Handle routine activities that don't fall into specific categories. Consider time of day and energy levels.",
-    response: "Entering rest state. Sleep duration planned: 7 hours. Alarm set for 6:30 AM."
-  },
-  SocialBlock: {
-    prompt: "Engage with nearby agents based on relationship strength and current context. Consider personality compatibility and discussion topics.",
-    response: "Initiated conversation with friend. Topic: weekend plans. Relationship strength increased by 0.05. Duration: 20 minutes."
-  },
-  PlanBlock: {
-    prompt: "Create or update your daily plan based on current time, weather, needs, and obligations. Consider work schedule and personal goals.",
-    response: "Daily plan updated: 9AM-5PM work, 6PM gym, 7PM dinner with family. Flexibility: medium. Contingency: rain backup plan."
-  },
-  Dispatcher: {
-    prompt: "Select the most appropriate block to execute next based on current context, needs, and intentions.",
-    response: "Selected block: EconomyBlock (priority: high). Reason: work hours, income generation needed. Next: MobilityBlock."
-  }
-};
+type AgentOption = { id: number; name: string };
 
-// Sample data generator with prompt and response
-const generateSampleData = (): TimelineDataPoint[] => {
-  const data: TimelineDataPoint[] = [];
-
-  for (let step = 0; step < 144; step++) {
-    const hour = Math.floor(step / 6);
-    let blockNames: string[] = [];
-
-    // Simulate realistic patterns
-    if (hour >= 0 && hour < 6) {
-      blockNames = ['OtherBlock'];
-    } else if (hour >= 6 && hour < 9) {
-      blockNames = ['Dispatcher', 'MobilityBlock', 'NeedsBlock'];
-    } else if (hour >= 9 && hour < 12) {
-      blockNames = ['Dispatcher', 'EconomyBlock', 'CognitionBlock'];
-    } else if (hour >= 12 && hour < 13) {
-      blockNames = ['NeedsBlock', 'SocialBlock'];
-    } else if (hour >= 13 && hour < 18) {
-      blockNames = ['Dispatcher', 'EconomyBlock', 'MobilityBlock'];
-    } else if (hour >= 18 && hour < 22) {
-      blockNames = ['SocialBlock', 'NeedsBlock', 'PlanBlock'];
-    } else {
-      blockNames = ['OtherBlock'];
-    }
-
-    // Create block executions with prompts and responses
-    const block_executions: BlockExecution[] = blockNames.map(name => ({
-      block_name: name,
-      prompt: SAMPLE_PROMPTS[name]?.prompt || `Execute ${name} at step ${step}`,
-      response: SAMPLE_PROMPTS[name]?.response || `Completed ${name} execution successfully`
-    }));
-
-    data.push({
-      simulation_step: step,
-      block_executions
-    });
-  }
-
-  return data;
-};
+const TOTAL_STEPS = 144;
 
 const DailySchedulePage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { exp_id, name: EncodedName } = useParams<{ exp_id?: string, name?: string }>();
-  const name = EncodedName ? decodeURIComponent(EncodedName) : 'Experiment';
+  const { exp_id, agent_id: agentIdParam } = useParams<{ exp_id?: string; agent_id?: string }>();
 
-  const [timelineData] = useState<TimelineDataPoint[]>(generateSampleData());
+  const [agents, setAgents] = useState<AgentOption[]>([]);
+  const [selectedAgentId, setSelectedAgentId] = useState<number | null>(
+    agentIdParam ? parseInt(agentIdParam, 10) : null
+  );
+  const [timelineData, setTimelineData] = useState<TimelineDataPoint[]>([]);
+  const [loadingAgents, setLoadingAgents] = useState(false);
+  const [loadingTimeline, setLoadingTimeline] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch agent list for the experiment
+  useEffect(() => {
+    if (!exp_id) return;
+    setLoadingAgents(true);
+    fetchCustom(`/api/experiments/${exp_id}/agents/-/profile`)
+      .then(r => r.json())
+      .then(json => {
+        const list: AgentOption[] = (json.data || []).map((p: any) => ({
+          id: p.id,
+          name: p.name || `Agent ${p.id}`,
+        }));
+        setAgents(list);
+        if (list.length > 0 && selectedAgentId === null) {
+          setSelectedAgentId(list[0].id);
+        }
+      })
+      .catch(() => setError('Failed to load agent list'))
+      .finally(() => setLoadingAgents(false));
+  }, [exp_id]);
+
+  // Fetch block timeline whenever agent selection changes
+  const fetchTimeline = useCallback((agentId: number) => {
+    if (!exp_id) return;
+    setLoadingTimeline(true);
+    setError(null);
+    fetchCustom(`/api/experiments/${exp_id}/agents/${agentId}/block-timeline`)
+      .then(r => r.json())
+      .then(json => {
+        const steps = json.data || [];
+        // Build a 144-slot array; steps not present get empty block_executions
+        const grid: TimelineDataPoint[] = Array.from({ length: TOTAL_STEPS }, (_, i) => ({
+          simulation_step: i,
+          block_executions: [],
+        }));
+        for (const step of steps) {
+          const idx = step.simulation_step;
+          if (idx >= 0 && idx < TOTAL_STEPS) {
+            grid[idx].block_executions = step.block_executions;
+          }
+        }
+        setTimelineData(grid);
+      })
+      .catch(() => setError('Failed to load block timeline'))
+      .finally(() => setLoadingTimeline(false));
+  }, [exp_id]);
+
+  useEffect(() => {
+    if (selectedAgentId !== null) {
+      fetchTimeline(selectedAgentId);
+      if (exp_id) {
+        navigate(`/daily-schedule/${exp_id}/${selectedAgentId}`, { replace: true });
+      }
+    }
+  }, [selectedAgentId]);
+
+  const agentName = agents.find(a => a.id === selectedAgentId)?.name ?? '';
 
   return (
     <div style={{ padding: '24px' }}>
       <Row gutter={[16, 16]}>
         <Col span={24}>
-          <h2 style={{ fontSize: 48 }}>Daily Schedule Timeline{name ? ` - ${name}` : ''}</h2>
+          <h2 style={{ fontSize: 36 }}>
+            Daily Schedule Timeline{agentName ? ` — ${agentName}` : ''}
+          </h2>
         </Col>
-        
+
+        {/* Agent selector */}
+        {exp_id && (
+          <Col span={24}>
+            <span style={{ marginRight: 12, fontWeight: 600 }}>Agent:</span>
+            <Select
+              loading={loadingAgents}
+              value={selectedAgentId ?? undefined}
+              onChange={val => setSelectedAgentId(val)}
+              style={{ width: 280 }}
+              placeholder="Select an agent"
+              showSearch
+              filterOption={(input, opt) =>
+                (opt?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              options={agents.map(a => ({ value: a.id, label: `${a.name} (${a.id})` }))}
+            />
+          </Col>
+        )}
+
+        {error && (
+          <Col span={24}>
+            <Alert type="error" message={error} showIcon />
+          </Col>
+        )}
+
         {/* Timeline Grid */}
         <Col span={24}>
           <Card title="Daily Activity Timeline">
-            <TimelineGrid timelineData={timelineData} />
+            {loadingTimeline ? (
+              <div style={{ textAlign: 'center', padding: 48 }}>
+                <Spin size="large" />
+              </div>
+            ) : timelineData.length === 0 ? (
+              <Empty description="No timeline data available. Select an experiment and agent." />
+            ) : (
+              <TimelineGrid timelineData={timelineData} />
+            )}
           </Card>
         </Col>
-        
+
         {/* Block Legend */}
         <Col span={24}>
           <h3 style={{ fontSize: 24, marginTop: 24 }}>Block Types</h3>

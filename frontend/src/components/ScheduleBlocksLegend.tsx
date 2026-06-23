@@ -2,6 +2,8 @@ import { ATTRIBUTE_TO_EMOJI, BLOCKS } from "../pages/DailySchedule";
 import { useTheme } from "../context/ThemeContext";
 import "./ScheduleBlocksLegend.css";
 
+type Block = typeof BLOCKS[0];
+
 const BLOCK_TO_ATTRIBUTES: Record<string, string[]> = {
   "MobilityBlock": [
     "plan", "intention", "radius", "weather", "temperature",
@@ -35,13 +37,14 @@ const BLOCK_TO_ATTRIBUTES: Record<string, string[]> = {
   "Dispatcher": ["intention", "blocks"]
 };
 
-const BlocksLegend = () => {
+const BlocksLegend = ({ blocks }: { blocks?: Block[] }) => {
   const { theme } = useTheme();
+  const displayBlocks = blocks ?? BLOCKS;
 
   return (
     <div className="blocks-legend">
       <div className="blocks-grid">
-        {BLOCKS.map((block) => (
+        {displayBlocks.map((block) => (
           <div
             key={block.name}
             className="block-card"

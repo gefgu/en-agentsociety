@@ -1,6 +1,6 @@
 import enum
 import uuid
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, AwareDatetime
 
@@ -24,6 +24,10 @@ __all__ = [
     "ApiAgentStatus",
     "ApiAgentSurvey",
     "ApiGlobalPrompt",
+    "ApiBlockExecution",
+    "ApiTimelineStep",
+    "ApiDailyScheduleBlock",
+    "ApiDailySchedule",
 ]
 
 # Database Models
@@ -133,3 +137,37 @@ class ApiGlobalPrompt(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ApiBlockExecution(BaseModel):
+    """A single LLM call within a simulation step"""
+
+    block_name: str
+    func_name: str = ""
+    prompt: str = ""
+    response: str = ""
+    detail_available: int = 1
+
+
+class ApiTimelineStep(BaseModel):
+    """All block executions at one simulation step"""
+
+    simulation_step: int
+    block_executions: List[ApiBlockExecution]
+
+
+class ApiDailyScheduleBlock(BaseModel):
+    """One time-block in a CitySim daily schedule"""
+
+    start_time: str
+    duration: int
+    activity: str
+    description: str = ""
+
+
+class ApiDailySchedule(BaseModel):
+    """LLM-generated daily schedule for a CitySim agent"""
+
+    day: int
+    blocks: List[ApiDailyScheduleBlock]
+    generated_at: str = ""

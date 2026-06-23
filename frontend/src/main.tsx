@@ -30,6 +30,7 @@ import ChartsPage from './pages/Charts';
 import ErrorPage from './pages/ErrorPage'
 import LokiPage from './pages/Loki'
 import DailySchedule from './pages/DailySchedule'
+import CitySim from './pages/CitySim'
 
 const authProvider = (children: React.ReactNode) => {
   if (WITH_AUTH) {
@@ -185,10 +186,18 @@ const router = createBrowserRouter([{
       ),
     },
     {
-      path: "/daily-schedule/:exp_id?/:name?",
+      path: "/daily-schedule/:exp_id?/:agent_id?",
       element: (
         authProvider(
           <RootLayout selectedKey='/daily-schedule'><DailySchedule /></RootLayout>
+        )
+      ),
+    },
+    {
+      path: "/citysim-schedule/:exp_id?/:agent_id?",
+      element: (
+        authProvider(
+          <RootLayout selectedKey='/citysim-schedule'><CitySim /></RootLayout>
         )
       ),
     },

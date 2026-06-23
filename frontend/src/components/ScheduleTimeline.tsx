@@ -1,4 +1,6 @@
 import { BLOCKS, BlockExecution, TimelineDataPoint, ATTRIBUTE_TO_EMOJI } from "../pages/DailySchedule";
+
+type Block = typeof BLOCKS[0];
 import { useEffect, useState } from "react";
 import { Modal, Typography, Tag } from "antd";
 import "./ScheduleTimeline.css";
@@ -38,7 +40,8 @@ const BLOCK_TO_ATTRIBUTES: Record<string, string[]> = {
   "Dispatcher": ["intention", "blocks"]
 };
 
-const TimelineGrid = ({ timelineData }: { timelineData: TimelineDataPoint[] }) => {
+const TimelineGrid = ({ timelineData, blocks }: { timelineData: TimelineDataPoint[]; blocks?: Block[] }) => {
+  const displayBlocks = blocks ?? BLOCKS;
   const [isBigScreen, setIsBigScreen] = useState(window.innerWidth >= 1400);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedExecution, setSelectedExecution] = useState<BlockExecution | null>(null);
@@ -49,7 +52,7 @@ const TimelineGrid = ({ timelineData }: { timelineData: TimelineDataPoint[] }) =
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const BLOCK_EMOJI_MAP = BLOCKS.reduce((acc, block) => {
+  const BLOCK_EMOJI_MAP = displayBlocks.reduce((acc, block) => {
     acc[block.name] = block.emoji;
     return acc;
   }, {} as Record<string, string>);
@@ -94,7 +97,7 @@ const TimelineGrid = ({ timelineData }: { timelineData: TimelineDataPoint[] }) =
                       <div className="timeline-emojis">
                         {executions.map((exec, i) => {
                           const emoji = BLOCK_EMOJI_MAP[exec.block_name] || '❓';
-                          const block = BLOCKS.find(b => b.name === exec.block_name);
+                          const block = displayBlocks.find(b => b.name === exec.block_name);
                           return (
                             <span
                               key={i}

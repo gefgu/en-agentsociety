@@ -16,6 +16,10 @@ from ..models.agent import (
     ApiAgentStatus,
     ApiAgentSurvey,
     ApiGlobalPrompt,
+    ApiBlockExecution,
+    ApiTimelineStep,
+    ApiDailySchedule,
+    ApiDailyScheduleBlock,
 )
 from ..models.experiment import Experiment, ExperimentStatus
 from ..models.survey import Survey
@@ -406,3 +410,67 @@ async def post_agent_survey(
         )
 
     return ApiResponseWrapper(data=None)
+
+
+@router.get("/experiments/{exp_id}/agents/{agent_id}/block-timeline")
+async def get_agent_block_timeline(
+    request: Request,
+    exp_id: uuid.UUID,
+    agent_id: int,
+) -> ApiResponseWrapper[List[ApiTimelineStep]]:
+    """Block execution timeline for one agent (groups prompt_responses by simulation_step)."""
+    async with request.app.state.get_db() as db:
+        db = cast(AsyncSession, db)
+        await _find_started_experiment_by_id(request, db, exp_id)
+
+    analytics_db = request.app.state.analytics_db
+    rows = await analytics_db.query_block_timeline(str(exp_id), agent_id)
+
+    steps: dict[int, list] = {}
+    for row in rows:
+        s = int(row["simulation_step"])
+        steps.setdefault(s, []).append(ApiBlockExecution(
+            block_name=row["block_name"],
+            func_name=row.get("func_name") or "",
+            prompt=row.get("prompt") or "",
+            response=row.get("response") or "",
+            detail_available=int(row.get("detail_available", 1)),
+        ))
+    result = [
+        ApiTimelineStep(simulation_step=s, block_executions=execs)
+        for s, execs in sorted(steps.items())
+    ]
+    return ApiResponseWrapper(data=result)
+
+
+@router.get("/experiments/{exp_id}/agents/{agent_id}/daily-plan")
+async def get_agent_daily_plan(
+    request: Request,
+    exp_id: uuid.UUID,
+    agent_id: int,
+    day: Optional[int] = Query(None, description="simulation day to fetch schedule for"),
+) -> ApiResponseWrapper[Optional[ApiDailySchedule]]:
+    """Return the LLM-generated daily schedule (CitySim) for a given agent and day."""
+    async with request.app.state.get_db() as db:
+        db = cast(AsyncSession, db)
+        await _find_started_experiment_by_id(request, db, exp_id)
+
+    analytics_db = request.app.state.analytics_db
+    schedule = await analytics_db.query_daily_schedule(str(exp_id), agent_id, day)
+    if not schedule:
+        return ApiResponseWrapper(data=None)
+
+    blocks = [
+        ApiDailyScheduleBlock(
+            start_time=b.get("start_time", ""),
+            duration=int(b.get("duration", 0)),
+            activity=b.get("activity", ""),
+            description=b.get("description", ""),
+        )
+        for b in schedule.get("blocks", [])
+    ]
+    return ApiResponseWrapper(data=ApiDailySchedule(
+        day=int(schedule.get("day", 0)),
+        blocks=blocks,
+        generated_at=schedule.get("generated_at", ""),
+    ))
