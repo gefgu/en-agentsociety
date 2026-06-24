@@ -19,12 +19,12 @@ const TimelineGrid = ({
   stepColors?: string[];
 }) => {
   const displayBlocks = blocks ?? BLOCKS;
-  const [isBigScreen, setIsBigScreen] = useState(window.innerWidth >= 1400);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedExecution, setSelectedExecution] = useState<BlockExecution | null>(null);
 
   useEffect(() => {
-    const handleResize = () => setIsBigScreen(window.innerWidth >= 1920);
+    const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -34,14 +34,16 @@ const TimelineGrid = ({
     return acc;
   }, {} as Record<string, string>);
 
-  // Dynamically reduce column count when rows are dense, to avoid emoji overflow
+  // Dynamically reduce column count when rows are dense, to avoid emoji overflow.
+  // Base is higher now that the timeline is full-width (not 2/3 of the page).
   const maxEmojisPerStep = timelineData.reduce(
     (mx, step) => Math.max(mx, step.block_executions?.length ?? 0),
     0,
   );
-  const baseColumns = isBigScreen ? 6 : 4;
-  const numColumns = maxEmojisPerStep > 8 ? Math.min(baseColumns, 2)
-    : maxEmojisPerStep > 4 ? Math.min(baseColumns, 3)
+  const baseColumns = windowWidth >= 1800 ? 8 : windowWidth >= 1400 ? 6 : windowWidth >= 1000 ? 4 : 3;
+  const numColumns = maxEmojisPerStep > 14 ? Math.min(baseColumns, 3)
+    : maxEmojisPerStep > 8 ? Math.min(baseColumns, 4)
+    : maxEmojisPerStep > 4 ? Math.min(baseColumns, 6)
     : baseColumns;
 
   const hoursPerCol = 24 / numColumns;
@@ -52,7 +54,7 @@ const TimelineGrid = ({
   const intervalsPerColumn = 6 * hoursPerCol; // 6 ten-minute intervals per hour
 
   const getTimeLabel = (colIdx: number, intervalIdx: number) => {
-    const hoursPerColumn = isBigScreen ? 4 : 6;
+    const hoursPerColumn = hoursPerCol;
     const hours = colIdx * hoursPerColumn + Math.floor(intervalIdx / 6);
     const minutes = (intervalIdx % 6) * 10;
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;

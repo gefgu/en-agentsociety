@@ -306,17 +306,17 @@ const DailySchedulePage = () => {
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(
     agentIdParam ? parseInt(agentIdParam, 10) : null
   );
+  const [totalDays, setTotalDays] = useState(1);
+  const [selectedDay, setSelectedDay] = useState(0);
   const [timelineData, setTimelineData] = useState<TimelineDataPoint[]>([]);
   const [profile, setProfile] = useState<Record<string, any> | null>(null);
-  // stepColors[i] = hex color for step i, or '' if no location data
   const [stepColors, setStepColors] = useState<string[]>([]);
-  // locationColorMap: location_type → color, used by the legend
   const [locationColorMap, setLocationColorMap] = useState<Record<string, string>>({});
   const [loadingMeta, setLoadingMeta] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 1. Fetch experiment metadata to determine simulation mode + agent list
+  // 1. Fetch experiment metadata to determine simulation mode, agent list, and available days
   useEffect(() => {
     if (!exp_id) return;
     setLoadingMeta(true);
@@ -331,6 +331,10 @@ const DailySchedulePage = () => {
         } catch {
           setSimulationMode('citysim');
         }
+        const curDay = expJson.data?.cur_day ?? 0;
+        const days = Math.max(1, curDay + 1);
+        setTotalDays(days);
+        setSelectedDay(curDay); // default to latest day
         const list: AgentOption[] = (profilesJson.data || []).map((p: any) => ({
           id: p.id,
           name: p.name || `Agent ${p.id}`,
@@ -344,14 +348,14 @@ const DailySchedulePage = () => {
       .finally(() => setLoadingMeta(false));
   }, [exp_id]);
 
-  // 2. Fetch agent data whenever agent selection changes
-  const fetchAgentData = useCallback((agentId: number) => {
+  // 2. Fetch agent data when agent or day selection changes
+  const fetchAgentData = useCallback((agentId: number, day: number) => {
     if (!exp_id) return;
     setLoadingData(true);
     setError(null);
 
     Promise.all([
-      fetchCustom(`/api/experiments/${exp_id}/agents/${agentId}/block-timeline`).then(r => r.json()),
+      fetchCustom(`/api/experiments/${exp_id}/agents/${agentId}/block-timeline?day=${day}`).then(r => r.json()),
       fetchCustom(`/api/experiments/${exp_id}/agents/${agentId}/profile`).then(r => r.json()),
       fetchCustom(`/api/experiments/${exp_id}/agents/${agentId}/location-timeline`).then(r => r.json()),
     ])
@@ -362,7 +366,8 @@ const DailySchedulePage = () => {
           block_executions: [],
         }));
         for (const step of steps) {
-          const idx = step.simulation_step;
+          // Backend returns steps for this day; offset simulation_step back to 0-based grid index
+          const idx = step.simulation_step - day * TOTAL_STEPS;
           if (idx >= 0 && idx < TOTAL_STEPS) grid[idx].block_executions = step.block_executions;
         }
         setTimelineData(grid);
@@ -370,7 +375,7 @@ const DailySchedulePage = () => {
         const p = profileJson?.data;
         setProfile(p ? (p.profile ?? p) : null);
 
-        // Build location color map
+        // Build location color map — fetch all change events, fill-forward to cover the requested day
         const changes: { simulation_step: number; location_type: string }[] =
           (locationJson?.data ?? []).map((r: any) => ({
             simulation_step: r.simulation_step,
@@ -386,7 +391,9 @@ const DailySchedulePage = () => {
           }
         }
         setLocationColorMap(colorMap);
-        setStepColors(buildLocationColorMap(changes, TOTAL_STEPS, colorMap));
+        // Build full color array through end of the requested day, then slice to that day's range
+        const fullColors = buildLocationColorMap(changes, (day + 1) * TOTAL_STEPS, colorMap);
+        setStepColors(fullColors.slice(day * TOTAL_STEPS));
       })
       .catch(() => setError('Failed to load agent data'))
       .finally(() => setLoadingData(false));
@@ -394,10 +401,10 @@ const DailySchedulePage = () => {
 
   useEffect(() => {
     if (selectedAgentId !== null && simulationMode !== null) {
-      fetchAgentData(selectedAgentId);
+      fetchAgentData(selectedAgentId, selectedDay);
       if (exp_id) navigate(`/daily-schedule/${exp_id}/${selectedAgentId}`, { replace: true });
     }
-  }, [selectedAgentId, simulationMode]);
+  }, [selectedAgentId, simulationMode, selectedDay]);
 
   const agentName = agents.find(a => a.id === selectedAgentId)?.name ?? '';
   const isCitySim = simulationMode === 'citysim';
@@ -418,10 +425,10 @@ const DailySchedulePage = () => {
           </h2>
         </Col>
 
-        {/* Agent selector */}
+        {/* Agent + Day selectors */}
         {exp_id && (
-          <Col span={24}>
-            <span style={{ marginRight: 12, fontWeight: 600 }}>Agent:</span>
+          <Col span={24} style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+            <span style={{ fontWeight: 600 }}>Agent:</span>
             <Select
               loading={loadingMeta}
               value={selectedAgentId ?? undefined}
@@ -434,6 +441,16 @@ const DailySchedulePage = () => {
               }
               options={agents.map(a => ({ value: a.id, label: `${a.name} (${a.id})` }))}
             />
+            <span style={{ fontWeight: 600, marginLeft: 8 }}>Day:</span>
+            <Select
+              value={selectedDay}
+              onChange={val => setSelectedDay(val)}
+              style={{ width: 110 }}
+              options={Array.from({ length: totalDays }, (_, i) => ({
+                value: i,
+                label: `Day ${i + 1}`,
+              }))}
+            />
           </Col>
         )}
 
@@ -445,8 +462,15 @@ const DailySchedulePage = () => {
           </Col>
         ) : (
           <>
-            {/* Block execution timeline */}
-            <Col span={24} lg={16}>
+            {/* Agent profile — full width, above timeline */}
+            <Col span={24}>
+              <Card title="Agent Profile">
+                <PersonalityPanel profile={profile} />
+              </Card>
+            </Col>
+
+            {/* Block execution timeline — full width */}
+            <Col span={24}>
               <Card
                 title="Block Execution Timeline"
                 extra={<LocationLegend colorMap={locationColorMap} />}
@@ -463,13 +487,6 @@ const DailySchedulePage = () => {
 
               <h3 style={{ fontSize: 20, marginTop: 20 }}>Agent Attributes</h3>
               <Card><ScheduleAttributesLegend /></Card>
-            </Col>
-
-            {/* Agent profile panel — always shown */}
-            <Col span={24} lg={8}>
-              <Card title="Agent Profile">
-                <PersonalityPanel profile={profile} />
-              </Card>
             </Col>
           </>
         )}

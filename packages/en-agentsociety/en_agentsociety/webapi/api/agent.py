@@ -411,13 +411,14 @@ async def get_agent_block_timeline(
     request: Request,
     exp_id: uuid.UUID,
     agent_id: int,
+    day: int = Query(0, ge=0, description="simulation day index (0-based)"),
 ) -> ApiResponseWrapper[List[ApiTimelineStep]]:
-    """Block execution timeline for one agent (groups prompt_responses by simulation_step)."""
+    """Block execution timeline for one agent on the given day."""
     tenant_id = await request.app.state.get_tenant_id(request)
     await _find_started_experiment_by_id(request, exp_id, tenant_id)
 
     analytics_db = request.app.state.analytics_db
-    rows = await analytics_db.query_block_timeline(str(exp_id), agent_id)
+    rows = await analytics_db.query_block_timeline(str(exp_id), agent_id, day)
     steps: dict[int, list] = {}
     for row in rows:
         s = int(row["simulation_step"])

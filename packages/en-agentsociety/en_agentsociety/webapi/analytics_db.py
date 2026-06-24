@@ -233,7 +233,7 @@ class AnalyticsDB:
             return []
 
     def _ch_query_block_timeline_sync(
-        self, exp_id: str, agent_id: int
+        self, exp_id: str, agent_id: int, step_min: int = 0, step_max: int = 144
     ) -> List[Dict[str, Any]]:
         ch = self._make_ch_client()
         if ch is None:
@@ -244,8 +244,9 @@ class AnalyticsDB:
                 "0 AS detail_available "
                 "FROM prompt_responses "
                 "WHERE exp_id = {exp_id:String} AND agent_id = {agent_id:Int32} "
+                "AND simulation_step >= {step_min:Int32} AND simulation_step < {step_max:Int32} "
                 "ORDER BY simulation_step, timestamp",
-                parameters={"exp_id": exp_id, "agent_id": agent_id},
+                parameters={"exp_id": exp_id, "agent_id": agent_id, "step_min": step_min, "step_max": step_max},
             )
             cols = result.column_names
             return [dict(zip(cols, row)) for row in result.result_rows]
@@ -318,19 +319,28 @@ class AnalyticsDB:
             params = [exp_id]
         return await asyncio.to_thread(self._duckdb_query_sync, exp_id, sql, params)
 
+    _STEPS_PER_DAY = 144
+
     async def query_block_timeline(
-        self, exp_id: str, agent_id: int
+        self, exp_id: str, agent_id: int, day: int = 0
     ) -> List[Dict[str, Any]]:
-        """Return prompt_response rows for one agent, ordered by simulation_step then timestamp."""
+        """Return prompt_response rows for one agent on the given day, ordered by simulation_step."""
+        step_min = day * self._STEPS_PER_DAY
+        step_max = (day + 1) * self._STEPS_PER_DAY
         if self._duckdb_exists(exp_id):
             sql = (
                 "SELECT simulation_step, block_name, func_name, prompt, response, detail_available "
                 "FROM prompt_responses "
                 "WHERE exp_id = ? AND agent_id = ? "
+                "AND simulation_step >= ? AND simulation_step < ? "
                 "ORDER BY simulation_step, timestamp"
             )
-            return await asyncio.to_thread(self._duckdb_query_sync, exp_id, sql, [exp_id, agent_id])
-        return await asyncio.to_thread(self._ch_query_block_timeline_sync, exp_id, agent_id)
+            return await asyncio.to_thread(
+                self._duckdb_query_sync, exp_id, sql, [exp_id, agent_id, step_min, step_max]
+            )
+        return await asyncio.to_thread(
+            self._ch_query_block_timeline_sync, exp_id, agent_id, step_min, step_max
+        )
 
     async def query_daily_schedule(
         self,
