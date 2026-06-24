@@ -9,7 +9,15 @@ const { Title } = Typography;
 
 const resolveBlock = (raw: string) => BLOCK_NAME_ALIAS[raw] ?? raw;
 
-const TimelineGrid = ({ timelineData, blocks }: { timelineData: TimelineDataPoint[]; blocks?: Block[] }) => {
+const TimelineGrid = ({
+  timelineData,
+  blocks,
+  stepColors,
+}: {
+  timelineData: TimelineDataPoint[];
+  blocks?: Block[];
+  stepColors?: string[];
+}) => {
   const displayBlocks = blocks ?? BLOCKS;
   const [isBigScreen, setIsBigScreen] = useState(window.innerWidth >= 1400);
   const [modalOpen, setModalOpen] = useState(false);
@@ -61,7 +69,12 @@ const TimelineGrid = ({ timelineData, blocks }: { timelineData: TimelineDataPoin
                   const executions = getExecutions(colIdx, intervalIdx);
                   return (
                     <div key={intervalIdx} className="timeline-row">
-                      <div className="timeline-time-label">{getTimeLabel(colIdx, intervalIdx)}</div>
+                      <div
+                        className="timeline-time-label"
+                        style={{ color: stepColors?.[colIdx * intervalsPerColumn + intervalIdx] || undefined }}
+                      >
+                        {getTimeLabel(colIdx, intervalIdx)}
+                      </div>
                       <div className="timeline-tick" />
                       <div className="timeline-emojis">
                         {executions.map((exec, i) => {

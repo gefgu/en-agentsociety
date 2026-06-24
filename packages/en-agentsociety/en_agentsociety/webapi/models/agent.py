@@ -26,6 +26,7 @@ __all__ = [
     "ApiGlobalPrompt",
     "ApiBlockExecution",
     "ApiTimelineStep",
+    "ApiLocationStep",
     "ApiDailyScheduleBlock",
     "ApiDailySchedule",
 ]
@@ -154,6 +155,13 @@ class ApiTimelineStep(BaseModel):
 
     simulation_step: int
     block_executions: List[ApiBlockExecution]
+
+
+class ApiLocationStep(BaseModel):
+    """One location-type change event for an agent"""
+
+    simulation_step: int
+    location_type: str
 
 
 class ApiDailyScheduleBlock(BaseModel):

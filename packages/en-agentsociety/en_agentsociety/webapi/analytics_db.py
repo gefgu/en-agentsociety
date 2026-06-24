@@ -355,5 +355,35 @@ class AnalyticsDB:
         schedule = status_val.get("daily_schedule")
         return schedule if isinstance(schedule, dict) and schedule.get("blocks") else None
 
+    def _ch_query_location_timeline_sync(
+        self, exp_id: str, agent_id: int
+    ) -> List[Dict[str, Any]]:
+        if self._ch_client is None:
+            return []
+        try:
+            result = self._ch_client.query(
+                "SELECT simulation_step, location_type FROM agent_location_type "
+                "WHERE exp_id = {exp_id:String} AND agent_id = {agent_id:Int32} "
+                "ORDER BY simulation_step",
+                parameters={"exp_id": exp_id, "agent_id": agent_id},
+            )
+            cols = result.column_names
+            return [dict(zip(cols, row)) for row in result.result_rows]
+        except Exception as e:
+            logger.error(f"ClickHouse location_timeline query failed ({exp_id}/{agent_id}): {e}")
+            return []
+
+    async def query_agent_location_timeline(
+        self, exp_id: str, agent_id: int
+    ) -> List[Dict[str, Any]]:
+        """Return location type change events for one agent, ordered by simulation_step."""
+        if self._duckdb_exists(exp_id):
+            sql = (
+                "SELECT simulation_step, location_type FROM agent_location_type "
+                "WHERE exp_id = ? AND agent_id = ? ORDER BY simulation_step"
+            )
+            return await asyncio.to_thread(self._duckdb_query_sync, exp_id, sql, [exp_id, agent_id])
+        return await asyncio.to_thread(self._ch_query_location_timeline_sync, exp_id, agent_id)
+
     def duckdb_exists(self, exp_id: str) -> bool:
         return self._duckdb_exists(exp_id)

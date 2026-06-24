@@ -18,6 +18,7 @@ from ..models.agent import (
     ApiGlobalPrompt,
     ApiBlockExecution,
     ApiTimelineStep,
+    ApiLocationStep,
     ApiDailySchedule,
     ApiDailyScheduleBlock,
 )
@@ -464,3 +465,24 @@ async def get_agent_daily_plan(
         blocks=blocks,
         generated_at=schedule.get("generated_at", ""),
     ))
+
+
+@router.get("/experiments/{exp_id}/agents/{agent_id}/location-timeline")
+async def get_agent_location_timeline(
+    request: Request,
+    exp_id: uuid.UUID,
+    agent_id: int,
+) -> ApiResponseWrapper[List[ApiLocationStep]]:
+    """Location type change events for one agent, ordered by simulation_step."""
+    tenant_id = await request.app.state.get_tenant_id(request)
+    await _find_started_experiment_by_id(request, exp_id, tenant_id)
+
+    analytics_db = request.app.state.analytics_db
+    rows = await analytics_db.query_agent_location_timeline(str(exp_id), agent_id)
+    return ApiResponseWrapper(data=[
+        ApiLocationStep(
+            simulation_step=int(r["simulation_step"]),
+            location_type=str(r["location_type"]),
+        )
+        for r in rows
+    ])

@@ -29,6 +29,47 @@ export const CITYSIM_BLOCKS = [
   { emoji: '📆', name: 'DailyScheduleBlock', desc: 'Daily Planning', lightColor: '#E8F5E9', darkColor: 'rgba(34,197,94,0.18)', color: '#E8F5E9' },
 ];
 
+// ── Location color coding ───────────────────────────────────────────────────
+
+export const LOCATION_FIXED_COLORS: Record<string, string> = {
+  home: '#3b82f6',  // blue
+  work: '#f59e0b',  // amber
+};
+
+// Ordered palette for any location type beyond home/work
+export const LOCATION_PALETTE = [
+  '#10b981', // emerald
+  '#8b5cf6', // violet
+  '#ef4444', // red
+  '#06b6d4', // cyan
+  '#f97316', // orange
+  '#84cc16', // lime
+  '#ec4899', // pink
+  '#14b8a6', // teal
+  '#6366f1', // indigo
+  '#a855f7', // purple
+];
+
+/** Build a complete step→color map from sparse change events using fill-forward. */
+export function buildLocationColorMap(
+  changes: { simulation_step: number; location_type: string }[],
+  totalSteps: number,
+  colorMap: Record<string, string>,
+): string[] {
+  const result = new Array<string>(totalSteps).fill('');
+  if (changes.length === 0) return result;
+  let current = '';
+  let ci = 0;
+  for (let s = 0; s < totalSteps; s++) {
+    while (ci < changes.length && changes[ci].simulation_step <= s) {
+      current = colorMap[changes[ci].location_type] ?? '';
+      ci++;
+    }
+    result[s] = current;
+  }
+  return result;
+}
+
 // Maps actual DB block_name values → canonical display block names
 export const BLOCK_NAME_ALIAS: Record<string, string> = {
   'BlockDispatcher':             'Dispatcher',
@@ -234,6 +275,26 @@ const PersonalityPanel = ({ profile }: { profile: Record<string, any> | null }) 
   );
 };
 
+// ── Location legend ──────────────────────────────────────────────────────────
+
+const LocationLegend = ({ colorMap }: { colorMap: Record<string, string> }) => {
+  const entries = Object.entries(colorMap);
+  if (entries.length === 0) return null;
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', fontSize: 13 }}>
+      {entries.map(([type, color]) => (
+        <span key={type} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{
+            display: 'inline-block', width: 14, height: 14, borderRadius: 3,
+            background: color, flexShrink: 0,
+          }} />
+          <span style={{ textTransform: 'capitalize' }}>{type}</span>
+        </span>
+      ))}
+    </div>
+  );
+};
+
 // ── Main Page ───────────────────────────────────────────────────────────────
 
 const DailySchedulePage = () => {
@@ -247,6 +308,10 @@ const DailySchedulePage = () => {
   );
   const [timelineData, setTimelineData] = useState<TimelineDataPoint[]>([]);
   const [profile, setProfile] = useState<Record<string, any> | null>(null);
+  // stepColors[i] = hex color for step i, or '' if no location data
+  const [stepColors, setStepColors] = useState<string[]>([]);
+  // locationColorMap: location_type → color, used by the legend
+  const [locationColorMap, setLocationColorMap] = useState<Record<string, string>>({});
   const [loadingMeta, setLoadingMeta] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -288,8 +353,9 @@ const DailySchedulePage = () => {
     Promise.all([
       fetchCustom(`/api/experiments/${exp_id}/agents/${agentId}/block-timeline`).then(r => r.json()),
       fetchCustom(`/api/experiments/${exp_id}/agents/${agentId}/profile`).then(r => r.json()),
+      fetchCustom(`/api/experiments/${exp_id}/agents/${agentId}/location-timeline`).then(r => r.json()),
     ])
-      .then(([timelineJson, profileJson]) => {
+      .then(([timelineJson, profileJson, locationJson]) => {
         const steps = timelineJson.data || [];
         const grid: TimelineDataPoint[] = Array.from({ length: TOTAL_STEPS }, (_, i) => ({
           simulation_step: i,
@@ -303,6 +369,24 @@ const DailySchedulePage = () => {
 
         const p = profileJson?.data;
         setProfile(p ? (p.profile ?? p) : null);
+
+        // Build location color map
+        const changes: { simulation_step: number; location_type: string }[] =
+          (locationJson?.data ?? []).map((r: any) => ({
+            simulation_step: r.simulation_step,
+            location_type: r.location_type,
+          }));
+
+        const colorMap: Record<string, string> = { ...LOCATION_FIXED_COLORS };
+        let paletteIdx = 0;
+        for (const { location_type } of changes) {
+          if (!(location_type in colorMap)) {
+            colorMap[location_type] = LOCATION_PALETTE[paletteIdx % LOCATION_PALETTE.length];
+            paletteIdx++;
+          }
+        }
+        setLocationColorMap(colorMap);
+        setStepColors(buildLocationColorMap(changes, TOTAL_STEPS, colorMap));
       })
       .catch(() => setError('Failed to load agent data'))
       .finally(() => setLoadingData(false));
@@ -363,11 +447,14 @@ const DailySchedulePage = () => {
           <>
             {/* Block execution timeline */}
             <Col span={24} lg={16}>
-              <Card title="Block Execution Timeline">
+              <Card
+                title="Block Execution Timeline"
+                extra={<LocationLegend colorMap={locationColorMap} />}
+              >
                 {timelineData.length === 0 ? (
                   <Empty description="No data. Select an experiment and agent." />
                 ) : (
-                  <TimelineGrid timelineData={timelineData} blocks={blockList} />
+                  <TimelineGrid timelineData={timelineData} blocks={blockList} stepColors={stepColors} />
                 )}
               </Card>
 
