@@ -34,12 +34,22 @@ const TimelineGrid = ({
     return acc;
   }, {} as Record<string, string>);
 
-  const columns = isBigScreen
-    ? [{ start: 0, end: 4 }, { start: 4, end: 8 }, { start: 8, end: 12 },
-       { start: 12, end: 16 }, { start: 16, end: 20 }, { start: 20, end: 24 }]
-    : [{ start: 0, end: 6 }, { start: 6, end: 12 }, { start: 12, end: 18 }, { start: 18, end: 24 }];
+  // Dynamically reduce column count when rows are dense, to avoid emoji overflow
+  const maxEmojisPerStep = timelineData.reduce(
+    (mx, step) => Math.max(mx, step.block_executions?.length ?? 0),
+    0,
+  );
+  const baseColumns = isBigScreen ? 6 : 4;
+  const numColumns = maxEmojisPerStep > 8 ? Math.min(baseColumns, 2)
+    : maxEmojisPerStep > 4 ? Math.min(baseColumns, 3)
+    : baseColumns;
 
-  const intervalsPerColumn = isBigScreen ? 24 : 36;
+  const hoursPerCol = 24 / numColumns;
+  const columns = Array.from({ length: numColumns }, (_, i) => ({
+    start: i * hoursPerCol,
+    end: (i + 1) * hoursPerCol,
+  }));
+  const intervalsPerColumn = 6 * hoursPerCol; // 6 ten-minute intervals per hour
 
   const getTimeLabel = (colIdx: number, intervalIdx: number) => {
     const hoursPerColumn = isBigScreen ? 4 : 6;

@@ -27,51 +27,56 @@ class AnalyticsDB:
     def __init__(self, data_dir: str, clickhouse_config: Optional[Any] = None) -> None:
         self.data_dir = Path(data_dir)
         self._duckdb_dir = self.data_dir / "duckdb"
-        self._ch_client: Optional[Any] = None
+        self._ch_config = clickhouse_config
         if clickhouse_config is not None:
-            self._ch_client = self._try_connect_clickhouse(clickhouse_config)
+            # Probe connectivity once at startup; each query gets its own client
+            if self._make_ch_client() is not None:
+                logger.info("AnalyticsDB ClickHouse connectivity verified")
+            else:
+                logger.info("ClickHouse unavailable for analytics reads")
 
     # ------------------------------------------------------------------
     # ClickHouse helpers
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _try_connect_clickhouse(config: Any) -> Optional[Any]:
+    def _make_ch_client(self) -> Optional[Any]:
+        """Create a fresh ClickHouse client. Called per-thread to avoid shared-session errors."""
+        if self._ch_config is None:
+            return None
         try:
             import clickhouse_connect  # type: ignore
-            client = clickhouse_connect.get_client(
-                host=config.host,
-                port=config.port,
-                username=config.username,
-                password=config.password,
-                database=config.database,
+            return clickhouse_connect.get_client(
+                host=self._ch_config.host,
+                port=self._ch_config.port,
+                username=self._ch_config.username,
+                password=self._ch_config.password,
+                database=self._ch_config.database,
             )
-            client.command("SELECT 1")
-            logger.info("AnalyticsDB connected to ClickHouse")
-            return client
         except Exception as e:
-            logger.info(f"ClickHouse unavailable for analytics reads: {e}")
+            logger.warning(f"ClickHouse client creation failed: {e}")
             return None
 
     def _ch_query_all_experiments_sync(self, allowed_tenant_ids: tuple) -> list[dict[str, Any]]:
-        if self._ch_client is None:
+        ch = self._make_ch_client()
+        if ch is None:
             return []
         try:
             placeholders = ", ".join(f"'{t}'" for t in allowed_tenant_ids)
-            result = self._ch_client.query(
+            result = ch.query(
                 f"SELECT * FROM experiment_info FINAL WHERE tenant_id IN ({placeholders})"
             )
             cols = result.column_names
             return [dict(zip(cols, row)) for row in result.result_rows]
         except Exception as e:
-            logger.error(f"ClickHouse experiment list query failed: {e}")
+            logger.warning(f"ClickHouse experiment list query failed: {e}")
             return []
 
     def _ch_query_one_experiment_sync(self, exp_id: str) -> Optional[dict[str, Any]]:
-        if self._ch_client is None:
+        ch = self._make_ch_client()
+        if ch is None:
             return None
         try:
-            result = self._ch_client.query(
+            result = ch.query(
                 "SELECT * FROM experiment_info WHERE id = {exp_id:String} "
                 "ORDER BY updated_at DESC LIMIT 1",
                 parameters={"exp_id": exp_id},
@@ -80,7 +85,7 @@ class AnalyticsDB:
             rows = [dict(zip(cols, row)) for row in result.result_rows]
             return rows[0] if rows else None
         except Exception as e:
-            logger.error(f"ClickHouse single experiment query failed ({exp_id}): {e}")
+            logger.warning(f"ClickHouse experiment query failed ({exp_id}): {e}")
             return None
 
     # ------------------------------------------------------------------
@@ -205,17 +210,18 @@ class AnalyticsDB:
     def _ch_query_agent_profiles_sync(
         self, exp_id: str, agent_id: Optional[int] = None
     ) -> List[Dict[str, Any]]:
-        if self._ch_client is None:
+        ch = self._make_ch_client()
+        if ch is None:
             return []
         try:
             if agent_id is not None:
-                result = self._ch_client.query(
+                result = ch.query(
                     "SELECT agent_id, name, profile FROM agent_profile "
                     "WHERE exp_id = {exp_id:String} AND agent_id = {agent_id:Int32}",
                     parameters={"exp_id": exp_id, "agent_id": agent_id},
                 )
             else:
-                result = self._ch_client.query(
+                result = ch.query(
                     "SELECT agent_id, name, profile FROM agent_profile "
                     "WHERE exp_id = {exp_id:String}",
                     parameters={"exp_id": exp_id},
@@ -223,16 +229,17 @@ class AnalyticsDB:
             cols = result.column_names
             return [dict(zip(cols, row)) for row in result.result_rows]
         except Exception as e:
-            logger.error(f"ClickHouse agent_profile query failed ({exp_id}): {e}")
+            logger.warning(f"ClickHouse agent_profile query failed ({exp_id}): {e}")
             return []
 
     def _ch_query_block_timeline_sync(
         self, exp_id: str, agent_id: int
     ) -> List[Dict[str, Any]]:
-        if self._ch_client is None:
+        ch = self._make_ch_client()
+        if ch is None:
             return []
         try:
-            result = self._ch_client.query(
+            result = ch.query(
                 "SELECT simulation_step, block_name, func_name, prompt, response, "
                 "0 AS detail_available "
                 "FROM prompt_responses "
@@ -243,7 +250,7 @@ class AnalyticsDB:
             cols = result.column_names
             return [dict(zip(cols, row)) for row in result.result_rows]
         except Exception as e:
-            logger.error(f"ClickHouse block_timeline query failed ({exp_id}/{agent_id}): {e}")
+            logger.warning(f"ClickHouse block_timeline query failed ({exp_id}/{agent_id}): {e}")
             return []
 
     async def query_agent_profiles(
@@ -358,10 +365,11 @@ class AnalyticsDB:
     def _ch_query_location_timeline_sync(
         self, exp_id: str, agent_id: int
     ) -> List[Dict[str, Any]]:
-        if self._ch_client is None:
+        ch = self._make_ch_client()
+        if ch is None:
             return []
         try:
-            result = self._ch_client.query(
+            result = ch.query(
                 "SELECT simulation_step, location_type FROM agent_location_type "
                 "WHERE exp_id = {exp_id:String} AND agent_id = {agent_id:Int32} "
                 "ORDER BY simulation_step",
@@ -370,7 +378,7 @@ class AnalyticsDB:
             cols = result.column_names
             return [dict(zip(cols, row)) for row in result.result_rows]
         except Exception as e:
-            logger.error(f"ClickHouse location_timeline query failed ({exp_id}/{agent_id}): {e}")
+            logger.warning(f"ClickHouse location_timeline query failed ({exp_id}/{agent_id}): {e}")
             return []
 
     async def query_agent_location_timeline(
