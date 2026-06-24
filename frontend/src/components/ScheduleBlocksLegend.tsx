@@ -1,41 +1,8 @@
-import { ATTRIBUTE_TO_EMOJI, BLOCKS } from "../pages/DailySchedule";
+import { ATTRIBUTE_TO_EMOJI, BLOCKS, BLOCK_TO_ATTRIBUTES } from "../pages/DailySchedule";
 import { useTheme } from "../context/ThemeContext";
 import "./ScheduleBlocksLegend.css";
 
 type Block = typeof BLOCKS[0];
-
-const BLOCK_TO_ATTRIBUTES: Record<string, string[]> = {
-  "MobilityBlock": [
-    "plan", "intention", "radius", "weather", "temperature",
-    "emotion", "thought", "residence", "work"
-  ],
-  "CognitionBlock": [
-    "topic", "gender", "age", "race", "religion", "marriage_status",
-    "residence", "occupation", "education", "personality", "consumption",
-    "family_consumption", "income", "hourly_rate", "thought", "emotion",
-    "emotion_levels", "memories"
-  ],
-  "EconomyBlock": [
-    "plan", "intention", "emotion", "name", "age", "city", "job",
-    "hourly_rate", "consumption", "wealth", "taxes", "prices", "interest_rate"
-  ],
-  "NeedsBlock": [
-    "gender", "education", "consumption_level", "occupation", "age",
-    "income", "time", "plan", "event", "needs", "need", "intervention", "intention"
-  ],
-  "OtherBlock": ["plan", "intention", "emotion"],
-  "PlanBlock": [
-    "weather", "temperature", "need", "location", "time", "consumption",
-    "job", "age", "emotion", "thought", "options", "other", "plan", "max_steps"
-  ],
-  "SocialBlock": [
-    "name", "gender", "occupation", "education", "personality", "thought",
-    "background_story", "relationship_type", "relationship_strength",
-    "intention", "chat", "discussion_constraint", "environment_info",
-    "friend_info", "emotion"
-  ],
-  "Dispatcher": ["intention", "blocks"]
-};
 
 const BlocksLegend = ({ blocks }: { blocks?: Block[] }) => {
   const { theme } = useTheme();

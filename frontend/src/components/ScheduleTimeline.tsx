@@ -1,4 +1,4 @@
-import { BLOCKS, BlockExecution, TimelineDataPoint, ATTRIBUTE_TO_EMOJI } from "../pages/DailySchedule";
+import { BLOCKS, BlockExecution, TimelineDataPoint, ATTRIBUTE_TO_EMOJI, BLOCK_TO_ATTRIBUTES, BLOCK_NAME_ALIAS } from "../pages/DailySchedule";
 
 type Block = typeof BLOCKS[0];
 import { useEffect, useState } from "react";
@@ -7,38 +7,7 @@ import "./ScheduleTimeline.css";
 
 const { Title } = Typography;
 
-const BLOCK_TO_ATTRIBUTES: Record<string, string[]> = {
-  "MobilityBlock": [
-    "plan", "intention", "radius", "weather", "temperature",
-    "emotion", "thought", "residence", "work"
-  ],
-  "CognitionBlock": [
-    "topic", "gender", "age", "race", "religion", "marriage_status",
-    "residence", "occupation", "education", "personality", "consumption",
-    "family_consumption", "income", "hourly_rate", "thought", "emotion",
-    "emotion_levels", "memories"
-  ],
-  "EconomyBlock": [
-    "plan", "intention", "emotion", "name", "age", "city", "job",
-    "hourly_rate", "consumption", "wealth", "taxes", "prices", "interest_rate"
-  ],
-  "NeedsBlock": [
-    "gender", "education", "consumption_level", "occupation", "age",
-    "income", "time", "plan", "event", "needs", "need", "intervention", "intention"
-  ],
-  "OtherBlock": ["plan", "intention", "emotion"],
-  "PlanBlock": [
-    "weather", "temperature", "need", "location", "time", "consumption",
-    "job", "age", "emotion", "thought", "options", "other", "plan", "max_steps"
-  ],
-  "SocialBlock": [
-    "name", "gender", "occupation", "education", "personality", "thought",
-    "background_story", "relationship_type", "relationship_strength",
-    "intention", "chat", "discussion_constraint", "environment_info",
-    "friend_info", "emotion"
-  ],
-  "Dispatcher": ["intention", "blocks"]
-};
+const resolveBlock = (raw: string) => BLOCK_NAME_ALIAS[raw] ?? raw;
 
 const TimelineGrid = ({ timelineData, blocks }: { timelineData: TimelineDataPoint[]; blocks?: Block[] }) => {
   const displayBlocks = blocks ?? BLOCKS;
@@ -96,8 +65,9 @@ const TimelineGrid = ({ timelineData, blocks }: { timelineData: TimelineDataPoin
                       <div className="timeline-tick" />
                       <div className="timeline-emojis">
                         {executions.map((exec, i) => {
-                          const emoji = BLOCK_EMOJI_MAP[exec.block_name] || '❓';
-                          const block = displayBlocks.find(b => b.name === exec.block_name);
+                          const resolved = resolveBlock(exec.block_name);
+                          const emoji = BLOCK_EMOJI_MAP[resolved] || '❓';
+                          const block = displayBlocks.find(b => b.name === resolved);
                           return (
                             <span
                               key={i}
@@ -121,10 +91,22 @@ const TimelineGrid = ({ timelineData, blocks }: { timelineData: TimelineDataPoin
 
       <Modal
         title={
-          <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 32 }}>{selectedExecution && BLOCK_EMOJI_MAP[selectedExecution.block_name]}</span>
-            <span style={{ fontSize: 20, fontWeight: 'bold' }}>{selectedExecution?.block_name}</span>
-          </span>
+          selectedExecution && (() => {
+            const resolved = resolveBlock(selectedExecution.block_name);
+            return (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 32 }}>{BLOCK_EMOJI_MAP[resolved]}</span>
+                <span>
+                  <span style={{ fontSize: 20, fontWeight: 'bold' }}>{selectedExecution.block_name}</span>
+                  {resolved !== selectedExecution.block_name && (
+                    <span style={{ fontSize: 13, color: 'var(--color-text-secondary, #888)', marginLeft: 8 }}>
+                      ({resolved})
+                    </span>
+                  )}
+                </span>
+              </span>
+            );
+          })()
         }
         open={modalOpen}
         onCancel={() => { setModalOpen(false); setSelectedExecution(null); }}
@@ -137,21 +119,24 @@ const TimelineGrid = ({ timelineData, blocks }: { timelineData: TimelineDataPoin
             <div style={{ marginTop: 16, marginBottom: 24 }}>
               <Title level={4}>Required Attributes</Title>
               <div className="modal-attrs-box">
-                {BLOCK_TO_ATTRIBUTES[selectedExecution.block_name] ? (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    {BLOCK_TO_ATTRIBUTES[selectedExecution.block_name].map((attr, i) => {
-                      const emoji = ATTRIBUTE_TO_EMOJI[attr];
-                      return (
-                        <Tag key={i} style={{ fontSize: 14, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6, borderRadius: 6 }}>
-                          {emoji && <span style={{ fontSize: 16 }}>{emoji}</span>}
-                          <span>{attr.replace(/_/g, ' ')}</span>
-                        </Tag>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <span style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>No attributes defined</span>
-                )}
+                {(() => {
+                  const attrs = BLOCK_TO_ATTRIBUTES[resolveBlock(selectedExecution.block_name)];
+                  return attrs ? (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {attrs.map((attr, i) => {
+                        const emoji = ATTRIBUTE_TO_EMOJI[attr];
+                        return (
+                          <Tag key={i} style={{ fontSize: 14, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6, borderRadius: 6 }}>
+                            {emoji && <span style={{ fontSize: 16 }}>{emoji}</span>}
+                            <span>{attr.replace(/_/g, ' ')}</span>
+                          </Tag>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <span style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>No attributes defined</span>
+                  );
+                })()}
               </div>
             </div>
 

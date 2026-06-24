@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
-  Col, Row, Card, Select, Spin, Alert, Empty, Tag, Tooltip, Typography,
+  Col, Row, Card, Select, Spin, Alert, Empty, Tag, Typography,
 } from 'antd';
 import { useNavigate, useParams } from "react-router-dom";
 import TimelineGrid from "../../components/ScheduleTimeline";
@@ -13,7 +13,7 @@ const { Text } = Typography;
 
 // ── Block definitions ───────────────────────────────────────────────────────
 
-const BLOCKS = [
+export const BLOCKS = [
   { emoji: '🏃', name: 'MobilityBlock',      desc: 'Movement',            lightColor: '#E3F2FD', darkColor: 'rgba(96,165,250,0.18)',   color: '#E3F2FD' },
   { emoji: '🧠', name: 'CognitionBlock',     desc: 'Emotions/Reflections', lightColor: '#F3E5F5', darkColor: 'rgba(167,139,250,0.18)',  color: '#F3E5F5' },
   { emoji: '💰', name: 'EconomyBlock',       desc: 'Income/Consumption',   lightColor: '#FFF9C4', darkColor: 'rgba(251,191,36,0.18)',   color: '#FFF9C4' },
@@ -24,14 +24,28 @@ const BLOCKS = [
   { emoji: '🎯', name: 'Dispatcher',         desc: 'Select Block',         lightColor: '#FFCDD2', darkColor: 'rgba(248,113,113,0.18)', color: '#FFCDD2' },
 ];
 
-const CITYSIM_BLOCKS = [
+export const CITYSIM_BLOCKS = [
   ...BLOCKS,
   { emoji: '📆', name: 'DailyScheduleBlock', desc: 'Daily Planning', lightColor: '#E8F5E9', darkColor: 'rgba(34,197,94,0.18)', color: '#E8F5E9' },
 ];
 
-// ── Attribute emoji map (used by TimelineGrid modal) ────────────────────────
+// Maps actual DB block_name values → canonical display block names
+export const BLOCK_NAME_ALIAS: Record<string, string> = {
+  'BlockDispatcher':             'Dispatcher',
+  'OtherNoneBlock':              'OtherBlock',
+  'SleepBlock':                  'OtherBlock',
+  'MoveBlock':                   'MobilityBlock',
+  'PlaceSelectionBlock':         'MobilityBlock',
+  'TransportModeSelectionBlock': 'MobilityBlock',
+  'WorkBlock':                   'EconomyBlock',
+  'MonthEconomyPlanBlock':       'EconomyBlock',
+  'SocialNoneBlock':             'SocialBlock',
+  'SocietyAgent':                'CognitionBlock',
+};
 
-const ATTRIBUTE_TO_EMOJI: Record<string, string> = {
+// ── Attribute emoji map ──────────────────────────────────────────────────────
+
+export const ATTRIBUTE_TO_EMOJI: Record<string, string> = {
   "location": "🗺️", "radius": "⭕", "residence": "🏠", "work": "🏢", "city": "🏙️",
   "weather": "☁️", "temperature": "🌡️", "environment_info": "🌳", "time": "⌚",
   "name": "🏷️", "gender": "⚧", "age": "🎂", "race": "🌍", "religion": "🛐",
@@ -45,6 +59,62 @@ const ATTRIBUTE_TO_EMOJI: Record<string, string> = {
   "consumption": "🛒", "consumption_level": "📊", "family_consumption": "👨‍👩‍👧",
   "chat": "💬", "relationship_type": "🔗", "relationship_strength": "💪",
   "friend_info": "🤝", "discussion_constraint": "🤐", "blocks": "📦",
+  // Attributes from simulation prompts not previously mapped
+  "life_stage": "🌱", "hobbies": "🎨", "goals": "🚀",
+  "social_network": "👥", "chat_histories": "📬", "attitude": "🙌",
+  "risk_tolerance": "⚖️", "leisure_preference": "🛋️", "work_ethic": "🏅",
+  "chronotype": "🌙", "depression": "😔", "work_propensity": "⚡",
+  "consumption_propensity": "💳", "visit_history": "🗃️", "location_knowledge": "🗂️",
+  "mean_need_fulfillment": "✅", "number_poi_visited": "📌",
+};
+
+// ── Block → required attributes (used in modal + legend) ────────────────────
+
+export const BLOCK_TO_ATTRIBUTES: Record<string, string[]> = {
+  "MobilityBlock": [
+    "plan", "intention", "radius", "weather", "temperature", "emotion", "thought",
+    "residence", "work", "hobbies", "goals", "life_stage",
+    "leisure_preference", "risk_tolerance", "visit_history", "location_knowledge",
+  ],
+  "CognitionBlock": [
+    "topic", "gender", "age", "race", "religion", "marriage_status", "residence",
+    "occupation", "education", "personality", "consumption", "family_consumption",
+    "income", "hourly_rate", "thought", "emotion", "emotion_levels", "memories",
+    "life_stage", "hobbies", "goals", "chronotype", "work_ethic", "leisure_preference",
+  ],
+  "EconomyBlock": [
+    "plan", "intention", "emotion", "name", "age", "city", "job", "hourly_rate",
+    "consumption", "wealth", "taxes", "prices", "interest_rate",
+    "work_propensity", "consumption_propensity", "work_ethic",
+    "goals", "depression", "mean_need_fulfillment", "life_stage",
+  ],
+  "NeedsBlock": [
+    "gender", "education", "consumption_level", "occupation", "age", "income",
+    "time", "plan", "event", "needs", "need", "intervention", "intention",
+    "mean_need_fulfillment",
+  ],
+  "OtherBlock": [
+    "plan", "intention", "emotion",
+    "hobbies", "goals", "life_stage", "chronotype", "leisure_preference",
+  ],
+  "PlanBlock": [
+    "weather", "temperature", "need", "location", "time", "consumption", "job",
+    "age", "emotion", "thought", "options", "other", "plan", "max_steps",
+    "hobbies", "goals", "life_stage",
+  ],
+  "SocialBlock": [
+    "name", "gender", "occupation", "education", "personality", "thought",
+    "background_story", "relationship_type", "relationship_strength",
+    "intention", "chat", "discussion_constraint", "environment_info",
+    "friend_info", "emotion",
+    "hobbies", "life_stage", "chronotype", "work_ethic", "leisure_preference",
+    "social_network", "attitude",
+  ],
+  "Dispatcher": ["intention", "blocks"],
+  "DailyScheduleBlock": [
+    "life_stage", "hobbies", "goals", "chronotype", "leisure_preference",
+    "plan", "intention", "weather", "temperature",
+  ],
 };
 
 // ── Shared types ────────────────────────────────────────────────────────────
@@ -63,70 +133,22 @@ export type TimelineDataPoint = {
 };
 
 type AgentOption = { id: number; name: string };
-
-type ScheduleBlock = { start_time: string; duration: number; activity: string; description: string };
-type DailySchedule = { day: number; blocks: ScheduleBlock[]; generated_at: string };
 type Big5 = { openness?: number; conscientiousness?: number; extraversion?: number; agreeableness?: number; neuroticism?: number };
 type Preferences = { chronotype?: string; work_ethic?: number; social_frequency?: number; leisure_preference?: string };
-type AgentProfile = { big5?: Big5; life_stage?: string; hobbies?: string[]; goals?: string[]; preferences?: Preferences; [key: string]: any };
 
 const TOTAL_STEPS = 144;
 
-const ACTIVITY_COLORS: Record<string, string> = {
-  sleep:    '#94a3b8',
-  work:     '#3b82f6',
-  meal:     '#f97316',
-  hygiene:  '#14b8a6',
-  social:   '#a855f7',
-  leisure:  '#ec4899',
-  '[EMPTY]':'#fef08a',
-};
-const getActivityColor = (a: string) => ACTIVITY_COLORS[a.toLowerCase()] ?? '#6b7280';
+// ── Personality/Profile panel ────────────────────────────────────────────────
 
-// ── CitySim sub-components ──────────────────────────────────────────────────
-
-const PlannedSchedule = ({ schedule }: { schedule: DailySchedule | null }) => {
-  if (!schedule || schedule.blocks.length === 0)
-    return <Empty description="No planned schedule available for this agent/day." />;
-
-  const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
-
-  return (
-    <div style={{ position: 'relative', paddingTop: 28, paddingBottom: 32 }}>
-      {/* Axis */}
-      <div style={{ position: 'relative', height: 20, marginBottom: 4 }}>
-        {[0, 3, 6, 9, 12, 15, 18, 21, 24].map(h => (
-          <span key={h} style={{ position: 'absolute', left: `${(h / 24) * 100}%`, transform: 'translateX(-50%)', fontSize: 11, color: 'var(--color-text-secondary, #888)', whiteSpace: 'nowrap' }}>
-            {String(h).padStart(2, '0')}:00
-          </span>
-        ))}
-      </div>
-      {/* Bar */}
-      <div style={{ position: 'relative', height: 44, background: 'rgba(0,0,0,0.06)', borderRadius: 6, overflow: 'hidden' }}>
-        {schedule.blocks.map((block, i) => {
-          const left = (toMin(block.start_time) / 1440) * 100;
-          const width = (block.duration / 1440) * 100;
-          return (
-            <Tooltip key={i} title={<div><strong>{block.activity}</strong><br />{block.start_time} · {block.duration} min{block.description ? <><br />{block.description}</> : null}</div>}>
-              <div style={{ position: 'absolute', top: 0, left: `${left}%`, width: `${width}%`, height: '100%', background: getActivityColor(block.activity), display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid rgba(255,255,255,0.2)', cursor: 'default' }}>
-                {width > 4 && <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(0,0,0,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 4px' }}>{block.activity !== '[EMPTY]' ? block.activity : '?'}</span>}
-              </div>
-            </Tooltip>
-          );
-        })}
-      </div>
-      {/* Legend */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 12 }}>
-        {Object.entries(ACTIVITY_COLORS).map(([act, col]) => (
-          <span key={act} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
-            <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 3, background: col, flexShrink: 0 }} />
-            {act}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-};
+const DEMO_FIELDS: Array<{ key: string; label: string }> = [
+  { key: 'gender',          label: 'Gender' },
+  { key: 'age',             label: 'Age' },
+  { key: 'education',       label: 'Education' },
+  { key: 'occupation',      label: 'Occupation' },
+  { key: 'marriage_status', label: 'Marital status' },
+  { key: 'household',       label: 'Household' },
+  { key: 'background_story', label: 'Background' },
+];
 
 const Big5Radar = ({ big5 }: { big5: Big5 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
@@ -152,16 +174,34 @@ const Big5Radar = ({ big5 }: { big5: Big5 }) => {
   return <div ref={chartRef} style={{ height: 220, width: '100%' }} />;
 };
 
-const PersonalityPanel = ({ profile }: { profile: AgentProfile | null }) => {
+const PersonalityPanel = ({ profile }: { profile: Record<string, any> | null }) => {
   if (!profile) return <Empty description="No profile data." />;
-  const big5 = profile.big5 ?? {};
+
+  const big5: Big5 = profile.big5 ?? {};
   const prefs: Preferences = profile.preferences ?? {};
   const hobbies: string[] = profile.hobbies ?? [];
   const goals: string[] = profile.goals ?? [];
   const hasB5 = Object.values(big5).some(v => (v ?? 0) > 0);
+  const demoEntries = DEMO_FIELDS.filter(f => profile[f.key] != null && profile[f.key] !== '');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Demographics section — always shown when available */}
+      {demoEntries.length > 0 && (
+        <div>
+          <Text strong>Demographics</Text>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px', fontSize: 13, marginTop: 6 }}>
+            {demoEntries.map(({ key, label }) => (
+              <div key={key}>
+                <Text type="secondary">{label}:</Text>{' '}
+                {String(profile[key])}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* CitySim-specific fields */}
       {profile.life_stage && (
         <div><Text strong>Life Stage: </Text><Tag color="blue">{profile.life_stage}</Tag></div>
       )}
@@ -206,8 +246,7 @@ const DailySchedulePage = () => {
     agentIdParam ? parseInt(agentIdParam, 10) : null
   );
   const [timelineData, setTimelineData] = useState<TimelineDataPoint[]>([]);
-  const [schedule, setSchedule] = useState<DailySchedule | null>(null);
-  const [profile, setProfile] = useState<AgentProfile | null>(null);
+  const [profile, setProfile] = useState<Record<string, any> | null>(null);
   const [loadingMeta, setLoadingMeta] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -221,14 +260,12 @@ const DailySchedulePage = () => {
       fetchCustom(`/api/experiments/${exp_id}/agents/-/profile`).then(r => r.json()),
     ])
       .then(([expJson, profilesJson]) => {
-        // Parse simulation_mode from config JSON
         try {
           const cfg = JSON.parse(expJson.data?.config ?? '{}');
           setSimulationMode(cfg.simulation_mode === 'agentsociety' ? 'agentsociety' : 'citysim');
         } catch {
           setSimulationMode('citysim');
         }
-        // Build agent list
         const list: AgentOption[] = (profilesJson.data || []).map((p: any) => ({
           id: p.id,
           name: p.name || `Agent ${p.id}`,
@@ -242,25 +279,17 @@ const DailySchedulePage = () => {
       .finally(() => setLoadingMeta(false));
   }, [exp_id]);
 
-  // 2. Fetch agent data whenever agent changes
-  const fetchAgentData = useCallback((agentId: number, mode: 'citysim' | 'agentsociety') => {
+  // 2. Fetch agent data whenever agent selection changes
+  const fetchAgentData = useCallback((agentId: number) => {
     if (!exp_id) return;
     setLoadingData(true);
     setError(null);
 
-    const requests: Promise<any>[] = [
+    Promise.all([
       fetchCustom(`/api/experiments/${exp_id}/agents/${agentId}/block-timeline`).then(r => r.json()),
-    ];
-    if (mode === 'citysim') {
-      requests.push(
-        fetchCustom(`/api/experiments/${exp_id}/agents/${agentId}/daily-plan`).then(r => r.json()),
-        fetchCustom(`/api/experiments/${exp_id}/agents/${agentId}/profile`).then(r => r.json()),
-      );
-    }
-
-    Promise.all(requests)
-      .then(([timelineJson, scheduleJson, profileJson]) => {
-        // Map timeline steps into 144-slot grid
+      fetchCustom(`/api/experiments/${exp_id}/agents/${agentId}/profile`).then(r => r.json()),
+    ])
+      .then(([timelineJson, profileJson]) => {
         const steps = timelineJson.data || [];
         const grid: TimelineDataPoint[] = Array.from({ length: TOTAL_STEPS }, (_, i) => ({
           simulation_step: i,
@@ -272,11 +301,8 @@ const DailySchedulePage = () => {
         }
         setTimelineData(grid);
 
-        if (mode === 'citysim') {
-          setSchedule(scheduleJson?.data ?? null);
-          const p = profileJson?.data;
-          setProfile(p ? (p.profile ?? p) : null);
-        }
+        const p = profileJson?.data;
+        setProfile(p ? (p.profile ?? p) : null);
       })
       .catch(() => setError('Failed to load agent data'))
       .finally(() => setLoadingData(false));
@@ -284,7 +310,7 @@ const DailySchedulePage = () => {
 
   useEffect(() => {
     if (selectedAgentId !== null && simulationMode !== null) {
-      fetchAgentData(selectedAgentId, simulationMode);
+      fetchAgentData(selectedAgentId);
       if (exp_id) navigate(`/daily-schedule/${exp_id}/${selectedAgentId}`, { replace: true });
     }
   }, [selectedAgentId, simulationMode]);
@@ -335,17 +361,8 @@ const DailySchedulePage = () => {
           </Col>
         ) : (
           <>
-            {/* CitySim-only: planned schedule Gantt */}
-            {isCitySim && (
-              <Col span={24}>
-                <Card title={`Planned Daily Schedule${schedule ? ` — Day ${schedule.day}` : ''}`}>
-                  <PlannedSchedule schedule={schedule} />
-                </Card>
-              </Col>
-            )}
-
             {/* Block execution timeline */}
-            <Col span={24} lg={isCitySim ? 16 : 24}>
+            <Col span={24} lg={16}>
               <Card title="Block Execution Timeline">
                 {timelineData.length === 0 ? (
                   <Empty description="No data. Select an experiment and agent." />
@@ -357,22 +374,16 @@ const DailySchedulePage = () => {
               <h3 style={{ fontSize: 20, marginTop: 20 }}>Block Types</h3>
               <BlocksLegend blocks={blockList} />
 
-              {!isCitySim && (
-                <>
-                  <h3 style={{ fontSize: 20, marginTop: 20 }}>Agent Attributes</h3>
-                  <Card><ScheduleAttributesLegend /></Card>
-                </>
-              )}
+              <h3 style={{ fontSize: 20, marginTop: 20 }}>Agent Attributes</h3>
+              <Card><ScheduleAttributesLegend /></Card>
             </Col>
 
-            {/* CitySim-only: personality panel */}
-            {isCitySim && (
-              <Col span={24} lg={8}>
-                <Card title="Agent Personality">
-                  <PersonalityPanel profile={profile} />
-                </Card>
-              </Col>
-            )}
+            {/* Agent profile panel — always shown */}
+            <Col span={24} lg={8}>
+              <Card title="Agent Profile">
+                <PersonalityPanel profile={profile} />
+              </Card>
+            </Col>
           </>
         )}
       </Row>
@@ -380,5 +391,4 @@ const DailySchedulePage = () => {
   );
 };
 
-export { BLOCKS, ATTRIBUTE_TO_EMOJI };
 export default DailySchedulePage;
