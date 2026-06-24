@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -23,19 +24,74 @@ logger = logging.getLogger(__name__)
 class AnalyticsDB:
     """Async read-only analytics query layer backed by DuckDB (with optional ClickHouse)."""
 
-    def __init__(self, data_dir: str) -> None:
+    def __init__(self, data_dir: str, clickhouse_config: Optional[Any] = None) -> None:
         self.data_dir = Path(data_dir)
         self._duckdb_dir = self.data_dir / "duckdb"
+        self._ch_client: Optional[Any] = None
+        if clickhouse_config is not None:
+            self._ch_client = self._try_connect_clickhouse(clickhouse_config)
+
+    # ------------------------------------------------------------------
+    # ClickHouse helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _try_connect_clickhouse(config: Any) -> Optional[Any]:
+        try:
+            import clickhouse_connect  # type: ignore
+            client = clickhouse_connect.get_client(
+                host=config.host,
+                port=config.port,
+                username=config.username,
+                password=config.password,
+                database=config.database,
+            )
+            client.command("SELECT 1")
+            logger.info("AnalyticsDB connected to ClickHouse")
+            return client
+        except Exception as e:
+            logger.info(f"ClickHouse unavailable for analytics reads: {e}")
+            return None
+
+    def _ch_query_all_experiments_sync(self, allowed_tenant_ids: tuple) -> list[dict[str, Any]]:
+        if self._ch_client is None:
+            return []
+        try:
+            placeholders = ", ".join(f"'{t}'" for t in allowed_tenant_ids)
+            result = self._ch_client.query(
+                f"SELECT * FROM experiment_info FINAL WHERE tenant_id IN ({placeholders})"
+            )
+            cols = result.column_names
+            return [dict(zip(cols, row)) for row in result.result_rows]
+        except Exception as e:
+            logger.error(f"ClickHouse experiment list query failed: {e}")
+            return []
+
+    def _ch_query_one_experiment_sync(self, exp_id: str) -> Optional[dict[str, Any]]:
+        if self._ch_client is None:
+            return None
+        try:
+            result = self._ch_client.query(
+                "SELECT * FROM experiment_info WHERE id = {exp_id:String} "
+                "ORDER BY updated_at DESC LIMIT 1",
+                parameters={"exp_id": exp_id},
+            )
+            cols = result.column_names
+            rows = [dict(zip(cols, row)) for row in result.result_rows]
+            return rows[0] if rows else None
+        except Exception as e:
+            logger.error(f"ClickHouse single experiment query failed ({exp_id}): {e}")
+            return None
+
+    # ------------------------------------------------------------------
+    # DuckDB helpers — run synchronously in a thread
+    # ------------------------------------------------------------------
 
     def _duckdb_path(self, exp_id: str) -> Path:
         return self._duckdb_dir / f"{exp_id}.duckdb"
 
     def _duckdb_exists(self, exp_id: str) -> bool:
         return self._duckdb_path(exp_id).exists()
-
-    # ------------------------------------------------------------------
-    # DuckDB helpers — run synchronously in a thread
-    # ------------------------------------------------------------------
 
     def _duckdb_query_sync(
         self, exp_id: str, sql: str, params: Optional[list] = None
@@ -71,9 +127,80 @@ class AnalyticsDB:
         rows = self._duckdb_query_sync(exp_id, sql, params)
         return rows[0] if rows else None
 
+    def _list_all_duckdb_exp_ids(self) -> list[str]:
+        """Return all experiment IDs found as DuckDB files (UUID-named only)."""
+        if not self._duckdb_dir.exists():
+            return []
+        result = []
+        for p in self._duckdb_dir.glob("*.duckdb"):
+            try:
+                uuid.UUID(p.stem)
+                result.append(p.stem)
+            except ValueError:
+                pass
+        return result
+
+    def _duckdb_query_one_exp_sync(self, exp_id: str) -> Optional[Dict[str, Any]]:
+        """Return the latest experiment_info row from a single DuckDB file."""
+        sql = "SELECT * FROM experiment_info ORDER BY updated_at DESC LIMIT 1"
+        return self._duckdb_query_one_sync(exp_id, sql)
+
     # ------------------------------------------------------------------
     # Public async API
     # ------------------------------------------------------------------
+
+    async def query_all_experiment_infos(self, tenant_id: str) -> List[Dict[str, Any]]:
+        """Scan all DuckDB files + ClickHouse concurrently; return merged list."""
+        allowed = {tenant_id, "", "default"}
+
+        exp_ids = await asyncio.to_thread(self._list_all_duckdb_exp_ids)
+
+        duckdb_tasks = [
+            asyncio.to_thread(self._duckdb_query_one_exp_sync, eid)
+            for eid in exp_ids
+        ]
+        ch_task = asyncio.to_thread(
+            self._ch_query_all_experiments_sync, tuple(allowed)
+        )
+
+        all_done = await asyncio.gather(*duckdb_tasks, ch_task, return_exceptions=True)
+        duckdb_results = all_done[:-1]
+        ch_result = all_done[-1]
+
+        merged: Dict[str, Dict[str, Any]] = {}
+
+        for row in duckdb_results:
+            if isinstance(row, Exception) or row is None:
+                continue
+            if row.get("tenant_id", "") not in allowed:
+                continue
+            merged[str(row["id"])] = row
+
+        if not isinstance(ch_result, Exception):
+            for row in ch_result:
+                if row.get("tenant_id", "") not in allowed:
+                    continue
+                rid = str(row["id"])
+                if rid not in merged:
+                    merged[rid] = row
+                else:
+                    existing_ts = merged[rid].get("updated_at")
+                    new_ts = row.get("updated_at")
+                    if new_ts and existing_ts and new_ts > existing_ts:
+                        merged[rid] = row
+
+        return sorted(
+            merged.values(),
+            key=lambda r: r.get("created_at") or "",
+            reverse=True,
+        )
+
+    async def query_experiment_info(self, exp_id: str) -> Optional[Dict[str, Any]]:
+        """Return the latest experiment_info for the given exp_id (DuckDB first, then ClickHouse)."""
+        row = await asyncio.to_thread(self._duckdb_query_one_exp_sync, exp_id)
+        if row is not None:
+            return row
+        return await asyncio.to_thread(self._ch_query_one_experiment_sync, exp_id)
 
     async def query_agent_profiles(
         self, exp_id: str, agent_id: Optional[int] = None
@@ -139,13 +266,6 @@ class AnalyticsDB:
             sql = "SELECT * FROM metric WHERE exp_id = ? ORDER BY key, step"
             params = [exp_id]
         return await asyncio.to_thread(self._duckdb_query_sync, exp_id, sql, params)
-
-    async def query_experiment_info(self, exp_id: str) -> Optional[Dict[str, Any]]:
-        """Return experiment_info row from DuckDB for the given experiment."""
-        if not self._duckdb_exists(exp_id):
-            return None
-        sql = "SELECT * FROM experiment_info WHERE id = ? LIMIT 1"
-        return await asyncio.to_thread(self._duckdb_query_one_sync, exp_id, sql, [exp_id])
 
     async def query_block_timeline(
         self, exp_id: str, agent_id: int

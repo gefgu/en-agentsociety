@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import datetime, timezone as _tz
 import json
 import logging
 import uuid
@@ -15,57 +16,64 @@ from ..models import ApiResponseWrapper
 from ..models.experiment import ApiExperiment, ApiTime, Experiment, ExperimentStatus
 from ..models.metric import ApiMetric
 from .const import DEMO_USER_ID
-from .timezone import ensure_timezone_aware
 
 __all__ = ["router"]
 
 router = APIRouter(tags=["experiments"])
 
+logger = logging.getLogger(__name__)
 
-async def _find_started_experiment_by_id(
-    request: Request, db: AsyncSession, exp_id: uuid.UUID
-) -> Experiment:
-    """Find an experiment by ID and check if it has started"""
-    tenant_id = await request.app.state.get_tenant_id(request)
-    stmt = select(Experiment).where(
-        Experiment.tenant_id.in_([tenant_id, "", "default"]), Experiment.id == exp_id
-    )
-    result = await db.execute(stmt)
-    row = result.first()
-    if not row:
+
+def _row_to_api_experiment(row: Dict) -> ApiExperiment:
+    """Convert an analytics-DB dict to ApiExperiment, making datetimes timezone-aware."""
+    data = dict(row)
+    for key in ("created_at", "updated_at"):
+        val = data.get(key)
+        if isinstance(val, datetime) and val.tzinfo is None:
+            data[key] = val.replace(tzinfo=_tz.utc)
+    return ApiExperiment.model_validate(data)
+
+
+async def _find_experiment_by_id(
+    request: Request,
+    exp_id: uuid.UUID,
+    tenant_id: str,
+) -> Dict:
+    """Fetch experiment info from analytics DB; raise 404 if not found or wrong tenant."""
+    analytics_db = request.app.state.analytics_db
+    row = await analytics_db.query_experiment_info(str(exp_id))
+    allowed = {tenant_id, "", "default"}
+    if row is None or row.get("tenant_id", "") not in allowed:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Experiment not found"
         )
-    exp: Experiment = row[0]
-    if ExperimentStatus(exp.status) == ExperimentStatus.NOT_STARTED:
+    return row
+
+
+async def _find_started_experiment_by_id(
+    request: Request,
+    exp_id: uuid.UUID,
+    tenant_id: str,
+) -> Dict:
+    """Fetch experiment info and verify it has started (status != NOT_STARTED)."""
+    row = await _find_experiment_by_id(request, exp_id, tenant_id)
+    if ExperimentStatus(row["status"]) == ExperimentStatus.NOT_STARTED:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Experiment not running"
         )
-    return exp
+    return row
 
 
 @router.get("/experiments")
 async def list_experiments(
     request: Request,
 ) -> ApiResponseWrapper[List[ApiExperiment]]:
-    """List all experiments"""
+    """List all experiments from the analytics database (DuckDB + ClickHouse)."""
     tenant_id = await request.app.state.get_tenant_id(request)
-    async with request.app.state.get_db() as db:
-        db = cast(AsyncSession, db)
-        stmt = (
-            select(Experiment)
-            .where(Experiment.tenant_id.in_([tenant_id, "", "default"]))
-            .order_by(Experiment.created_at.desc())
-        )
-        results = await db.execute(stmt)
-        db_experiments = [row[0] for row in results.all() if len(row) > 0]
-
-        for experiment in db_experiments:
-            experiment.created_at = ensure_timezone_aware(experiment.created_at)
-            experiment.updated_at = ensure_timezone_aware(experiment.updated_at)
-
-        experiments = cast(List[ApiExperiment], db_experiments)
-        return ApiResponseWrapper(data=experiments)
+    analytics_db = request.app.state.analytics_db
+    rows = await analytics_db.query_all_experiment_infos(tenant_id)
+    experiments = [_row_to_api_experiment(row) for row in rows]
+    return ApiResponseWrapper(data=experiments)
 
 
 @router.get("/experiments/{exp_id}")
@@ -73,24 +81,10 @@ async def get_experiment_by_id(
     request: Request,
     exp_id: uuid.UUID,
 ) -> ApiResponseWrapper[ApiExperiment]:
-    """Get experiment by ID"""
-
+    """Get experiment by ID from the analytics database."""
     tenant_id = await request.app.state.get_tenant_id(request)
-    async with request.app.state.get_db() as db:
-        db = cast(AsyncSession, db)
-        stmt = select(Experiment).where(
-            Experiment.tenant_id.in_([tenant_id, "", "default"]), Experiment.id == exp_id
-        )
-        result = await db.execute(stmt)
-        row = result.first()
-        if not row or len(row) == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Experiment not found"
-            )
-        exp = row[0]
-        exp.created_at = ensure_timezone_aware(exp.created_at)
-        exp.updated_at = ensure_timezone_aware(exp.updated_at)
-        return ApiResponseWrapper(data=exp)
+    row = await _find_experiment_by_id(request, exp_id, tenant_id)
+    return ApiResponseWrapper(data=_row_to_api_experiment(row))
 
 
 @router.get("/experiments/{exp_id}/timeline")
@@ -98,26 +92,9 @@ async def get_experiment_status_timeline_by_id(
     request: Request,
     exp_id: uuid.UUID,
 ) -> ApiResponseWrapper[List[ApiTime]]:
-    """Get experiment status timeline by ID (from ClickHouse/DuckDB)"""
-
+    """Get experiment status timeline by ID (from DuckDB/ClickHouse)."""
     tenant_id = await request.app.state.get_tenant_id(request)
-    async with request.app.state.get_db() as db:
-        db = cast(AsyncSession, db)
-        stmt = select(Experiment).where(
-            Experiment.tenant_id.in_([tenant_id, "", "default"]), Experiment.id == exp_id
-        )
-        result = await db.execute(stmt)
-        row = result.first()
-        if not row or len(row) == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Experiment not found"
-            )
-        experiment: Experiment = row[0]
-        if ExperimentStatus(experiment.status) == ExperimentStatus.NOT_STARTED:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Experiment has not started yet",
-            )
+    await _find_started_experiment_by_id(request, exp_id, tenant_id)
 
     analytics_db = request.app.state.analytics_db
     rows = await analytics_db.query_timeline(str(exp_id))
@@ -130,7 +107,7 @@ async def delete_experiment_by_id(
     request: Request,
     exp_id: uuid.UUID,
 ):
-    """Delete experiment by ID"""
+    """Delete experiment by ID."""
 
     if request.app.state.read_only:
         raise HTTPException(
@@ -143,6 +120,9 @@ async def delete_experiment_by_id(
             detail="Demo user is not allowed to delete experiments",
         )
 
+    # Validate the experiment exists in the analytics DB before deleting files
+    await _find_experiment_by_id(request, exp_id, tenant_id)
+
     async with request.app.state.get_db() as db:
         db = cast(AsyncSession, db)
         try:
@@ -152,17 +132,10 @@ async def delete_experiment_by_id(
                 )
                 result = await db.execute(stmt)
                 row = result.first()
-                if not row or len(row) == 0:
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail="Experiment not found",
-                    )
-                experiment: Experiment = row[0]
+                if row:
+                    experiment: Experiment = row[0]
+                    await db.delete(experiment)
 
-                # Delete the management DB record
-                await db.delete(experiment)
-
-            # Best-effort: delete per-experiment SQLite file
             import asyncio as _asyncio
             from pathlib import Path as _Path
             import os as _os
@@ -175,7 +148,6 @@ async def delete_experiment_by_id(
                 except Exception as e:
                     logging.warning(f"Could not delete per-experiment SQLite {sqlite_path}: {e}")
 
-            # Best-effort: delete DuckDB file
             duckdb_path = _Path(env.data_dir) / "duckdb" / f"{exp_id}.duckdb"
             if duckdb_path.exists():
                 try:
@@ -199,7 +171,7 @@ async def get_experiment_metrics_by_id(
     request: Request,
     exp_id: uuid.UUID,
 ) -> Tuple[bool, Dict[str, List[ApiMetric]]]:
-    """Get metrics for an experiment from ClickHouse/DuckDB."""
+    """Get metrics for an experiment from DuckDB/ClickHouse."""
     analytics_db = request.app.state.analytics_db
     rows = await analytics_db.query_metrics(str(exp_id))
 
@@ -230,20 +202,9 @@ async def get_experiment_metrics(
     request: Request,
     exp_id: uuid.UUID,
 ) -> ApiResponseWrapper[Dict[str, List[ApiMetric]]]:
-    """Get all metrics for an experiment, aggregated by metric key (from ClickHouse/DuckDB)"""
-
+    """Get all metrics for an experiment, aggregated by metric key."""
     tenant_id = await request.app.state.get_tenant_id(request)
-    async with request.app.state.get_db() as db:
-        db = cast(AsyncSession, db)
-        stmt = select(Experiment).where(
-            Experiment.tenant_id == tenant_id, Experiment.id == exp_id
-        )
-        result = await db.execute(stmt)
-        row = result.scalar_one_or_none()
-        if not row:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Experiment not found"
-            )
+    await _find_experiment_by_id(request, exp_id, tenant_id)
 
     _, metrics_by_key = await get_experiment_metrics_by_id(request, exp_id)
     return ApiResponseWrapper(data=metrics_by_key)
@@ -254,21 +215,9 @@ async def export_experiment_data(
     request: Request,
     exp_id: uuid.UUID,
 ) -> StreamingResponse:
-    """Export experiment data as a zip file containing YAML and CSV files"""
-
+    """Export experiment data as a zip file containing YAML and CSV files."""
     tenant_id = await request.app.state.get_tenant_id(request)
-    async with request.app.state.get_db() as db:
-        db = cast(AsyncSession, db)
-        stmt = select(Experiment).where(
-            Experiment.tenant_id == tenant_id, Experiment.id == exp_id
-        )
-        result = await db.execute(stmt)
-        row = result.scalar_one_or_none()
-        if not row:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Experiment not found"
-            )
-        experiment: Experiment = row
+    row = await _find_experiment_by_id(request, exp_id, tenant_id)
 
     analytics_db = request.app.state.analytics_db
     per_exp_sqlite = request.app.state.per_exp_sqlite
@@ -277,11 +226,11 @@ async def export_experiment_data(
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
         # Export experiment info as YAML
-        exp_dict = experiment.to_dict()
+        exp_dict = {k: str(v) if isinstance(v, (uuid.UUID,)) else v for k, v in row.items()}
         yaml_content = yaml.dump(exp_dict, allow_unicode=True)
         zip_file.writestr("experiment.yaml", yaml_content)
 
-        # Export metrics from ClickHouse/DuckDB
+        # Export metrics from DuckDB/ClickHouse
         found, metrics_by_key = await get_experiment_metrics_by_id(request, exp_id)
         if found:
             serialized_metrics = serialize_metrics(metrics_by_key)
@@ -294,7 +243,7 @@ async def export_experiment_data(
         if artifacts_data:
             zip_file.writestr("artifacts.json", artifacts_data)
 
-        # Export agent profiles from ClickHouse/DuckDB as JSON
+        # Export agent profiles from DuckDB as JSON
         profiles = await analytics_db.query_agent_profiles(exp_id_str)
         if profiles:
             zip_file.writestr("agent_profiles.json", json.dumps(profiles, indent=2, default=str))
@@ -334,20 +283,9 @@ async def export_experiment_artifacts(
     request: Request,
     exp_id: uuid.UUID,
 ) -> StreamingResponse:
-    """Export experiment artifacts as a JSON file"""
-
+    """Export experiment artifacts as a JSON file."""
     tenant_id = await request.app.state.get_tenant_id(request)
-    async with request.app.state.get_db() as db:
-        db = cast(AsyncSession, db)
-        stmt = select(Experiment).where(
-            Experiment.tenant_id == tenant_id, Experiment.id == exp_id
-        )
-        result = await db.execute(stmt)
-        row = result.scalar_one_or_none()
-        if not row:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Experiment not found"
-            )
+    await _find_experiment_by_id(request, exp_id, tenant_id)
 
     fs_client = request.app.state.env.fs_client
     artifacts_path = f"exps/{tenant_id}/{exp_id}/artifacts.json"

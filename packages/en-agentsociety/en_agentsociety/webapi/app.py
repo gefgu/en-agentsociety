@@ -114,7 +114,7 @@ def create_app(
 
         # Per-experiment SQLite and analytics DB utilities
         app.state.per_exp_sqlite = PerExperimentSQLite(env.home_dir)
-        app.state.analytics_db = AnalyticsDB(env.data_dir)
+        app.state.analytics_db = AnalyticsDB(env.data_dir, clickhouse_config=env.clickhouse)
 
         # Hook to get tenant_id
         if not hasattr(app.state, "get_tenant_id"):
