@@ -202,19 +202,63 @@ class AnalyticsDB:
             return row
         return await asyncio.to_thread(self._ch_query_one_experiment_sync, exp_id)
 
+    def _ch_query_agent_profiles_sync(
+        self, exp_id: str, agent_id: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        if self._ch_client is None:
+            return []
+        try:
+            if agent_id is not None:
+                result = self._ch_client.query(
+                    "SELECT agent_id, name, profile FROM agent_profile "
+                    "WHERE exp_id = {exp_id:String} AND agent_id = {agent_id:Int32}",
+                    parameters={"exp_id": exp_id, "agent_id": agent_id},
+                )
+            else:
+                result = self._ch_client.query(
+                    "SELECT agent_id, name, profile FROM agent_profile "
+                    "WHERE exp_id = {exp_id:String}",
+                    parameters={"exp_id": exp_id},
+                )
+            cols = result.column_names
+            return [dict(zip(cols, row)) for row in result.result_rows]
+        except Exception as e:
+            logger.error(f"ClickHouse agent_profile query failed ({exp_id}): {e}")
+            return []
+
+    def _ch_query_block_timeline_sync(
+        self, exp_id: str, agent_id: int
+    ) -> List[Dict[str, Any]]:
+        if self._ch_client is None:
+            return []
+        try:
+            result = self._ch_client.query(
+                "SELECT simulation_step, block_name, func_name, prompt, response, "
+                "0 AS detail_available "
+                "FROM prompt_responses "
+                "WHERE exp_id = {exp_id:String} AND agent_id = {agent_id:Int32} "
+                "ORDER BY simulation_step, timestamp",
+                parameters={"exp_id": exp_id, "agent_id": agent_id},
+            )
+            cols = result.column_names
+            return [dict(zip(cols, row)) for row in result.result_rows]
+        except Exception as e:
+            logger.error(f"ClickHouse block_timeline query failed ({exp_id}/{agent_id}): {e}")
+            return []
+
     async def query_agent_profiles(
         self, exp_id: str, agent_id: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """Return agent profile rows. Optionally filter by agent_id."""
-        if not self._duckdb_exists(exp_id):
-            return []
-        if agent_id is not None:
-            sql = "SELECT * FROM agent_profile WHERE exp_id = ? AND agent_id = ?"
-            params = [exp_id, agent_id]
-        else:
-            sql = "SELECT * FROM agent_profile WHERE exp_id = ?"
-            params = [exp_id]
-        return await asyncio.to_thread(self._duckdb_query_sync, exp_id, sql, params)
+        if self._duckdb_exists(exp_id):
+            if agent_id is not None:
+                sql = "SELECT * FROM agent_profile WHERE exp_id = ? AND agent_id = ?"
+                params = [exp_id, agent_id]
+            else:
+                sql = "SELECT * FROM agent_profile WHERE exp_id = ?"
+                params = [exp_id]
+            return await asyncio.to_thread(self._duckdb_query_sync, exp_id, sql, params)
+        return await asyncio.to_thread(self._ch_query_agent_profiles_sync, exp_id, agent_id)
 
     async def query_agent_statuses(
         self,
@@ -271,15 +315,15 @@ class AnalyticsDB:
         self, exp_id: str, agent_id: int
     ) -> List[Dict[str, Any]]:
         """Return prompt_response rows for one agent, ordered by simulation_step then timestamp."""
-        if not self._duckdb_exists(exp_id):
-            return []
-        sql = (
-            "SELECT simulation_step, block_name, func_name, prompt, response, detail_available "
-            "FROM prompt_responses "
-            "WHERE exp_id = ? AND agent_id = ? "
-            "ORDER BY simulation_step, timestamp"
-        )
-        return await asyncio.to_thread(self._duckdb_query_sync, exp_id, sql, [exp_id, agent_id])
+        if self._duckdb_exists(exp_id):
+            sql = (
+                "SELECT simulation_step, block_name, func_name, prompt, response, detail_available "
+                "FROM prompt_responses "
+                "WHERE exp_id = ? AND agent_id = ? "
+                "ORDER BY simulation_step, timestamp"
+            )
+            return await asyncio.to_thread(self._duckdb_query_sync, exp_id, sql, [exp_id, agent_id])
+        return await asyncio.to_thread(self._ch_query_block_timeline_sync, exp_id, agent_id)
 
     async def query_daily_schedule(
         self,

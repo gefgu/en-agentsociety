@@ -39,10 +39,8 @@ async def get_agent_dialog_by_exp_id_and_agent_id(
 ) -> ApiResponseWrapper[List[ApiAgentDialog]]:
     """Get dialog by experiment ID and agent ID"""
 
-    # Check whether the experiment is started
-    async with request.app.state.get_db() as db:
-        db = cast(AsyncSession, db)
-        await _find_started_experiment_by_id(request, db, exp_id)
+    tenant_id = await request.app.state.get_tenant_id(request)
+    await _find_started_experiment_by_id(request, exp_id, tenant_id)
 
     per_exp_sqlite = request.app.state.per_exp_sqlite
     exp_id_str = str(exp_id)
@@ -85,8 +83,8 @@ async def list_agent_profile_by_exp_id(
 ) -> ApiResponseWrapper[List[ApiAgentProfile]]:
     """List agent profiles by experiment ID (from ClickHouse/DuckDB)"""
 
-    async with request.app.state.get_db() as db:
-        await _find_started_experiment_by_id(request, db, exp_id)
+    tenant_id = await request.app.state.get_tenant_id(request)
+    await _find_started_experiment_by_id(request, exp_id, tenant_id)
 
     analytics_db = request.app.state.analytics_db
     rows = await analytics_db.query_agent_profiles(str(exp_id))
@@ -116,9 +114,8 @@ async def get_agent_profile_by_exp_id_and_agent_id(
 ) -> ApiResponseWrapper[ApiAgentProfile]:
     """Get agent profile by experiment ID and agent ID (from ClickHouse/DuckDB)"""
 
-    async with request.app.state.get_db() as db:
-        db = cast(AsyncSession, db)
-        await _find_started_experiment_by_id(request, db, exp_id)
+    tenant_id = await request.app.state.get_tenant_id(request)
+    await _find_started_experiment_by_id(request, exp_id, tenant_id)
 
     analytics_db = request.app.state.analytics_db
     rows = await analytics_db.query_agent_profiles(str(exp_id), agent_id)
@@ -152,13 +149,12 @@ async def list_agent_status_by_day_and_t(
 ) -> ApiResponseWrapper[List[ApiAgentStatus]]:
     """List agent status by experiment ID, day and time (from ClickHouse/DuckDB)"""
 
-    async with request.app.state.get_db() as db:
-        db = cast(AsyncSession, db)
-        experiment = await _find_started_experiment_by_id(request, db, exp_id)
-        if day is None:
-            day = experiment.cur_day
-        if t is None:
-            t = experiment.cur_t
+    tenant_id = await request.app.state.get_tenant_id(request)
+    exp_row = await _find_started_experiment_by_id(request, exp_id, tenant_id)
+    if day is None:
+        day = exp_row.get("cur_day", 0)
+    if t is None:
+        t = exp_row.get("cur_t", 0.0)
 
     analytics_db = request.app.state.analytics_db
     rows = await analytics_db.query_agent_statuses(str(exp_id), day=day, t=t)
@@ -173,8 +169,8 @@ async def list_agent_status_by_day_and_t(
                 pass
         statuses.append(ApiAgentStatus(
             id=row["agent_id"],
-            day=int(row["day"]),
-            t=float(row["t"]),
+            day=int(row.get("day", day)),
+            t=float(row.get("t", t)),
             lng=row.get("lng"),
             lat=row.get("lat"),
             parent_id=row.get("parent_id"),
@@ -194,9 +190,8 @@ async def get_agent_status_by_exp_id_and_agent_id(
 ) -> ApiResponseWrapper[List[ApiAgentStatus]]:
     """Get agent status by experiment ID and agent ID (from ClickHouse/DuckDB)"""
 
-    async with request.app.state.get_db() as db:
-        db = cast(AsyncSession, db)
-        await _find_started_experiment_by_id(request, db, exp_id)
+    tenant_id = await request.app.state.get_tenant_id(request)
+    await _find_started_experiment_by_id(request, exp_id, tenant_id)
 
     analytics_db = request.app.state.analytics_db
     rows = await analytics_db.query_agent_statuses(str(exp_id), agent_id=agent_id)
@@ -211,8 +206,8 @@ async def get_agent_status_by_exp_id_and_agent_id(
                 pass
         statuses.append(ApiAgentStatus(
             id=row["agent_id"],
-            day=int(row["day"]),
-            t=float(row["t"]),
+            day=int(row.get("day", 0)),
+            t=float(row.get("t", 0.0)),
             lng=row.get("lng"),
             lat=row.get("lat"),
             parent_id=row.get("parent_id"),
@@ -232,9 +227,8 @@ async def get_agent_survey_by_exp_id_and_agent_id(
 ) -> ApiResponseWrapper[List[ApiAgentSurvey]]:
     """Get survey by experiment ID and agent ID"""
 
-    async with request.app.state.get_db() as db:
-        db = cast(AsyncSession, db)
-        await _find_started_experiment_by_id(request, db, exp_id)
+    tenant_id = await request.app.state.get_tenant_id(request)
+    await _find_started_experiment_by_id(request, exp_id, tenant_id)
 
     per_exp_sqlite = request.app.state.per_exp_sqlite
     exp_id_str = str(exp_id)
@@ -281,13 +275,12 @@ async def get_global_prompt_by_day_t(
 ) -> ApiResponseWrapper[Optional[ApiGlobalPrompt]]:
     """Get global prompt by experiment ID, day and time"""
 
-    async with request.app.state.get_db() as db:
-        db = cast(AsyncSession, db)
-        experiment = await _find_started_experiment_by_id(request, db, exp_id)
-        if day is None:
-            day = experiment.cur_day
-        if t is None:
-            t = experiment.cur_t
+    tenant_id = await request.app.state.get_tenant_id(request)
+    exp_row = await _find_started_experiment_by_id(request, exp_id, tenant_id)
+    if day is None:
+        day = exp_row.get("cur_day", 0)
+    if t is None:
+        t = exp_row.get("cur_t", 0.0)
 
     per_exp_sqlite = request.app.state.per_exp_sqlite
     row = await per_exp_sqlite.query_global_prompt(str(exp_id), day, t)
@@ -419,13 +412,11 @@ async def get_agent_block_timeline(
     agent_id: int,
 ) -> ApiResponseWrapper[List[ApiTimelineStep]]:
     """Block execution timeline for one agent (groups prompt_responses by simulation_step)."""
-    async with request.app.state.get_db() as db:
-        db = cast(AsyncSession, db)
-        await _find_started_experiment_by_id(request, db, exp_id)
+    tenant_id = await request.app.state.get_tenant_id(request)
+    await _find_started_experiment_by_id(request, exp_id, tenant_id)
 
     analytics_db = request.app.state.analytics_db
     rows = await analytics_db.query_block_timeline(str(exp_id), agent_id)
-
     steps: dict[int, list] = {}
     for row in rows:
         s = int(row["simulation_step"])
@@ -451,9 +442,8 @@ async def get_agent_daily_plan(
     day: Optional[int] = Query(None, description="simulation day to fetch schedule for"),
 ) -> ApiResponseWrapper[Optional[ApiDailySchedule]]:
     """Return the LLM-generated daily schedule (CitySim) for a given agent and day."""
-    async with request.app.state.get_db() as db:
-        db = cast(AsyncSession, db)
-        await _find_started_experiment_by_id(request, db, exp_id)
+    tenant_id = await request.app.state.get_tenant_id(request)
+    await _find_started_experiment_by_id(request, exp_id, tenant_id)
 
     analytics_db = request.app.state.analytics_db
     schedule = await analytics_db.query_daily_schedule(str(exp_id), agent_id, day)
