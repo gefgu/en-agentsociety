@@ -14,8 +14,9 @@ uploaded parquet/csv) to produce one.
 from __future__ import annotations
 
 import io
+import importlib
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -37,6 +38,30 @@ _END_TS_CANDIDATES = ["end_timestamp", "_end_time", "end_time"]
 CPC_H3_RESOLUTIONS = (7, 8, 9)
 STVD_RESOLUTIONS = [7, 9]
 _H3_FALLBACK_RESOLUTION = 10
+_PROFILE_LABELS = ("Routiner", "Regular", "Scouter")
+_PROFILE_METRICS = (
+    "degree_of_return",
+    "intermittency",
+    "regularity",
+    "diversity",
+    "stationarity",
+    "entropy",
+)
+_PROFILE_BOXPLOT_METRICS = ("regularity", "diversity", "stationarity", "entropy")
+_PROFILE_LABEL_MAP = {
+    "routiner": "Routiner",
+    "routiners": "Routiner",
+    "regular": "Regular",
+    "regulars": "Regular",
+    "scouter": "Scouter",
+    "scouters": "Scouter",
+}
+_PROFILE_COLORS = {
+    "Routiner": "#2e7d32",
+    "Regular": "#1565c0",
+    "Scouter": "#c62828",
+}
+_DATASET_SYMBOLS = ("circle", "triangle", "diamond", "rect", "roundRect", "pin")
 
 
 # ---------------------------------------------------------------------------
@@ -345,6 +370,460 @@ def _distance_frequency_dataset(visits: pd.DataFrame, label: str):
 
 
 # ---------------------------------------------------------------------------
+# Mobility profile helpers
+# ---------------------------------------------------------------------------
+
+def _normalise_profile_label(value: Any) -> str:
+    label = str(value)
+    return _PROFILE_LABEL_MAP.get(label.strip().lower(), label)
+
+
+def _profile_visits(df: pd.DataFrame, *, location_resolution: int = _H3_FALLBACK_RESOLUTION) -> pd.DataFrame:
+    """Build a visit table suitable for skmob2 profile measures."""
+    import h3
+
+    visits = pd.DataFrame(
+        {
+            "uid": df["uid"].to_numpy(),
+            "start_timestamp": pd.to_datetime(df["datetime"]).to_numpy(),
+        }
+    )
+    visits["location_id"] = [
+        h3.latlng_to_cell(lat, lng, location_resolution)
+        for lat, lng in zip(df["lat"], df["lng"])
+    ]
+    if "end_timestamp" in df.columns and df["end_timestamp"].notna().any():
+        visits["end_timestamp"] = pd.to_datetime(df["end_timestamp"], errors="coerce").to_numpy()
+    else:
+        visits = visits.sort_values(["uid", "start_timestamp"]).reset_index(drop=True)
+        visits["end_timestamp"] = visits.groupby("uid")["start_timestamp"].shift(-1)
+
+    visits["end_timestamp"] = pd.to_datetime(visits["end_timestamp"], errors="coerce")
+    fallback_end = visits["start_timestamp"].dt.normalize() + pd.Timedelta(days=1)
+    visits["end_timestamp"] = visits["end_timestamp"].fillna(fallback_end)
+    visits.loc[visits["end_timestamp"] < visits["start_timestamp"], "end_timestamp"] = visits["start_timestamp"]
+    return visits.sort_values(["uid", "start_timestamp"]).reset_index(drop=True)
+
+
+def _stationarity(visits: pd.DataFrame) -> pd.DataFrame:
+    """Compute per-user weekly-slot dominant-location occupancy share."""
+    rows: List[dict] = []
+    for row in visits[["uid", "location_id", "start_timestamp", "end_timestamp"]].itertuples(index=False):
+        start = pd.Timestamp(row.start_timestamp)
+        end = pd.Timestamp(row.end_timestamp)
+        if pd.isna(start):
+            continue
+        if pd.isna(end) or end < start:
+            end = start
+        slot_start = start.floor("5min")
+        slot_end = end.floor("5min")
+        timestamps = pd.date_range(slot_start, slot_end, freq="5min")
+        if len(timestamps) == 0:
+            timestamps = pd.DatetimeIndex([slot_start])
+        for timestamp in timestamps:
+            rows.append(
+                {
+                    "uid": row.uid,
+                    "weekly_slot": int(timestamp.dayofweek * 24 * 12 + timestamp.hour * 12 + timestamp.minute // 5),
+                    "location_id": row.location_id,
+                }
+            )
+
+    if not rows:
+        return pd.DataFrame({"uid": visits["uid"].drop_duplicates().to_numpy(), "stationarity": 0.0})
+
+    occupancy = pd.DataFrame(rows)
+    counts = occupancy.groupby(["uid", "weekly_slot", "location_id"]).size().rename("count").reset_index()
+    slot_totals = counts.groupby(["uid", "weekly_slot"])["count"].sum().rename("total").reset_index()
+    dominant = counts.groupby(["uid", "weekly_slot"])["count"].max().rename("dominant").reset_index()
+    shares = slot_totals.merge(dominant, on=["uid", "weekly_slot"])
+    shares["slot_share"] = shares["dominant"] / shares["total"]
+    result = shares.groupby("uid")["slot_share"].mean().rename("stationarity").reset_index()
+    users = pd.DataFrame({"uid": visits["uid"].drop_duplicates().to_numpy()})
+    return users.merge(result, on="uid", how="left").fillna({"stationarity": 0.0})
+
+
+def _merge_user_metric(base: pd.DataFrame, metric_df: Any, metric_col: str) -> pd.DataFrame:
+    metric_pd = pd.DataFrame(metric_df)
+    if "uid" not in metric_pd.columns or metric_col not in metric_pd.columns:
+        raise ValueError(f"{metric_col} measure did not return uid/{metric_col} columns")
+    return base.merge(metric_pd[["uid", metric_col]], on="uid", how="left")
+
+
+def _build_profile_data(df: pd.DataFrame) -> pd.DataFrame:
+    import skmob2
+
+    visits = _profile_visits(df)
+    profile_df = pd.DataFrame(
+        skmob2.exploration_profiling(
+            visits,
+            user_id_col="uid",
+            location_id_col="location_id",
+            datetime_col="start_timestamp",
+        )
+    )
+    if "profile" not in profile_df.columns:
+        raise ValueError("exploration_profiling did not return a profile column")
+    profile_df["agent_type"] = profile_df["profile"].map(_normalise_profile_label)
+
+    profile_df = _merge_user_metric(
+        profile_df,
+        skmob2.regularity(visits, user_id_col="uid", location_id_col="location_id", location_type_col=None),
+        "regularity",
+    )
+    profile_df = _merge_user_metric(
+        profile_df,
+        skmob2.diversity(visits, user_id_col="uid", location_id_col="location_id", location_type_col=None),
+        "diversity",
+    )
+    profile_df = _merge_user_metric(
+        profile_df,
+        skmob2.trajectory_entropy(
+            visits,
+            user_id_col="uid",
+            location_id_col="location_id",
+            location_type_col=None,
+            timestamp_col="start_timestamp",
+        ),
+        "entropy",
+    )
+    profile_df = profile_df.merge(_stationarity(visits), on="uid", how="left")
+    for metric in _PROFILE_METRICS:
+        profile_df[metric] = pd.to_numeric(profile_df[metric], errors="coerce")
+    profile_df["stationarity"] = profile_df["stationarity"].clip(lower=0.0, upper=1.0)
+    return profile_df
+
+
+class _LocalEChartsFigure:
+    def __init__(self, option: dict):
+        self._option = option
+
+    def to_dict(self) -> dict:
+        return self._option
+
+
+def _load_profile_plotters():
+    for module_name in ("skmob_vis", "skmob_vis.profiles"):
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError:
+            continue
+
+        plot_mobility_profiles = getattr(module, "plot_mobility_profiles", None)
+        plot_profile_metrics = getattr(module, "plot_profile_metrics", None)
+        if callable(plot_mobility_profiles) and callable(plot_profile_metrics):
+            return plot_mobility_profiles, plot_profile_metrics
+
+    return _local_plot_mobility_profiles, _local_plot_profile_metrics
+
+
+def _as_profile_datasets(profiles: Any) -> Dict[str, pd.DataFrame]:
+    if isinstance(profiles, dict) and "degree_of_return" not in profiles:
+        return {str(name): pd.DataFrame(data) for name, data in profiles.items()}
+    return {"": pd.DataFrame(profiles)}
+
+
+def _ordered_profile_labels(labels: Iterable[Any]) -> List[str]:
+    seen = list(dict.fromkeys(str(label) for label in labels))
+    ordered = [label for label in _PROFILE_LABELS if label in seen]
+    ordered.extend(label for label in seen if label not in ordered)
+    return ordered
+
+
+def _base_profile_option(title: str, chart_type: str) -> dict:
+    return {
+        "_meta": {"chartType": chart_type},
+        "backgroundColor": "#ffffff",
+        "title": {
+            "text": title,
+            "left": 0,
+            "top": 0,
+            "textStyle": {
+                "fontFamily": "serif",
+                "fontWeight": 500,
+                "fontSize": 28,
+                "color": "#172033",
+            },
+        },
+        "tooltip": {"trigger": "item"},
+    }
+
+
+def _local_plot_mobility_profiles(
+    profiles: Any,
+    *,
+    profile_col: str = "agent_type",
+    title: str = "Mobility profiles",
+    **kwargs,
+) -> _LocalEChartsFigure:
+    datasets = _as_profile_datasets(profiles)
+    multi = len(datasets) > 1 or next(iter(datasets)) != ""
+    all_labels: List[str] = []
+    for data in datasets.values():
+        all_labels.extend(data[profile_col].astype(str).tolist())
+    profile_order = _ordered_profile_labels(all_labels)
+
+    series = []
+    legend = []
+    for dataset_index, (dataset_name, data) in enumerate(datasets.items()):
+        symbol = _DATASET_SYMBOLS[dataset_index % len(_DATASET_SYMBOLS)]
+        for profile in profile_order:
+            subset = data[data[profile_col].astype(str) == profile]
+            if subset.empty:
+                continue
+            series_name = f"{profile} · {dataset_name}" if multi else profile
+            legend.append(series_name)
+            series.append(
+                {
+                    "name": series_name,
+                    "type": "scatter",
+                    "symbol": symbol,
+                    "symbolSize": 11,
+                    "data": subset[["degree_of_return", "intermittency"]].astype(float).values.tolist(),
+                    "itemStyle": {
+                        "color": _PROFILE_COLORS.get(profile, "#6b7280"),
+                        "opacity": 0.82,
+                        "borderColor": "#ffffff",
+                        "borderWidth": 0.6,
+                    },
+                    "emphasis": {"scale": 1.3},
+                }
+            )
+
+    option = _base_profile_option(title, "mobility_profiles")
+    option.update(
+        {
+            "grid": {"left": 78, "right": 28, "top": 96, "bottom": 70, "containLabel": False},
+            "legend": {"data": legend, "top": 54, "left": 0, "right": 0},
+            "xAxis": {
+                "type": "value",
+                "name": "DEGREE OF RETURN",
+                "nameLocation": "middle",
+                "nameGap": 42,
+            },
+            "yAxis": {
+                "type": "value",
+                "name": "INTERMITTENCY",
+                "nameLocation": "middle",
+                "nameGap": 64,
+                "nameRotate": 90,
+            },
+            "series": series,
+        }
+    )
+    return _LocalEChartsFigure(option)
+
+
+def _box_stats(values: Iterable[Any]) -> Optional[List[float]]:
+    array = _finite_values(values)
+    if array.size == 0:
+        return None
+    return [
+        float(np.min(array)),
+        float(np.percentile(array, 25)),
+        float(np.percentile(array, 50)),
+        float(np.percentile(array, 75)),
+        float(np.max(array)),
+    ]
+
+
+def _local_plot_profile_metrics(
+    datasets: Dict[str, Any],
+    *,
+    metrics: Iterable[str] = _PROFILE_BOXPLOT_METRICS,
+    profile_col: str = "agent_type",
+    profile_order: Iterable[str] = ("Scouter", "Regular", "Routiner"),
+    title: str = "Mobility profile metrics",
+    **kwargs,
+) -> _LocalEChartsFigure:
+    dataset_frames = {str(name): pd.DataFrame(data) for name, data in datasets.items()}
+    metric_names = [str(metric) for metric in metrics]
+    profile_names = [str(profile) for profile in profile_order]
+    ncols = 2 if len(metric_names) > 1 else 1
+    nrows = int(np.ceil(len(metric_names) / ncols))
+    cell_width = 40
+    cell_height = 30 if nrows > 1 else 64
+    grids = []
+    titles = [
+        {
+            "text": title,
+            "left": 0,
+            "top": 0,
+            "textStyle": {
+                "fontFamily": "serif",
+                "fontWeight": 500,
+                "fontSize": 28,
+                "color": "#172033",
+            },
+        }
+    ]
+    x_axes = []
+    y_axes = []
+    series = []
+    dataset_colors = ["#1565c0", "#c62828", "#2e7d32", "#6b7280"]
+    for index, metric in enumerate(metric_names):
+        row, col = divmod(index, ncols)
+        left = 7 + col * 50
+        top = 16 + row * 43
+        grids.append({"left": f"{left}%", "top": f"{top}%", "width": f"{cell_width}%", "height": f"{cell_height}%"})
+        titles.append(
+            {
+                "text": metric.replace("_", " ").title(),
+                "left": f"{left + cell_width / 2}%",
+                "top": f"{max(top - 6, 0)}%",
+                "textAlign": "center",
+            }
+        )
+        x_axes.append({"gridIndex": index, "type": "category", "data": profile_names})
+        y_axes.append({"gridIndex": index, "type": "value", "min": 0})
+        for dataset_index, (dataset_name, data) in enumerate(dataset_frames.items()):
+            boxes = []
+            for profile in profile_names:
+                subset = data[data[profile_col].astype(str) == profile]
+                boxes.append(_box_stats(subset[metric]) if metric in subset.columns else None)
+            series.append(
+                {
+                    "name": dataset_name,
+                    "type": "boxplot",
+                    "xAxisIndex": index,
+                    "yAxisIndex": index,
+                    "data": boxes,
+                    "itemStyle": {
+                        "color": "#ffffff",
+                        "borderColor": dataset_colors[dataset_index % len(dataset_colors)],
+                        "borderWidth": 1.6,
+                    },
+                    "boxWidth": [10, 40],
+                }
+            )
+
+    option = _base_profile_option(title, "profile_metrics")
+    option["title"] = titles
+    option.update(
+        {
+            "grid": grids,
+            "legend": {"data": list(dataset_frames), "top": 8, "right": 0},
+            "xAxis": x_axes,
+            "yAxis": y_axes,
+            "series": series,
+        }
+    )
+    return _LocalEChartsFigure(option)
+
+
+def _add_single_profile_section(
+    df: pd.DataFrame,
+    label: str,
+    charts: Dict[str, Any],
+    warnings: List[str],
+) -> None:
+    try:
+        plot_mobility_profiles, plot_profile_metrics = _load_profile_plotters()
+
+        profiles = _build_profile_data(df)
+        charts["mobility_profiles"] = _chart(
+            plot_mobility_profiles(profiles, title="Degree of return vs intermittency"),
+            "mobility_profiles",
+        )
+        charts["profile_metrics"] = _chart(
+            plot_profile_metrics(
+                {label: profiles},
+                metrics=_PROFILE_BOXPLOT_METRICS,
+                title="Mobility profile metrics",
+            ),
+            "profile_metrics",
+        )
+    except Exception as exc:  # noqa: BLE001
+        warnings.append(f"profile: {exc}")
+
+
+def _finite_values(values: Iterable[Any]) -> np.ndarray:
+    array = np.asarray(list(values), dtype=float).ravel()
+    return array[np.isfinite(array)]
+
+
+def _profile_jsd(values_a: Iterable[Any], values_b: Iterable[Any]) -> float:
+    from skmob2 import histogram_jensen_shannon_divergence
+
+    a = _finite_values(values_a)
+    b = _finite_values(values_b)
+    if a.size == 0 or b.size == 0:
+        return float("nan")
+    value_range = float(max(a.max(), b.max()) - min(a.min(), b.min()))
+    bin_size = value_range / 20.0 if value_range > 0 else 0.05
+    return float(histogram_jensen_shannon_divergence(a, b, bin_size=max(bin_size, 1e-6)))
+
+
+def _profile_mix_jsd(profiles_a: pd.DataFrame, profiles_b: pd.DataFrame) -> float:
+    from skmob2 import jensen_shannon_divergence
+
+    counts_a = profiles_a["agent_type"].value_counts()
+    counts_b = profiles_b["agent_type"].value_counts()
+    labels = list(_PROFILE_LABELS)
+    return float(
+        jensen_shannon_divergence(
+            [counts_a.get(label, 0) for label in labels],
+            [counts_b.get(label, 0) for label in labels],
+        )
+    )
+
+
+def _add_profile_comparison_section(
+    df_a: pd.DataFrame,
+    df_b: pd.DataFrame,
+    label_a: str,
+    label_b: str,
+    charts: Dict[str, Any],
+    warnings: List[str],
+    wasserstein: List[dict],
+    jensen_shannon: List[dict],
+) -> None:
+    try:
+        from skmob2 import profile_metric_wasserstein_distance
+
+        plot_mobility_profiles, plot_profile_metrics = _load_profile_plotters()
+
+        profiles_a = _build_profile_data(df_a)
+        profiles_b = _build_profile_data(df_b)
+
+        for metric_col in _PROFILE_METRICS:
+            name = metric_col.replace("_", " ").title()
+            try:
+                value = profile_metric_wasserstein_distance(profiles_a, profiles_b, metric_col)
+                wasserstein.append({"name": f"Profile {name}", "value": round(float(value), 4), "unit": ""})
+            except Exception as exc:  # noqa: BLE001
+                warnings.append(f"metric profile {metric_col} W1: {exc}")
+            try:
+                value = _profile_jsd(profiles_a[metric_col], profiles_b[metric_col])
+                jensen_shannon.append({"name": f"Profile {name}", "value": round(float(value), 4)})
+            except Exception as exc:  # noqa: BLE001
+                warnings.append(f"metric profile {metric_col} JSD: {exc}")
+
+        try:
+            jensen_shannon.append(
+                {"name": "Mobility profile mix", "value": round(_profile_mix_jsd(profiles_a, profiles_b), 4)}
+            )
+        except Exception as exc:  # noqa: BLE001
+            warnings.append(f"metric mobility profile mix: {exc}")
+
+        profile_sets = {label_a: profiles_a, label_b: profiles_b}
+        charts["mobility_profiles"] = _chart(
+            plot_mobility_profiles(profile_sets, title="Degree of return vs intermittency"),
+            "mobility_profiles",
+        )
+        charts["profile_metrics"] = _chart(
+            plot_profile_metrics(
+                profile_sets,
+                metrics=_PROFILE_BOXPLOT_METRICS,
+                title="Mobility profile metrics",
+            ),
+            "profile_metrics",
+        )
+    except Exception as exc:  # noqa: BLE001
+        warnings.append(f"profile: {exc}")
+
+
+# ---------------------------------------------------------------------------
 # Payload assembly
 # ---------------------------------------------------------------------------
 
@@ -422,6 +901,8 @@ def build_single_payload(
                       lambda: plot_visit_purpose_comparison({label: visits_cmp}))
         except Exception as exc:  # noqa: BLE001
             warnings.append(f"activity: {exc}")
+
+    _add_single_profile_section(df, label, charts, warnings)
 
     return {
         "labels": [label],
@@ -581,6 +1062,11 @@ def build_comparison_payload(
         return fig, {"formula": "rho(r, f) = mu (r f)^-eta", "parameters": params}
 
     add_chart("distance_frequency", "mobility_law", distance_frequency)
+
+    # --- mobility profiles ---
+    _add_profile_comparison_section(
+        df_a, df_b, label_a, label_b, charts, warnings, wasserstein, jensen_shannon
+    )
 
     # --- activity comparison (requires purpose on both sides) ---
     if "purpose" in df_a.columns and "purpose" in df_b.columns:

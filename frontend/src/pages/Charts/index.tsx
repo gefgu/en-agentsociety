@@ -41,6 +41,10 @@ const DISTRIBUTION_CHARTS: [string, string][] = [
   ["visits_ecdf", "Visits per user ECDF"],
   ["dwell_ecdf", "Dwell time ECDF"],
 ];
+const PROFILE_CHARTS: [string, string][] = [
+  ["mobility_profiles", "charts.mobility_profiles_scatter"],
+  ["profile_metrics", "charts.profile_metrics_boxplots"],
+];
 const LAW_CHARTS: [string, string][] = [
   ["powerlaw_jump", "Travel-distance law"],
   ["powerlaw_rog", "Radius-of-gyration law"],
@@ -272,6 +276,11 @@ const ChartsPage: React.FC = () => {
 
           {hasAny(DISTRIBUTION_CHARTS) && <h3 className="charts-section-header">{t("charts.distributions")}</h3>}
           <Row gutter={[16, 16]}>{DISTRIBUTION_CHARTS.map(([k, title]) => renderChart(k, title))}</Row>
+
+          {hasAny(PROFILE_CHARTS) && <h3 className="charts-section-header">{t("charts.mobility_profiles")}</h3>}
+          <Row gutter={[16, 16]}>
+            {PROFILE_CHARTS.map(([k, title]) => renderChart(k, title.startsWith("charts.") ? t(title) : title))}
+          </Row>
 
           {hasAny(LAW_CHARTS) && <h3 className="charts-section-header">{t("charts.mobility_laws")}</h3>}
           <Row gutter={[16, 16]}>{LAW_CHARTS.map(([k, title]) => renderChart(k, title))}</Row>

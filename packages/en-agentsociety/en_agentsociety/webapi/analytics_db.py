@@ -276,48 +276,122 @@ class AnalyticsDB:
         agent_id: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """Return agent status rows. Filter by day/t or agent_id."""
-        if not self._duckdb_exists(exp_id):
-            return []
-        conditions = ["exp_id = ?"]
-        params: list = [exp_id]
-        if agent_id is not None:
-            conditions.append("agent_id = ?")
-            params.append(agent_id)
-        if day is not None:
-            conditions.append("day = ?")
-            params.append(day)
-        if t is not None:
-            conditions.append("t = ?")
-            params.append(t)
-        sql = (
-            f"SELECT * FROM step_agent_status WHERE {' AND '.join(conditions)} "
-            "ORDER BY day, t"
+        if self._duckdb_exists(exp_id):
+            conditions = ["exp_id = ?"]
+            params: list = [exp_id]
+            if agent_id is not None:
+                conditions.append("agent_id = ?")
+                params.append(agent_id)
+            if day is not None:
+                conditions.append("day = ?")
+                params.append(day)
+            if t is not None:
+                conditions.append("t = ?")
+                params.append(t)
+            sql = (
+                f"SELECT * FROM step_agent_status WHERE {' AND '.join(conditions)} "
+                "ORDER BY day, t"
+            )
+            return await asyncio.to_thread(self._duckdb_query_sync, exp_id, sql, params)
+        return await asyncio.to_thread(
+            self._ch_query_agent_statuses_sync, exp_id, day, t, agent_id
         )
-        return await asyncio.to_thread(self._duckdb_query_sync, exp_id, sql, params)
+
+    def _ch_query_timeline_sync(self, exp_id: str) -> List[Dict[str, Any]]:
+        ch = self._make_ch_client()
+        if ch is None:
+            return []
+        try:
+            result = ch.query(
+                "SELECT `day`, t FROM step_agent_status "
+                "WHERE exp_id = {exp_id:String} "
+                "GROUP BY `day`, t ORDER BY `day`, t",
+                parameters={"exp_id": exp_id},
+            )
+            cols = result.column_names
+            return [dict(zip(cols, row)) for row in result.result_rows]
+        except Exception as e:
+            logger.warning(f"ClickHouse timeline query failed ({exp_id}): {e}")
+            return []
 
     async def query_timeline(self, exp_id: str) -> List[Dict[str, Any]]:
         """Return unique (day, t) pairs from step_agent_status, ordered by day/t."""
-        if not self._duckdb_exists(exp_id):
+        if self._duckdb_exists(exp_id):
+            sql = (
+                "SELECT day, t FROM step_agent_status WHERE exp_id = ? "
+                "GROUP BY day, t ORDER BY day, t"
+            )
+            return await asyncio.to_thread(self._duckdb_query_sync, exp_id, sql, [exp_id])
+        return await asyncio.to_thread(self._ch_query_timeline_sync, exp_id)
+
+    def _ch_query_agent_statuses_sync(
+        self,
+        exp_id: str,
+        day: Optional[int] = None,
+        t: Optional[float] = None,
+        agent_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        ch = self._make_ch_client()
+        if ch is None:
             return []
-        sql = (
-            "SELECT day, t FROM step_agent_status WHERE exp_id = ? "
-            "GROUP BY day, t ORDER BY day, t"
-        )
-        return await asyncio.to_thread(self._duckdb_query_sync, exp_id, sql, [exp_id])
+        try:
+            conditions = ["exp_id = {exp_id:String}"]
+            params: Dict[str, Any] = {"exp_id": exp_id}
+            if agent_id is not None:
+                conditions.append("agent_id = {agent_id:Int32}")
+                params["agent_id"] = agent_id
+            if day is not None:
+                conditions.append("`day` = {day:Int32}")
+                params["day"] = day
+            if t is not None:
+                conditions.append("t = {t:Float64}")
+                params["t"] = t
+            result = ch.query(
+                f"SELECT * FROM step_agent_status WHERE {' AND '.join(conditions)} ORDER BY `day`, t",
+                parameters=params,
+            )
+            cols = result.column_names
+            return [dict(zip(cols, row)) for row in result.result_rows]
+        except Exception as e:
+            logger.warning(f"ClickHouse agent_status query failed ({exp_id}): {e}")
+            return []
+
+    def _ch_query_metrics_sync(
+        self, exp_id: str, key: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        ch = self._make_ch_client()
+        if ch is None:
+            return []
+        try:
+            if key is not None:
+                result = ch.query(
+                    "SELECT * FROM metric WHERE exp_id = {exp_id:String} AND key = {key:String} ORDER BY step",
+                    parameters={"exp_id": exp_id, "key": key},
+                )
+            else:
+                result = ch.query(
+                    "SELECT * FROM metric WHERE exp_id = {exp_id:String} ORDER BY key, step",
+                    parameters={"exp_id": exp_id},
+                )
+            cols = result.column_names
+            return [dict(zip(cols, row)) for row in result.result_rows]
+        except Exception as e:
+            logger.warning(f"ClickHouse metrics query failed ({exp_id}): {e}")
+            return []
 
     async def query_metrics(
         self, exp_id: str, key: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Return metric rows for the experiment, optionally filtered by key."""
-        if not self._duckdb_exists(exp_id):
-            return []
-        if key is not None:
-            sql = "SELECT * FROM metric WHERE exp_id = ? AND key = ? ORDER BY step"
-            params = [exp_id, key]
-        else:
-            sql = "SELECT * FROM metric WHERE exp_id = ? ORDER BY key, step"
-            params = [exp_id]
-        return await asyncio.to_thread(self._duckdb_query_sync, exp_id, sql, params)
+        if self._duckdb_exists(exp_id):
+            if key is not None:
+                sql = "SELECT * FROM metric WHERE exp_id = ? AND key = ? ORDER BY step"
+                params = [exp_id, key]
+            else:
+                sql = "SELECT * FROM metric WHERE exp_id = ? ORDER BY key, step"
+                params = [exp_id]
+            return await asyncio.to_thread(self._duckdb_query_sync, exp_id, sql, params)
+        return await asyncio.to_thread(self._ch_query_metrics_sync, exp_id, key)
 
     _STEPS_PER_DAY = 144
 
@@ -342,6 +416,30 @@ class AnalyticsDB:
             self._ch_query_block_timeline_sync, exp_id, agent_id, step_min, step_max
         )
 
+    def _ch_query_daily_schedule_sync(
+        self, exp_id: str, agent_id: int, day: Optional[int] = None
+    ) -> Optional[Dict[str, Any]]:
+        ch = self._make_ch_client()
+        if ch is None:
+            return None
+        try:
+            conditions = ["exp_id = {exp_id:String}", "agent_id = {agent_id:Int32}"]
+            params: Dict[str, Any] = {"exp_id": exp_id, "agent_id": agent_id}
+            if day is not None:
+                conditions.append("`day` = {day:Int32}")
+                params["day"] = day
+            result = ch.query(
+                f"SELECT status, `day` FROM step_agent_status WHERE {' AND '.join(conditions)} "
+                "ORDER BY `day` DESC, t DESC LIMIT 1",
+                parameters=params,
+            )
+            cols = result.column_names
+            rows = [dict(zip(cols, row)) for row in result.result_rows]
+            return rows[0] if rows else None
+        except Exception as e:
+            logger.warning(f"ClickHouse daily_schedule query failed ({exp_id}/{agent_id}): {e}")
+            return None
+
     async def query_daily_schedule(
         self,
         exp_id: str,
@@ -349,18 +447,21 @@ class AnalyticsDB:
         day: Optional[int] = None,
     ) -> Optional[Dict[str, Any]]:
         """Return daily_schedule dict from the latest step_agent_status for a given day."""
-        if not self._duckdb_exists(exp_id):
-            return None
-        conditions = ["exp_id = ?", "agent_id = ?"]
-        params: list = [exp_id, agent_id]
-        if day is not None:
-            conditions.append("day = ?")
-            params.append(day)
-        sql = (
-            f"SELECT status, day FROM step_agent_status WHERE {' AND '.join(conditions)} "
-            "ORDER BY day DESC, t DESC LIMIT 1"
-        )
-        row = await asyncio.to_thread(self._duckdb_query_one_sync, exp_id, sql, params)
+        if self._duckdb_exists(exp_id):
+            conditions = ["exp_id = ?", "agent_id = ?"]
+            params: list = [exp_id, agent_id]
+            if day is not None:
+                conditions.append("day = ?")
+                params.append(day)
+            sql = (
+                f"SELECT status, day FROM step_agent_status WHERE {' AND '.join(conditions)} "
+                "ORDER BY day DESC, t DESC LIMIT 1"
+            )
+            row = await asyncio.to_thread(self._duckdb_query_one_sync, exp_id, sql, params)
+        else:
+            row = await asyncio.to_thread(
+                self._ch_query_daily_schedule_sync, exp_id, agent_id, day
+            )
         if not row:
             return None
         status_val = row.get("status", "{}")

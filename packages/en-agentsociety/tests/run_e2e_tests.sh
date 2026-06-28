@@ -46,6 +46,7 @@ if [ -n "${PYTHON_BIN}" ]; then
 	# "${PYTHON_BIN}" "010_mistral_robustness.py" "--config" "$E2E_DIR/configs/010_mistral_robustness.yaml" "$@"
 	# "${PYTHON_BIN}" "011_database_refactor.py" "--config" "$E2E_DIR/configs/011_database_refactor_modal.yaml" "$@"
 	# "${PYTHON_BIN}" "012_mobility_metrics.py" "--config" "$E2E_DIR/configs/012_mobility_3agents_1day.yaml" "$@"
+	# "${PYTHON_BIN}" "013_citysim_idf_binary_comparison.py" "$@"
 	"${PYTHON_BIN}" "003_resume_agent_state.py" "--config" "$E2E_DIR/configs/003_resume_10_agents_local.yaml" "$@"
 	"${PYTHON_BIN}" "004_resume_moving_agent_state.py" "--config" "$E2E_DIR/configs/003_resume_10_agents_local.yaml" "--wait-for-movement-timeout-seconds" "9000" "$@"
 	# "${PYTHON_BIN}" "004_resume_moving_agent_state.py" "--config" "${E2E_DIR}/configs/003_resume_100_agents_local.yaml" "--wait-for-movement-timeout-seconds" "9000" "$@"

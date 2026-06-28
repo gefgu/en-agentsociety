@@ -18,6 +18,7 @@ const TimelinePlayer = observer(({ initialInterval }: {
     const [sliderChanging, setSliderChanging] = useState(false);
 
     const [currentIndex, setCurrentIndex] = useState<number>(0);
+    const timelineInitialized = useRef(false);
     const [isPlaying, setIsPlaying] = useState<boolean>(false);
     const [playInterval, setPlayInterval] = useState<number>(initialInterval);
     const intervalRef = useRef<any>();
@@ -74,8 +75,16 @@ const TimelinePlayer = observer(({ initialInterval }: {
     }
 
     useEffect(() => {
-        console.log('currentTimeline', `${t('replay.day', { day: currentTimeline.day })} ${parseT(currentTimeline.t)}`);
-        if (!sliderChanging) {
+        if (store.timeline.length > 0 && !timelineInitialized.current) {
+            timelineInitialized.current = true;
+            if (store.experiment?.status === 2) {
+                setCurrentIndex(store.timeline.length - 1);
+            }
+        }
+    }, [store.timeline.length, store.experiment?.status]);
+
+    useEffect(() => {
+        if (!sliderChanging && store.timeline.length > 0) {
             store.fetchByTime(currentTimeline);
         }
     }, [currentTimeline, sliderChanging]);

@@ -180,6 +180,52 @@ function applyMotif(option: any, meta: any) {
   };
 }
 
+function formatProfileNumber(value: any): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return String(value);
+  return parseFloat(n.toFixed(4)).toString();
+}
+
+function applyMobilityProfiles(option: any) {
+  ensure(option.xAxis, "axisLabel").formatter = formatProfileNumber;
+  ensure(option.yAxis, "axisLabel").formatter = formatProfileNumber;
+  ensure(option, "tooltip").formatter = (params: any) => {
+    const value = params.value || [];
+    return (
+      params.marker +
+      params.seriesName +
+      "<br/>Degree of return: " +
+      formatProfileNumber(value[0]) +
+      "<br/>Intermittency: " +
+      formatProfileNumber(value[1])
+    );
+  };
+}
+
+function applyProfileMetrics(option: any) {
+  ensure(option, "tooltip").formatter = (params: any) => {
+    const value = params.value || [];
+    if (!Array.isArray(value) || value.length < 5) return "";
+    const profile = params.name || "";
+    return (
+      params.marker +
+      params.seriesName +
+      "<br/>Profile: " +
+      profile +
+      "<br/>Min: " +
+      formatProfileNumber(value[0]) +
+      "<br/>Q1: " +
+      formatProfileNumber(value[1]) +
+      "<br/>Median: " +
+      formatProfileNumber(value[2]) +
+      "<br/>Q3: " +
+      formatProfileNumber(value[3]) +
+      "<br/>Max: " +
+      formatProfileNumber(value[4])
+    );
+  };
+}
+
 /**
  * Attach the appropriate tooltip/axis formatters to an ECharts option in place,
  * based on the chart type produced by skmob-vis.
@@ -201,6 +247,12 @@ export function applyFormatters(option: any, chartType: string | undefined, meta
         break;
       case "motif":
         applyMotif(option, meta);
+        break;
+      case "mobility_profiles":
+        applyMobilityProfiles(option);
+        break;
+      case "profile_metrics":
+        applyProfileMetrics(option);
         break;
       default:
         break;

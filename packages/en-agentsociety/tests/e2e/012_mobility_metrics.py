@@ -91,6 +91,12 @@ def main() -> None:
     assert isinstance(charts, dict) and len(charts) >= 1, "no charts produced"
     for key, chart in charts.items():
         assert "option" in chart and isinstance(chart["option"], dict), f"chart {key} missing option"
+    if df_a["uid"].nunique() >= 3 and df_b["uid"].nunique() >= 3:
+        assert "mobility_profiles" in charts, "mobility profile scatter was not produced"
+        assert "profile_metrics" in charts, "mobility profile boxplots were not produced"
+        metric_names = {row["name"] for row in payload["metrics"]["wasserstein"]}
+        assert "Profile Degree Of Return" in metric_names
+        assert "Profile Intermittency" in metric_names
     # The whole payload must be serialisable for the HTTP response.
     serialized = json.dumps(payload)
     assert len(serialized) > 0
