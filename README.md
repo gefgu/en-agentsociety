@@ -43,10 +43,6 @@ mobility validation, and scalable regional workflows.
 - **Interactive debugging UI**: exposes agent timelines, module-level execution,
   prompt-response traces, and mobility analytics through the web interface.
 
-<div align="center">
-  <img src="./static/framework.png" alt="En-AgentSociety framework overview" width="620">
-</div>
-
 ## Installation
 
 En-AgentSociety requires Python 3.11 or newer.
