@@ -5,7 +5,9 @@
 </div>
 
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue) &ensp;
+[![ACM SIGSPATIAL 2026 Demo](https://img.shields.io/badge/ACM%20SIGSPATIAL%202026-Demo-0fb8a4)](https://gefgu.github.io/en-agentsociety/) &ensp;
 [![Online Documentation](https://img.shields.io/badge/docs-online-blue)](https://en-agentsociety.readthedocs.io/en/latest/) &ensp;
+[![Project Website](https://img.shields.io/badge/project%20website-online-0fb8a4)](https://gefgu.github.io/en-agentsociety/)
 
 En-AgentSociety is an open-source urban simulation system for running,
 inspecting, resuming, and validating LLM-driven generative-agent experiments.
@@ -13,6 +15,11 @@ It is designed for researchers who need more than plausible narratives: it
 records the evidence needed to debug agent decisions, compare generated
 mobility against empirical data, and reproduce long-running regional
 simulations.
+
+> **ACM SIGSPATIAL 2026 Demo.** En-AgentSociety has been accepted as a demo at
+> the 34th ACM SIGSPATIAL International Conference on Advances in Geographic
+> Information Systems. Visit the [project website](https://gefgu.github.io/en-agentsociety/)
+> for the demo overview, paper, and installation instructions.
 
 The project builds on the original
 [AgentSociety](https://github.com/tsinghua-fib-lab/agentsociety) framework, but
@@ -91,6 +98,7 @@ and rumor spreading in [`examples/`](./examples).
 
 ## Documentation
 
+- Project website and demo: <https://gefgu.github.io/en-agentsociety/>
 - Online documentation: <https://en-agentsociety.readthedocs.io/en/latest/>
 - Local docs source: [`docs/`](./docs)
 - Package source: [`packages/en-agentsociety/`](./packages/en-agentsociety)
@@ -115,9 +123,10 @@ Original AgentSociety paper:
 }
 ```
 
-<!-- ## Citation
+## Citation
 
 If you use En-AgentSociety, please cite the ACM SIGSPATIAL 2026 demo paper:
+The [demo paper PDF](./En-AgentSociety.pdf) is included in this repository.
 
 ```bibtex
 @inproceedings{santos2026enagentsociety,
@@ -127,7 +136,7 @@ If you use En-AgentSociety, please cite the ACM SIGSPATIAL 2026 demo paper:
   year = {2026},
   note = {Demo paper}
 }
-``` -->
+```
 
 ## License
 

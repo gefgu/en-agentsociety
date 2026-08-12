@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="En-AgentSociety: observable and reproducible LLM-based urban simulation at regional scale.">
+    <title>En-AgentSociety | ACM SIGSPATIAL 2026 Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="En-AgentSociety home">
+        <img src="assets/agentsociety_logo.png" alt="" width="34" height="34">
+        <span>En-AgentSociety</span>
+      </a>
+      <nav aria-label="Main navigation">
+        <a href="#about">About</a>
+        <a href="#capabilities">Capabilities</a>
+        <a href="#get-started">Get started</a>
+        <a href="https://github.com/gefgu/en-agentsociety">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">ACM SIGSPATIAL 2026 · Demo</p>
+          <h1 id="hero-title">Urban simulation you can inspect, resume, and validate.</h1>
+          <p class="lede">En-AgentSociety is an open-source framework for reproducible, regional-scale simulations with LLM-driven generative agents.</p>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/gefgu/en-agentsociety">View on GitHub <span aria-hidden="true">↗</span></a>
+            <a class="button secondary" href="En-AgentSociety.pdf">Read the demo paper</a>
+          </div>
+          <p class="accepted">Accepted as a demo at the 34th ACM SIGSPATIAL International Conference on Advances in Geographic Information Systems.</p>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <div class="orb orb-one"></div>
+          <div class="orb orb-two"></div>
+          <div class="hero-card">
+            <span class="card-label">SIMULATION STATUS</span>
+            <strong>Observable</strong>
+            <span class="status"><i></i> Trace every decision</span>
+            <dl>
+              <div><dt>Agents</dt><dd>regional scale</dd></div>
+              <div><dt>Runs</dt><dd>resumable</dd></div>
+              <div><dt>Traces</dt><dd>validation-ready</dd></div>
+            </dl>
+          </div>
+        </div>
+      </section>
+
+      <section id="about" class="section about">
+        <p class="eyebrow">The demo</p>
+        <h2>From plausible narratives to research evidence.</h2>
+        <p>En-AgentSociety records the information needed to debug agent decisions, compare generated mobility with empirical data, and reproduce long-running regional simulations. It extends the original <a href="https://github.com/tsinghua-fib-lab/agentsociety">AgentSociety</a> framework with observability, fault tolerance, and validation workflows.</p>
+        <img class="framework" src="assets/framework.png" alt="Diagram of the En-AgentSociety framework">
+      </section>
+
+      <section id="capabilities" class="section">
+        <p class="eyebrow">What it adds</p>
+        <h2>Built for credible generative-agent experiments.</h2>
+        <div class="feature-grid">
+          <article class="feature observability"><h3>Full observability</h3><p>Inspect prompts, responses, memories, agent states, trajectories, latency, and token usage throughout a run.</p></article>
+          <article class="feature validation"><h3>Mobility validation</h3><p>Export trajectories and semantic visits for comparison with empirical datasets, mobility laws, motifs, OD matrices, and activity distributions.</p></article>
+          <article class="feature resilience"><h3>Resumable experiments</h3><p>Persist agent memory, messages, mobility state, and simulator state so interrupted experiments restart safely.</p></article>
+          <article class="feature scale"><h3>Regional workflows</h3><p>Combine CitySim-style behavioral modules, traffic simulation, scalable maps, and flexible DuckDB or ClickHouse storage.</p></article>
+        </div>
+      </section>
+
+      <section id="get-started" class="section get-started">
+        <div>
+          <p class="eyebrow">Get started</p>
+          <h2>Run your first experiment.</h2>
+          <p>En-AgentSociety requires Python 3.11 or newer. Start with the example configuration, then inspect the results in the web UI.</p>
+        </div>
+        <div class="terminal" aria-label="Installation commands">
+          <code><span>$</span> pip install en-agentsociety</code>
+          <code><span>$</span> en-agentsociety check -c config.yaml</code>
+          <code><span>$</span> en-agentsociety run -c config.yaml</code>
+          <code><span>$</span> en-agentsociety ui</code>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>En-AgentSociety · ACM SIGSPATIAL 2026 Demo</span>
+      <span><a href="https://github.com/gefgu/en-agentsociety">Source code</a> · <a href="https://en-agentsociety.readthedocs.io/en/latest/">Documentation</a> · <a href="En-AgentSociety.pdf">Paper</a></span>
+    </footer>
+  </body>
+</html>

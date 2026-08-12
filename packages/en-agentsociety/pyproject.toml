@@ -67,9 +67,9 @@ mobility = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/tsinghua-fib-lab/agentsociety"
-Repository = "https://github.com/tsinghua-fib-lab/en-agentsociety.git"
-Issues = "https://github.com/tsinghua-fib-lab/agentsociety/issues"
+Homepage = "https://gefgu.github.io/en-agentsociety/"
+Repository = "https://github.com/gefgu/en-agentsociety"
+Issues = "https://github.com/gefgu/en-agentsociety/issues"
 
 [project.scripts]
 en-agentsociety = "en_agentsociety.cli.cli:cli"
