@@ -6,6 +6,7 @@ on:
     paths:
       - site/**
       - frontend/public/logo.png
+      - static/diagram.png
       - En-AgentSociety.pdf
       - .github/workflows/deploy-pages.yml
   workflow_dispatch:
@@ -35,6 +36,7 @@ jobs:
           mkdir -p _site/assets
           cp -R site/. _site/
           cp frontend/public/logo.png _site/assets/
+          cp static/diagram.png _site/assets/
           cp En-AgentSociety.pdf _site/
           if grep -RPn --include='*.html' --include='*.css' '[\x{4e00}-\x{9fff}]' _site; then
             echo "GitHub Pages contains non-English Han characters."

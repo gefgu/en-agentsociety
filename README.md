@@ -9,20 +9,6 @@
 [![Online Documentation](https://img.shields.io/badge/docs-online-blue)](https://en-agentsociety.readthedocs.io/en/latest/) &ensp;
 [![Project Website](https://img.shields.io/badge/project%20website-online-0fb8a4)](https://gefgu.github.io/en-agentsociety/)
 
-## Citation
-
-If you use En-AgentSociety, please cite the ACM SIGSPATIAL 2026 demo paper.
-The [demo paper PDF](./En-AgentSociety.pdf) is included in this repository.
-
-```bibtex
-@inproceedings{santos2026enagentsociety,
-  title = {En-AgentSociety: Observable and Reproducible LLM-Based Urban Simulation at Regional Scale},
-  author = {Santos, Gustavo H. and Viana, Aline Carneiro and Silva, Thiago H.},
-  booktitle = {Proceedings of the 34th ACM SIGSPATIAL International Conference on Advances in Geographic Information Systems},
-  year = {2026},
-  note = {Demo paper}
-}
-```
 
 En-AgentSociety is an open-source urban simulation system for running,
 inspecting, resuming, and validating LLM-driven generative-agent experiments.
@@ -40,6 +26,14 @@ The project builds on the original
 [AgentSociety](https://github.com/tsinghua-fib-lab/agentsociety) framework, but
 centers its own extensions around observability, fault tolerance, empirical
 mobility validation, and scalable regional workflows.
+
+## From Agent State to Validation
+
+The diagram below shows how the simulation connects observable agent state,
+time-indexed events, behavioral blocks, and the resulting validation signals.
+It provides the conceptual map for reading the UI traces and comparison plots.
+
+![Agent state, timeline, and behavioral blocks](./static/diagram.png)
 
 ## What En-AgentSociety Adds
 
@@ -64,6 +58,25 @@ mobility validation, and scalable regional workflows.
   traffic-simulation integration, and scalable regional map-generation work.
 - **Interactive debugging UI**: exposes agent timelines, module-level execution,
   prompt-response traces, and mobility analytics through the web interface.
+
+## UI Validation Showcase
+
+The web UI turns simulation output into directly inspectable validation views.
+These examples compare generated mobility with reference data across profiles,
+distributions, travel-distance laws, visit purposes, motifs, and spatial
+temporal-volume differences.
+
+| Mobility profiles | Jump-length distribution |
+| --- | --- |
+| ![Mobility profile metrics](./static/sigspatial_boxplots.png) | ![Jump length ECDF](./static/sigspatial_ecdf.png) |
+
+| Travel-distance law | Visit purposes |
+| --- | --- |
+| ![Travel-distance mobility law](./static/sigspatial_mobility_law.png) | ![Visit purpose comparison](./static/sigspatial_purposes.png) |
+
+| Motif comparison | Spatial-temporal volume difference |
+| --- | --- |
+| ![Motif literature comparison](./static/sigspatial_motifs.png) | ![STVD comparison map](./static/stvd_picture.png) |
 
 ## Installation
 
@@ -114,6 +127,23 @@ and rumor spreading in [`examples/`](./examples).
 - Local docs source: [`docs/`](./docs)
 - Package source: [`packages/en-agentsociety/`](./packages/en-agentsociety)
 - End-to-end and unit tests: [`packages/en-agentsociety/tests/`](./packages/en-agentsociety/tests)
+
+
+## Citation
+
+If you use En-AgentSociety, please cite the ACM SIGSPATIAL 2026 demo paper.
+The [demo paper PDF](./En-AgentSociety.pdf) is included in this repository.
+
+```bibtex
+@inproceedings{santos2026enagentsociety,
+  title = {En-AgentSociety: Observable and Reproducible LLM-Based Urban Simulation at Regional Scale},
+  author = {Santos, Gustavo H. and Viana, Aline Carneiro and Silva, Thiago H.},
+  booktitle = {Proceedings of the 34th ACM SIGSPATIAL International Conference on Advances in Geographic Information Systems},
+  year = {2026},
+  note = {Demo paper}
+}
+```
+
 
 ## Relationship to AgentSociety
 
