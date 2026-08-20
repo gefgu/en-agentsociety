@@ -177,20 +177,20 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
             {/* <Card title="问卷基本信息" style={{ marginBottom: 16 }}>
                 <Row gutter={16}>
                     <Col span={12}>
-                        <Form.Item label="问卷标题">
+                        <Form.Item label="Survey title">
                             <Input
                                 value={surveyTitle}
                                 onChange={(e) => setSurveyTitle(e.target.value)}
-                                placeholder="请输入问卷标题"
+                                placeholder="Enter survey title"
                             />
                         </Form.Item>
                     </Col>
                     <Col span={12}>
-                        <Form.Item label="问卷描述">
+                        <Form.Item label="Survey description">
                             <Input
                                 value={surveyDescription}
                                 onChange={(e) => setSurveyDescription(e.target.value)}
-                                placeholder="请输入问卷描述"
+                                placeholder="Enter survey description"
                             />
                         </Form.Item>
                     </Col>
@@ -393,4 +393,4 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
     );
 };
 
-export default SurveyBuilder; 
+export default SurveyBuilder;

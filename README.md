@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./static/agentsociety_logo.png" alt="En-AgentSociety logo" width="180">
+  <img src="./frontend/public/logo.png" alt="En-AgentSociety logo" width="180">
   <h1>En-AgentSociety</h1>
   <p><strong>Observable and reproducible LLM-based urban simulation at regional scale</strong></p>
 </div>
@@ -8,6 +8,21 @@
 [![ACM SIGSPATIAL 2026 Demo](https://img.shields.io/badge/ACM%20SIGSPATIAL%202026-Demo-0fb8a4)](https://gefgu.github.io/en-agentsociety/) &ensp;
 [![Online Documentation](https://img.shields.io/badge/docs-online-blue)](https://en-agentsociety.readthedocs.io/en/latest/) &ensp;
 [![Project Website](https://img.shields.io/badge/project%20website-online-0fb8a4)](https://gefgu.github.io/en-agentsociety/)
+
+## Citation
+
+If you use En-AgentSociety, please cite the ACM SIGSPATIAL 2026 demo paper.
+The [demo paper PDF](./En-AgentSociety.pdf) is included in this repository.
+
+```bibtex
+@inproceedings{santos2026enagentsociety,
+  title = {En-AgentSociety: Observable and Reproducible LLM-Based Urban Simulation at Regional Scale},
+  author = {Santos, Gustavo H. and Viana, Aline Carneiro and Silva, Thiago H.},
+  booktitle = {Proceedings of the 34th ACM SIGSPATIAL International Conference on Advances in Geographic Information Systems},
+  year = {2026},
+  note = {Demo paper}
+}
+```
 
 En-AgentSociety is an open-source urban simulation system for running,
 inspecting, resuming, and validating LLM-driven generative-agent experiments.
@@ -116,21 +131,6 @@ Original AgentSociety paper:
   author = {Piao, Jinghua and Yan, Yuwei and Zhang, Jun and Li, Nian and Yan, Junbo and Lan, Xiaochong and Lu, Zhihong and Zheng, Zhiheng and Wang, Jing Yi and Zhou, Di and others},
   journal = {arXiv preprint arXiv:2502.08691},
   year = {2025}
-}
-```
-
-## Citation
-
-If you use En-AgentSociety, please cite the ACM SIGSPATIAL 2026 demo paper:
-The [demo paper PDF](./En-AgentSociety.pdf) is included in this repository.
-
-```bibtex
-@inproceedings{santos2026enagentsociety,
-  title = {En-AgentSociety: Observable and Reproducible LLM-Based Urban Simulation at Regional Scale},
-  author = {Santos, Gustavo H. and Viana, Aline Carneiro and Silva, Thiago H.},
-  booktitle = {Proceedings of the 34th ACM SIGSPATIAL International Conference on Advances in Geographic Information Systems},
-  year = {2026},
-  note = {Demo paper}
 }
 ```
 

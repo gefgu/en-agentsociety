@@ -4,33 +4,19 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 
 // Import translations
 import enCommon from './locales/en/common';
-import zhCommon from './locales/zh/common';
 import enLLM from './locales/en/llm';
-import zhLLM from './locales/zh/llm';
 import enHome from './locales/en/home';
-import zhHome from './locales/zh/home';
 import enSurvey from './locales/en/survey';
-import zhSurvey from './locales/zh/survey';
 import enConsole from './locales/en/console';
-import zhConsole from './locales/zh/console';
 import enReplay from './locales/en/replay';
-import zhReplay from './locales/zh/replay';
 import enBill from './locales/en/bill';
-import zhBill from './locales/zh/bill';
 import enAgent from './locales/en/agent';
-import zhAgent from './locales/zh/agent';
 import enMap from './locales/en/map';
-import zhMap from './locales/zh/map';
 import enWorkflow from './locales/en/workflow';
-import zhWorkflow from './locales/zh/workflow';
 import enTemplate from './locales/en/template';
-import zhTemplate from './locales/zh/template';
 import enProfile from './locales/en/profile';
-import zhProfile from './locales/zh/profile';
 import enExperiment from './locales/en/experiment';
-import zhExperiment from './locales/zh/experiment';
 import enCharts from './locales/en/charts';
-import zhCharts from './locales/zh/charts';
 
 // Combine translations
 const resources = {
@@ -51,24 +37,6 @@ const resources = {
             experiment: enExperiment,
             charts: enCharts,
         } 
-    },
-    zh: {
-        translation: {
-            ...zhCommon,
-            llm: zhLLM,
-            home: zhHome,
-            survey: zhSurvey,
-            console: zhConsole,
-            replay: zhReplay,
-            bill: zhBill,
-            agent: zhAgent,
-            map: zhMap,
-            workflow: zhWorkflow,
-            template: zhTemplate,
-            profile: zhProfile,
-            experiment: zhExperiment,
-            charts: zhCharts,
-        }
     }
 };
 
@@ -77,11 +45,17 @@ i18n
     .use(initReactI18next)
     .init({
         debug: true,
-        fallbackLng: 'zh',
+        // The en-agentsociety distribution is English-only.  Do not let a
+        // browser's locale or a missing key silently put Chinese text back
+        // into the UI.
+        lng: 'en',
+        fallbackLng: 'en',
+        supportedLngs: ['en'],
+        load: 'languageOnly',
         interpolation: {
             escapeValue: false,
         },
         resources
     });
 
-export default i18n; 
+export default i18n;

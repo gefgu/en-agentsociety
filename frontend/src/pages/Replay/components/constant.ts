@@ -18,13 +18,13 @@
 //     EDUCATION_COLLEGE = 7;
 // }
 export const PairEducation = [
-    [1, "博士"],
-    [2, "硕士"],
-    [3, "本科"],
-    [4, "高中"],
-    [5, "初中"],
-    [6, "小学"],
-    [7, "大专"],
+    [1, "PhD"],
+    [2, "Master's"],
+    [3, "Bachelor's"],
+    [4, "High School"],
+    [5, "Junior High"],
+    [6, "Primary School"],
+    [7, "Associate's"],
 ]
 export const MapEducation = new Map<number, string>(PairEducation as Iterable<readonly [number, string]>);
 export const MapEducationEn = new Map<number, string>([
@@ -47,8 +47,8 @@ export const MapEducationEn = new Map<number, string>([
 //     GENDER_FEMALE = 2;
 // }
 export const PairGender = [
-    [1, "男性"],
-    [2, "女性"],
+    [1, "Male"],
+    [2, "Female"],
 ]
 export const MapGender = new Map<number, string>(PairGender as Iterable<readonly [number, string]>);
 export const MapGenderEn = new Map<number, string>([
@@ -72,11 +72,11 @@ export const MapGenderEn = new Map<number, string>([
 //     CONSUMPTION_HIGH = 5;
 // }
 export const PairConsumption = [
-    [1, "低"],
-    [2, "较低"],
-    [3, "中等"],
-    [4, "较高"],
-    [5, "高"],
+    [1, "Low"],
+    [2, "Below Average"],
+    [3, "Average"],
+    [4, "Above Average"],
+    [5, "High"],
 ];
 export const MapConsumption = new Map<number, string>(PairConsumption as Iterable<readonly [number, string]>);
 export const MapConsumptionEn = new Map<number, string>([
@@ -88,13 +88,13 @@ export const MapConsumptionEn = new Map<number, string>([
 ]);
 
 export const PairLandUse = [
-    [0, '未指定'],
-    [5, '商服用地'],
-    [6, '工矿仓储用地'],
-    [7, '住宅用地'],
-    [8, '公共管理与公共服务用地'],
-    [10, '交通运输用地'],
-    [12, '其他土地'],
+    [0, 'Unknown'],
+    [5, 'Commercial and Service'],
+    [6, 'Industrial and Storage'],
+    [7, 'Residential'],
+    [8, 'Public Administration and Services'],
+    [10, 'Transportation'],
+    [12, 'Other'],
 ];
 export const MapLandUse = new Map<number, string>(PairLandUse as Iterable<readonly [number, string]>);
 export const MapLandUseEn = new Map<number, string>([
@@ -107,18 +107,18 @@ export const MapLandUseEn = new Map<number, string>([
     [12, 'Other'],
 ]);
 
-export const GetEducationName = (education: number, lang = 'zh') => {
-    return (lang === 'en' ? MapEducationEn : MapEducation).get(education) || (lang === 'en' ? 'Unknown' : '未知');
+export const GetEducationName = (education: number, _lang = 'en') => {
+    return MapEducationEn.get(education) || 'Unknown';
 }
 
-export const GetGenderName = (gender: number, lang = 'zh') => {
-    return (lang === 'en' ? MapGenderEn : MapGender).get(gender) || (lang === 'en' ? 'Unknown' : '未知');
+export const GetGenderName = (gender: number, _lang = 'en') => {
+    return MapGenderEn.get(gender) || 'Unknown';
 }
 
-export const GetConsumptionName = (consumption: number, lang = 'zh') => {
-    return (lang === 'en' ? MapConsumptionEn : MapConsumption).get(consumption) || (lang === 'en' ? 'Unknown' : '未知');
+export const GetConsumptionName = (consumption: number, _lang = 'en') => {
+    return MapConsumptionEn.get(consumption) || 'Unknown';
 }
 
-export const GetLandUseName = (landUse: number, lang = 'zh') => {
-    return (lang === 'en' ? MapLandUseEn : MapLandUse).get(landUse) || (lang === 'en' ? 'Unknown' : '未知');
+export const GetLandUseName = (landUse: number, _lang = 'en') => {
+    return MapLandUseEn.get(landUse) || 'Unknown';
 }

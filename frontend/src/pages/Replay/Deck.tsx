@@ -25,13 +25,13 @@ const AOI_COLOR_MAP = new Map<string, string>([
 ]);
 
 const LAND_USE_NAME_ZH = new Map<string, string>([
-    ['LAND_USE_TYPE_UNSPECIFIED', '未指定'],
-    ['LAND_USE_TYPE_COMMERCIAL', '商服用地'],
-    ['LAND_USE_TYPE_INDUSTRIAL', '工矿仓储用地'],
-    ['LAND_USE_TYPE_RESIDENTIAL', '住宅用地'],
-    ['LAND_USE_TYPE_PUBLIC', '公共管理与公共服务用地'],
-    ['LAND_USE_TYPE_TRANSPORTATION', '交通运输用地'],
-    ['LAND_USE_TYPE_OTHER', '其他土地'],
+    ['LAND_USE_TYPE_UNSPECIFIED', 'Unknown'],
+    ['LAND_USE_TYPE_COMMERCIAL', 'Commercial and Service'],
+    ['LAND_USE_TYPE_INDUSTRIAL', 'Industrial and Storage'],
+    ['LAND_USE_TYPE_RESIDENTIAL', 'Residential'],
+    ['LAND_USE_TYPE_PUBLIC', 'Public Administration and Services'],
+    ['LAND_USE_TYPE_TRANSPORTATION', 'Transportation'],
+    ['LAND_USE_TYPE_OTHER', 'Other'],
 ]);
 const LAND_USE_NAME_EN = new Map<string, string>([
     ['LAND_USE_TYPE_UNSPECIFIED', 'Unspecified'],

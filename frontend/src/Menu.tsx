@@ -6,14 +6,9 @@ import { WITH_AUTH } from "./components/fetch";
 import { useTheme } from "./context/ThemeContext";
 
 const RootMenu = ({ selectedKey }: { selectedKey: string }) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
-
-  const handleLanguageChange = () => {
-    const newLang = i18n.language === 'en' ? 'zh' : 'en';
-    i18n.changeLanguage(newLang);
-  };
 
   const isActive = (path: string) =>
     selectedKey === path || location.pathname.startsWith(path + '/') ? ' active' : '';
@@ -68,14 +63,6 @@ const RootMenu = ({ selectedKey }: { selectedKey: string }) => {
         title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
       >
         {theme === 'dark' ? '☀' : '☾'}
-      </button>
-
-      <button
-        className="site-nav-link"
-        onClick={handleLanguageChange}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}
-      >
-        {i18n.language === 'en' ? 'ZH' : 'EN'}
       </button>
 
       {WITH_AUTH && <Account />}
