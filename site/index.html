@@ -78,10 +78,12 @@
           <p>En-AgentSociety requires Python 3.11 or newer. Start with the example configuration, then inspect the results in the web UI.</p>
         </div>
         <div class="terminal" aria-label="Installation commands">
-          <code><span>$</span> pip install en-agentsociety</code>
+          <code><span>$</span> git clone https://github.com/gefgu/en-agentsociety.git</code>
+          <code><span>$</span> cd en-agentsociety</code>
+          <code><span>$</span> pip install -e packages/en-agentsociety</code>
           <code><span>$</span> en-agentsociety check -c config.yaml</code>
           <code><span>$</span> en-agentsociety run -c config.yaml</code>
-          <code><span>$</span> en-agentsociety ui</code>
+          <code><span>$</span> en-agentsociety ui -c config.yaml</code>
         </div>
       </section>
     </main>
