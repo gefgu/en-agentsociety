@@ -16,12 +16,10 @@ import CreateExperiment from './pages/Experiment/CreateExperiment'
 import ProfileList from './pages/AgentProfile'
 import AgentTemplate from './pages/AgentTemplate/AgentTemplateList'
 import Home from './pages/Home'
-import zhCN from 'antd/locale/zh_CN'
 import enUS from 'antd/locale/en_US'
 import Callback from './pages/Callback'
 import { AuthProvider, sdkConfig } from './components/Auth'
 import './i18n'
-import { useTranslation } from 'react-i18next'
 import Bill from './pages/Bill'
 import AgentTemplateForm from './pages/AgentTemplate/AgentTemplateForm'
 import { WITH_AUTH } from './components/fetch'
@@ -249,12 +247,12 @@ const lightTheme: ThemeConfig = {
 
 const AppShell = () => {
   const { theme } = useTheme();
-  const { i18n } = useTranslation();
-
   return (
     <ConfigProvider
       theme={theme === 'dark' ? darkTheme : lightTheme}
-      locale={i18n.language === 'en' ? enUS : zhCN}
+      // This distribution is English-only, including Ant Design's built-in
+      // empty-state and pagination labels.
+      locale={enUS}
     >
       <RouterProvider router={router} />
     </ConfigProvider>
