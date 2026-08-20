@@ -1,7 +1,7 @@
 """Build a mobility-metrics comparison payload from two trajectory sources.
 
 This re-implements (does NOT import) the orchestration of the sibling
-``citybehavex`` HTML report, but returns a JSON-serialisable payload of skmob-vis
+``citybehavex`` HTML report, but returns a JSON-serialisable payload of fastmob-vis
 ECharts options + metrics so the React frontend renders the charts natively.
 
 A "source" here is a normalised trajectory DataFrame with the columns:
@@ -142,9 +142,9 @@ def trajdf_from_upload(file_bytes: bytes, filename: str) -> pd.DataFrame:
 
 
 def _traj(df: pd.DataFrame):
-    import skmob2
+    import fastmob
 
-    return skmob2.TrajDataFrame(
+    return fastmob.TrajDataFrame(
         df,
         datetime_col="datetime",
         lat_col="lat",
@@ -158,7 +158,7 @@ def _traj(df: pd.DataFrame):
 # ---------------------------------------------------------------------------
 
 def _waiting_times_minutes(traj) -> list:
-    from skmob2 import waiting_times
+    from fastmob import waiting_times
 
     secs = waiting_times(
         traj.df,
@@ -171,38 +171,25 @@ def _waiting_times_minutes(traj) -> list:
     return [s / 60 for s in secs]
 
 
-def _trajectory_od_matrix(df: pd.DataFrame, *, resolution: int) -> pd.DataFrame:
-    import h3
-
-    points = df[["uid", "datetime", "lat", "lng"]].dropna().copy()
-    points = points.sort_values(["uid", "datetime"], kind="mergesort")
-    points["origin"] = [
-        h3.latlng_to_cell(lat, lng, resolution)
-        for lat, lng in zip(points["lat"], points["lng"])
-    ]
-    points["destination"] = points.groupby("uid")["origin"].shift(-1)
-    trips = points.dropna(subset=["destination"])
-    trips = trips[trips["origin"] != trips["destination"]]
-    if trips.empty:
-        return pd.DataFrame(dtype=float)
-    return (
-        trips.groupby(["origin", "destination"]).size().unstack(fill_value=0).astype(float)
-    )
-
-
 def _common_part_of_commuters(df_a: pd.DataFrame, df_b: pd.DataFrame) -> List[Tuple[int, float]]:
-    from skmob2 import od_matrix_common_part_of_commuters
+    from fastmob import FlowDataFrame, common_part_of_commuters, trajectory_to_od
 
     values: List[Tuple[int, float]] = []
     for resolution in CPC_H3_RESOLUTIONS:
-        od_a = _trajectory_od_matrix(df_a, resolution=resolution)
-        od_b = _trajectory_od_matrix(df_b, resolution=resolution)
-        values.append((resolution, float(od_matrix_common_part_of_commuters(od_a, od_b))))
+        od_a = trajectory_to_od(
+            df_a, resolution=resolution, uid_col="uid", datetime_col="datetime", lat_col="lat", lng_col="lng"
+        )
+        od_b = trajectory_to_od(
+            df_b, resolution=resolution, uid_col="uid", datetime_col="datetime", lat_col="lat", lng_col="lng"
+        )
+        flow_a = FlowDataFrame(od_a, flow="count")
+        flow_b = FlowDataFrame(od_b, flow="count")
+        values.append((resolution, float(common_part_of_commuters(flow_a, flow_b))))
     return values
 
 
 def _visits_for_comparison(df: pd.DataFrame, *, location_resolution: int = _H3_FALLBACK_RESOLUTION) -> pd.DataFrame:
-    """Build the visit table skmob2 activity/motif metrics expect."""
+    """Build the visit table fastmob activity/motif metrics expect."""
     import h3
 
     if "purpose" not in df.columns:
@@ -283,7 +270,7 @@ def _compute_stvd_layers(df_a: pd.DataFrame, df_b: pd.DataFrame, resolutions: Li
 
 
 def _motif_distribution_jsd(left: pd.DataFrame, right: pd.DataFrame) -> float:
-    from skmob2 import jensen_shannon_divergence
+    from fastmob import jensen_shannon_divergence
 
     left_counts = dict(zip(left["motif_id"], left["count"]))
     right_counts = dict(zip(right["motif_id"], right["count"]))
@@ -337,7 +324,7 @@ def _daily_location_lognormal_dataset(visits: pd.DataFrame, label: str):
 
 
 def _truncated_powerlaw_dataset(values, label: str):
-    from skmob2 import fit_values_to_truncated_powerlaw
+    from fastmob import fit_values_to_truncated_powerlaw
 
     filtered = np.asarray(list(values), dtype=float)
     filtered = filtered[np.isfinite(filtered) & (filtered > 0)]
@@ -348,25 +335,17 @@ def _truncated_powerlaw_dataset(values, label: str):
 
 
 def _distance_frequency_dataset(visits: pd.DataFrame, label: str):
-    from skmob2 import bin_visitation_law_data, compute_visitation_law_data, fit_visitation_law
+    from fastmob import fit_visitation_law
 
-    purpose_col = "purpose" if "purpose" in visits.columns else None
-    law_data = compute_visitation_law_data(
-        visits,
-        user_id_col="user_id",
-        location_id_col="location_id",
-        timestamp_col="timestamp",
-        purpose_col=purpose_col,
-        lat_col="lat",
-        lng_col="lng",
+    fit = fit_visitation_law(
+        visits, user_id_col="user_id", timestamp_col="timestamp", lat_col="lat", lng_col="lng"
     )
-    rf_points, rho_points, _ = bin_visitation_law_data(
-        law_data, user_id_col="user_id", location_id_col="location_id"
-    )
-    eta, mu, _ = fit_visitation_law(rf_points, rho_points)
-    if eta <= 0 or mu <= 0:
+    if fit.eta <= 0 or fit.mu <= 0:
         raise ValueError("distance-frequency fit parameters must be positive")
-    return rf_points, rho_points, eta, mu, label
+    spectrum = pd.DataFrame(fit.spectrum)
+    rf_points = spectrum["rf"].to_numpy()
+    rho_points = spectrum["rho"].to_numpy()
+    return rf_points, rho_points, fit.eta, fit.mu, label
 
 
 # ---------------------------------------------------------------------------
@@ -379,7 +358,7 @@ def _normalise_profile_label(value: Any) -> str:
 
 
 def _profile_visits(df: pd.DataFrame, *, location_resolution: int = _H3_FALLBACK_RESOLUTION) -> pd.DataFrame:
-    """Build a visit table suitable for skmob2 profile measures."""
+    """Build a visit table suitable for fastmob profile measures."""
     import h3
 
     visits = pd.DataFrame(
@@ -405,89 +384,23 @@ def _profile_visits(df: pd.DataFrame, *, location_resolution: int = _H3_FALLBACK
     return visits.sort_values(["uid", "start_timestamp"]).reset_index(drop=True)
 
 
-def _stationarity(visits: pd.DataFrame) -> pd.DataFrame:
-    """Compute per-user weekly-slot dominant-location occupancy share."""
-    rows: List[dict] = []
-    for row in visits[["uid", "location_id", "start_timestamp", "end_timestamp"]].itertuples(index=False):
-        start = pd.Timestamp(row.start_timestamp)
-        end = pd.Timestamp(row.end_timestamp)
-        if pd.isna(start):
-            continue
-        if pd.isna(end) or end < start:
-            end = start
-        slot_start = start.floor("5min")
-        slot_end = end.floor("5min")
-        timestamps = pd.date_range(slot_start, slot_end, freq="5min")
-        if len(timestamps) == 0:
-            timestamps = pd.DatetimeIndex([slot_start])
-        for timestamp in timestamps:
-            rows.append(
-                {
-                    "uid": row.uid,
-                    "weekly_slot": int(timestamp.dayofweek * 24 * 12 + timestamp.hour * 12 + timestamp.minute // 5),
-                    "location_id": row.location_id,
-                }
-            )
-
-    if not rows:
-        return pd.DataFrame({"uid": visits["uid"].drop_duplicates().to_numpy(), "stationarity": 0.0})
-
-    occupancy = pd.DataFrame(rows)
-    counts = occupancy.groupby(["uid", "weekly_slot", "location_id"]).size().rename("count").reset_index()
-    slot_totals = counts.groupby(["uid", "weekly_slot"])["count"].sum().rename("total").reset_index()
-    dominant = counts.groupby(["uid", "weekly_slot"])["count"].max().rename("dominant").reset_index()
-    shares = slot_totals.merge(dominant, on=["uid", "weekly_slot"])
-    shares["slot_share"] = shares["dominant"] / shares["total"]
-    result = shares.groupby("uid")["slot_share"].mean().rename("stationarity").reset_index()
-    users = pd.DataFrame({"uid": visits["uid"].drop_duplicates().to_numpy()})
-    return users.merge(result, on="uid", how="left").fillna({"stationarity": 0.0})
-
-
-def _merge_user_metric(base: pd.DataFrame, metric_df: Any, metric_col: str) -> pd.DataFrame:
-    metric_pd = pd.DataFrame(metric_df)
-    if "uid" not in metric_pd.columns or metric_col not in metric_pd.columns:
-        raise ValueError(f"{metric_col} measure did not return uid/{metric_col} columns")
-    return base.merge(metric_pd[["uid", metric_col]], on="uid", how="left")
-
-
 def _build_profile_data(df: pd.DataFrame) -> pd.DataFrame:
-    import skmob2
+    import fastmob
 
     visits = _profile_visits(df)
     profile_df = pd.DataFrame(
-        skmob2.exploration_profiling(
+        fastmob.compute_profiles(
             visits,
             user_id_col="uid",
             location_id_col="location_id",
-            datetime_col="start_timestamp",
+            start_col="start_timestamp",
+            end_col="end_timestamp",
         )
     )
     if "profile" not in profile_df.columns:
-        raise ValueError("exploration_profiling did not return a profile column")
+        raise ValueError("compute_profiles did not return a profile column")
     profile_df["agent_type"] = profile_df["profile"].map(_normalise_profile_label)
 
-    profile_df = _merge_user_metric(
-        profile_df,
-        skmob2.regularity(visits, user_id_col="uid", location_id_col="location_id", location_type_col=None),
-        "regularity",
-    )
-    profile_df = _merge_user_metric(
-        profile_df,
-        skmob2.diversity(visits, user_id_col="uid", location_id_col="location_id", location_type_col=None),
-        "diversity",
-    )
-    profile_df = _merge_user_metric(
-        profile_df,
-        skmob2.trajectory_entropy(
-            visits,
-            user_id_col="uid",
-            location_id_col="location_id",
-            location_type_col=None,
-            timestamp_col="start_timestamp",
-        ),
-        "entropy",
-    )
-    profile_df = profile_df.merge(_stationarity(visits), on="uid", how="left")
     for metric in _PROFILE_METRICS:
         profile_df[metric] = pd.to_numeric(profile_df[metric], errors="coerce")
     profile_df["stationarity"] = profile_df["stationarity"].clip(lower=0.0, upper=1.0)
@@ -503,7 +416,7 @@ class _LocalEChartsFigure:
 
 
 def _load_profile_plotters():
-    for module_name in ("skmob_vis", "skmob_vis.profiles"):
+    for module_name in ("fastmob_vis.profiles", "fastmob_vis"):
         try:
             module = importlib.import_module(module_name)
         except ImportError:
@@ -743,19 +656,24 @@ def _finite_values(values: Iterable[Any]) -> np.ndarray:
 
 
 def _profile_jsd(values_a: Iterable[Any], values_b: Iterable[Any]) -> float:
-    from skmob2 import histogram_jensen_shannon_divergence
+    from fastmob import jensen_shannon_divergence
 
     a = _finite_values(values_a)
     b = _finite_values(values_b)
     if a.size == 0 or b.size == 0:
         return float("nan")
-    value_range = float(max(a.max(), b.max()) - min(a.min(), b.min()))
-    bin_size = value_range / 20.0 if value_range > 0 else 0.05
-    return float(histogram_jensen_shannon_divergence(a, b, bin_size=max(bin_size, 1e-6)))
+    lo = float(min(a.min(), b.min()))
+    hi = float(max(a.max(), b.max()))
+    if hi <= lo:
+        hi = lo + 1e-6
+    bin_edges = np.linspace(lo, hi, 21)
+    counts_a, _ = np.histogram(a, bins=bin_edges)
+    counts_b, _ = np.histogram(b, bins=bin_edges)
+    return float(jensen_shannon_divergence(counts_a.astype(float), counts_b.astype(float)))
 
 
 def _profile_mix_jsd(profiles_a: pd.DataFrame, profiles_b: pd.DataFrame) -> float:
-    from skmob2 import jensen_shannon_divergence
+    from fastmob import jensen_shannon_divergence
 
     counts_a = profiles_a["agent_type"].value_counts()
     counts_b = profiles_b["agent_type"].value_counts()
@@ -779,7 +697,7 @@ def _add_profile_comparison_section(
     jensen_shannon: List[dict],
 ) -> None:
     try:
-        from skmob2 import profile_metric_wasserstein_distance
+        from fastmob import wasserstein_distance
 
         plot_mobility_profiles, plot_profile_metrics = _load_profile_plotters()
 
@@ -789,7 +707,9 @@ def _add_profile_comparison_section(
         for metric_col in _PROFILE_METRICS:
             name = metric_col.replace("_", " ").title()
             try:
-                value = profile_metric_wasserstein_distance(profiles_a, profiles_b, metric_col)
+                value = wasserstein_distance(
+                    _finite_values(profiles_a[metric_col]), _finite_values(profiles_b[metric_col])
+                )
                 wasserstein.append({"name": f"Profile {name}", "value": round(float(value), 4), "unit": ""})
             except Exception as exc:  # noqa: BLE001
                 warnings.append(f"metric profile {metric_col} W1: {exc}")
@@ -852,7 +772,7 @@ def build_single_payload(
         except Exception as exc:  # noqa: BLE001
             warnings.append(f"chart {key}: {exc}")
 
-    from skmob_vis import (
+    from fastmob_vis.mobility_laws import (
         plot_distance_frequency_law,
         plot_lognormal_fits,
         plot_truncated_powerlaw_fits,
@@ -894,7 +814,7 @@ def build_single_payload(
 
     if "purpose" in df.columns:
         try:
-            from skmob_vis import plot_visit_purpose_comparison
+            from fastmob_vis.activity import plot_visit_purpose_comparison
 
             visits_cmp = _visits_for_comparison(df)
             add_chart("purpose", "visit_purpose_comparison",
@@ -923,7 +843,7 @@ def build_comparison_payload(
     label_a: str = "A",
     label_b: str = "B",
 ) -> Dict[str, Any]:
-    """Compute metrics + skmob-vis chart options comparing two trajectory sources."""
+    """Compute metrics + fastmob-vis chart options comparing two trajectory sources."""
     df_a = _normalise(df_a)
     df_b = _normalise(df_b)
     traj_a = _traj(df_a)
@@ -958,8 +878,8 @@ def build_comparison_payload(
             warnings.append(f"chart {key}: {exc}")
 
     # --- distribution metrics + ECDF charts ---
-    from skmob2 import visits_per_user_wasserstein_distance, wasserstein_distance
-    from skmob_vis import (
+    from fastmob import wasserstein_distance
+    from fastmob_vis.ecdf import (
         plot_dwell_time_ecdf,
         plot_jump_lengths_ecdf,
         plot_radius_of_gyration_ecdf,
@@ -983,13 +903,7 @@ def build_comparison_payload(
         dwell_b = _waiting_times_minutes(traj_b)
 
     metric("Jump lengths", "km", lambda: wasserstein_distance(jumps_a, jumps_b))
-    metric(
-        "Visits per user", "visits",
-        lambda: visits_per_user_wasserstein_distance(
-            traj_a.df, traj_b.df,
-            user_id_col1=traj_a.uid_col, user_id_col2=traj_b.uid_col,
-        )[0],
-    )
+    metric("Visits per user", "visits", lambda: wasserstein_distance(visits_a, visits_b))
     metric("Radius of gyration", "km", lambda: wasserstein_distance(rog_a, rog_b))
     metric("Dwell time", "min", lambda: wasserstein_distance(dwell_a, dwell_b))
 
@@ -1006,7 +920,7 @@ def build_comparison_payload(
         warnings.append(f"cpc: {exc}")
 
     # --- mobility laws ---
-    from skmob_vis import (
+    from fastmob_vis.mobility_laws import (
         plot_distance_frequency_law,
         plot_lognormal_fits,
         plot_truncated_powerlaw_fits,
@@ -1081,7 +995,7 @@ def build_comparison_payload(
 
     # --- STVD map ---
     try:
-        from skmob_vis import plot_stvd_comparison
+        from fastmob_vis.stvd import plot_stvd_comparison
 
         layers = _compute_stvd_layers(df_a, df_b, STVD_RESOLUTIONS)
         fig = plot_stvd_comparison(layers, title=f"{label_a} vs {label_b}")
@@ -1111,21 +1025,46 @@ def build_comparison_payload(
     }
 
 
-def _activity_section(visits_a, visits_b, labels, charts, warnings, jensen_shannon):
-    from skmob2 import (
-        activity_distribution_jensen_shannon_divergence,
-        activity_transition_matrix,
-        activity_transition_matrix_jensen_shannon_divergence,
-        daily_activity_distribution,
-        discover_daily_motifs_from_agents,
-        time_bin_matrix_jensen_shannon_divergence,
+def _aligned_jsd(a: dict, b: dict) -> float:
+    """JSD between two label->count mappings, aligned over the union of labels."""
+    from fastmob import jensen_shannon_divergence
+
+    labels = sorted(set(a) | set(b), key=str)
+    return float(
+        jensen_shannon_divergence(
+            [float(a.get(label, 0)) for label in labels],
+            [float(b.get(label, 0)) for label in labels],
+        )
     )
-    from skmob_vis import (
+
+
+def _flatten_transition_matrix(matrix: pd.DataFrame) -> dict:
+    m = pd.DataFrame(matrix).set_index("activity")
+    return {(src, dst): float(m.loc[src, dst]) for src in m.index for dst in m.columns}
+
+
+def _flatten_daily_matrix(matrix: np.ndarray, categories: List[Any]) -> dict:
+    return {
+        (category, bin_index): float(matrix[row, bin_index])
+        for row, category in enumerate(categories)
+        for bin_index in range(matrix.shape[1])
+    }
+
+
+def _activity_section(visits_a, visits_b, labels, charts, warnings, jensen_shannon):
+    from fastmob import (
+        activity_transition_matrix,
+        daily_activity_distribution,
+        daily_motifs,
+        motif_distribution,
+        visit_purpose_distribution,
+    )
+    from fastmob_vis.activity import (
         plot_activity_transition_difference,
         plot_daily_activity_difference,
-        plot_motif_literature_comparison,
         plot_visit_purpose_comparison,
     )
+    from fastmob_vis.motifs import plot_motif_literature_comparison
 
     label_a, label_b = labels
 
@@ -1135,21 +1074,26 @@ def _activity_section(visits_a, visits_b, labels, charts, warnings, jensen_shann
         except Exception as exc:  # noqa: BLE001
             warnings.append(f"metric {name}: {exc}")
 
-    jsd(
-        "Activity distribution",
-        lambda: activity_distribution_jensen_shannon_divergence(visits_a, visits_b),
-    )
-    jsd(
-        "Activity transitions",
-        lambda: activity_transition_matrix_jensen_shannon_divergence(
-            activity_transition_matrix(visits_a), activity_transition_matrix(visits_b)
-        ),
-    )
+    def purpose_jsd():
+        dist_a = visit_purpose_distribution(visits_a, activity_col="purpose")
+        dist_b = visit_purpose_distribution(visits_b, activity_col="purpose")
+        counts_a = dict(zip(dist_a["activity"], dist_a["count"]))
+        counts_b = dict(zip(dist_b["activity"], dist_b["count"]))
+        return _aligned_jsd(counts_a, counts_b)
+
+    jsd("Activity distribution", purpose_jsd)
+
+    def transition_jsd():
+        matrix_a = activity_transition_matrix(visits_a)
+        matrix_b = activity_transition_matrix(visits_b)
+        return _aligned_jsd(_flatten_transition_matrix(matrix_a), _flatten_transition_matrix(matrix_b))
+
+    jsd("Activity transitions", transition_jsd)
 
     def daily_jsd():
         a_daily, a_cats, _ = daily_activity_distribution(visits_a)
         b_daily, b_cats, _ = daily_activity_distribution(visits_b)
-        return time_bin_matrix_jensen_shannon_divergence(a_daily, b_daily, a_cats, b_cats)
+        return _aligned_jsd(_flatten_daily_matrix(a_daily, a_cats), _flatten_daily_matrix(b_daily, b_cats))
 
     jsd("Daily activity profile", daily_jsd)
 
@@ -1177,18 +1121,20 @@ def _activity_section(visits_a, visits_b, labels, charts, warnings, jensen_shann
 
     # motifs
     try:
-        _, dist_a = discover_daily_motifs_from_agents(
+        daily_a = daily_motifs(
             _motif_visits(visits_a),
-            user_id_col="uid", location_id_col="location_id",
-            purpose_col="purpose", timestamp_col="start_timestamp",
-            end_timestamp_col="end_timestamp",
+            uid_col="uid", location_col="location_id",
+            purpose_col="purpose", datetime_col="start_timestamp",
+            end_datetime_col="end_timestamp",
         )
-        _, dist_b = discover_daily_motifs_from_agents(
+        daily_b = daily_motifs(
             _motif_visits(visits_b),
-            user_id_col="uid", location_id_col="location_id",
-            purpose_col="purpose", timestamp_col="start_timestamp",
-            end_timestamp_col="end_timestamp",
+            uid_col="uid", location_col="location_id",
+            purpose_col="purpose", datetime_col="start_timestamp",
+            end_datetime_col="end_timestamp",
         )
+        dist_a = motif_distribution(daily_a)
+        dist_b = motif_distribution(daily_b)
         jsd("Daily motifs", lambda: _motif_distribution_jsd(dist_a, dist_b))
         charts["motif"] = _chart(
             plot_motif_literature_comparison(

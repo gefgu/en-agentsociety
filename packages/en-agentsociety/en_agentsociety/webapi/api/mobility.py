@@ -2,7 +2,7 @@
 
 Compares up to two trajectory sources — each a selected simulation (read from
 ClickHouse or a DuckDB file) or an uploaded trajectory file — and returns
-skmob-vis ECharts option JSON + metrics for native rendering in the frontend.
+fastmob-vis ECharts option JSON + metrics for native rendering in the frontend.
 """
 
 import os

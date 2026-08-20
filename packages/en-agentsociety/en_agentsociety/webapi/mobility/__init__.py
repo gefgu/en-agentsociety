@@ -1,7 +1,7 @@
-"""Mobility-metrics comparison report (skmob-vis powered).
+"""Mobility-metrics comparison report (fastmob-vis powered).
 
 Computes the same metric/figure set as the sibling ``citybehavex`` report but
-returns ECharts option JSON (via skmob-vis ``EChartsFigure.to_dict()``) so the
+returns ECharts option JSON (via fastmob-vis ``EChartsFigure.to_dict()``) so the
 React frontend can render the charts natively.
 """
 

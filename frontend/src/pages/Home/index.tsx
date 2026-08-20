@@ -33,7 +33,7 @@ const HomePage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch('https://api.github.com/repos/tsinghua-fib-lab/agentsociety')
+    fetch('https://api.github.com/repos/gefgu/en-agentsociety')
       .then(res => res.json())
       .then(data => setStars(data.stargazers_count))
       .catch(() => setStars(0));
@@ -74,7 +74,7 @@ const HomePage = () => {
               {t('home.getStarted')}
             </Button>
             <a
-              href="https://github.com/tsinghua-fib-lab/agentsociety"
+              href="https://github.com/gefgu/en-agentsociety"
               target="_blank"
               rel="noopener noreferrer"
               className="home-github-link"

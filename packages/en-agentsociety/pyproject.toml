@@ -32,7 +32,12 @@ dependencies = [
     "geojson>=3.1.0",
     "grpcio>=1.71.0,<2.0.0",
     "kubernetes-asyncio>=32.3.0",
-    "numpy>=1.20.0,<2.0.0",
+    # Relaxed from "numpy>=1.20.0,<2.0.0" to allow the numpy 2.x that fastmob/fastmob-vis
+    # (mobility extra, local packages) resolve to; the old cap predates that dependency and
+    # its original rationale isn't recorded anywhere in this repo's history. If simulations
+    # start misbehaving (Ray actor serialization, pandas/pyarrow interop, etc.) after this
+    # change, re-pinning to <2.0.0 here is the first thing to try.
+    "numpy>=1.23",
     "openai>=1.58.1",
     "opentelemetry-exporter-otlp-proto-grpc>=1.27.0",
     "opentelemetry-sdk>=1.27.0",
@@ -56,9 +61,17 @@ dependencies = [
 duckdb = [
     "duckdb>=1.1.0",
 ]
+# ClickHouse telemetry backend (webapi/clickhouse.py, webapi/analytics_db.py,
+# database/clickhouse.py). Optional in prod: without it, ClickHouse reads/writes
+# are skipped and the app falls back to DuckDB/SQLite. Pair with the
+# performance/docker-compose.yml stack (Prometheus/Grafana/ClickHouse/Loki) to
+# actually have a ClickHouse instance to talk to.
+clickhouse = [
+    "clickhouse-connect",
+]
 # Mobility-metrics comparison report served by webapi/mobility. The chart/metric
-# engines skmob2 and skmob-vis are local (maturin) packages and must be installed
-# from source, e.g. `uv pip install /path/to/skmob2 /path/to/skmob-vis`.
+# engines fastmob and fastmob-vis are local (maturin) packages and must be installed
+# from source, e.g. `uv pip install /path/to/fastmob /path/to/fastmob-vis`.
 mobility = [
     "pandas",
     "joblib",

@@ -47,7 +47,7 @@ const RootMenu = ({ selectedKey }: { selectedKey: string }) => {
 
       {/* Right side */}
       <a
-        href="https://github.com/tsinghua-fib-lab/agentsociety/"
+        href="https://github.com/gefgu/en-agentsociety/"
         target="_blank"
         rel="noopener noreferrer"
         className="site-nav-link site-nav-pill"
