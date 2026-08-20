@@ -29,9 +29,14 @@ mobility validation, and scalable regional workflows.
 
 ## From Agent State to Validation
 
-The diagram below shows how the simulation connects observable agent state,
-time-indexed events, behavioral blocks, and the resulting validation signals.
-It provides the conceptual map for reading the UI traces and comparison plots.
+With its observability stack, the diagram below shows the main modules and
+information flows for a simulated daily mobility routine. Several lower-level
+components are consolidated into eight high-level modules on the right. The
+central timestamped workflow follows an agent's decision-making at each
+10-minute simulation step, with timestamps color-coded by location, such as
+home or work. In the web UI, users can click any workflow icon to inspect the
+prompt-response pair for the selected timestamp and debug the corresponding
+LLM interaction.
 
 ![Agent state, timeline, and behavioral blocks](./static/diagram.png)
 
