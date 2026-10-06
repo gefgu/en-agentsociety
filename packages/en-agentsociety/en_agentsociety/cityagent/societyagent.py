@@ -474,7 +474,12 @@ You can add more blocks to the citizen as you wish to adapt to the different sce
             return True
         current_step = steps[step_index]
         time_now = self.environment.get_tick()
-        step_start_time = current_step["start_time"]
+        # A checkpoint can capture a freshly generated plan before
+        # step_execution() assigns start_time. Treat that step as not yet
+        # started and let the normal execution path initialize it.
+        step_start_time = current_step.get("start_time")
+        if step_start_time is None:
+            return True
         step_consumed_time = current_step["evaluation"]["consumed_time"]
         try:
             time_end_plan = step_start_time + int(step_consumed_time) * 60

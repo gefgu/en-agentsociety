@@ -213,8 +213,11 @@ class LLM:
             test_dialog,
             temperature=0.1,
             max_tokens=10,
-            timeout=30,
-            retries=1,
+            # Use the provider's configured timeout for the health probe.
+            # A fixed 30-second probe incorrectly marks slow/queued servers
+            # unhealthy even when normal requests are allowed more time.
+            timeout=self.configs[client_i].timeout,
+            retries=3,
             client_index=client_i,
         )
         return success, str(result)
