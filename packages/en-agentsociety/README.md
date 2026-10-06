@@ -126,6 +126,7 @@ Original AgentSociety paper:
 ## Citation
 
 If you use En-AgentSociety, please cite the ACM SIGSPATIAL 2026 demo paper:
+The [demo paper](https://inria.hal.science/hal-05745561) is available on HAL.
 
 ```bibtex
 @inproceedings{santos2026enagentsociety,
@@ -136,8 +137,6 @@ If you use En-AgentSociety, please cite the ACM SIGSPATIAL 2026 demo paper:
   note = {Demo paper}
 }
 ```
-
-The [demo paper PDF](../../En-AgentSociety.pdf) is included in this repository.
 
 ## License
 
